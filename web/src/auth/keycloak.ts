@@ -47,10 +47,16 @@ let initPromise: Promise<boolean> | null = null
 export function initKeycloak(): Promise<boolean> {
   if (initPromise) return initPromise
   initPromise = keycloak.init({
-    onLoad: 'check-sso',
+    // 'login-required' redirects directly to Keycloak if no active session.
+    // We previously used 'check-sso' + silentCheckSsoRedirectUri but the
+    // hidden iframe sends the auth request without PKCE parameters, which
+    // Keycloak 25 rejects with invalid_request when the client enforces
+    // pkceCodeChallengeMethod=S256. keycloak-js 25 does not handle that
+    // error gracefully so init() never resolved and the SPA stayed on the
+    // loading screen forever.
+    onLoad: 'login-required',
     pkceMethod: 'S256',
     checkLoginIframe: false,
-    silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
   })
   return initPromise
 }
