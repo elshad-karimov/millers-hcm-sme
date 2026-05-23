@@ -1,0 +1,194 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hcm-postgres
+    environment:
+      POSTGRES_DB: hcm
+      POSTGRES_USER: hcm
+      POSTGRES_PASSWORD: hcm
+    ports:
+      - "5433:5432"
+    volumes:
+      - hcm-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hcm -d hcm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: hcm-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - hcm-miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: hcm-mailhog
+    # SMTP on 1025 (Spring Mail target), web UI on 8025 for browsing captured mail.
+    # Production swap: drop this service and point spring.mail.host at a real
+    # SMTP provider (SendGrid / SES / Mailgun / Office365) via env override.
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8025/api/v2/messages"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  keycloak-pg:
+    image: postgres:16-alpine
+    container_name: hcm-keycloak-pg
+    # Dedicated Postgres for Keycloak's auth state (PRD 14.6 hardening).
+    # Kept separate from `hcm-postgres` so the IdP and the HCM data plane
+    # have independent backup / retention / scaling decisions.
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    ports:
+      # 5434 to avoid conflicting with hcm-postgres on 5433.
+      - "5434:5432"
+    volumes:
+      - hcm-keycloak-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: hcm-keycloak
+    # Production `start` mode (was `start-dev` until milestone 23).
+    # Image auto-runs the build phase when KC_DB / KC_HOSTNAME etc. change.
+    command:
+      - start
+      - --import-realm
+      - --http-port=8090
+      # Theme cache disabled in dev so iterating on the Millers theme
+      # (./keycloak/themes/millers) doesn't require a container restart
+      # for every CSS tweak. Production should drop these flags so the
+      # default in-memory cache kicks in.
+      - --spi-theme-static-max-age=-1
+      - --spi-theme-cache-themes=false
+      - --spi-theme-cache-templates=false
+    depends_on:
+      keycloak-pg:
+        condition: service_healthy
+    environment:
+      # Bootstrap admin in the master realm.
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      # --- Persistence ---
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://hcm-keycloak-pg:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      # --- Hostname / HTTP ---
+      # Keycloak advertises itself at the SPA's origin so the login
+      # form's action attribute, redirect URIs, and the token's `iss`
+      # claim all point at http://localhost:5180. Vite's dev-server
+      # proxy (web/vite.config.ts) forwards /realms, /resources, /js
+      # from there to https://localhost:8443 (nginx → Keycloak),
+      # bypassing the self-signed-cert handshake that Firefox refuses
+      # to do without manual user intervention.
+      #
+      # Browser-to-Keycloak path  : http://localhost:5180 → Vite → nginx (8443) → Keycloak
+      # Backend-to-Keycloak path  : http://localhost:5180 → Vite → nginx (8443) → Keycloak  (JWKS only)
+      # Internal nginx → Keycloak : http://hcm-keycloak:8090
+      #
+      # Production swap: set KC_HOSTNAME_URL to the real public URL
+      # (e.g. https://auth.example.com) with a CA-signed cert + drop
+      # the Vite proxy entries — same architecture as M33 originally
+      # intended, just with a real cert instead of self-signed.
+      KC_HOSTNAME_URL: http://localhost:5180
+      KC_HOSTNAME_ADMIN_URL: http://localhost:5180
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_PROXY_HEADERS: xforwarded
+      # --- Realm sslRequired substitution ---
+      # Plain-HTTP browser traffic (via Vite) means sslRequired=external
+      # would refuse every login attempt with "HTTPS required" because
+      # Keycloak only treats the loopback address as exempt. Drop to
+      # `none` for dev; production flips back to `external` once a real
+      # cert + KC_HOSTNAME_URL=https://… are in place.
+      KC_REALM_SSL_REQUIRED: none
+      # Health endpoints — production mode exposes /health, /metrics on the
+      # management interface (port 9000) only when explicitly enabled.
+      KC_HEALTH_ENABLED: "true"
+    # Port 8090 is exposed to the host so the HCM backend (KeycloakAdminService)
+    # can call the Admin REST API directly via HTTP without needing to go through
+    # the nginx TLS terminator.  Direct loopback access (127.0.0.1:8090) bypasses
+    # Keycloak's sslRequired:external check for the master realm.
+    # nginx still serves browser traffic on :8443 → http://hcm-keycloak:8090.
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./keycloak/realm-millers-hcm.json:/opt/keycloak/data/import/realm-millers-hcm.json:ro
+      # Custom login theme — Keycloak picks up any subdirectory of
+      # /opt/keycloak/themes/ as a selectable theme. The realm's
+      # loginTheme setting names "millers" (set via kcadm after first
+      # import). Re-mounted read-only so accidental edits inside the
+      # container don't drift from the source-of-truth on disk.
+      - ./keycloak/themes:/opt/keycloak/themes:ro
+    healthcheck:
+      # `start` exposes /health on the same HTTP port when KC_HEALTH_ENABLED.
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/8090 && printf 'GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q '200 OK'"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: hcm-nginx
+    # TLS terminator in front of Keycloak (PRD 14.6 — milestone 28).
+    # Browser hits https://localhost:8443 → nginx → http://hcm-keycloak:8090.
+    # The backend on the host keeps using http://localhost:8090 directly,
+    # which is why Keycloak's HTTP port is still exposed alongside this.
+    # Production guidance (in README): retire the :8090 host exposure,
+    # flip KC_REALM_SSL_REQUIRED=external, replace the self-signed cert.
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "8443:443"
+      - "8444:80"   # plain-HTTP → HTTPS redirect entry point
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs/localhost.crt:/etc/nginx/certs/localhost.crt:ro
+      - ./nginx/certs/localhost.key:/etc/nginx/certs/localhost.key:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate",
+             "https://localhost/realms/millers-hcm/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  hcm-pgdata:
+  hcm-miniodata:
+  # Retained for backward-compat references to the old volume name.
+  # Production `start` mode (milestone 23) stores all auth state in
+  # hcm-keycloak-pg; nothing meaningful lives under /opt/keycloak/data anymore.
+  hcm-keycloakdata:
+  hcm-keycloak-pgdata:
+  # MailHog stores captured mail in /maildir but the default image keeps
+  # it ephemeral in-memory; restart wipes the inbox — desired for dev.

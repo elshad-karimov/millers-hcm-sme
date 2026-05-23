@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#5B3FE5" />
+    <link rel="icon" type="image/png" href="/brand/millers-mark-192.png" />
+    <link rel="apple-touch-icon" href="/brand/millers-mark-192.png" />
+    <title>Millers HCM</title>
+  </head>
+  <body>
+    <!--
+      Pre-React splash. If the React tree fails to mount (Keycloak cert
+      error, JS exception, module load failure, …) the user otherwise
+      sees a blank page. This div stays visible until main.tsx
+      successfully renders into #root — at which point the React tree
+      naturally replaces #root's contents below.
+    -->
+    <div id="boot-splash"
+         style="position:fixed;inset:0;display:flex;flex-direction:column;
+                align-items:center;justify-content:center;
+                font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+                color:#5B3FE5;background:#fff;z-index:0;padding:24px;
+                text-align:center;">
+      <div style="font-size:48px;line-height:1;margin-bottom:16px;">⏳</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:8px;">
+        Loading Millers HCM…
+      </div>
+      <div style="font-size:14px;color:#555;max-width:480px;">
+        If this message stays on screen for more than a few seconds, the SPA
+        couldn&rsquo;t reach Keycloak at
+        <code style="background:#f5f5f5;padding:2px 4px;border-radius:3px;">
+          https://localhost:8443</code>.<br>
+        Open <a href="https://localhost:8443/realms/millers-hcm/.well-known/openid-configuration"
+               target="_blank" rel="noopener">this link</a>,
+        accept the self-signed cert, then reload this page.
+      </div>
+      <div id="boot-error"
+           style="margin-top:20px;color:#cf1322;font-size:13px;max-width:680px;
+                  white-space:pre-wrap;text-align:left;display:none;
+                  background:#fff1f0;border:1px solid #ffa39e;border-radius:4px;
+                  padding:12px;font-family:monospace;"></div>
+    </div>
+    <div id="root" style="position:relative;z-index:1;"></div>
+    <script type="module">
+      // Surface any unhandled error from the React bootstrap so the user
+      // doesn't stare at a blank page.
+      const errBox = document.getElementById('boot-error');
+      function show(prefix, e) {
+        if (!errBox) return;
+        errBox.style.display = 'block';
+        errBox.textContent += (errBox.textContent ? '\n\n' : '')
+          + prefix + ': ' + (e && (e.stack || e.message || e.toString()) || e);
+      }
+      window.addEventListener('error', (ev) => show('Error', ev.error || ev.message));
+      window.addEventListener('unhandledrejection',
+        (ev) => show('Promise rejection', ev.reason));
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

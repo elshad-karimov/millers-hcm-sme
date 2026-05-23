@@ -1,0 +1,141 @@
+spring:
+  application:
+    name: hcm-platform
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Validates incoming bearer tokens against the Keycloak realm.
+          # The realm's RSA public key is fetched once at startup from
+          # the JWKS endpoint advertised by /.well-known/openid-configuration.
+          #
+          # Issuer matches Keycloak's KC_HOSTNAME_URL (docker-compose).
+          # In dev that's http://localhost:5180 — the SPA origin — so
+          # the browser-issued `iss` claim matches what the backend
+          # validates against. Keycloak resolves through Vite's dev
+          # proxy (web/vite.config.ts), so JWKS fetching from this URL
+          # actually lands on https://localhost:8443 via Vite with
+          # secure:false. The KeycloakJwtConfig truststore is no
+          # longer needed for the HTTP path; leave the property set so
+          # a production swap to https:// just works.
+          # Production: set HCM_OIDC_ISSUER to the public Keycloak URL.
+          issuer-uri: ${HCM_OIDC_ISSUER:http://localhost:5180/realms/millers-hcm}
+  datasource:
+    url: jdbc:postgresql://localhost:5433/hcm
+    username: hcm
+    password: hcm
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: core_hr
+        format_sql: true
+  flyway:
+    enabled: true
+    schemas:
+      - core_hr
+      - audit
+      - organization
+      - staffing
+      - workflow
+      - attendance
+      - leave_mgmt
+      - business_trip
+      - permission
+      - timesheet
+      - payroll
+      - recruitment
+      - lifecycle
+      - performance
+      - learning
+      - comp_benefits
+      - reporting
+    default-schema: core_hr
+    create-schemas: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  mail:
+    # MailHog by default (dev). Production swap: point at the real SMTP relay
+    # via HCM_MAIL_HOST / HCM_MAIL_PORT / HCM_MAIL_USERNAME / HCM_MAIL_PASSWORD.
+    host: ${HCM_MAIL_HOST:localhost}
+    port: ${HCM_MAIL_PORT:1025}
+    username: ${HCM_MAIL_USERNAME:}
+    password: ${HCM_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${HCM_MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${HCM_MAIL_SMTP_STARTTLS:false}
+          # Fail fast in dev — don't hang for 30 s when MailHog is down.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+server:
+  port: 8082
+
+hcm:
+  keycloak:
+    admin:
+      # Keycloak Admin REST API access (used by UserManagementController only).
+      # The admin-cli client on the master realm is used for password-grant;
+      # no confidential client secret is needed in the default Keycloak setup.
+      # Dev: port 8090 is bound to 127.0.0.1 in docker-compose so the backend
+      # can call the Admin REST API directly via HTTP.  Loopback access bypasses
+      # Keycloak's sslRequired:external check on the master realm.
+      # Production: set HCM_KEYCLOAK_ADMIN_URL to the internal service URL.
+      server-url: ${HCM_KEYCLOAK_ADMIN_URL:http://localhost:8090}
+      realm: millers-hcm
+      master-realm: master
+      admin-client-id: admin-cli
+      username: ${HCM_KEYCLOAK_ADMIN_USERNAME:admin}
+      password: ${HCM_KEYCLOAK_ADMIN_PASSWORD:admin}
+  security:
+    encryption:
+      # Base64-encoded 32-byte (256-bit) AES key for column-level PII encryption.
+      # Demo key — generate a fresh one for production and inject via env.
+      data-key: ${HCM_SECURITY_DATA_KEY:nIayl2HEqr7zVQp/JbXcKtoyT2QwxN4ueivOJqOjT94=}
+    keycloak:
+      # PKCS12 truststore containing the cert that signs Keycloak's TLS
+      # endpoint. Used by KeycloakJwtConfig to build a custom JwtDecoder
+      # whose JWKS fetches trust our self-signed dev cert without
+      # shadowing the rest of the JDK trust (milestone 33). Leave the
+      # path blank to fall back to the JDK default cacerts — appropriate
+      # in production where the cert is signed by a real CA.
+      #
+      # Dev now defaults to empty: backend talks plain HTTP to Vite at
+      # http://localhost:5180 which proxies to the nginx HTTPS leg.
+      # Set HCM_KEYCLOAK_TRUSTSTORE explicitly if you want to bypass the
+      # Vite proxy and hit https://localhost:8443 directly from the JVM.
+      trust-store-path: ${HCM_KEYCLOAK_TRUSTSTORE:}
+      trust-store-password: ${HCM_KEYCLOAK_TRUSTSTORE_PASSWORD:changeit}
+    # JWT minting + lockout retired when Keycloak became the IdP (milestone 19).
+    # Brute-force protection now lives in the realm (5 attempts / 15-min lock).
+  mail:
+    # From address used on all outgoing mail (PRD 10.5).
+    from: ${HCM_MAIL_FROM:no-reply@millers.example}
+    from-name: ${HCM_MAIL_FROM_NAME:Millers HCM}
+  storage:
+    minio:
+      enabled: ${HCM_STORAGE_MINIO_ENABLED:true}
+      endpoint: ${HCM_STORAGE_MINIO_ENDPOINT:http://localhost:9000}
+      access-key: ${HCM_STORAGE_MINIO_ACCESS_KEY:minio}
+      secret-key: ${HCM_STORAGE_MINIO_SECRET_KEY:minio12345}
+      bucket: ${HCM_STORAGE_MINIO_BUCKET:hcm-attachments}
+      # Configurable max file size — clients can send up to this many bytes per upload.
+      max-file-bytes: ${HCM_STORAGE_MAX_FILE_BYTES:20971520}   # 20 MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    az.millers.hcm: DEBUG
