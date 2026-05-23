@@ -3,6 +3,7 @@
   "enabled": true,
   "displayName": "Millers HCM",
   "displayNameHtml": "Millers HCM",
+  "loginTheme": "millers",
   "sslRequired": "${env.KC_REALM_SSL_REQUIRED:none}",
   "registrationAllowed": false,
   "loginWithEmailAllowed": false,
