@@ -100,6 +100,12 @@ hcm:
       # Base64-encoded 32-byte (256-bit) AES key for column-level PII encryption.
       # Demo key — generate a fresh one for production and inject via env.
       data-key: ${HCM_SECURITY_DATA_KEY:nIayl2HEqr7zVQp/JbXcKtoyT2QwxN4ueivOJqOjT94=}
+      # Optional rotation key (M48 — AES-256-GCM key rotation).
+      # When set, new writes use enc:v2:… and both enc:v1: and enc:v2: are
+      # readable.  Run POST /api/admin/key-rotation/run after deploying to
+      # re-encrypt all enc:v1: rows.  Then promote: data-key ← data-key-v2,
+      # remove data-key-v2, redeploy.
+      data-key-v2: ${HCM_SECURITY_DATA_KEY_V2:}
     keycloak:
       # PKCS12 truststore containing the cert that signs Keycloak's TLS
       # endpoint. Used by KeycloakJwtConfig to build a custom JwtDecoder
