@@ -28,11 +28,19 @@ class AppConfig {
 
   /// Custom URL scheme for the OIDC redirect after login.
   /// Must be registered in the Keycloak client's valid redirect URIs.
+  /// Mobile custom-scheme redirect (flutter_appauth).
   static const String oidcRedirectUrl =
       'az.millers.hcm://auth/callback';
 
   static const String oidcEndSessionRedirectUrl =
       'az.millers.hcm://auth/end-session';
+
+  /// Web redirect URI — must be a real HTTP URL (fixed port 5200 for dev).
+  /// Register this URI in the Keycloak hcm-mobile client's valid redirect URIs.
+  static const String oidcWebRedirectUrl = String.fromEnvironment(
+    'HCM_OIDC_WEB_REDIRECT_URL',
+    defaultValue: 'http://localhost:5200/',
+  );
 
   // ----- Brand ---------------------------------------------------------------
   static const int brandColorValue = 0xFF5B3FE5; // Millers purple

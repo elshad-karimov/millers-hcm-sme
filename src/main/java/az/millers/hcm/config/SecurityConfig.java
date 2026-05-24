@@ -96,7 +96,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5180", "http://127.0.0.1:5180"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5180", "http://127.0.0.1:5180",   // Vite dev server
+                "http://localhost:5200", "http://127.0.0.1:5200"    // Flutter web dev server
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Retry-After"));
