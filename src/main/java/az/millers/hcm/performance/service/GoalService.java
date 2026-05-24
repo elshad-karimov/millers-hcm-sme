@@ -159,6 +159,8 @@ public class GoalService {
         g.setProgressPercent(req.progressPercent() == null ? BigDecimal.ZERO : req.progressPercent());
         if (req.status() != null) g.setStatus(req.status());
         g.setDueDate(req.dueDate());
+        // M49: optional LMS course link for auto-rating on PASSED enrollment
+        g.setSourceCourseId(req.sourceCourseId());
     }
 
     private void validateWeight(BigDecimal weight) {

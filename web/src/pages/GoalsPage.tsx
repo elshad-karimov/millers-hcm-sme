@@ -13,9 +13,11 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
   App as AntdApp,
 } from 'antd'
+import { BookOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
   performanceApi,
@@ -25,6 +27,7 @@ import {
   type GoalStatus,
   type ReviewCycle,
 } from '../api/performance'
+import { learningApi, type Course } from '../api/learning'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 
@@ -57,6 +60,7 @@ interface NewGoalForm {
   targetMetric?: string
   weightPercent?: number
   dueDate?: string
+  sourceCourseId?: string
 }
 
 interface ProgressForm {
@@ -78,10 +82,12 @@ export function GoalsPage() {
 
   const [cycles, setCycles] = useState<ReviewCycle[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
   const [cycleId, setCycleId] = useState<string | undefined>()
   const [employeeId, setEmployeeId] = useState<string | undefined>()
   const [rows, setRows] = useState<Goal[]>([])
   const [loading, setLoading] = useState(false)
+  const [createCategory, setCreateCategory] = useState<GoalCategory>('INDIVIDUAL')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm] = Form.useForm<NewGoalForm>()
@@ -91,9 +97,14 @@ export function GoalsPage() {
   const [rateForm] = Form.useForm<RatingForm>()
 
   useEffect(() => {
-    Promise.all([performanceApi.cycles(), employeesApi.list({ size: 500 })]).then(([c, e]) => {
+    Promise.all([
+      performanceApi.cycles(),
+      employeesApi.list({ size: 500 }),
+      learningApi.courses({ status: 'PUBLISHED', size: 500 }),
+    ]).then(([c, e, cs]) => {
       setCycles(c)
       setEmployees(e.content)
+      setCourses(cs.content)
       if (c.length && !cycleId) {
         const open = c.find((x) => x.status === 'OPEN') ?? c[0]
         setCycleId(open.id)
@@ -117,7 +128,8 @@ export function GoalsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cycleId, employeeId])
 
-  const empMap = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees])
+  const empMap    = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees])
+  const courseMap = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses])
 
   const onCreate = async (v: NewGoalForm) => {
     if (!cycleId) return
@@ -131,6 +143,7 @@ export function GoalsPage() {
       weightPercent: v.weightPercent,
       dueDate: v.dueDate,
       status: 'ACTIVE',
+      sourceCourseId: v.category === 'DEVELOPMENT' ? v.sourceCourseId : undefined,
     }
     try {
       await performanceApi.createGoal(payload)
@@ -214,6 +227,20 @@ export function GoalsPage() {
       width: 110,
       render: (s: GoalStatus) => <Tag color={STATUS_COLOR[s]}>{s.replace(/_/g, ' ')}</Tag>,
     },
+    {
+      title: 'LMS link',
+      dataIndex: 'sourceCourseId',
+      width: 90,
+      render: (id?: string | null) => {
+        if (!id) return null
+        const course = courseMap.get(id)
+        return (
+          <Tooltip title={course ? `${course.code} — ${course.title}` : id}>
+            <Tag icon={<BookOutlined />} color="green">Auto-rate</Tag>
+          </Tooltip>
+        )
+      },
+    },
     { title: 'Rating', dataIndex: 'rating', width: 80, render: (r: number | null) => r ?? '—' },
     {
       title: '',
@@ -284,12 +311,25 @@ export function GoalsPage() {
       <Modal
         open={createOpen}
         title="New goal"
-        onCancel={() => setCreateOpen(false)}
+        onCancel={() => { setCreateOpen(false); setCreateCategory('INDIVIDUAL') }}
         onOk={() => createForm.submit()}
         okText="Create"
         width={640}
       >
-        <Form form={createForm} layout="vertical" onFinish={onCreate} initialValues={{ category: 'INDIVIDUAL', weightPercent: 20 }}>
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={onCreate}
+          initialValues={{ category: 'INDIVIDUAL', weightPercent: 20 }}
+          onValuesChange={(changed) => {
+            if (changed.category) {
+              setCreateCategory(changed.category as GoalCategory)
+              if (changed.category !== 'DEVELOPMENT') {
+                createForm.setFieldValue('sourceCourseId', undefined)
+              }
+            }
+          }}
+        >
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
             <Select
               showSearch
@@ -315,6 +355,24 @@ export function GoalsPage() {
               </Form.Item>
             </Col>
           </Row>
+          {createCategory === 'DEVELOPMENT' && (
+            <Form.Item
+              name="sourceCourseId"
+              label="Auto-rate when course is passed (optional)"
+              tooltip="When the employee passes the selected course, this goal will be auto-rated based on their quiz score (score / 20 → 0-5 rating)."
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Link to an LMS course"
+                options={courses.map((c) => ({
+                  value: c.id,
+                  label: `${c.code} — ${c.title}`,
+                }))}
+              />
+            </Form.Item>
+          )}
           <Form.Item name="targetMetric" label="Target metric">
             <Input placeholder="e.g. Close 95% of P1 tickets within SLA" />
           </Form.Item>

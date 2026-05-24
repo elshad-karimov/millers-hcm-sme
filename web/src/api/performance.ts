@@ -106,6 +106,8 @@ export interface Goal {
   dueDate?: string | null
   rating?: number | null
   ratingNote?: string | null
+  /** Non-null when linked to an LMS course for auto-rating (M49). */
+  sourceCourseId?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -124,6 +126,8 @@ export interface GoalRequest {
   progressPercent?: number
   status?: GoalStatus
   dueDate?: string
+  /** Optional: link this DEVELOPMENT goal to an LMS course (M49). */
+  sourceCourseId?: string
 }
 
 export interface PerformanceReview {

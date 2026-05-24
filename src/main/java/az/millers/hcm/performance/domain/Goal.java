@@ -71,6 +71,14 @@ public class Goal {
     @Column(name = "rating_note", columnDefinition = "text")
     private String ratingNote;
 
+    /**
+     * Optional FK to the LMS course that should auto-rate this goal when
+     * the employee's enrollment is PASSED (M49 — PRD 8.13/8.14).
+     * {@code null} = manual rating only.
+     */
+    @Column(name = "source_course_id")
+    private UUID sourceCourseId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

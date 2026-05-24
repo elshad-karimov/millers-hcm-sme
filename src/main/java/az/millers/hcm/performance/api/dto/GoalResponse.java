@@ -25,6 +25,8 @@ public record GoalResponse(
         LocalDate dueDate,
         BigDecimal rating,
         String ratingNote,
+        /** Non-null when the goal is linked to an LMS course for auto-rating (M49). */
+        UUID sourceCourseId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -35,7 +37,7 @@ public record GoalResponse(
                 g.getId(), g.getGoalNo(), g.getCycleId(), g.getEmployeeId(), g.getParentGoalId(),
                 g.getTitle(), g.getDescription(), g.getCategory(), g.getTargetMetric(),
                 g.getWeightPercent(), g.getProgressPercent(), g.getStatus(), g.getDueDate(),
-                g.getRating(), g.getRatingNote(),
+                g.getRating(), g.getRatingNote(), g.getSourceCourseId(),
                 g.getCreatedAt(), g.getUpdatedAt(), g.getCreatedBy(), g.getUpdatedBy());
     }
 }

@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
+import az.millers.hcm.learning.event.CoursePassedEvent;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.learning.api.dto.AttemptResponse;
@@ -80,6 +82,7 @@ public class EnrollmentService {
     private final LearningPathService learningPaths;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher events;
 
     public EnrollmentService(EnrollmentRepository enrollments,
                               CourseRepository courses,
@@ -92,7 +95,8 @@ public class EnrollmentService {
                               EmployeeRepository employees,
                               LearningPathService learningPaths,
                               AuditService audit,
-                              CurrentRequest currentRequest) {
+                              CurrentRequest currentRequest,
+                              ApplicationEventPublisher events) {
         this.enrollments = enrollments;
         this.courses = courses;
         this.questions = questions;
@@ -105,6 +109,7 @@ public class EnrollmentService {
         this.learningPaths = learningPaths;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -282,6 +287,9 @@ public class EnrollmentService {
             issueCertificate(enrollment, course, percent);
             awardCompetencies(enrollment, course);
             advanceLearningPath(enrollment, course);
+            // M49: notify listeners (e.g. GoalAutoRatingService) that a course was passed.
+            events.publishEvent(new CoursePassedEvent(
+                    enrollment.getEmployeeId(), course.getId(), enrollment.getBestScorePercent()));
         } else if (enrollment.getAttemptsUsed() >= course.getMaxAttempts()) {
             enrollment.setStatus(EnrollmentStatus.FAILED);
         } else {

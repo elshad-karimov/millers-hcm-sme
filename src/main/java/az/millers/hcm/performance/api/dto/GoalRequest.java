@@ -20,5 +20,7 @@ public record GoalRequest(
         BigDecimal weightPercent,
         BigDecimal progressPercent,
         GoalStatus status,
-        LocalDate dueDate) {
+        LocalDate dueDate,
+        /** Optional: links this DEVELOPMENT goal to a course for auto-rating (M49). */
+        UUID sourceCourseId) {
 }
