@@ -2,7 +2,11 @@ package az.millers.hcm.leave.domain;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,6 +17,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import az.millers.hcm.leave.api.dto.SeniorityBracket;
 
 @Entity
 @Table(name = "leave_type", schema = "leave_mgmt")
@@ -73,6 +79,18 @@ public class LeaveType {
 
     @Column(name = "exclude_holidays", nullable = false)
     private boolean excludeHolidays;
+
+    /**
+     * Optional seniority-bracket schedule (PRD 8.5.2 — milestone 47).
+     * When non-empty, the monthly accrual walker computes each employee's
+     * tenure at the start of the target period and picks the matching
+     * bracket's {@code annualDays / 12} as the monthly bump, overriding
+     * both {@link #monthlyAccrualDays} and {@link #defaultAnnualEntitlementDays} / 12.
+     * When empty or {@code null} the existing fallback chain applies unchanged.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "seniority_brackets_json", columnDefinition = "jsonb")
+    private List<SeniorityBracket> seniorityBrackets;
 
     @Column(nullable = false)
     private boolean active;

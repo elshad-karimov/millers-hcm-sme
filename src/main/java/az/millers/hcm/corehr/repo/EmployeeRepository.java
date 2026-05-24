@@ -67,6 +67,16 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
             java.util.Collection<EmploymentStatus> statuses);
 
     /**
+     * Returns {@code (id, hireDate)} pairs for the given employee IDs.
+     * Used by {@link az.millers.hcm.leave.service.LeaveAccrualService}
+     * to compute seniority-bracket tenure without loading the full
+     * {@link az.millers.hcm.corehr.domain.Employee} aggregate (M47).
+     */
+    @Query("select e.id, e.hireDate from Employee e where e.id in :ids")
+    java.util.List<Object[]> findIdAndHireDateByIdIn(
+            @Param("ids") java.util.Collection<UUID> ids);
+
+    /**
      * All employees whose status is not in the excluded set, ordered by name.
      * Used by the self-service peers endpoint so any authenticated user can
      * populate a replacement-employee picker without HR_ADMIN role.

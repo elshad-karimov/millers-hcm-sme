@@ -6,11 +6,15 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.leave.api.dto.LeaveTypeRequest;
 import az.millers.hcm.leave.api.dto.LeaveTypeResponse;
+import az.millers.hcm.leave.api.dto.SeniorityBracket;
 import az.millers.hcm.leave.domain.LeaveType;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -92,5 +96,46 @@ public class LeaveTypeService {
         t.setActive(req.active() == null ? true : req.active());
         t.setAccruesMonthly(Boolean.TRUE.equals(req.accruesMonthly()));
         t.setMonthlyAccrualDays(req.monthlyAccrualDays());
+        t.setSeniorityBrackets(validateBrackets(req.seniorityBrackets()));
+    }
+
+    /**
+     * Validates and normalises the seniority bracket schedule (M47).
+     * Rules:
+     * <ul>
+     *   <li>{@code yearsMin} must be ≥ 0</li>
+     *   <li>{@code yearsMax} (when present) must be ≥ {@code yearsMin}</li>
+     *   <li>{@code annualDays} must be &gt; 0</li>
+     *   <li>No two brackets may share the same {@code yearsMin}</li>
+     * </ul>
+     * Returns {@code null} when the input list is null or empty so that
+     * the converter stores a SQL NULL rather than an empty JSON array.
+     */
+    private List<SeniorityBracket> validateBrackets(List<SeniorityBracket> brackets) {
+        if (brackets == null || brackets.isEmpty()) {
+            return null;
+        }
+        long distinctMins = brackets.stream()
+                .mapToInt(SeniorityBracket::yearsMin).distinct().count();
+        if (distinctMins != brackets.size()) {
+            throw new BadRequestException(
+                    "Seniority brackets: duplicate yearsMin values are not allowed");
+        }
+        for (SeniorityBracket b : brackets) {
+            if (b.yearsMin() < 0) {
+                throw new BadRequestException(
+                        "Seniority brackets: yearsMin cannot be negative");
+            }
+            if (b.yearsMax() != null && b.yearsMax() < b.yearsMin()) {
+                throw new BadRequestException(
+                        "Seniority brackets: yearsMax must be >= yearsMin (got "
+                        + b.yearsMin() + ".." + b.yearsMax() + ")");
+            }
+            if (b.annualDays() == null || b.annualDays().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException(
+                        "Seniority brackets: annualDays must be > 0");
+            }
+        }
+        return brackets;
     }
 }

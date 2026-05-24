@@ -1,6 +1,7 @@
 package az.millers.hcm.leave.api.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -23,5 +24,11 @@ public record LeaveTypeRequest(
         /** Monthly accrual gate flag (PRD 8.5.2 — milestone 34). */
         Boolean accruesMonthly,
         /** Explicit per-month bump; falls back to default/12 if null. */
-        @DecimalMin("0.0") BigDecimal monthlyAccrualDays) {
+        @DecimalMin("0.0") BigDecimal monthlyAccrualDays,
+        /**
+         * Optional seniority bracket schedule (PRD 8.5.2 — milestone 47).
+         * When non-null and non-empty, overrides monthlyAccrualDays and
+         * defaultAnnualEntitlementDays/12 as the per-employee monthly bump.
+         */
+        List<SeniorityBracket> seniorityBrackets) {
 }

@@ -1,21 +1,39 @@
 import { useEffect, useState } from 'react'
 import {
+  Alert,
   Button,
   Checkbox,
   Col,
+  Divider,
   Form,
   Input,
   InputNumber,
   Row,
   Space,
   Spin,
+  Tooltip,
+  Typography,
   App as AntdApp,
 } from 'antd'
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { leaveApi, type LeaveType, type LeaveTypeRequest } from '../api/leave'
+import {
+  leaveApi,
+  type LeaveType,
+  type LeaveTypeRequest,
+  type SeniorityBracket,
+} from '../api/leave'
 import { FormPageShell } from '../components/FormPageShell'
 
+const { Text } = Typography
+
 const LIST_PATH = '/leave/types'
+
+interface BracketRow {
+  yearsMin: number
+  yearsMax?: number | null
+  annualDays: number
+}
 
 interface FormValues {
   code: string
@@ -30,6 +48,8 @@ interface FormValues {
   excludeWeekends?: boolean
   excludeHolidays?: boolean
   active?: boolean
+  accruesMonthly?: boolean
+  monthlyAccrualDays?: number
 }
 
 export function LeaveTypeFormPage() {
@@ -40,6 +60,10 @@ export function LeaveTypeFormPage() {
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
+
+  // Seniority brackets managed as separate state (dynamic rows)
+  const [brackets, setBrackets] = useState<BracketRow[]>([])
+  const [bracketError, setBracketError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!editing) {
@@ -63,7 +87,18 @@ export function LeaveTypeFormPage() {
           excludeWeekends: t.excludeWeekends,
           excludeHolidays: t.excludeHolidays,
           active: t.active,
+          accruesMonthly: t.accruesMonthly,
+          monthlyAccrualDays: t.monthlyAccrualDays ?? undefined,
         })
+        if (t.seniorityBrackets && t.seniorityBrackets.length > 0) {
+          setBrackets(
+            t.seniorityBrackets.map((b) => ({
+              yearsMin: b.yearsMin,
+              yearsMax: b.yearsMax ?? null,
+              annualDays: Number(b.annualDays),
+            })),
+          )
+        }
       })
       .catch((err) =>
         message.error(err?.response?.data?.message ?? 'Failed to load leave type'),
@@ -71,9 +106,69 @@ export function LeaveTypeFormPage() {
       .finally(() => setLoading(false))
   }, [editing, id, form, message])
 
+  // ─── Bracket helpers ───────────────────────────────────────────────────────
+
+  const addBracket = () => {
+    const nextMin = brackets.length > 0 ? (brackets[brackets.length - 1].yearsMin + 5) : 0
+    setBrackets([...brackets, { yearsMin: nextMin, yearsMax: null, annualDays: 21 }])
+    setBracketError(null)
+  }
+
+  const removeBracket = (idx: number) => {
+    setBrackets(brackets.filter((_, i) => i !== idx))
+    setBracketError(null)
+  }
+
+  const updateBracket = (idx: number, field: keyof BracketRow, value: number | null | undefined) => {
+    setBrackets(
+      brackets.map((b, i) =>
+        i === idx ? { ...b, [field]: value ?? (field === 'yearsMax' ? null : 0) } : b,
+      ),
+    )
+    setBracketError(null)
+  }
+
+  const validateBrackets = (): SeniorityBracket[] | null => {
+    if (brackets.length === 0) return null
+    for (const b of brackets) {
+      if (b.annualDays <= 0) {
+        setBracketError('Annual days must be > 0 in every bracket')
+        return null
+      }
+      if (b.yearsMin < 0) {
+        setBracketError('Years min cannot be negative')
+        return null
+      }
+      if (b.yearsMax != null && b.yearsMax < b.yearsMin) {
+        setBracketError('Years max must be ≥ years min in every bracket')
+        return null
+      }
+    }
+    const mins = brackets.map((b) => b.yearsMin)
+    if (new Set(mins).size !== mins.length) {
+      setBracketError('Duplicate "years min" values are not allowed')
+      return null
+    }
+    setBracketError(null)
+    return brackets.map((b) => ({
+      yearsMin: b.yearsMin,
+      yearsMax: b.yearsMax ?? undefined,
+      annualDays: b.annualDays,
+    }))
+  }
+
+  // ─── Submit ────────────────────────────────────────────────────────────────
+
   const onFinish = async (v: FormValues) => {
+    const validatedBrackets = validateBrackets()
+    // validateBrackets returns null both for "no brackets" (ok) and "error"
+    if (brackets.length > 0 && validatedBrackets === null) return // error state set above
+
     setSaving(true)
-    const payload: LeaveTypeRequest = { ...v }
+    const payload: LeaveTypeRequest = {
+      ...v,
+      seniorityBrackets: validatedBrackets ?? undefined,
+    }
     try {
       if (editing) {
         await leaveApi.updateType(id!, payload)
@@ -103,7 +198,8 @@ export function LeaveTypeFormPage() {
           <Spin />
         </div>
       ) : (
-        <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 720 }}>
+        <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
+          {/* ── Identity ─────────────────────────────────────────────── */}
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="code" label="Code" rules={[{ required: true, max: 64 }]}>
@@ -119,12 +215,14 @@ export function LeaveTypeFormPage() {
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} />
           </Form.Item>
+
+          {/* ── Entitlement ───────────────────────────────────────────── */}
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item
                 name="defaultAnnualEntitlementDays"
                 label="Default annual entitlement (days)"
-                tooltip="Leave blank for no entitlement bank (e.g. sick / educational)"
+                tooltip="Used as the fallback when no seniority brackets are configured"
               >
                 <InputNumber min={0} step={0.5} style={{ width: '100%' }} />
               </Form.Item>
@@ -144,6 +242,8 @@ export function LeaveTypeFormPage() {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* ── Flags ─────────────────────────────────────────────────── */}
           <Row gutter={16}>
             <Col span={6}>
               <Form.Item name="paid" valuePropName="checked">
@@ -178,7 +278,136 @@ export function LeaveTypeFormPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item>
+
+          {/* ── Monthly accrual ───────────────────────────────────────── */}
+          <Divider orientation="left" style={{ fontSize: 13 }}>
+            Monthly accrual (PRD 8.5.2)
+          </Divider>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="accruesMonthly" valuePropName="checked">
+                <Checkbox>Accrues monthly</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item
+                name="monthlyAccrualDays"
+                label="Explicit monthly bump (days)"
+                tooltip="Leave blank to derive from default annual ÷ 12, or from seniority brackets"
+              >
+                <InputNumber min={0} step={0.25} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* ── Seniority brackets ────────────────────────────────────── */}
+          <Divider orientation="left" style={{ fontSize: 13 }}>
+            Seniority brackets (M47)
+          </Divider>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+            Optional. When brackets are defined they override the monthly bump above.
+            The accrual walker matches each employee's completed years of service on the
+            1st of the target month to the first matching bracket and uses{' '}
+            <em>annualDays ÷ 12</em> as their monthly credit.
+          </Text>
+
+          {bracketError && (
+            <Alert
+              type="error"
+              message={bracketError}
+              showIcon
+              style={{ marginBottom: 12 }}
+            />
+          )}
+
+          {brackets.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              {/* Column headings */}
+              <Row gutter={8} style={{ marginBottom: 4 }}>
+                <Col span={5}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Years min (incl.)
+                  </Text>
+                </Col>
+                <Col span={5}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Years max (incl., blank = ∞)
+                  </Text>
+                </Col>
+                <Col span={6}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Annual days
+                  </Text>
+                </Col>
+                <Col span={4}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Monthly equiv.
+                  </Text>
+                </Col>
+              </Row>
+
+              {brackets.map((b, idx) => (
+                <Row gutter={8} key={idx} style={{ marginBottom: 6, alignItems: 'center' }}>
+                  <Col span={5}>
+                    <InputNumber
+                      min={0}
+                      value={b.yearsMin}
+                      onChange={(v) => updateBracket(idx, 'yearsMin', v ?? 0)}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                  <Col span={5}>
+                    <Tooltip title="Leave blank for 'and above'">
+                      <InputNumber
+                        min={0}
+                        value={b.yearsMax ?? undefined}
+                        placeholder="∞"
+                        onChange={(v) => updateBracket(idx, 'yearsMax', v ?? null)}
+                        style={{ width: '100%' }}
+                      />
+                    </Tooltip>
+                  </Col>
+                  <Col span={6}>
+                    <InputNumber
+                      min={0.1}
+                      step={0.5}
+                      value={b.annualDays}
+                      onChange={(v) => updateBracket(idx, 'annualDays', v ?? 0)}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                  <Col span={4}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {b.annualDays > 0
+                        ? `${(b.annualDays / 12).toFixed(2)} d/mo`
+                        : '—'}
+                    </Text>
+                  </Col>
+                  <Col span={4}>
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => removeBracket(idx)}
+                      size="small"
+                    />
+                  </Col>
+                </Row>
+              ))}
+            </div>
+          )}
+
+          <Button
+            type="dashed"
+            icon={<PlusOutlined />}
+            onClick={addBracket}
+            style={{ marginBottom: 16 }}
+          >
+            Add seniority bracket
+          </Button>
+
+          {/* ── Actions ───────────────────────────────────────────────── */}
+          <Form.Item style={{ marginTop: 8 }}>
             <Space>
               <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>
               <Button type="primary" htmlType="submit" loading={saving}>

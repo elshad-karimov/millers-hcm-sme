@@ -62,6 +62,22 @@ export function LeaveTypesPage() {
         v === null || v === undefined ? 'Unlimited' : `${v} day${v === 1 ? '' : 's'}`,
     },
     {
+      title: 'Accrual',
+      width: 180,
+      render: (_, r) => {
+        if (!r.accruesMonthly) return <Tag color="default">one-shot</Tag>
+        if (r.seniorityBrackets && r.seniorityBrackets.length > 0) {
+          return (
+            <Tag color="purple">
+              {r.seniorityBrackets.length} seniority tier{r.seniorityBrackets.length > 1 ? 's' : ''}
+            </Tag>
+          )
+        }
+        const flat = r.monthlyAccrualDays ?? (r.defaultAnnualEntitlementDays != null ? +(r.defaultAnnualEntitlementDays / 12).toFixed(2) : null)
+        return flat != null ? <Tag color="blue">{flat} d/mo</Tag> : <Tag color="blue">monthly</Tag>
+      },
+    },
+    {
       title: 'Flags',
       render: (_, r) => (
         <Space size={[4, 4]} wrap>

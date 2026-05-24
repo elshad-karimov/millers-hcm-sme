@@ -8,6 +8,13 @@ export type LeaveRequestStatus =
   | 'REJECTED'
   | 'CANCELLED'
 
+/** One tier in a seniority-based leave entitlement schedule (M47). */
+export interface SeniorityBracket {
+  yearsMin: number
+  yearsMax?: number | null
+  annualDays: number
+}
+
 export interface LeaveType {
   id: string
   code: string
@@ -22,6 +29,10 @@ export interface LeaveType {
   excludeWeekends: boolean
   excludeHolidays: boolean
   active: boolean
+  accruesMonthly: boolean
+  monthlyAccrualDays?: number | null
+  /** Seniority bracket schedule; empty array when none configured (M47). */
+  seniorityBrackets: SeniorityBracket[]
   createdAt: string
   updatedAt: string
 }
@@ -39,6 +50,10 @@ export interface LeaveTypeRequest {
   excludeWeekends?: boolean
   excludeHolidays?: boolean
   active?: boolean
+  accruesMonthly?: boolean
+  monthlyAccrualDays?: number
+  /** Optional seniority bracket schedule (M47). */
+  seniorityBrackets?: SeniorityBracket[]
 }
 
 export interface LeaveBalance {

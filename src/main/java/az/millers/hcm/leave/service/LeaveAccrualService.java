@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +14,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+
+import az.millers.hcm.leave.api.dto.SeniorityBracket;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,22 +147,29 @@ public class LeaveAccrualService {
         List<LeaveType> eligibleTypes = leaveTypes
                 .findByActiveTrueAndAccruesMonthlyTrueOrderByCodeAsc();
 
+        // M47: load hire dates so the seniority-bracket lookup can compute tenure.
+        // Guard against an empty IN clause (some JDBC drivers reject it).
+        Map<UUID, LocalDate> hireDates = new HashMap<>();
+        if (!activeEmpIds.isEmpty()) {
+            employees.findIdAndHireDateByIdIn(activeEmpIds)
+                    .forEach(row -> hireDates.put((UUID) row[0], (LocalDate) row[1]));
+        }
+
+        // First day of the target period — used as the "as of" date for tenure.
+        LocalDate periodDate = LocalDate.of(year, month, 1);
+
         int credited = 0;
         int skipped = 0;
         BigDecimal total = BigDecimal.ZERO;
 
-        // Pre-compute the per-type bump once so we don't re-evaluate the
-        // fallback for every employee.
-        Map<UUID, BigDecimal> bumpsByType = new HashMap<>();
-        for (LeaveType t : eligibleTypes) {
-            bumpsByType.put(t.getId(), monthlyBumpFor(t));
-        }
-
         String periodKey = String.format("%04d-%02d", year, month);
 
         for (UUID empId : activeEmpIds) {
+            LocalDate hireDate = hireDates.get(empId); // may be null for legacy data
             for (LeaveType t : eligibleTypes) {
-                BigDecimal bump = bumpsByType.get(t.getId());
+                // Per-employee bump: seniority brackets (if configured) win over
+                // the flat monthlyAccrualDays / default/12 fallback chain.
+                BigDecimal bump = monthlyBumpFor(t, hireDate, periodDate);
                 if (bump.signum() == 0) {
                     skipped++;
                     continue;
@@ -173,15 +184,22 @@ public class LeaveAccrualService {
                     b.setEntitlementDays(before.add(bump));
                     b.setLastRecalculatedAt(OffsetDateTime.now());
                     balances.save(b);
-                    Map<String, Object> delta = Map.of(
-                            "period", periodKey,
-                            "employeeId", empId.toString(),
-                            "leaveTypeId", t.getId().toString(),
-                            "leaveTypeCode", t.getCode(),
-                            "year", year,
-                            "deltaDays", bump,
-                            "entitlementBefore", before,
-                            "entitlementAfter", b.getEntitlementDays());
+
+                    Map<String, Object> delta = new HashMap<>();
+                    delta.put("period", periodKey);
+                    delta.put("employeeId", empId.toString());
+                    delta.put("leaveTypeId", t.getId().toString());
+                    delta.put("leaveTypeCode", t.getCode());
+                    delta.put("year", year);
+                    delta.put("deltaDays", bump);
+                    delta.put("entitlementBefore", before);
+                    delta.put("entitlementAfter", b.getEntitlementDays());
+                    // M47: record tenure context when seniority brackets drove the bump
+                    if (hasBrackets(t) && hireDate != null) {
+                        long tenure = Math.max(0L,
+                                ChronoUnit.YEARS.between(hireDate, periodDate));
+                        delta.put("seniorityYears", tenure);
+                    }
                     audit.record(MODULE, ENTITY, b.getId().toString(),
                             ACTION, null, delta);
                 }
@@ -200,21 +218,71 @@ public class LeaveAccrualService {
     }
 
     /**
-     * Picks the bump amount: explicit {@code monthlyAccrualDays} on the
-     * type wins; otherwise we fall back to {@code default/12}. {@code 0}
-     * when both are absent — meaning the type opted into monthly accrual
-     * without a configured bank (e.g. SICK), and the walker is a no-op.
+     * Convenience overload for callers that don't have a hire date
+     * (e.g. dry-run preview where the employee set isn't fully loaded).
+     * Delegates to {@link #monthlyBumpFor(LeaveType, LocalDate, LocalDate)}
+     * with a {@code null} hire date — brackets are skipped, falling back to
+     * the flat {@code monthlyAccrualDays / default/12} chain.
      */
     BigDecimal monthlyBumpFor(LeaveType t) {
+        return monthlyBumpFor(t, null, LocalDate.now());
+    }
+
+    /**
+     * Per-employee monthly bump, honouring seniority brackets (M47).
+     *
+     * <p>Priority:
+     * <ol>
+     *   <li>Seniority brackets — when the type has a configured schedule
+     *       AND the employee's hire date is known, the bracket whose
+     *       {@code [yearsMin, yearsMax]} range contains
+     *       {@code ChronoUnit.YEARS.between(hireDate, periodDate)} wins;
+     *       the monthly bump is {@code bracket.annualDays / 12}.</li>
+     *   <li>Explicit {@code monthlyAccrualDays} on the leave type.</li>
+     *   <li>Fallback: {@code defaultAnnualEntitlementDays / 12}.</li>
+     *   <li>Zero — when no source is configured.</li>
+     * </ol>
+     *
+     * @param t          the leave type (may carry seniority brackets)
+     * @param hireDate   employee hire date; {@code null} skips brackets
+     * @param periodDate the 1st of the target accrual month (tenure "as of" date)
+     */
+    BigDecimal monthlyBumpFor(LeaveType t, LocalDate hireDate, LocalDate periodDate) {
+        // Priority 1: seniority brackets (per-employee, M47)
+        if (hasBrackets(t) && hireDate != null) {
+            long tenureYears = Math.max(0L,
+                    ChronoUnit.YEARS.between(hireDate, periodDate));
+            Optional<SeniorityBracket> matched = t.getSeniorityBrackets().stream()
+                    .filter(b -> tenureYears >= b.yearsMin()
+                              && (b.yearsMax() == null || tenureYears <= b.yearsMax()))
+                    .findFirst();
+            if (matched.isPresent()) {
+                return matched.get().annualDays()
+                        .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+            }
+            // No bracket matched (mis-configured schedule) — fall through
+            log.warn("No seniority bracket matched tenure={} years for type={} emp hire={}; "
+                     + "falling back to flat accrual", tenureYears, t.getCode(), hireDate);
+        }
+
+        // Priority 2: explicit per-month amount
         if (t.getMonthlyAccrualDays() != null) {
             return t.getMonthlyAccrualDays();
         }
+
+        // Priority 3: default annual / 12
         if (t.getDefaultAnnualEntitlementDays() != null
                 && t.getDefaultAnnualEntitlementDays().signum() > 0) {
             return t.getDefaultAnnualEntitlementDays()
                     .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
         }
+
         return BigDecimal.ZERO;
+    }
+
+    /** Returns true iff the leave type has at least one seniority bracket (M47). */
+    private boolean hasBrackets(LeaveType t) {
+        return t.getSeniorityBrackets() != null && !t.getSeniorityBrackets().isEmpty();
     }
 
     /**
