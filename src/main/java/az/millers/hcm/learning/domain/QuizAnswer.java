@@ -1,5 +1,6 @@
 package az.millers.hcm.learning.domain;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,8 +41,8 @@ public class QuizAnswer {
     @Column(nullable = false)
     private boolean correct;
 
-    @Column(name = "points_awarded", nullable = false)
-    private int pointsAwarded;
+    @Column(name = "points_awarded", nullable = false, precision = 5, scale = 2)
+    private BigDecimal pointsAwarded;
 
     @PrePersist
     void onCreate() {

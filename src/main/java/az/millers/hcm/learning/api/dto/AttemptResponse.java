@@ -17,7 +17,8 @@ public record AttemptResponse(
         OffsetDateTime submittedAt,
         AttemptStatus status,
         Integer totalPoints,
-        Integer earnedPoints,
+        /** Earned points; BigDecimal to surface MULTI_SELECT partial credit (e.g. 1.33). */
+        BigDecimal earnedPoints,
         BigDecimal scorePercent,
         Integer passingScore,
         List<AnswerView> answers) {
@@ -26,7 +27,8 @@ public record AttemptResponse(
             UUID questionId,
             List<String> selectedKeys,
             boolean correct,
-            int pointsAwarded) {
+            /** Awarded points; may be fractional for MULTI_SELECT partial credit. */
+            BigDecimal pointsAwarded) {
 
         public static AnswerView from(QuizAnswer a) {
             return new AnswerView(a.getQuestionId(), a.getSelectedKeys(), a.isCorrect(), a.getPointsAwarded());

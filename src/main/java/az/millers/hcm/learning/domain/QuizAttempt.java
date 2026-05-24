@@ -46,8 +46,9 @@ public class QuizAttempt {
     @Column(name = "total_points")
     private Integer totalPoints;
 
-    @Column(name = "earned_points")
-    private Integer earnedPoints;
+    /** Sum of per-answer pointsAwarded; NUMERIC(7,2) to support MULTI_SELECT partial credit. */
+    @Column(name = "earned_points", precision = 7, scale = 2)
+    private BigDecimal earnedPoints;
 
     @Column(name = "score_percent", precision = 5, scale = 2)
     private BigDecimal scorePercent;

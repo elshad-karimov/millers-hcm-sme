@@ -36,6 +36,7 @@ import az.millers.hcm.learning.domain.EmployeeCompetency;
 import az.millers.hcm.learning.domain.EnrolledVia;
 import az.millers.hcm.learning.domain.Enrollment;
 import az.millers.hcm.learning.domain.EnrollmentStatus;
+import az.millers.hcm.learning.domain.QuestionType;
 import az.millers.hcm.learning.domain.QuizAnswer;
 import az.millers.hcm.learning.domain.QuizAttempt;
 import az.millers.hcm.learning.domain.QuizQuestion;
@@ -76,6 +77,7 @@ public class EnrollmentService {
     private final CourseCompetencyRepository courseCompetencies;
     private final EmployeeCompetencyRepository employeeCompetencies;
     private final EmployeeRepository employees;
+    private final LearningPathService learningPaths;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -88,6 +90,7 @@ public class EnrollmentService {
                               CourseCompetencyRepository courseCompetencies,
                               EmployeeCompetencyRepository employeeCompetencies,
                               EmployeeRepository employees,
+                              LearningPathService learningPaths,
                               AuditService audit,
                               CurrentRequest currentRequest) {
         this.enrollments = enrollments;
@@ -99,6 +102,7 @@ public class EnrollmentService {
         this.courseCompetencies = courseCompetencies;
         this.employeeCompetencies = employeeCompetencies;
         this.employees = employees;
+        this.learningPaths = learningPaths;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -229,15 +233,18 @@ public class EnrollmentService {
             byQ.put(a.questionId(), a);
         }
 
-        int total = 0, earned = 0;
+        int total = 0;
+        BigDecimal earned = BigDecimal.ZERO;
         List<QuizAnswer> rows = new ArrayList<>(qs.size());
         for (QuizQuestion q : qs) {
             total += q.getPoints();
             AttemptSubmitRequest.Answer a = byQ.get(q.getId());
             List<String> selected = a == null ? List.of() : new ArrayList<>(a.selectedKeys());
-            boolean correct = matches(selected, q.getCorrectKeys());
-            int pts = correct ? q.getPoints() : 0;
-            earned += pts;
+            // M46: MULTI_SELECT awards proportional partial credit.
+            // Other types are all-or-nothing (set equality).
+            BigDecimal pts = score(q, selected);
+            boolean correct = pts.compareTo(BigDecimal.valueOf(q.getPoints())) == 0;
+            earned = earned.add(pts);
             QuizAnswer ans = new QuizAnswer();
             ans.setAttemptId(attempt.getId());
             ans.setQuestionId(q.getId());
@@ -250,8 +257,7 @@ public class EnrollmentService {
 
         BigDecimal percent = total == 0
                 ? BigDecimal.ZERO
-                : BigDecimal.valueOf(earned)
-                        .multiply(BigDecimal.valueOf(100))
+                : earned.multiply(BigDecimal.valueOf(100))
                         .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
         boolean passed = percent.compareTo(BigDecimal.valueOf(course.getPassingScore())) >= 0;
 
@@ -275,6 +281,7 @@ public class EnrollmentService {
             enrollment.setCompletedAt(OffsetDateTime.now());
             issueCertificate(enrollment, course, percent);
             awardCompetencies(enrollment, course);
+            advanceLearningPath(enrollment, course);
         } else if (enrollment.getAttemptsUsed() >= course.getMaxAttempts()) {
             enrollment.setStatus(EnrollmentStatus.FAILED);
         } else {
@@ -285,7 +292,7 @@ public class EnrollmentService {
         audit.record(MODULE, "QuizAttempt", attempt.getId().toString(),
                 passed ? "PASS" : "FAIL", null,
                 Map.of("percent", percent.toPlainString(),
-                        "earned", String.valueOf(earned),
+                        "earned", earned.toPlainString(),
                         "total", String.valueOf(total)));
 
         return AttemptResponse.from(attempt, rows);
@@ -336,15 +343,73 @@ public class EnrollmentService {
         }
     }
 
-    /** Returns true iff selected keys == correct keys (set equality). */
-    private static boolean matches(List<String> selected, List<String> correct) {
-        if (selected == null) selected = List.of();
-        if (correct == null)  correct = List.of();
-        Set<String> a = new HashSet<>(selected);
-        Set<String> b = new HashSet<>(correct);
-        return a.equals(b);
+    /**
+     * Computes the points earned for a single answer.
+     *
+     * <p><b>MULTIPLE_CHOICE / TRUE_FALSE</b> — full-or-nothing: awards
+     * {@code q.getPoints()} when the selected set exactly equals the correct set,
+     * {@code 0} otherwise.
+     *
+     * <p><b>MULTI_SELECT</b> (M46 partial credit) — proportional with a penalty
+     * for wrong selections:
+     * <pre>
+     *   hits   = |selected ∩ correctKeys|
+     *   extras = |selected \ correctKeys|
+     *   score  = max(0, hits − extras) / |correctKeys| × questionPoints
+     * </pre>
+     * Selecting every correct key and no wrong ones earns full marks.
+     * Selecting extra wrong keys deducts from the hit count.
+     */
+    private static BigDecimal score(QuizQuestion q, List<String> selected) {
+        List<String> sel = (selected == null) ? List.of() : selected;
+        List<String> cor = (q.getCorrectKeys() == null) ? List.of() : q.getCorrectKeys();
+
+        if (q.getQuestionType() != QuestionType.MULTI_SELECT) {
+            // All-or-nothing for MULTIPLE_CHOICE and TRUE_FALSE.
+            Set<String> a = new HashSet<>(sel);
+            Set<String> b = new HashSet<>(cor);
+            return a.equals(b) ? BigDecimal.valueOf(q.getPoints()) : BigDecimal.ZERO;
+        }
+
+        // Partial credit for MULTI_SELECT.
+        Set<String> correctSet = new HashSet<>(cor);
+        if (correctSet.isEmpty()) return BigDecimal.ZERO;
+
+        long hits   = sel.stream().filter(correctSet::contains).count();
+        long extras = sel.stream().filter(k -> !correctSet.contains(k)).count();
+        long net    = Math.max(0L, hits - extras);
+
+        return BigDecimal.valueOf(net)
+                .multiply(BigDecimal.valueOf(q.getPoints()))
+                .divide(BigDecimal.valueOf(correctSet.size()), 2, RoundingMode.HALF_UP);
     }
 
-    @SuppressWarnings("unused")
-    private static void unused(Logger l) { l.debug(""); }
+    /**
+     * After an enrollment is PASSED, checks whether the completed course is a
+     * required step in any learning path. If so, auto-enrolls the employee in
+     * the next step (enrolled_via = PATH). Silently skips if already enrolled.
+     */
+    private void advanceLearningPath(Enrollment enrollment, Course course) {
+        learningPaths.nextCourseInPath(course.getId()).ifPresent(nextCourseId -> {
+            boolean alreadyEnrolled =
+                    enrollments.findByCourseIdAndEmployeeId(nextCourseId, enrollment.getEmployeeId())
+                            .isPresent();
+            if (alreadyEnrolled) {
+                log.debug("Path advance skipped — employee {} already enrolled in course {}",
+                        enrollment.getEmployeeId(), nextCourseId);
+                return;
+            }
+            try {
+                EnrollRequest req = new EnrollRequest(
+                        nextCourseId, enrollment.getEmployeeId(), EnrolledVia.PATH, null);
+                enroll(req);
+                log.info("Path advance: enrolled employee {} in course {} (via PATH)",
+                        enrollment.getEmployeeId(), nextCourseId);
+            } catch (BadRequestException ex) {
+                // Non-fatal: log and continue (e.g. course not PUBLISHED yet).
+                log.warn("Path advance failed for employee {} → course {}: {}",
+                        enrollment.getEmployeeId(), nextCourseId, ex.getMessage());
+            }
+        });
+    }
 }
