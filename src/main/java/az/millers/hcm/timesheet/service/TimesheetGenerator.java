@@ -2,6 +2,7 @@ package az.millers.hcm.timesheet.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -150,10 +151,18 @@ public class TimesheetGenerator {
                 row.setPermissionRequestId(permission.getId());
             }
             // M38: working on a holiday is allowed but flagged so the
-            // payroll OT engine (future) can pick it up for the
-            // holiday-rate multiplier. Keeps W as the primary code so
-            // the employee still gets paid for their hours.
+            // payroll OT engine can pick it up for the holiday-rate
+            // multiplier (Labour Code Art. 167). Keeps W as the primary
+            // code so the employee still gets paid for their hours.
             if (isHoliday) anomalies.add("WORKED_ON_HOLIDAY");
+            // M45: working on a weekend (Sat/Sun) without a holiday flag
+            // still attracts the Art. 167 premium — recorded separately
+            // so the payroll engine can apply weekendMultiplier only when
+            // it isn't also a public holiday (holiday takes precedence).
+            if (!isHoliday && (date.getDayOfWeek() == DayOfWeek.SATURDAY
+                    || date.getDayOfWeek() == DayOfWeek.SUNDAY)) {
+                anomalies.add("WORKED_ON_WEEKEND");
+            }
         } else if (permission != null) {
             row.setPrimaryCode("P");
             row.setPermissionRequestId(permission.getId());

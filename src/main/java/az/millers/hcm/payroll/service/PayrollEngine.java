@@ -126,16 +126,19 @@ public class PayrollEngine {
                 continue;
             }
 
-            // OT per-day from timesheet rows. M39: each day also carries
-            // a holiday flag pulled from the WORKED_ON_HOLIDAY anomaly
-            // that TimesheetGenerator emits (M38) — the calculator
-            // applies holidayMultiplier (Article 167) when set.
+            // OT per-day from timesheet rows.
+            // M39: holiday flag from WORKED_ON_HOLIDAY anomaly (Art. 167 premium).
+            // M45: weekend flag from WORKED_ON_WEEKEND anomaly (Art. 167 premium).
+            //      Daily cap enforced by StatutoryCalculator via dailyOtCapHours
+            //      rule field (Art. 99 — 4 h/day default).
             List<TimesheetDay> days = timesheetDays.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
             List<StatutoryCalculator.DailyOt> dailyOt = days.stream()
                     .map(d -> new StatutoryCalculator.DailyOt(
                             d.getOvertimeHours(),
                             d.getAnomalies() != null
-                                    && d.getAnomalies().contains("WORKED_ON_HOLIDAY")))
+                                    && d.getAnomalies().contains("WORKED_ON_HOLIDAY"),
+                            d.getAnomalies() != null
+                                    && d.getAnomalies().contains("WORKED_ON_WEEKEND")))
                     .toList();
             OvertimePay ot = calculator.overtimePay(baseSalary, dailyOt,
                     run.getJurisdiction(), ruleDate);
@@ -263,19 +266,25 @@ public class PayrollEngine {
                                ContributionPair mmi, ContributionPair unempl, BigDecimal net) {
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("baseSalary", baseSalary.toPlainString());
-        // M39: split the overtime trace so HR can audit what was paid
-        // at standard rate (Article 165) vs. holiday rate (Article 167).
-        BigDecimal standardHours = ot.totalHours().subtract(ot.holidayHours());
-        BigDecimal standardPay = ot.totalPay().subtract(ot.holidayPay());
+        // Overtime audit trace — split by day type so HR can verify each premium.
+        // M39: holiday (Art. 167 holiday premium) vs. standard (Art. 165).
+        // M45: weekend (Art. 167 weekend premium) + Art. 99 capped hours.
+        BigDecimal standardHours = ot.totalHours()
+                .subtract(ot.holidayHours()).subtract(ot.weekendHours());
+        BigDecimal standardPay   = ot.totalPay()
+                .subtract(ot.holidayPay()).subtract(ot.weekendPay());
         Map<String, Object> overtime = new LinkedHashMap<>();
-        overtime.put("totalHours", ot.totalHours().toPlainString());
-        overtime.put("totalPay", ot.totalPay().toPlainString());
-        overtime.put("hourlyRate", ot.hourlyRate().toPlainString());
+        overtime.put("totalHours",           ot.totalHours().toPlainString());
+        overtime.put("totalPay",             ot.totalPay().toPlainString());
+        overtime.put("hourlyRate",           ot.hourlyRate().toPlainString());
         overtime.put("expectedMonthlyHours", ot.expectedMonthlyHours().toPlainString());
-        overtime.put("standardHours", standardHours.toPlainString());
-        overtime.put("standardPay", standardPay.toPlainString());
-        overtime.put("holidayHours", ot.holidayHours().toPlainString());
-        overtime.put("holidayPay", ot.holidayPay().toPlainString());
+        overtime.put("standardHours",        standardHours.toPlainString());
+        overtime.put("standardPay",          standardPay.toPlainString());
+        overtime.put("holidayHours",         ot.holidayHours().toPlainString());
+        overtime.put("holidayPay",           ot.holidayPay().toPlainString());
+        overtime.put("weekendHours",         ot.weekendHours().toPlainString());
+        overtime.put("weekendPay",           ot.weekendPay().toPlainString());
+        overtime.put("cappedHours",          ot.cappedHours().toPlainString());
         trace.put("overtime", overtime);
         trace.put("bonus", bonus.toPlainString());
         // M41: allowance breakdown — line items + the taxable / non-taxable
