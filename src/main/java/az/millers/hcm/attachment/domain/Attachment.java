@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -74,9 +76,23 @@ public class Attachment {
     @Column(name = "deleted_by")
     private String deletedBy;
 
+    /**
+     * M50 (PRD 14.8): ClamAV scan outcome. Default {@code PENDING}; resolved
+     * to {@code CLEAN} or {@code SKIPPED} before the row is committed.
+     * {@code INFECTED} rows are never committed — the upload is rejected first.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scan_status", nullable = false, length = 20)
+    private ScanStatus scanStatus = ScanStatus.PENDING;
+
+    /** Timestamp when the scan completed (null for PENDING / SKIPPED). */
+    @Column(name = "scan_at")
+    private OffsetDateTime scanAt;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
         if (uploadedAt == null) uploadedAt = OffsetDateTime.now();
+        if (scanStatus == null) scanStatus = ScanStatus.PENDING;
     }
 }

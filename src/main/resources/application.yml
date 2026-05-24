@@ -122,6 +122,14 @@ hcm:
       trust-store-password: ${HCM_KEYCLOAK_TRUSTSTORE_PASSWORD:changeit}
     # JWT minting + lockout retired when Keycloak became the IdP (milestone 19).
     # Brute-force protection now lives in the realm (5 attempts / 15-min lock).
+    # M50 (PRD 14.8): ClamAV virus scanning on every user-uploaded file.
+    # Set HCM_VIRUS_SCAN_ENABLED=false for local dev without docker-compose.
+    # When enabled=true and clamd is unreachable the upload is rejected (fail-safe).
+    virus-scan:
+      enabled: ${HCM_VIRUS_SCAN_ENABLED:true}
+      host: ${HCM_VIRUS_SCAN_HOST:localhost}
+      port: ${HCM_VIRUS_SCAN_PORT:3310}
+      timeout-ms: ${HCM_VIRUS_SCAN_TIMEOUT_MS:30000}
   mail:
     # From address used on all outgoing mail (PRD 10.5).
     from: ${HCM_MAIL_FROM:no-reply@millers.example}
@@ -135,6 +143,8 @@ hcm:
       bucket: ${HCM_STORAGE_MINIO_BUCKET:hcm-attachments}
       # Configurable max file size — clients can send up to this many bytes per upload.
       max-file-bytes: ${HCM_STORAGE_MAX_FILE_BYTES:20971520}   # 20 MB
+      # M50 (PRD 14.8): presigned GET URL TTL returned by GET /api/attachments/{id}/url.
+      presigned-url-expiry-minutes: ${HCM_STORAGE_PRESIGNED_URL_EXPIRY_MINUTES:15}
 
 management:
   endpoints:

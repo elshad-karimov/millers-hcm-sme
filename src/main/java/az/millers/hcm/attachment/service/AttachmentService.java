@@ -17,8 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.concurrent.TimeUnit;
+
 import az.millers.hcm.attachment.api.AttachmentResponse;
 import az.millers.hcm.attachment.domain.Attachment;
+import az.millers.hcm.attachment.domain.ScanStatus;
 import az.millers.hcm.attachment.repo.AttachmentRepository;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
@@ -26,9 +29,11 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.security.CurrentRequest;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.http.Method;
 
 /**
  * Stores file attachments in MinIO (PRD 14.6 + 16.4). Each upload writes a
@@ -51,23 +56,29 @@ public class AttachmentService {
     private final CurrentRequest currentRequest;
     private final MinioClient minioClient;          // may be null when storage disabled
     private final ThumbnailService thumbnailService;
+    private final ClamAvScanService scanner;
     private final String bucket;
     private final long maxBytes;
+    private final int presignedUrlExpiryMinutes;
 
     public AttachmentService(AttachmentRepository attachments,
                              AuditService audit,
                              CurrentRequest currentRequest,
                              @Autowired(required = false) MinioClient minioClient,
                              ThumbnailService thumbnailService,
+                             ClamAvScanService scanner,
                              @Value("${hcm.storage.minio.bucket:hcm-attachments}") String bucket,
-                             @Value("${hcm.storage.minio.max-file-bytes:20971520}") long maxBytes) {
+                             @Value("${hcm.storage.minio.max-file-bytes:20971520}") long maxBytes,
+                             @Value("${hcm.storage.minio.presigned-url-expiry-minutes:15}") int presignedUrlExpiryMinutes) {
         this.attachments = attachments;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.minioClient = minioClient;
         this.thumbnailService = thumbnailService;
+        this.scanner = scanner;
         this.bucket = bucket;
         this.maxBytes = maxBytes;
+        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
     }
 
     // ---------------------------------------------------------------- queries
@@ -130,6 +141,10 @@ public class AttachmentService {
                     "Storage unavailable: " + e.getMessage(), e);
         }
 
+        // M50: server-generated payloads are trusted — mark as SKIPPED rather
+        // than running them through ClamAV (which would always be clean anyway).
+        ScanStatus scanStatus = ScanStatus.SKIPPED;
+
         // M36: bake a 256-px JPEG thumbnail for image content types.
         // Failure to thumbnail does not fail the upload — the row
         // still saves with thumb_object_key=NULL and the /thumbnail
@@ -149,6 +164,7 @@ public class AttachmentService {
         a.setOwnerId(ownerId);
         a.setUploadedBy(currentRequest.username());
         a.setDeleted(false);
+        a.setScanStatus(scanStatus);
         Attachment saved = attachments.save(a);
 
         audit.record(MODULE, "Attachment", saved.getId().toString(),
@@ -203,6 +219,35 @@ public class AttachmentService {
                     "Storage unavailable: " + e.getMessage(), e);
         }
 
+        // M50 (PRD 14.8): virus-scan user-uploaded bytes via ClamAV INSTREAM.
+        // If infected: delete the object we just uploaded and reject the request.
+        // If scan is disabled: mark SKIPPED. If clamd is unreachable: 503.
+        ScanStatus scanStatus;
+        OffsetDateTime scanAt = null;
+        if (scanner.isEnabled()) {
+            try {
+                ClamAvScanService.ScanResult result = scanner.scan(payload);
+                if (result.isInfected()) {
+                    // Quarantine: remove the just-uploaded object so it can't
+                    // be accessed even if the exception is somehow swallowed.
+                    removeQuietly(key);
+                    throw new BadRequestException(
+                            "Upload rejected: antivirus detected threat"
+                            + (result.detail() != null ? " (" + result.detail() + ")" : ""));
+                }
+                scanStatus = result.isClean() ? ScanStatus.CLEAN : ScanStatus.SKIPPED;
+                scanAt     = OffsetDateTime.now();
+            } catch (java.io.IOException e) {
+                // ClamAV unreachable — fail safe: block the upload
+                log.error("ClamAV unavailable at {}:{}: {}", scanner.isEnabled(), e.getMessage(), e);
+                removeQuietly(key);
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Virus scanner unavailable — upload blocked for safety: " + e.getMessage(), e);
+            }
+        } else {
+            scanStatus = ScanStatus.SKIPPED;
+        }
+
         String thumbKey = maybeStoreThumbnail(key, payload, ct);
 
         Attachment a = new Attachment();
@@ -218,6 +263,8 @@ public class AttachmentService {
         a.setOwnerId(ownerId);
         a.setUploadedBy(currentRequest.username());
         a.setDeleted(false);
+        a.setScanStatus(scanStatus);
+        a.setScanAt(scanAt);
         Attachment saved = attachments.save(a);
 
         audit.record(MODULE, "Attachment", saved.getId().toString(),
@@ -286,6 +333,38 @@ public class AttachmentService {
      * re-fetching the row.
      */
     public record ThumbnailDownload(GetObjectResponse stream, boolean isThumb, Attachment attachment) { }
+
+    // ------------------------------------------------------ presigned URL (M50)
+
+    /**
+     * Generates a MinIO presigned GET URL for {@code attachmentId} that is
+     * valid for {@link #presignedUrlExpiryMinutes} minutes (default 15).
+     *
+     * <p>The caller has already authenticated with a Bearer JWT; this method
+     * translates that into a short-lived object-storage credential so the
+     * browser can download the file directly from MinIO without streaming
+     * through the backend (PRD 14.8 — "accessed only through signed,
+     * time-limited URLs").
+     *
+     * @return the presigned URL string — never null
+     */
+    public String getPresignedUrl(UUID attachmentId) {
+        ensureMinio();
+        Attachment a = get(attachmentId);
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(a.getBucket())
+                            .object(a.getObjectKey())
+                            .expiry(presignedUrlExpiryMinutes, TimeUnit.MINUTES)
+                            .build());
+        } catch (Exception e) {
+            log.error("Failed to generate presigned URL for {}", a.getObjectKey(), e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Storage unavailable: " + e.getMessage(), e);
+        }
+    }
 
     // ---------------------------------------------------------------- delete
 

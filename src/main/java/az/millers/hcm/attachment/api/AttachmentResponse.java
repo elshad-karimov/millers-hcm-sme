@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import az.millers.hcm.attachment.domain.Attachment;
+import az.millers.hcm.attachment.domain.ScanStatus;
 
 public record AttachmentResponse(
         UUID id,
@@ -19,7 +20,9 @@ public record AttachmentResponse(
         String ownerEntity,
         UUID ownerId,
         String uploadedBy,
-        OffsetDateTime uploadedAt) {
+        OffsetDateTime uploadedAt,
+        /** M50 (PRD 14.8): ClamAV scan outcome for this file. */
+        ScanStatus scanStatus) {
 
     public static AttachmentResponse from(Attachment a) {
         return new AttachmentResponse(
@@ -27,6 +30,7 @@ public record AttachmentResponse(
                 a.getThumbObjectKey() != null,
                 a.getOriginalFilename(), a.getContentType(), a.getSizeBytes(),
                 a.getOwnerModule(), a.getOwnerEntity(), a.getOwnerId(),
-                a.getUploadedBy(), a.getUploadedAt());
+                a.getUploadedBy(), a.getUploadedAt(),
+                a.getScanStatus());
     }
 }

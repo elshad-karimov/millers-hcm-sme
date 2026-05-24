@@ -3,9 +3,14 @@ package az.millers.hcm.attachment.api;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,9 +36,13 @@ import io.minio.GetObjectResponse;
 public class AttachmentController {
 
     private final AttachmentService service;
+    private final int presignedExpiryMinutes;
 
-    public AttachmentController(AttachmentService service) {
+    public AttachmentController(
+            AttachmentService service,
+            @Value("${hcm.storage.minio.presigned-url-expiry-minutes:15}") int presignedExpiryMinutes) {
         this.service = service;
+        this.presignedExpiryMinutes = presignedExpiryMinutes;
     }
 
     /** List attachments owned by (module, entity, ownerId). */
@@ -119,6 +128,39 @@ public class AttachmentController {
                         : a.getOriginalFilename())
                 .build());
         return new ResponseEntity<>(new InputStreamResource(td.stream()), headers, HttpStatus.OK);
+    }
+
+    /**
+     * M50 (PRD 14.8): returns a MinIO presigned GET URL for the attachment,
+     * valid for {@code presignedExpiryMinutes} minutes (default 15).
+     *
+     * <p>The client authenticates once with a Bearer JWT; the response URL is a
+     * short-lived credential that lets the browser download the file directly
+     * from MinIO without streaming through the backend — satisfying the PRD
+     * requirement that files are "accessed only through signed, time-limited URLs."
+     *
+     * <p>Response shape:
+     * <pre>
+     * {
+     *   "url":            "http://localhost:9000/hcm-attachments/…?X-Amz-…",
+     *   "filename":       "quarterly-report.pdf",
+     *   "contentType":    "application/pdf",
+     *   "expiresInSeconds": 900
+     * }
+     * </pre>
+     */
+    @GetMapping("/{id}/url")
+    @PreAuthorize("isAuthenticated()")
+    public Map<String, Object> presignedUrl(@PathVariable UUID id) {
+        Attachment a = service.get(id);
+        String url = service.getPresignedUrl(id);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("url", url);
+        body.put("filename", a.getOriginalFilename());
+        body.put("contentType", a.getContentType());
+        body.put("expiresAt", Instant.now().plus(presignedExpiryMinutes, ChronoUnit.MINUTES).toString());
+        body.put("expiresInSeconds", presignedExpiryMinutes * 60);
+        return body;
     }
 
     @DeleteMapping("/{id}")

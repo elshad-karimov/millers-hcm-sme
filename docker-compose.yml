@@ -182,9 +182,38 @@ services:
       retries: 10
       start_period: 10s
 
+  clamav:
+    image: clamav/clamav:stable
+    container_name: hcm-clamav
+    # M50 (PRD 14.8): ClamAV daemon for virus scanning uploaded files.
+    # clamd listens on TCP 3310 inside the container.
+    # First start downloads the virus-definition DB via freshclam (~250 MB);
+    # subsequent starts reuse the persisted DB volume — much faster.
+    # Spring's ClamAvScanService connects on localhost:3310 (port mapped below).
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - hcm-clamavdb:/var/lib/clamav
+    environment:
+      # Disable the built-in scanner health check (it calls clamscan, which is
+      # slow); clamd health is checked via the TCP port below instead.
+      CLAMAV_NO_CLAMDCONF: "false"
+    healthcheck:
+      # nc (netcat) is not in the minimal image; use /dev/tcp bash built-in.
+      test:
+        - CMD-SHELL
+        - "echo PING | nc -w 3 127.0.0.1 3310 | grep -q PONG"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # freshclam must finish downloading the DB before clamd starts:
+      # Alpine freshclam download is ~4 min on a first pull.
+      start_period: 300s
+
 volumes:
   hcm-pgdata:
   hcm-miniodata:
+  hcm-clamavdb:
   # Retained for backward-compat references to the old volume name.
   # Production `start` mode (milestone 23) stores all auth state in
   # hcm-keycloak-pg; nothing meaningful lives under /opt/keycloak/data anymore.

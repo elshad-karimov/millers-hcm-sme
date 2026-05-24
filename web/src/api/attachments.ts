@@ -1,5 +1,7 @@
 import { api } from './client'
 
+export type ScanStatus = 'PENDING' | 'CLEAN' | 'INFECTED' | 'SKIPPED' | 'ERROR'
+
 export interface Attachment {
   id: string
   attachmentNo: string
@@ -15,6 +17,16 @@ export interface Attachment {
   ownerId: string
   uploadedBy: string
   uploadedAt: string
+  /** M50 (PRD 14.8): ClamAV scan outcome. CLEAN for user uploads that pass; SKIPPED for server-generated exports. */
+  scanStatus?: ScanStatus | null
+}
+
+export interface PresignedUrlResponse {
+  url: string
+  filename: string | null
+  contentType: string | null
+  expiresAt: string
+  expiresInSeconds: number
 }
 
 export const attachmentsApi = {
@@ -35,29 +47,36 @@ export const attachmentsApi = {
   },
 
   /**
-   * Streams the file via axios (so the JWT header is applied) and triggers
-   * a browser save-as. Returns once the save dialog has been initiated.
+   * M50 (PRD 14.8): fetches a MinIO presigned GET URL (valid 15 min by default).
+   * The caller authenticates once with a Bearer JWT; the returned URL lets the
+   * browser download the file directly from MinIO without routing bytes through
+   * the backend — satisfying the PRD "signed, time-limited URL" requirement.
+   */
+  presignedUrl: (id: string): Promise<PresignedUrlResponse> =>
+    api.get<PresignedUrlResponse>(`/attachments/${id}/url`).then((r) => r.data),
+
+  /**
+   * Triggers a browser save-as dialog for the attachment.
+   * Uses a MinIO presigned URL (M50) so the download goes direct to object
+   * storage rather than streaming through the backend.
    */
   download: async (a: Attachment) => {
-    const res = await api.get(`/attachments/${a.id}/download`, { responseType: 'blob' })
-    const url = URL.createObjectURL(res.data as Blob)
+    const { url, filename } = await attachmentsApi.presignedUrl(a.id)
     const link = document.createElement('a')
     link.href = url
-    link.download = a.originalFilename ?? 'attachment.bin'
+    link.download = filename ?? a.originalFilename ?? 'attachment.bin'
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    URL.revokeObjectURL(url)
   },
 
   /**
-   * Returns an in-memory blob URL for inline preview (img / pdf-embed
-   * etc.). Caller is responsible for {@link URL.revokeObjectURL} when
-   * the URL is no longer needed — leaking blobs holds the bytes in
-   * browser memory.
-   *
-   * Separate from {@link download} because that one triggers save-as;
-   * this one renders inline so we don't want the click flow.
+   * Returns an in-memory blob URL for inline preview (img / pdf-embed etc.).
+   * Still streams via the backend (JWT-authenticated) because cross-origin
+   * fetch from MinIO presigned URLs requires CORS to be enabled on the bucket.
+   * Caller is responsible for {@link URL.revokeObjectURL} when no longer needed.
    */
   previewBlob: async (id: string): Promise<string> => {
     const res = await api.get(`/attachments/${id}/download`, { responseType: 'blob' })
@@ -66,13 +85,8 @@ export const attachmentsApi = {
 
   /**
    * M36: blob URL for the pre-baked 256-px JPEG thumbnail. Falls back
-   * on the server side to the original blob when no thumb exists
-   * (pre-M36 rows, generation failures), so callers don't have to
-   * branch on `hasThumbnail`. Cheap enough for inline rendering — a
-   * typical 4 MB photo's thumbnail is ~10 KB.
-   *
-   * Caller is responsible for {@link URL.revokeObjectURL} once the
-   * URL is no longer needed.
+   * on the server side to the original blob when no thumb exists.
+   * Caller is responsible for {@link URL.revokeObjectURL} when no longer needed.
    */
   thumbnailBlob: async (id: string): Promise<string> => {
     const res = await api.get(`/attachments/${id}/thumbnail`, { responseType: 'blob' })
