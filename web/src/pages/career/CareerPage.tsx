@@ -4,8 +4,8 @@ import {
   Modal, Popconfirm, Progress, Row, Select, Space, Steps, Table, Tag, Typography,
 } from 'antd';
 import {
-  BookOutlined, CheckCircleOutlined, DeleteOutlined,
-  PlusOutlined, RocketOutlined, TargetOutlined,
+  AimOutlined, BookOutlined, CheckCircleOutlined, DeleteOutlined,
+  PlusOutlined, RocketOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { idpApi, IdpResponse, ActivityDto, SkillGapDto } from '../../api/idpApi';
@@ -227,7 +227,7 @@ export default function CareerPage() {
               {/* Skill Gaps */}
               <Card
                 size="small"
-                title={<><TargetOutlined /> Skill Gaps</>}
+                title={<><AimOutlined /> Skill Gaps</>}
                 style={{ marginBottom: 12 }}
                 extra={
                   <Button size="small" icon={<PlusOutlined />} onClick={() => setGapOpen(true)}>
