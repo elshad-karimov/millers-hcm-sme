@@ -26,10 +26,11 @@ public class MinioConfig {
 
     private static final Logger log = LoggerFactory.getLogger(MinioConfig.class);
 
-    @Value("${hcm.storage.minio.endpoint}")  private String endpoint;
+    @Value("${hcm.storage.minio.endpoint}")   private String endpoint;
     @Value("${hcm.storage.minio.access-key}") private String accessKey;
     @Value("${hcm.storage.minio.secret-key}") private String secretKey;
     @Value("${hcm.storage.minio.bucket}")     private String bucket;
+    @Value("${hcm.backup.bucket:hcm-backups}") private String backupBucket;
 
     @Bean
     public MinioClient minioClient() {
@@ -37,23 +38,24 @@ public class MinioConfig {
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
                 .build();
-        ensureBucket(client);
+        ensureBucket(client, bucket);
+        ensureBucket(client, backupBucket);
         return client;
     }
 
-    private void ensureBucket(MinioClient client) {
+    private void ensureBucket(MinioClient client, String bucketName) {
         try {
-            boolean exists = client.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
+            boolean exists = client.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
             if (!exists) {
-                client.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
-                log.info("MinIO bucket '{}' created at {}", bucket, endpoint);
+                client.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+                log.info("MinIO bucket '{}' created at {}", bucketName, endpoint);
             } else {
-                log.info("MinIO bucket '{}' ready at {}", bucket, endpoint);
+                log.info("MinIO bucket '{}' ready at {}", bucketName, endpoint);
             }
         } catch (Exception e) {
-            // Don't kill the app — attachments just won't work until MinIO is up.
-            log.warn("MinIO unreachable at {} on startup ({}). Uploads will return 503 until it's online.",
-                    endpoint, e.getMessage());
+            // Don't kill the app — storage just won't work until MinIO is up.
+            log.warn("MinIO unreachable at {} on startup ({}). Bucket '{}' will be created on first use.",
+                    endpoint, e.getMessage(), bucketName);
         }
     }
 }

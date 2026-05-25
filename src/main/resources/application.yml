@@ -53,6 +53,7 @@ spring:
       - comp_benefits
       - reporting
       - notification
+      - backup
     default-schema: core_hr
     create-schemas: true
   servlet:
@@ -152,6 +153,22 @@ hcm:
       max-file-bytes: ${HCM_STORAGE_MAX_FILE_BYTES:20971520}   # 20 MB
       # M50 (PRD 14.8): presigned GET URL TTL returned by GET /api/attachments/{id}/url.
       presigned-url-expiry-minutes: ${HCM_STORAGE_PRESIGNED_URL_EXPIRY_MINUTES:15}
+  backup:
+    # M53 (PRD §14.4): daily encrypted backup.
+    # MinIO bucket for encrypted pg_dump archives (sql.gz.enc).
+    bucket: ${HCM_BACKUP_BUCKET:hcm-backups}
+    # How many days backup objects should be retained (informational; lifecycle policy applied separately).
+    retention-days: ${HCM_BACKUP_RETENTION_DAYS:30}
+    # pg_dump binary (or wrapper script) to invoke.
+    # On dev machines where the local pg_dump version doesn't match the Docker
+    # server version, point this at scripts/pg_dump_docker.sh which runs
+    # pg_dump inside the hcm-postgres container.
+    # Production: leave as default (pg_dump must be on PATH, version ≥ server).
+    pg-dump-command: ${HCM_BACKUP_PG_DUMP_CMD:pg_dump}
+    # Override the -h / -p flags passed to pg_dump (useful when the pg_dump
+    # binary runs inside the container, where the DB is on localhost:5432).
+    pg-dump-host-override: ${HCM_BACKUP_PG_DUMP_HOST:}
+    pg-dump-port-override: ${HCM_BACKUP_PG_DUMP_PORT:0}
 
 management:
   endpoints:

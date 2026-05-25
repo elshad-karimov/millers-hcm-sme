@@ -60,6 +60,7 @@ import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
+import { BackupsPage } from './pages/admin/BackupsPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
@@ -211,6 +212,7 @@ export default function App() {
         {/* ── SYSTEM_ADMIN only ──────────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN']} />}>
           <Route path="admin/users" element={<UserManagementPage />} />
+          <Route path="admin/backups" element={<BackupsPage />} />
         </Route>
       </Route>
 

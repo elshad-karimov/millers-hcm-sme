@@ -8,6 +8,7 @@ import {
   ClockCircleOutlined,
   CoffeeOutlined,
   ClockCircleTwoTone,
+  CloudServerOutlined,
   DollarCircleOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
@@ -82,6 +83,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
+  { prefix: '/admin/backups', module: 'admin', screen: 'admin-backups' },
 ]
 
 function resolveLocation(pathname: string) {
@@ -464,6 +466,11 @@ export function AppLayout() {
                 key: 'admin-users',
                 icon: <TeamOutlined />,
                 label: <Link to="/admin/users">User management</Link>,
+              },
+              {
+                key: 'admin-backups',
+                icon: <CloudServerOutlined />,
+                label: <Link to="/admin/backups">Backups</Link>,
               },
             ],
           } satisfies ItemType,
