@@ -42,6 +42,7 @@ import { ContractChangeFormPage } from './pages/ContractChangeFormPage'
 import { ContractChangeDetailPage } from './pages/ContractChangeDetailPage'
 import { ReviewCyclesPage } from './pages/ReviewCyclesPage'
 import { CalibrationPage } from './pages/performance/CalibrationPage'
+import CareerPage from './pages/career/CareerPage'
 import { ReviewCycleFormPage } from './pages/ReviewCycleFormPage'
 import { GoalsPage } from './pages/GoalsPage'
 import { PerformanceReviewsPage } from './pages/PerformanceReviewsPage'
@@ -141,6 +142,7 @@ export default function App() {
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:cycleId/calibration" element={<CalibrationPage />} />
+          <Route path="career" element={<CareerPage />} />
           <Route path="performance/goals" element={<GoalsPage />} />
           <Route path="performance/reviews" element={<PerformanceReviewsPage />} />
           <Route path="performance/reviews/:id" element={<PerformanceReviewDetailPage />} />
