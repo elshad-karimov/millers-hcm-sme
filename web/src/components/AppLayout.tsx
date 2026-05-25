@@ -30,6 +30,7 @@ import {
   UserAddOutlined,
   UserOutlined,
   WalletOutlined,
+  FundOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -86,6 +87,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
   { prefix: '/admin/backups', module: 'admin', screen: 'admin-backups' },
   { prefix: '/admin/ldap', module: 'admin', screen: 'admin-ldap' },
+  { prefix: '/admin/bi-export', module: 'admin', screen: 'admin-bi-export' },
 ]
 
 function resolveLocation(pathname: string) {
@@ -102,6 +104,8 @@ export function AppLayout() {
   const isHR = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR')
   const isManager = hasRole('DEPARTMENT_MANAGER')
   const isAdmin = hasRole('SYSTEM_ADMIN')
+  /** SYSTEM_ADMIN or AUDITOR — can access BI Export and other audit tools */
+  const isAdminOrAuditor = hasRole('SYSTEM_ADMIN', 'AUDITOR')
   /** Any role that can access team / HR data beyond self-service. */
   const hrOrManager = isHR || isManager
 
@@ -456,28 +460,37 @@ export function AppLayout() {
         ]
       : []),
 
-    // ── Administration (SYSTEM_ADMIN only) ────────────────────────────────
-    ...(isAdmin
+    // ── Administration (SYSTEM_ADMIN + AUDITOR) ───────────────────────────
+    ...(isAdminOrAuditor
       ? [
           {
             key: 'admin',
             icon: <SettingOutlined />,
             label: 'Administration',
             children: [
+              ...(isAdmin
+                ? [
+                    {
+                      key: 'admin-users',
+                      icon: <TeamOutlined />,
+                      label: <Link to="/admin/users">User management</Link>,
+                    },
+                    {
+                      key: 'admin-backups',
+                      icon: <CloudServerOutlined />,
+                      label: <Link to="/admin/backups">Backups</Link>,
+                    },
+                    {
+                      key: 'admin-ldap',
+                      icon: <LinkOutlined />,
+                      label: <Link to="/admin/ldap">LDAP Sync</Link>,
+                    },
+                  ]
+                : []),
               {
-                key: 'admin-users',
-                icon: <TeamOutlined />,
-                label: <Link to="/admin/users">User management</Link>,
-              },
-              {
-                key: 'admin-backups',
-                icon: <CloudServerOutlined />,
-                label: <Link to="/admin/backups">Backups</Link>,
-              },
-              {
-                key: 'admin-ldap',
-                icon: <LinkOutlined />,
-                label: <Link to="/admin/ldap">LDAP Sync</Link>,
+                key: 'admin-bi-export',
+                icon: <FundOutlined />,
+                label: <Link to="/admin/bi-export">BI Export</Link>,
               },
             ],
           } satisfies ItemType,

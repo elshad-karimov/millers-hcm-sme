@@ -62,6 +62,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
+import { BiExportPage } from './pages/admin/BiExportPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
@@ -215,6 +216,11 @@ export default function App() {
           <Route path="admin/users" element={<UserManagementPage />} />
           <Route path="admin/backups" element={<BackupsPage />} />
           <Route path="admin/ldap" element={<LdapSyncPage />} />
+        </Route>
+
+        {/* ── SYSTEM_ADMIN + AUDITOR ─────────────────────────────── */}
+        <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'AUDITOR']} />}>
+          <Route path="admin/bi-export" element={<BiExportPage />} />
         </Route>
       </Route>
 
