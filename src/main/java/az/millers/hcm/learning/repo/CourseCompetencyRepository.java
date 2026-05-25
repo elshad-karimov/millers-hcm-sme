@@ -12,5 +12,9 @@ public interface CourseCompetencyRepository extends JpaRepository<CourseCompeten
 
     List<CourseCompetency> findByCourseId(UUID courseId);
 
+    /** All course-competency mappings for a given competency — used by gap analysis
+     *  to find published courses that award the required skill. */
+    List<CourseCompetency> findByCompetencyId(UUID competencyId);
+
     void deleteByCourseId(UUID courseId);
 }

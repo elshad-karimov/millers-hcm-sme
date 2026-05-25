@@ -198,6 +198,35 @@ export interface CourseCompetencyMapping {
   awardedLevel: number
 }
 
+// M60: Gap analysis types
+export interface PositionRequirement {
+  positionId: string
+  competencyId: string
+  competencyCode: string
+  competencyName: string
+  competencyCategory: string
+  requiredProficiency: number
+  notes?: string | null
+}
+
+export interface CourseRecommendation {
+  courseId: string
+  courseCode: string
+  courseTitle: string
+  awardedLevel: number
+}
+
+export interface GapItem {
+  competencyId: string
+  competencyCode: string
+  competencyName: string
+  competencyCategory: string
+  requiredProficiency: number
+  currentProficiency: number | null  // null = never assessed
+  gap: number                        // positive = deficit, 0 = met, negative = exceeds
+  recommendedCourses: CourseRecommendation[]
+}
+
 export const learningApi = {
   // Courses
   courses: (params: {
@@ -268,4 +297,14 @@ export const learningApi = {
     api
       .get<EmployeeCompetency[]>(`/learning/competencies/employee/${employeeId}`)
       .then((r) => r.data),
+
+  // M60: Gap analysis — position requirements + per-employee report
+  positionRequirements: (positionId: string) =>
+    api.get<PositionRequirement[]>(`/learning/positions/${positionId}/requirements`).then((r) => r.data),
+  addPositionRequirement: (positionId: string, payload: { competencyId: string; requiredProficiency: number; notes?: string }) =>
+    api.post<PositionRequirement>(`/learning/positions/${positionId}/requirements`, payload).then((r) => r.data),
+  removePositionRequirement: (positionId: string, competencyId: string) =>
+    api.delete(`/learning/positions/${positionId}/requirements/${competencyId}`),
+  gapAnalysis: (employeeId: string) =>
+    api.get<GapItem[]>(`/learning/employees/${employeeId}/gap-analysis`).then((r) => r.data),
 }
