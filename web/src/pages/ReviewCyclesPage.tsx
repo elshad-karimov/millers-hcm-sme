@@ -122,6 +122,15 @@ export function ReviewCyclesPage() {
               Calibrate
             </Button>
           )}
+          {(r.status === 'CALIBRATING' || r.status === 'OPEN') && (
+            <Button
+              size="small"
+              type="dashed"
+              onClick={() => navigate(`/performance/cycles/${r.id}/calibration`)}
+            >
+              Board
+            </Button>
+          )}
           {canEdit && (r.status === 'OPEN' || r.status === 'CALIBRATING') && (
             <Button size="small" onClick={() => onTransition(r, 'CLOSED')}>
               Close
