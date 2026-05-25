@@ -182,6 +182,35 @@ services:
       retries: 10
       start_period: 10s
 
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: hcm-openldap
+    # M54 (PRD §14.6): OpenLDAP dev directory — Keycloak federates from this.
+    # osixia/openldap creates the root dc=millers,dc=az entry automatically.
+    # bootstrap.ldif seeds ou=users, ou=groups, 4 test users, and 5 role groups.
+    # Group CN names match Keycloak realm role names so role-ldap-mapper resolves
+    # them without a transform.
+    command: ["--loglevel", "warning", "--copy-service"]
+    ports:
+      - "127.0.0.1:1389:389"
+    environment:
+      LDAP_ORGANISATION: "Millers HCM"
+      LDAP_DOMAIN: millers.az
+      LDAP_ADMIN_PASSWORD: adminpassword
+      LDAP_CONFIG_PASSWORD: configpassword
+      LDAP_READONLY_USER: "false"
+      LDAP_TLS: "false"
+    volumes:
+      - ./docker/ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/bootstrap.ldif:ro
+      - hcm-ldapdata:/var/lib/ldap
+      - hcm-ldap-slapd:/etc/ldap/slapd.d
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost:389 -b dc=millers,dc=az -D cn=admin,dc=millers,dc=az -w adminpassword -s base > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   clamav:
     image: clamav/clamav:stable
     container_name: hcm-clamav
@@ -219,5 +248,10 @@ volumes:
   # hcm-keycloak-pg; nothing meaningful lives under /opt/keycloak/data anymore.
   hcm-keycloakdata:
   hcm-keycloak-pgdata:
+  # M54 (PRD §14.6): persisted OpenLDAP data directory.
+  # Survives container restarts so Keycloak's already-imported users are not
+  # re-created on every compose up.
+  hcm-ldapdata:
+  hcm-ldap-slapd:
   # MailHog stores captured mail in /maildir but the default image keeps
   # it ephemeral in-memory; restart wipes the inbox — desired for dev.

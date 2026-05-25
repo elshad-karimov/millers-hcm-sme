@@ -208,6 +208,39 @@ public class KeycloakAdminService {
     }
 
     // -------------------------------------------------------------------------
+    // Package-accessible helpers for collaborating services (M54)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns a valid Keycloak admin token, refreshing from the master realm
+     * if the cached one has expired.
+     *
+     * <p>Exposed as {@code public} so that {@code LdapFederationService} in the
+     * {@code ldap} package can share the cached token rather than maintaining
+     * its own credential exchange.
+     */
+    public String getAdminToken() {
+        return adminToken();
+    }
+
+    /**
+     * Constructs an absolute Admin REST API URL for the configured realm.
+     *
+     * <p>Example: {@code realmUrl("/components")} →
+     * {@code http://localhost:8090/admin/realms/millers-hcm/components}
+     *
+     * <p>Exposed as {@code public} so that collaborating services such as
+     * {@code LdapFederationService} can build their own Admin API calls
+     * without duplicating the server-url + realm logic.
+     *
+     * @param path path segment to append (must start with {@code /})
+     * @return fully-qualified Admin REST URL
+     */
+    public String realmUrl(String path) {
+        return props.serverUrl() + "/admin/realms/" + props.realm() + path;
+    }
+
+    // -------------------------------------------------------------------------
     // Internals
     // -------------------------------------------------------------------------
 
@@ -274,7 +307,4 @@ public class KeycloakAdminService {
         }
     }
 
-    private String realmUrl(String path) {
-        return props.serverUrl() + "/admin/realms/" + props.realm() + path;
-    }
 }

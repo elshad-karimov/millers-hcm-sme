@@ -1,0 +1,96 @@
+# M54 (PRD §14.6): Bootstrap LDIF for osixia/openldap.
+#
+# osixia/openldap auto-creates the root dc=millers,dc=az entry.
+# This file adds: ou=users, ou=groups, 4 test users, and 5 role groups.
+#
+# Group CN names match Keycloak realm role names exactly so the
+# role-ldap-mapper can resolve them without a transform.
+#
+# Passwords (SSHA, dev-only fixed salt for reproducibility):
+#   ldapadmin    → LdapAdmin1!
+#   ldaphrspec   → LdapHrspec1!
+#   ldapmanager  → LdapManager1!
+#   ldapemployee → LdapEmployee1!
+
+dn: ou=users,dc=millers,dc=az
+objectClass: organizationalUnit
+ou: users
+
+dn: ou=groups,dc=millers,dc=az
+objectClass: organizationalUnit
+ou: groups
+
+# ── Users ────────────────────────────────────────────────────────────────────
+
+dn: cn=ldapadmin,ou=users,dc=millers,dc=az
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: ldapadmin
+sn: LdapAdmin
+givenName: Ldap
+mail: ldapadmin@millers.example
+userPassword: {SSHA}IK5L+YRqXfUveOf2bcum0wJwMa4RIjNE
+
+dn: cn=ldaphrspec,ou=users,dc=millers,dc=az
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: ldaphrspec
+sn: LdapHrSpec
+givenName: Ldap
+mail: ldaphrspec@millers.example
+userPassword: {SSHA}/H7K7+8YivGGfXnV6MtkJDn/qLgRIjNE
+
+dn: cn=ldapmanager,ou=users,dc=millers,dc=az
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: ldapmanager
+sn: LdapManager
+givenName: Ldap
+mail: ldapmanager@millers.example
+userPassword: {SSHA}q98QipAR0lSi1Z5Zfrto94CoDjkRIjNE
+
+dn: cn=ldapemployee,ou=users,dc=millers,dc=az
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: ldapemployee
+sn: LdapEmployee
+givenName: Ldap
+mail: ldapemployee@millers.example
+userPassword: {SSHA}U9l6MNYMQQfX7zghu5sic1bBQuIRIjNE
+
+# ── Groups (role-to-group mapping for Keycloak role-ldap-mapper) ─────────────
+
+dn: cn=SYSTEM_ADMIN,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: SYSTEM_ADMIN
+description: System administrators with full platform access
+member: cn=ldapadmin,ou=users,dc=millers,dc=az
+
+dn: cn=HR_ADMIN,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: HR_ADMIN
+description: HR administrators — manage all HR data and settings
+member: cn=ldapadmin,ou=users,dc=millers,dc=az
+
+dn: cn=HR_SPECIALIST,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: HR_SPECIALIST
+description: HR specialists — day-to-day HR operations
+member: cn=ldaphrspec,ou=users,dc=millers,dc=az
+
+dn: cn=DEPARTMENT_MANAGER,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: DEPARTMENT_MANAGER
+description: Department managers — team-level HR data access
+member: cn=ldapmanager,ou=users,dc=millers,dc=az
+
+dn: cn=EMPLOYEE,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: EMPLOYEE
+description: Regular employees — self-service access only
+member: cn=ldapemployee,ou=users,dc=millers,dc=az
+member: cn=ldapmanager,ou=users,dc=millers,dc=az

@@ -1,0 +1,42 @@
+# M54 (PRD §14.6): LDAP group definitions for Millers HCM role federation.
+#
+# bitnami/openldap creates the root DC entry, ou=users and ou=groups OUs,
+# and the user entries automatically from LDAP_USERS / LDAP_PASSWORDS env vars.
+# This custom LDIF adds only the group membership entries; OpenLDAP processes
+# it on first start via LDAP_CUSTOM_LDIF_DIR.
+#
+# Group names MUST match Keycloak realm role names exactly so the
+# role-ldap-mapper can resolve them without a transform.
+#
+# Member DNs follow the bitnami pattern: cn=<username>,ou=users,dc=millers,dc=az
+
+dn: cn=SYSTEM_ADMIN,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: SYSTEM_ADMIN
+description: System administrators with full platform access
+member: cn=ldapadmin,ou=users,dc=millers,dc=az
+
+dn: cn=HR_ADMIN,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: HR_ADMIN
+description: HR administrators — manage all HR data and settings
+member: cn=ldapadmin,ou=users,dc=millers,dc=az
+
+dn: cn=HR_SPECIALIST,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: HR_SPECIALIST
+description: HR specialists — day-to-day HR operations
+member: cn=ldaphrspec,ou=users,dc=millers,dc=az
+
+dn: cn=DEPARTMENT_MANAGER,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: DEPARTMENT_MANAGER
+description: Department managers — team-level HR data access
+member: cn=ldapmanager,ou=users,dc=millers,dc=az
+
+dn: cn=EMPLOYEE,ou=groups,dc=millers,dc=az
+objectClass: groupOfNames
+cn: EMPLOYEE
+description: Regular employees — self-service access only
+member: cn=ldapemployee,ou=users,dc=millers,dc=az
+member: cn=ldapmanager,ou=users,dc=millers,dc=az

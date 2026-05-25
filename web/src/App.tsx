@@ -61,6 +61,7 @@ import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
+import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
@@ -213,6 +214,7 @@ export default function App() {
         <Route element={<RequireRole roles={['SYSTEM_ADMIN']} />}>
           <Route path="admin/users" element={<UserManagementPage />} />
           <Route path="admin/backups" element={<BackupsPage />} />
+          <Route path="admin/ldap" element={<LdapSyncPage />} />
         </Route>
       </Route>
 

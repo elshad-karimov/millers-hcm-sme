@@ -16,6 +16,7 @@ import {
   HomeOutlined,
   IdcardOutlined,
   InboxOutlined,
+  LinkOutlined,
   PlayCircleOutlined,
   ProfileOutlined,
   ReadOutlined,
@@ -84,6 +85,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
   { prefix: '/admin/backups', module: 'admin', screen: 'admin-backups' },
+  { prefix: '/admin/ldap', module: 'admin', screen: 'admin-ldap' },
 ]
 
 function resolveLocation(pathname: string) {
@@ -471,6 +473,11 @@ export function AppLayout() {
                 key: 'admin-backups',
                 icon: <CloudServerOutlined />,
                 label: <Link to="/admin/backups">Backups</Link>,
+              },
+              {
+                key: 'admin-ldap',
+                icon: <LinkOutlined />,
+                label: <Link to="/admin/ldap">LDAP Sync</Link>,
               },
             ],
           } satisfies ItemType,
