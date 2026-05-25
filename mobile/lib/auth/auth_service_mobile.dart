@@ -1,6 +1,7 @@
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
+import 'biometric_service.dart';
 
 /// Handles Keycloak OIDC login / logout / token refresh via
 /// Authorization Code + PKCE (matching the web app's keycloak-js flow).
@@ -14,6 +15,8 @@ class AuthService {
   static const _keyAccessToken = 'hcm_access_token';
   static const _keyRefreshToken = 'hcm_refresh_token';
   static const _keyIdToken = 'hcm_id_token';
+  // M59: stored as 'true' / absent
+  static const _keyBiometricEnabled = 'hcm_biometric_enabled';
 
   String? _accessToken;
   String? _refreshToken;
@@ -44,6 +47,44 @@ class AuthService {
       ),
     );
     await _save(result.accessToken, result.refreshToken, result.idToken);
+  }
+
+  // --- M59: Biometric helpers ------------------------------------------------
+
+  /// Whether the user has opted into biometric login on this device.
+  Future<bool> isBiometricEnabled() async {
+    final val = await _storage.read(key: _keyBiometricEnabled);
+    return val == 'true';
+  }
+
+  /// Persist the user's biometric preference.
+  Future<void> setBiometricEnabled(bool enabled) async {
+    if (enabled) {
+      await _storage.write(key: _keyBiometricEnabled, value: 'true');
+    } else {
+      await _storage.delete(key: _keyBiometricEnabled);
+    }
+  }
+
+  /// Attempts biometric authentication and, if successful, loads the stored
+  /// refresh token to issue a new access token.
+  ///
+  /// Returns `true` on success, `false` otherwise (user should fall back to
+  /// the full Keycloak login flow).
+  Future<bool> loginWithBiometric() async {
+    final authenticated = await BiometricService.instance.authenticate();
+    if (!authenticated) return false;
+
+    // Reload persisted tokens and try a silent token refresh.
+    await _loadFromStorage();
+    if (_refreshToken == null) return false;
+
+    try {
+      await _refresh();
+      return _accessToken != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Ends the Keycloak session and clears local tokens.
