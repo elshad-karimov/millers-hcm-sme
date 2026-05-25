@@ -79,6 +79,34 @@
             <version>${minio.version}</version>
         </dependency>
 
+        <!-- FCM / Firebase Cloud Messaging (M52 — PRD §17.5) -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.4.2</version>
+            <exclusions>
+                <!-- We only need FCM; exclude Cloud Metrics/Tracing exporters
+                     that require google-oauth-client-bom which times out on
+                     slow Maven Central connections. -->
+                <exclusion>
+                    <groupId>com.google.cloud.opentelemetry</groupId>
+                    <artifactId>exporter-metrics</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.cloud.opentelemetry</groupId>
+                    <artifactId>exporter-trace</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.cloud</groupId>
+                    <artifactId>google-cloud-firestore</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.cloud</groupId>
+                    <artifactId>google-cloud-storage</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- Report exports: XLSX via Apache POI, PDF via OpenPDF -->
         <dependency>
             <groupId>org.apache.poi</groupId>

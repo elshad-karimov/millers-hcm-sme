@@ -52,6 +52,7 @@ spring:
       - learning
       - comp_benefits
       - reporting
+      - notification
     default-schema: core_hr
     create-schemas: true
   servlet:
@@ -130,6 +131,12 @@ hcm:
       host: ${HCM_VIRUS_SCAN_HOST:localhost}
       port: ${HCM_VIRUS_SCAN_PORT:3310}
       timeout-ms: ${HCM_VIRUS_SCAN_TIMEOUT_MS:30000}
+  fcm:
+    # Firebase Cloud Messaging credentials JSON (PRD §17.5 / M52).
+    # Inject the full service-account JSON as a multi-line env var.
+    # Leave empty to disable FCM — the app continues to work with
+    # EMAIL + IN_APP channels only.
+    credentials-json: ${HCM_FCM_CREDENTIALS_JSON:}
   mail:
     # From address used on all outgoing mail (PRD 10.5).
     from: ${HCM_MAIL_FROM:no-reply@millers.example}

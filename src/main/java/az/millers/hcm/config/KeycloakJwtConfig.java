@@ -17,7 +17,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.client.RestTemplate;
 
@@ -56,48 +61,94 @@ public class KeycloakJwtConfig {
             @Value("${hcm.security.keycloak.trust-store-password:changeit}") String trustStorePassword)
             throws Exception {
 
+        // ── Build the RestTemplate (with optional custom truststore) ──────────
+        RestTemplate rt;
         if (trustStorePath == null || trustStorePath.isBlank()) {
             log.info("Keycloak JwtDecoder: using JDK default trust (no custom truststore configured)");
-            return NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
-        }
-
-        Path path = Path.of(trustStorePath);
-        if (!Files.exists(path)) {
-            log.warn("Keycloak truststore not found at {} — falling back to JDK default trust", path);
-            return NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
-        }
-
-        String storeType = trustStorePath.toLowerCase().endsWith(".jks") ? "JKS" : "PKCS12";
-        KeyStore trustStore = KeyStore.getInstance(storeType);
-        try (InputStream in = Files.newInputStream(path)) {
-            trustStore.load(in, trustStorePassword.toCharArray());
-        }
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                TrustManagerFactory.getDefaultAlgorithm());
-        tmf.init(trustStore);
-
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(null, tmf.getTrustManagers(), null);
-
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
-            @Override
-            protected void prepareConnection(HttpURLConnection connection, String httpMethod)
-                    throws IOException {
-                if (connection instanceof HttpsURLConnection https) {
-                    https.setSSLSocketFactory(sslContext.getSocketFactory());
+            rt = new RestTemplate();
+        } else {
+            Path path = Path.of(trustStorePath);
+            if (!Files.exists(path)) {
+                log.warn("Keycloak truststore not found at {} — falling back to JDK default trust", path);
+                rt = new RestTemplate();
+            } else {
+                String storeType = trustStorePath.toLowerCase().endsWith(".jks") ? "JKS" : "PKCS12";
+                KeyStore trustStore = KeyStore.getInstance(storeType);
+                try (InputStream in = Files.newInputStream(path)) {
+                    trustStore.load(in, trustStorePassword.toCharArray());
                 }
-                super.prepareConnection(connection, httpMethod);
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                        TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init(trustStore);
+                SSLContext sslContext = SSLContext.getInstance("TLS");
+                sslContext.init(null, tmf.getTrustManagers(), null);
+                SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
+                    @Override
+                    protected void prepareConnection(HttpURLConnection connection, String httpMethod)
+                            throws IOException {
+                        if (connection instanceof HttpsURLConnection https) {
+                            https.setSSLSocketFactory(sslContext.getSocketFactory());
+                        }
+                        super.prepareConnection(connection, httpMethod);
+                    }
+                };
+                factory.setConnectTimeout(5_000);
+                factory.setReadTimeout(10_000);
+                rt = new RestTemplate(factory);
+                log.info("Keycloak JwtDecoder: loaded {} truststore from {} ({} entries)",
+                        storeType, path, trustStore.size());
             }
-        };
-        factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(10_000);
+        }
 
-        RestTemplate rt = new RestTemplate(factory);
-        log.info("Keycloak JwtDecoder: loaded {} truststore from {} ({} entries)",
-                storeType, path, trustStore.size());
+        // ── Fetch the OIDC discovery document to get the real jwks_uri ────────
+        // We use withJwkSetUri() instead of withIssuerLocation() so that the
+        // decoder construction does NOT require the iss in the discovery doc to
+        // match issuerUri exactly.  This tolerates the common dev-mode setup
+        // where a Vite/nginx proxy changes the visible issuer hostname while the
+        // backend connects to Keycloak directly on a different port.
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> oidcConfig = rt.getForObject(
+                issuerUri + "/.well-known/openid-configuration",
+                java.util.Map.class);
+        if (oidcConfig == null || !oidcConfig.containsKey("jwks_uri")) {
+            throw new IllegalStateException(
+                    "Could not fetch OIDC discovery document from " + issuerUri);
+        }
+        String discoveredJwksUri = (String) oidcConfig.get("jwks_uri");
+        String realmIssuer       = (String) oidcConfig.get("issuer"); // may differ from issuerUri
 
-        return NimbusJwtDecoder.withIssuerLocation(issuerUri)
+        // Rewrite the JWKS URI to use the same host:port as issuerUri so that
+        // Nimbus fetches keys directly from Keycloak even when the realm
+        // advertises a different frontend URL (e.g. a Vite proxy on :5180).
+        // Pattern: replace the scheme+host+port prefix of discoveredJwksUri
+        // with the scheme+host+port of issuerUri.
+        String jwksUri;
+        try {
+            java.net.URI disco = java.net.URI.create(discoveredJwksUri);
+            java.net.URI conn  = java.net.URI.create(issuerUri);
+            String connBase = conn.getScheme() + "://" + conn.getHost()
+                    + (conn.getPort() > 0 ? ":" + conn.getPort() : "");
+            String discoBase = disco.getScheme() + "://" + disco.getHost()
+                    + (disco.getPort() > 0 ? ":" + disco.getPort() : "");
+            jwksUri = discoveredJwksUri.replace(discoBase, connBase);
+        } catch (Exception ex) {
+            jwksUri = discoveredJwksUri; // fall back to as-discovered
+        }
+        log.info("Keycloak OIDC discovery: jwks_uri={} iss={}", jwksUri, realmIssuer);
+
+        // Build decoder against the real JWKS endpoint.
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwksUri)
                 .restOperations(rt)
                 .build();
+
+        // Add issuer validator using the issuer the realm actually advertises.
+        OAuth2TokenValidator<Jwt> issuerValidator =
+                new JwtClaimValidator<>(JwtClaimNames.ISS,
+                        iss -> realmIssuer.equals(iss));
+        OAuth2TokenValidator<Jwt> withIssuer =
+                org.springframework.security.oauth2.jwt.JwtValidators.createDefaultWithIssuer(realmIssuer);
+        decoder.setJwtValidator(withIssuer);
+
+        return decoder;
     }
 }

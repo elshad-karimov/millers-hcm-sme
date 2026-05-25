@@ -55,6 +55,38 @@ public class EmailService {
      *                      {@code application/vnd.openxmlformats-officedocument.spreadsheetml.sheet})
      * @throws EmailDeliveryException wrapping the SMTP failure
      */
+    /**
+     * Send a simple HTML email without any attachment.  Swallows
+     * {@link MailException} and logs a warning — callers that want to record
+     * the failure should catch it themselves.
+     *
+     * @param to      recipient address (RFC 822)
+     * @param subject subject line
+     * @param htmlBody HTML body (no plain-text fallback)
+     */
+    public void sendSimple(String to, String subject, String htmlBody) {
+        if (to == null || to.isBlank()) {
+            log.warn("sendSimple: empty recipient address — skipping '{}'", subject);
+            return;
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            try {
+                helper.setFrom(new InternetAddress(fromAddress, fromName));
+            } catch (UnsupportedEncodingException ex) {
+                helper.setFrom(fromAddress);
+            }
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            mailSender.send(message);
+            log.info("Sent simple email '{}' to {}", subject, to);
+        } catch (MailException | MessagingException ex) {
+            log.warn("Simple email delivery failed for '{}' to {}: {}", subject, to, ex.getMessage());
+        }
+    }
+
     public void sendReport(List<String> to,
                            String subject,
                            String htmlBody,

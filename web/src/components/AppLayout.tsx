@@ -33,6 +33,7 @@ import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Logo } from './Logo'
+import { NotificationBell } from './NotificationBell'
 import { brand } from '../theme'
 
 const { Header, Content } = Layout
@@ -489,6 +490,7 @@ export function AppLayout() {
           <Logo size={36} withWordmark wordmarkColor={brand.ink} />
         </Link>
         <Space size="middle">
+          <NotificationBell />
           <Typography.Text strong style={{ color: brand.ink }}>
             {user?.username}
           </Typography.Text>
