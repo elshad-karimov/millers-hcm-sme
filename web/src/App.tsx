@@ -65,6 +65,7 @@ import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { BiExportPage } from './pages/admin/BiExportPage'
+import { WarehouseAnalyticsPage } from './pages/admin/WarehouseAnalyticsPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
@@ -220,6 +221,7 @@ export default function App() {
           <Route path="admin/users" element={<UserManagementPage />} />
           <Route path="admin/backups" element={<BackupsPage />} />
           <Route path="admin/ldap" element={<LdapSyncPage />} />
+          <Route path="admin/warehouse" element={<WarehouseAnalyticsPage />} />
         </Route>
 
         {/* ── SYSTEM_ADMIN + AUDITOR ─────────────────────────────── */}

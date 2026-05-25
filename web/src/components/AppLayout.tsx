@@ -31,6 +31,7 @@ import {
   UserOutlined,
   WalletOutlined,
   FundOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -88,6 +89,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/admin/backups', module: 'admin', screen: 'admin-backups' },
   { prefix: '/admin/ldap', module: 'admin', screen: 'admin-ldap' },
   { prefix: '/admin/bi-export', module: 'admin', screen: 'admin-bi-export' },
+  { prefix: '/admin/warehouse', module: 'admin', screen: 'admin-warehouse' },
 ]
 
 function resolveLocation(pathname: string) {
@@ -491,6 +493,11 @@ export function AppLayout() {
                 key: 'admin-bi-export',
                 icon: <FundOutlined />,
                 label: <Link to="/admin/bi-export">BI Export</Link>,
+              },
+              {
+                key: 'admin-warehouse',
+                icon: <DatabaseOutlined />,
+                label: <Link to="/admin/warehouse">Analytics Warehouse</Link>,
               },
             ],
           } satisfies ItemType,

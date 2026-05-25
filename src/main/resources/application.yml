@@ -181,6 +181,16 @@ hcm:
     # binary runs inside the container, where the DB is on localhost:5432).
     pg-dump-host-override: ${HCM_BACKUP_PG_DUMP_HOST:}
     pg-dump-port-override: ${HCM_BACKUP_PG_DUMP_PORT:0}
+  analytics:
+    # M58 (PRD Could-Have): ClickHouse analytics warehouse.
+    # HTTP interface is mapped to 18123 on the host (see docker-compose).
+    # If ClickHouse is not running the app starts normally; ETL and analytics
+    # endpoints return empty results rather than failing the whole app.
+    clickhouse:
+      url: ${HCM_CLICKHOUSE_URL:http://localhost:18123}
+      database: ${HCM_CLICKHOUSE_DATABASE:hcm_analytics}
+      username: ${HCM_CLICKHOUSE_USER:default}
+      password: ${HCM_CLICKHOUSE_PASSWORD:hcm_analytics}
 
 management:
   endpoints:
