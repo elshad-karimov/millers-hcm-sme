@@ -83,6 +83,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compbenefits/bonus-runs', module: 'compbenefits', screen: 'compbenefits-bonus-runs' },
   { prefix: '/reports/schedules', module: 'reports', screen: 'reports-schedules' },
   { prefix: '/reports', module: 'reports', screen: 'reports' },
+  { prefix: '/my/team', module: 'my-team', screen: 'my-team' },
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
@@ -133,6 +134,17 @@ export function AppLayout() {
       icon: <UserOutlined />,
       label: <Link to="/my">My Workspace</Link>,
     },
+
+    // ── My team (managers + HR) — M76 ───────────────────────────────────────
+    ...(isManager || isHR
+      ? [
+          {
+            key: 'my-team',
+            icon: <TeamOutlined />,
+            label: <Link to="/my/team">My team</Link>,
+          },
+        ]
+      : []),
 
     // ── People (HR only) ───────────────────────────────────────────────────
     ...(isHR

@@ -58,6 +58,7 @@ import {
   assignmentApi,
   type EmployeeAssignment,
 } from '../api/staffingCatalog'
+import { timelineApi, type TimelineEvent } from '../api/team'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -129,6 +130,7 @@ export function EmployeeDetailPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([])
   const [compensations, setCompensations] = useState<CompensationResponse[]>([])
   const [assignments, setAssignments] = useState<EmployeeAssignment[]>([])
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -160,8 +162,9 @@ export function EmployeeDetailPage() {
       payrollApi.bankAccounts(id).catch(() => []),
       payrollApi.compensationHistory(id).catch(() => []),
       assignmentApi.list(id).catch(() => []),
+      timelineApi.forEmployee(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -181,6 +184,7 @@ export function EmployeeDetailPage() {
         setBankAccounts(banks)
         setCompensations(comps)
         setAssignments(asgs)
+        setTimeline(tline)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -310,6 +314,49 @@ export function EmployeeDetailPage() {
       title: 'Active',
       dataIndex: 'active',
       render: (v: boolean) => (v ? <Tag color="green">YES</Tag> : <Tag>INACTIVE</Tag>),
+    },
+  ], [])
+
+  const TIMELINE_COLORS: Record<string, string> = {
+    HIRE: 'green',
+    STATUS_CHANGE: 'blue',
+    CONTRACT_SIGNED: 'cyan',
+    CONTRACT_ENDED: 'default',
+    LEAVE_REQUEST: 'orange',
+    BUSINESS_TRIP: 'geekblue',
+    PERMISSION: 'gold',
+    DISCIPLINARY: 'red',
+    PROBATION_REVIEW: 'purple',
+    REWARD: 'magenta',
+    TERMINATION: 'volcano',
+    AUDIT_OTHER: 'default',
+  }
+
+  const timelineColumns: ColumnsType<TimelineEvent> = useMemo(() => [
+    {
+      title: 'When',
+      dataIndex: 'at',
+      width: 180,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: 'Kind',
+      dataIndex: 'kind',
+      width: 160,
+      render: (v: string) => (
+        <Tag color={TIMELINE_COLORS[v] ?? 'default'}>{v.replace(/_/g, ' ')}</Tag>
+      ),
+    },
+    { title: 'Event', dataIndex: 'title' },
+    {
+      title: 'Detail',
+      dataIndex: 'detail',
+      render: (v?: string | null) => v ?? '—',
+    },
+    {
+      title: 'Actor',
+      dataIndex: 'actor',
+      render: (v?: string | null) => v ?? '—',
     },
   ], [])
 
@@ -535,6 +582,20 @@ export function EmployeeDetailPage() {
 
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
+    {
+      key: 'timeline',
+      label: `Timeline (${timeline.length})`,
+      children: (
+        <Table
+          rowKey={(r) => `${r.at}-${r.kind}-${r.referenceId ?? ''}-${r.title}`}
+          columns={timelineColumns}
+          dataSource={timeline}
+          pagination={{ pageSize: 25 }}
+          size="small"
+          locale={{ emptyText: <Empty description="No lifecycle events on file" /> }}
+        />
+      ),
+    },
     {
       key: 'identifications',
       label: `Identifications (${identifications.length})`,

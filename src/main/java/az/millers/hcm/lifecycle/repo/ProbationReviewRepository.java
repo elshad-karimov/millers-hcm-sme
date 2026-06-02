@@ -33,4 +33,19 @@ public interface ProbationReviewRepository
               and r.status = 'SCHEDULED'
             """)
     List<ProbationReview> findScheduledOn(LocalDate date);
+
+    /**
+     * Pending probation reviews scheduled on or before {@code date} for the
+     * given employees. Used by the manager team dashboard (M76 / P2-11/12) to
+     * flag overdue / due-soon reviews on direct reports.
+     */
+    @Query("""
+            select r from ProbationReview r
+            where r.employeeId in :employeeIds
+              and r.scheduledDate <= :date
+              and r.status = 'SCHEDULED'
+            order by r.scheduledDate asc
+            """)
+    List<ProbationReview> findPendingForEmployees(
+            java.util.Collection<UUID> employeeIds, LocalDate date);
 }

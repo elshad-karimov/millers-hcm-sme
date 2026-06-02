@@ -44,4 +44,20 @@ public interface EmploymentContractRepository
               and c.status = 'ACTIVE'
             """)
     List<EmploymentContract> findActiveProbationEndingOn(LocalDate date);
+
+    /**
+     * ACTIVE contracts for the given employee set whose {@code endDate} falls
+     * on or before {@code by}. Used by the manager team dashboard to flag
+     * contracts due to expire in the rolling window (M76 / P2-11/12).
+     */
+    @Query("""
+            select c from EmploymentContract c
+            where c.employeeId in :employeeIds
+              and c.status = 'ACTIVE'
+              and c.endDate is not null
+              and c.endDate <= :by
+            order by c.endDate asc
+            """)
+    List<EmploymentContract> findActiveExpiringForEmployees(
+            java.util.Collection<UUID> employeeIds, LocalDate by);
 }

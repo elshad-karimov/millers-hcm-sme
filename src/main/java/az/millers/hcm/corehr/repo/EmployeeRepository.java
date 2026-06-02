@@ -118,6 +118,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     java.util.List<Employee> findActiveColleagues(@Param("excluded") java.util.Collection<EmploymentStatus> excluded);
 
     /**
+     * Direct reports of the given manager (one-hop). Used by the manager
+     * self-service team dashboard (M76 / P2-11/12) — we want the immediate
+     * team, not the transitive chain {@link #descendantsIncluding} produces.
+     */
+    @Query("select e from Employee e where e.managerId = :managerId order by e.lastName, e.firstName")
+    java.util.List<Employee> findDirectReports(@Param("managerId") UUID managerId);
+
+    /**
      * Returns the transitive set of employee IDs that report (directly or
      * indirectly) into {@code rootEmployeeId}, including the root itself.
      * Used by {@code AccessScopeService} to build the manager scope.

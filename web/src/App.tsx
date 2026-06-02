@@ -60,6 +60,7 @@ import { BonusRunsPage } from './pages/BonusRunsPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
+import { TeamPage } from './pages/TeamPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -111,6 +112,7 @@ export default function App() {
         {/* ── Always-accessible ─────────────────────────────────── */}
         <Route path="home" element={<DashboardPage />} />
         <Route path="my" element={<MyWorkspacePage />} />
+        <Route path="my/team" element={<TeamPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />
