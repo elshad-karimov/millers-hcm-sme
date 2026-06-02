@@ -315,6 +315,14 @@ export function OrgStructurePage() {
                   {treeIsEditable && (
                     <Button onClick={() => goToNewUnit(null)}>Add root unit</Button>
                   )}
+                  {/* M83 — SVG download for any version */}
+                  <Button
+                    href={`/api/org/versions/${selected.id}/chart.svg`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Download chart (SVG)
+                  </Button>
                 </Space>
               )
             }

@@ -22,17 +22,42 @@ import az.millers.hcm.organization.api.dto.RollbackRequest;
 import az.millers.hcm.organization.api.dto.StatusTransitionRequest;
 import az.millers.hcm.organization.api.dto.StructureVersionRequest;
 import az.millers.hcm.organization.api.dto.StructureVersionResponse;
+import az.millers.hcm.organization.service.OrgChartSvgRenderer;
 import az.millers.hcm.organization.service.OrgStructureService;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/org")
 public class OrgStructureController {
 
     private final OrgStructureService service;
+    private final OrgChartSvgRenderer chartRenderer;
 
-    public OrgStructureController(OrgStructureService service) {
+    public OrgStructureController(OrgStructureService service,
+                                   OrgChartSvgRenderer chartRenderer) {
         this.service = service;
+        this.chartRenderer = chartRenderer;
+    }
+
+    /**
+     * M83 — Org chart SVG download. Renders the version's tree top-down with
+     * a layered layout, returns a self-contained SVG (no external assets).
+     */
+    @GetMapping(value = "/versions/{id}/chart.svg",
+            produces = "image/svg+xml")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    public ResponseEntity<String> chartSvg(@PathVariable UUID id) {
+        OrgTreeNode root = service.buildTree(id);
+        String title = "Org chart — v" + service.getVersion(id).getVersionNumber();
+        String svg = chartRenderer.render(root, title);
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("image/svg+xml"))
+                .header("Content-Disposition",
+                        "attachment; filename=\"org-chart-v"
+                                + service.getVersion(id).getVersionNumber() + ".svg\"")
+                .body(svg);
     }
 
     // ---------- Versions ----------
