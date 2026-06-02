@@ -67,6 +67,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/letters/templates', module: 'letters', screen: 'letters-templates' },
   { prefix: '/letters/request', module: 'letters', screen: 'letters-request' },
   { prefix: '/letters', module: 'letters', screen: 'letters-requests' },
+  { prefix: '/personal-info/request', module: 'personal-info', screen: 'personal-info-request' },
+  { prefix: '/personal-info-changes', module: 'personal-info', screen: 'personal-info-queue' },
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
@@ -304,6 +306,17 @@ export function AppLayout() {
                   ]
                 : []),
             ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Personal-info change queue (M79) — HR + Manager queue only ─────────
+    ...(hrOrManager
+      ? [
+          {
+            key: 'personal-info-queue',
+            icon: <ProfileOutlined />,
+            label: <Link to="/personal-info-changes">Personal-info changes</Link>,
           } satisfies ItemType,
         ]
       : []),

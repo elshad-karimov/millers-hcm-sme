@@ -64,6 +64,8 @@ import { TeamPage } from './pages/TeamPage'
 import { LetterTemplatesPage } from './pages/LetterTemplatesPage'
 import { LetterRequestsPage } from './pages/LetterRequestsPage'
 import { LetterRequestFormPage } from './pages/LetterRequestFormPage'
+import { PersonalInfoChangesPage } from './pages/PersonalInfoChangesPage'
+import { PersonalInfoRequestFormPage } from './pages/PersonalInfoRequestFormPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -122,11 +124,15 @@ export default function App() {
         <Route path="permission/requests/new" element={<PermissionRequestFormPage />} />
         <Route path="business-trips/new" element={<BusinessTripFormPage />} />
         <Route path="letters/request" element={<LetterRequestFormPage />} />
+        <Route path="personal-info/request" element={<PersonalInfoRequestFormPage />} />
 
         {/* ── HR + Manager routes ────────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
           {/* HR letters — request queue (scope-restricted in service) */}
           <Route path="letters" element={<LetterRequestsPage />} />
+
+          {/* Personal-info change requests — scope-restricted in service */}
+          <Route path="personal-info-changes" element={<PersonalInfoChangesPage />} />
 
           {/* Time & Attendance */}
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />

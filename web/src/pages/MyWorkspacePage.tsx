@@ -76,6 +76,7 @@ function Dashboard({
               <Button onClick={() => navigate('/permission/requests/new')}>Request permission</Button>
               <Button onClick={() => navigate('/business-trips/new')}>New business trip</Button>
               <Button onClick={() => navigate('/letters/request')}>Request HR letter</Button>
+              <Button onClick={() => navigate('/personal-info/request')}>Update personal info</Button>
             </Space>
           </Col>
         </Row>

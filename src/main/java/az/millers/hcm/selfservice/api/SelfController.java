@@ -26,6 +26,9 @@ import az.millers.hcm.compbenefits.repo.EmployeeAllowanceRepository;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.corehr.api.dto.PersonalInfoChangeResponse;
+import az.millers.hcm.corehr.api.dto.PersonalInfoChangeSubmitRequest;
+import az.millers.hcm.corehr.service.PersonalInfoChangeService;
 import az.millers.hcm.letters.api.dto.LetterRequestResponse;
 import az.millers.hcm.letters.api.dto.LetterSubmitRequest;
 import az.millers.hcm.letters.service.LetterRequestService;
@@ -101,6 +104,7 @@ public class SelfController {
     private final GoalRepository goals;
     private final EmployeeAllowanceRepository allowances;
     private final LetterRequestService letterRequestService;
+    private final PersonalInfoChangeService personalInfoChangeService;
 
     public SelfController(EmployeeContextService context,
                           EmployeeRepository employeeRepo,
@@ -122,9 +126,11 @@ public class SelfController {
                           PerformanceReviewRepository reviews,
                           GoalRepository goals,
                           EmployeeAllowanceRepository allowances,
-                          LetterRequestService letterRequestService) {
+                          LetterRequestService letterRequestService,
+                          PersonalInfoChangeService personalInfoChangeService) {
         this.context = context;
         this.letterRequestService = letterRequestService;
+        this.personalInfoChangeService = personalInfoChangeService;
         this.employeeRepo = employeeRepo;
         this.leaveBalances = leaveBalances;
         this.leaveTypes = leaveTypes;
@@ -471,5 +477,27 @@ public class SelfController {
                 req.purpose(),
                 req.customFields());
         return LetterRequestResponse.from(letterRequestService.submit(scoped));
+    }
+
+    // ----- Personal-info change requests (M79 / P2-25/26) --------------------
+
+    @GetMapping("/personal-info")
+    public List<PersonalInfoChangeResponse> myPersonalInfoChanges() {
+        Employee me = context.currentEmployee();
+        return personalInfoChangeService.mine(me.getId())
+                .stream().map(PersonalInfoChangeResponse::from).toList();
+    }
+
+    @PostMapping("/personal-info/submit")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PersonalInfoChangeResponse submitPersonalInfoChange(
+            @Valid @RequestBody PersonalInfoChangeSubmitRequest req) {
+        Employee me = context.currentEmployee();
+        PersonalInfoChangeSubmitRequest scoped = new PersonalInfoChangeSubmitRequest(
+                me.getId(),
+                req.fieldKey(),
+                req.newValue(),
+                req.reason());
+        return PersonalInfoChangeResponse.from(personalInfoChangeService.submit(scoped));
     }
 }
