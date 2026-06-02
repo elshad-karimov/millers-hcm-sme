@@ -59,6 +59,7 @@ import {
   type EmployeeAssignment,
 } from '../api/staffingCatalog'
 import { timelineApi, type TimelineEvent } from '../api/team'
+import { statusOverlayApi, type StatusOverlay } from '../api/statusOverlay'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -71,6 +72,12 @@ const STATUS_OPTIONS: EmploymentStatus[] = [
   'RETIRED',
   'CONTRACTOR',
   'INTERN',
+  // M78 / P2-14 — new statuses
+  'MATERNITY_LEAVE',
+  'MILITARY_SERVICE',
+  'EDUCATIONAL_LEAVE',
+  'GARDEN_LEAVE',
+  'NON_ACTIVE',
 ]
 
 // AntD tag colour scheme for the various status enums. Centralised so the same
@@ -80,6 +87,11 @@ const STATUS_COLORS: Record<string, string> = {
   ON_PROBATION: 'blue',
   ON_LEAVE: 'orange',
   ON_BUSINESS_TRIP: 'cyan',
+  MATERNITY_LEAVE: 'pink',
+  MILITARY_SERVICE: 'volcano',
+  EDUCATIONAL_LEAVE: 'geekblue',
+  GARDEN_LEAVE: 'gold',
+  NON_ACTIVE: 'default',
   SUSPENDED: 'red',
   TERMINATED: 'default',
   RETIRED: 'default',
@@ -131,11 +143,15 @@ export function EmployeeDetailPage() {
   const [compensations, setCompensations] = useState<CompensationResponse[]>([])
   const [assignments, setAssignments] = useState<EmployeeAssignment[]>([])
   const [timeline, setTimeline] = useState<TimelineEvent[]>([])
+  const [overlays, setOverlays] = useState<StatusOverlay[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
   const [newStatus, setNewStatus] = useState<EmploymentStatus | undefined>()
   const [reason, setReason] = useState('')
+  const [rehireModal, setRehireModal] = useState(false)
+  const [rehireDate, setRehireDate] = useState<string>('')
+  const [rehireReason, setRehireReason] = useState('')
 
   // Single bulk loader — fires all reads in parallel, collects results into
   // state slots. Failures on optional tabs (e.g. health for non-OH viewers)
@@ -163,8 +179,9 @@ export function EmployeeDetailPage() {
       payrollApi.compensationHistory(id).catch(() => []),
       assignmentApi.list(id).catch(() => []),
       timelineApi.forEmployee(id).catch(() => []),
+      statusOverlayApi.list(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -185,6 +202,7 @@ export function EmployeeDetailPage() {
         setCompensations(comps)
         setAssignments(asgs)
         setTimeline(tline)
+        setOverlays(ovls)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -331,6 +349,33 @@ export function EmployeeDetailPage() {
     TERMINATION: 'volcano',
     AUDIT_OTHER: 'default',
   }
+
+  const overlayColumns: ColumnsType<StatusOverlay> = useMemo(() => [
+    { title: 'Status', dataIndex: 'status', render: tag },
+    {
+      title: 'Source',
+      dataIndex: 'source',
+      width: 140,
+      render: (v: string) => <Tag>{v.replace(/_/g, ' ')}</Tag>,
+    },
+    { title: 'From', dataIndex: 'effectiveFrom' },
+    {
+      title: 'To',
+      dataIndex: 'effectiveTo',
+      render: (v?: string | null) => v ?? 'current',
+    },
+    {
+      title: '',
+      dataIndex: 'effectiveTo',
+      render: (v?: string | null) =>
+        v == null ? <Tag color="green">open</Tag> : null,
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      render: (v?: string | null) => v ?? '—',
+    },
+  ], [])
 
   const timelineColumns: ColumnsType<TimelineEvent> = useMemo(() => [
     {
@@ -571,6 +616,16 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Matrix manager">
         {employee.matrixManagerId ?? '—'}
       </Descriptions.Item>
+      <Descriptions.Item label="Rehire eligible">
+        {employee.rehireEligible === false
+          ? <Tag color="red">NO</Tag>
+          : <Tag color="green">YES</Tag>}
+      </Descriptions.Item>
+      <Descriptions.Item label="Previous employee">
+        {employee.previousEmployeeId
+          ? <Link to={`/employees/${employee.previousEmployeeId}`}>{employee.previousEmployeeId}</Link>
+          : '—'}
+      </Descriptions.Item>
       <Descriptions.Item label="Created">
         {new Date(employee.createdAt).toLocaleString()} by {employee.createdBy ?? '—'}
       </Descriptions.Item>
@@ -582,6 +637,19 @@ export function EmployeeDetailPage() {
 
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
+    {
+      key: 'overlays',
+      label: `Status overlays (${overlays.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={overlayColumns}
+          dataSource={overlays}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No concurrent status overlays" /> }}
+        />
+      ),
+    },
     {
       key: 'timeline',
       label: `Timeline (${timeline.length})`,
@@ -869,6 +937,12 @@ export function EmployeeDetailPage() {
         extra={
           canEdit && (
             <Space>
+              {(employee.employmentStatus === 'TERMINATED' || employee.employmentStatus === 'RETIRED')
+                && employee.rehireEligible !== false && (
+                  <Button onClick={() => setRehireModal(true)} type="dashed">
+                    Rehire…
+                  </Button>
+                )}
               <Button onClick={() => setStatusModal(true)}>Change status</Button>
               <Button type="primary" onClick={() => navigate(`/employees/${id}/edit`)}>
                 Edit
@@ -917,6 +991,57 @@ export function EmployeeDetailPage() {
             placeholder="Reason (optional)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            rows={3}
+          />
+        </Space>
+      </Modal>
+
+      <Modal
+        title={`Rehire ${employee.firstName} ${employee.lastName}`}
+        open={rehireModal}
+        onCancel={() => setRehireModal(false)}
+        onOk={async () => {
+          if (!rehireDate) {
+            message.error('Pick a new hire date')
+            return
+          }
+          try {
+            const { rehireApi } = await import('../api/statusOverlay')
+            const created = await rehireApi.rehire({
+              previousEmployeeId: employee.id,
+              newHireDate: rehireDate,
+              reason: rehireReason || undefined,
+            })
+            message.success(`Rehired as ${created.employeeNo}`)
+            setRehireModal(false)
+            setRehireDate('')
+            setRehireReason('')
+            navigate(`/employees/${created.id}`)
+          } catch (err) {
+            message.error(
+              (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                'Rehire failed',
+            )
+          }
+        }}
+        okText="Rehire"
+        okButtonProps={{ disabled: !rehireDate }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            Creates a new employee row referencing this one as the predecessor.
+            PII is copied; tenure starts from the new hire date.
+          </Typography.Paragraph>
+          <Input
+            type="date"
+            placeholder="New hire date"
+            value={rehireDate}
+            onChange={(e) => setRehireDate(e.target.value)}
+          />
+          <Input.TextArea
+            placeholder="Reason (optional but recommended)"
+            value={rehireReason}
+            onChange={(e) => setRehireReason(e.target.value)}
             rows={3}
           />
         </Space>

@@ -10,6 +10,12 @@ export type EmploymentStatus =
   | 'RETIRED'
   | 'CONTRACTOR'
   | 'INTERN'
+  // M78 / P2-14 — new statuses
+  | 'MATERNITY_LEAVE'
+  | 'MILITARY_SERVICE'
+  | 'EDUCATIONAL_LEAVE'
+  | 'GARDEN_LEAVE'
+  | 'NON_ACTIVE'
 
 // M61 / P1-09 — employment type, separate from employment status
 export type EmploymentType =
@@ -60,6 +66,12 @@ export interface Employee {
   payrollGroupId?: string | null
   /** M75 / P2-21 — dotted-line manager (informational) */
   matrixManagerId?: string | null
+  /** M78 / P2-15 — rehire-eligible flag, default true */
+  rehireEligible?: boolean
+  /** M78 / P2-15 — soft self-FK populated by the rehire flow */
+  previousEmployeeId?: string | null
+  /** M78 / P2-15 — captured at rehire time, audited */
+  rehireReason?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -94,6 +106,8 @@ export interface EmployeeRequest {
   payrollGroupId?: string
   /** M75 / P2-21 — dotted-line manager (informational) */
   matrixManagerId?: string
+  /** M78 / P2-15 — null = leave the existing flag untouched */
+  rehireEligible?: boolean
 }
 
 export interface PageResponse<T> {

@@ -25,6 +25,12 @@ const STATUS_OPTIONS: EmploymentStatus[] = [
   'RETIRED',
   'CONTRACTOR',
   'INTERN',
+  // M78 / P2-14 — new statuses
+  'MATERNITY_LEAVE',
+  'MILITARY_SERVICE',
+  'EDUCATIONAL_LEAVE',
+  'GARDEN_LEAVE',
+  'NON_ACTIVE',
 ]
 
 const STATUS_COLOR: Record<EmploymentStatus, string> = {
@@ -37,6 +43,12 @@ const STATUS_COLOR: Record<EmploymentStatus, string> = {
   RETIRED: 'default',
   CONTRACTOR: 'purple',
   INTERN: 'lime',
+  // M78 / P2-14 — new statuses
+  MATERNITY_LEAVE: 'pink',
+  MILITARY_SERVICE: 'volcano',
+  EDUCATIONAL_LEAVE: 'geekblue',
+  GARDEN_LEAVE: 'gold',
+  NON_ACTIVE: 'default',
 }
 
 export function EmployeesPage() {

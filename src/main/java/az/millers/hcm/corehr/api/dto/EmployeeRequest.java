@@ -60,5 +60,7 @@ public record EmployeeRequest(
         /** M75 / P2-19. Null = use the default payroll group. */
         UUID payrollGroupId,
         /** M75 / P2-21. Dotted-line manager — informational, not consumed by workflow engine. */
-        UUID matrixManagerId) {
+        UUID matrixManagerId,
+        /** M78 / P2-15. Null defaults to true on create / preserves existing on update. */
+        Boolean rehireEligible) {
 }

@@ -43,6 +43,12 @@ public record EmployeeResponse(
         UUID payrollGroupId,
         /** M75 / P2-21. Dotted-line manager. */
         UUID matrixManagerId,
+        /** M78 / P2-15. Rehire-eligible flag — defaults to true. */
+        boolean rehireEligible,
+        /** M78 / P2-15. Soft self-FK when this row was created via the rehire flow. */
+        UUID previousEmployeeId,
+        /** M78 / P2-15. Captured at rehire time. */
+        String rehireReason,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -78,6 +84,9 @@ public record EmployeeResponse(
                 e.getLeaveGroupId(),
                 e.getPayrollGroupId(),
                 e.getMatrixManagerId(),
+                e.isRehireEligible(),
+                e.getPreviousEmployeeId(),
+                e.getRehireReason(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getCreatedBy(),

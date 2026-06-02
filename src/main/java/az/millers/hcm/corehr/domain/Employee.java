@@ -191,6 +191,26 @@ public class Employee {
     @Column(unique = true)
     private String username;
 
+    /**
+     * M78 / P2-15 — rehire eligibility. Set to false by HR when terminating
+     * for misconduct or similar to block accidental rehire. Default true so
+     * the historical population stays open.
+     */
+    @Column(name = "rehire_eligible", nullable = false)
+    private boolean rehireEligible = true;
+
+    /**
+     * M78 / P2-15 — soft self-FK to the prior employee row when this row
+     * was created via the rehire flow. Lets the UI render "rehired from
+     * EMP-00042" and keeps tenure-since calculations honest.
+     */
+    @Column(name = "previous_employee_id")
+    private UUID previousEmployeeId;
+
+    /** M78 / P2-15 — captured at rehire time, audited. */
+    @Column(name = "rehire_reason", columnDefinition = "text")
+    private String rehireReason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
