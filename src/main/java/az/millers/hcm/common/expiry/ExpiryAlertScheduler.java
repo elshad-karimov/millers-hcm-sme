@@ -2,7 +2,9 @@ package az.millers.hcm.common.expiry;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.notifications.NotificationService;
@@ -37,6 +40,14 @@ import az.millers.hcm.notifications.NotificationService;
  * and PUSH channels are all populated transparently — no duplicated
  * notification plumbing per entity type.
  *
+ * <p><strong>Idempotency (M68):</strong> every dispatched alert journals an
+ * {@code EXPIRY_ALERT_SENT} audit row keyed on
+ * {@code (entityName, entityId, today, deltaDays)}. Re-running the same scan
+ * on the same day is a no-op — the marker check skips already-alerted rows.
+ * The pattern mirrors {@code LeaveAccrualService.alreadyAccrued}; same
+ * tradeoff (one audit-log scan per item) for the same reason (auditable
+ * idempotency without a dedicated alert-log table).
+ *
  * <p>Runs at 06:00 Europe/Baku daily by default. The cron and the alert
  * windows are externalised so individual tenants can tune them without
  * recompiling.
@@ -49,65 +60,74 @@ public class ExpiryAlertScheduler {
     /** Alert windows in days. Order is informational only — each is processed independently. */
     private static final int[] DEFAULT_DAYS_AHEAD = {90, 60, 30, 14, 7, 0};
 
+    /** Module name for audit + notification cross-reference of alert events. */
+    private static final String AUDIT_ACTION = "EXPIRY_ALERT_SENT";
+
     private final List<ExpiryAlertSource> sources;
     private final EmployeeRepository employees;
     private final NotificationService notifications;
+    private final AuditService audit;
     private final int[] daysAhead;
 
     public ExpiryAlertScheduler(List<ExpiryAlertSource> sources,
                                 EmployeeRepository employees,
                                 NotificationService notifications,
+                                AuditService audit,
                                 @Value("${hcm.expiry.days-ahead:}") String configuredDays) {
         this.sources = sources;
         this.employees = employees;
         this.notifications = notifications;
+        this.audit = audit;
         this.daysAhead = parseDays(configuredDays);
     }
 
+    /** Result envelope returned by the manual / admin scan trigger (M68). */
+    public record ScanSummary(
+            LocalDate today,
+            int sourceCount,
+            int alertsDispatched,
+            int alertsSkippedAsDuplicate) {}
+
     /**
      * Daily walker. {@code 0 0 6 * * *} = 06:00 every day in the Spring task
-     * scheduler's local TZ (Europe/Baku in our deployment). The schedule is
-     * configurable so test harnesses can stop the cron firing.
-     *
-     * <p>Idempotency: the underlying {@link NotificationService} de-duplicates
-     * by {@code (recipient, entityId, alertWindow)} when configured to (M68
-     * will harden that); for now a duplicate fire on the same calendar day
-     * would post duplicate in-app entries, which we tolerate during Phase 1.
+     * scheduler's local TZ (Europe/Baku in our deployment).
      */
     @Scheduled(cron = "${hcm.expiry.cron:0 0 6 * * *}")
     public void scanAll() {
         if (sources.isEmpty()) {
-            // No expiry-bearing entities registered yet (M61 ships the
-            // abstraction; M63+ wire the first concrete sources). Bail out
-            // quietly rather than spam the log.
+            // No expiry-bearing entities registered yet. Bail quietly.
             return;
         }
-        LocalDate today = LocalDate.now();
-        int totalFired = 0;
+        ScanSummary summary = scanFor(LocalDate.now());
+        log.info("ExpiryAlertScheduler scan complete: {} alerts dispatched, {} skipped (duplicate) across {} source(s)",
+                summary.alertsDispatched(), summary.alertsSkippedAsDuplicate(), summary.sourceCount());
+    }
+
+    /**
+     * Entry point for the admin trigger and JUnit tests. Drives a specific
+     * date through the same dispatch logic the cron uses.
+     */
+    public ScanSummary scanFor(LocalDate today) {
+        if (sources.isEmpty()) return new ScanSummary(today, 0, 0, 0);
+        int dispatched = 0;
+        int skipped = 0;
         for (int delta : daysAhead) {
             LocalDate target = today.plusDays(delta);
             for (ExpiryAlertSource source : sources) {
-                totalFired += fireWindowForSource(source, target, delta);
+                int[] result = fireWindowForSource(source, target, delta, today);
+                dispatched += result[0];
+                skipped += result[1];
             }
         }
-        log.info("ExpiryAlertScheduler scan complete: {} alerts dispatched across {} source(s)",
-                totalFired, sources.size());
+        return new ScanSummary(today, sources.size(), dispatched, skipped);
     }
 
-    /** Visible-for-testing entry point so a JUnit test can drive a specific date. */
-    public int scanFor(LocalDate today) {
-        if (sources.isEmpty()) return 0;
-        int totalFired = 0;
-        for (int delta : daysAhead) {
-            LocalDate target = today.plusDays(delta);
-            for (ExpiryAlertSource source : sources) {
-                totalFired += fireWindowForSource(source, target, delta);
-            }
-        }
-        return totalFired;
-    }
-
-    private int fireWindowForSource(ExpiryAlertSource source, LocalDate target, int delta) {
+    /**
+     * @return {@code [dispatched, skipped]} so the caller can aggregate
+     *         per-source totals without hidden state.
+     */
+    private int[] fireWindowForSource(ExpiryAlertSource source, LocalDate target,
+                                       int delta, LocalDate today) {
         List<? extends ExpiryTrackable> hits;
         try {
             hits = source.findExpiringOn(target);
@@ -115,55 +135,77 @@ public class ExpiryAlertScheduler {
             // One bad source must not poison the whole walk — log and move on.
             log.warn("ExpiryAlertSource {} threw while querying {} (delta {}d): {}",
                     source.getClass().getSimpleName(), target, delta, ex.toString());
-            return 0;
+            return new int[] {0, 0};
         }
-        int fired = 0;
+        int dispatched = 0;
+        int skipped = 0;
         for (ExpiryTrackable item : hits) {
-            fired += dispatch(source, item, delta);
+            if (alreadyAlerted(source, item, delta, today)) {
+                skipped++;
+                continue;
+            }
+            dispatched += dispatch(source, item, delta, today);
         }
-        return fired;
+        return new int[] {dispatched, skipped};
     }
 
-    private int dispatch(ExpiryAlertSource source, ExpiryTrackable item, int delta) {
+    /**
+     * Audit-log-backed dedup check. We look for an EXPIRY_ALERT_SENT row whose
+     * JSON newValue carries a marker matching this {@code (today, delta)}
+     * pair. Pattern is identical to {@code LeaveAccrualService.alreadyAccrued}.
+     */
+    private boolean alreadyAlerted(ExpiryAlertSource source, ExpiryTrackable item,
+                                    int delta, LocalDate today) {
+        Pattern marker = Pattern.compile(
+                "\"day\"\\s*:\\s*\"" + Pattern.quote(today.toString()) + "\""
+                        + ".*?\"delta\"\\s*:\\s*" + delta + "\\b",
+                Pattern.DOTALL);
+        return audit.history(source.entityName(), item.getId().toString()).stream()
+                .filter(a -> AUDIT_ACTION.equals(a.getAction()))
+                .map(a -> a.getNewValue() == null ? "" : a.getNewValue())
+                .anyMatch(json -> marker.matcher(json).find());
+    }
+
+    private int dispatch(ExpiryAlertSource source, ExpiryTrackable item, int delta,
+                          LocalDate today) {
         Employee employee = employees.findById(item.getEmployeeId()).orElse(null);
         if (employee == null) {
-            // Orphaned row — log it, but it shouldn't block other alerts.
             log.warn("Expiry source {} returned id {} pointing at missing employee {} — skipping",
                     source.entityName(), item.getId(), item.getEmployeeId());
             return 0;
         }
 
         String title = buildTitle(item, delta);
-        String body  = buildBody(item, employee, delta);
+        String body  = buildBody(item, delta);
 
-        // Notify the employee themselves (if we have a Keycloak username).
         if (employee.getUsername() != null && !employee.getUsername().isBlank()) {
             notifications.notifyAll(
-                    employee.getUsername(),
-                    title,
-                    body,
-                    source.moduleName(),
-                    source.entityName(),
-                    item.getId().toString());
+                    employee.getUsername(), title, body,
+                    source.moduleName(), source.entityName(), item.getId().toString());
         }
 
-        // Notify the manager too — they're on the hook for renewal follow-ups.
-        // We tolerate a missing manager username (e.g. C-suite with no manager).
         UUID managerId = employee.getManagerId();
         if (managerId != null && !managerId.equals(employee.getId())) {
             employees.findById(managerId).ifPresent(mgr -> {
                 if (mgr.getUsername() != null && !mgr.getUsername().isBlank()) {
                     notifications.notifyAll(
-                            mgr.getUsername(),
-                            title,
+                            mgr.getUsername(), title,
                             body + " (Direct report: " + employee.getFirstName()
                                     + " " + employee.getLastName() + ")",
-                            source.moduleName(),
-                            source.entityName(),
-                            item.getId().toString());
+                            source.moduleName(), source.entityName(), item.getId().toString());
                 }
             });
         }
+
+        // Audit marker — what the alreadyAlerted check looks for on the next run.
+        audit.record(source.moduleName(), source.entityName(), item.getId().toString(),
+                AUDIT_ACTION, null,
+                Map.of(
+                        "day", today.toString(),
+                        "delta", delta,
+                        "expiryDate", item.getExpiryDate() == null ? "" : item.getExpiryDate().toString(),
+                        "label", item.getEntityLabel(),
+                        "recipient", employee.getUsername() == null ? "" : employee.getUsername()));
         return 1;
     }
 
@@ -174,7 +216,7 @@ public class ExpiryAlertScheduler {
         return item.getEntityLabel() + " expires in " + delta + " day" + (delta == 1 ? "" : "s");
     }
 
-    private static String buildBody(ExpiryTrackable item, Employee employee, int delta) {
+    private static String buildBody(ExpiryTrackable item, int delta) {
         StringBuilder sb = new StringBuilder();
         sb.append(item.getEntityLabel())
           .append(" \"").append(item.getDisplayName()).append("\" ");
@@ -203,5 +245,10 @@ public class ExpiryAlertScheduler {
             }
         }
         return out;
+    }
+
+    /** Source list — useful for the admin-trigger response and tests. */
+    public List<ExpiryAlertSource> getSources() {
+        return sources;
     }
 }
