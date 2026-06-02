@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import az.millers.hcm.common.history.EffectiveDatedRecord;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -14,12 +15,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Effective-dated monthly base salary for an employee.
+ *
+ * <p>Implements {@link EffectiveDatedRecord} (M62) so the close-prior-slice
+ * mutation goes through the shared default method instead of duplicating the
+ * {@code effectiveTo = newFrom - 1} arithmetic.
+ */
 @Entity
 @Table(name = "employee_compensation", schema = "payroll")
 @Getter
 @Setter
 @NoArgsConstructor
-public class EmployeeCompensation {
+public class EmployeeCompensation implements EffectiveDatedRecord {
 
     @Id
     private UUID id;

@@ -21,6 +21,7 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.corehr.service.EmployeeHistoryService;
 import az.millers.hcm.leave.domain.LeaveBalance;
 import az.millers.hcm.leave.domain.LeaveType;
 import az.millers.hcm.leave.repo.LeaveBalanceRepository;
@@ -70,6 +71,7 @@ public class TerminationService {
     private final EmployeeCompensationRepository compensations;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final EmployeeHistoryService historyService;
 
     public TerminationService(TerminationRequestRepository terminations,
                               ExitInterviewRepository exitInterviews,
@@ -80,7 +82,8 @@ public class TerminationService {
                               LeaveBalanceRepository leaveBalances,
                               EmployeeCompensationRepository compensations,
                               AuditService audit,
-                              CurrentRequest currentRequest) {
+                              CurrentRequest currentRequest,
+                              EmployeeHistoryService historyService) {
         this.terminations = terminations;
         this.exitInterviews = exitInterviews;
         this.employees = employees;
@@ -91,6 +94,7 @@ public class TerminationService {
         this.compensations = compensations;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.historyService = historyService;
     }
 
     @Transactional(readOnly = true)
@@ -258,6 +262,17 @@ public class TerminationService {
         employee.setEmploymentStatus(EmploymentStatus.TERMINATED);
         employee.setUpdatedBy(currentRequest.username());
         Employee savedEmployee = employees.save(employee);
+
+        // M62 / P1-11: open the TERMINATED status slice effective on the
+        // termination's effective_date. Uses the shared EmployeeHistoryService
+        // — same close-prior-row choreography as every other status transition.
+        historyService.recordStatusSlice(
+                savedEmployee.getId(),
+                EmploymentStatus.TERMINATED,
+                t.getEffectiveDate() != null ? t.getEffectiveDate() : java.time.LocalDate.now(),
+                "Terminated — " + t.getReasonCode()
+                        + (t.getReasonDetail() == null ? "" : " (" + t.getReasonDetail() + ")"),
+                MODULE, ENTITY, t.getId().toString());
 
         // ---- Staffing: release the position ----
         if (savedEmployee.getPositionId() != null) {

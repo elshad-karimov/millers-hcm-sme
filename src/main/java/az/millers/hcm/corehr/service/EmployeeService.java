@@ -34,17 +34,20 @@ public class EmployeeService {
     private final OnboardingWorkflow onboardingWorkflow;
     private final CurrentRequest currentRequest;
     private final AccessScopeService accessScope;
+    private final EmployeeHistoryService historyService;
 
     public EmployeeService(EmployeeRepository repository,
                            AuditService auditService,
                            OnboardingWorkflow onboardingWorkflow,
                            CurrentRequest currentRequest,
-                           AccessScopeService accessScope) {
+                           AccessScopeService accessScope,
+                           EmployeeHistoryService historyService) {
         this.repository = repository;
         this.auditService = auditService;
         this.onboardingWorkflow = onboardingWorkflow;
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
+        this.historyService = historyService;
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +113,14 @@ public class EmployeeService {
 
         Employee saved = repository.save(employee);
 
+        // M62 / P1-10 + P1-11: open the initial history slices at hire date.
+        // This guarantees every employee has a non-empty history from day one
+        // — downstream queries never need to special-case "no history yet".
+        historyService.recordEmploymentSlice(saved, saved.getHireDate(),
+                "Hired", MODULE, ENTITY, saved.getId().toString());
+        historyService.recordStatusSlice(saved.getId(), saved.getEmploymentStatus(),
+                saved.getHireDate(), "Hired", MODULE, ENTITY, saved.getId().toString());
+
         onboardingWorkflow.start(saved);
         auditService.record(MODULE, ENTITY, saved.getId().toString(),
                 "CREATE", null, EmployeeResponse.from(saved));
@@ -146,6 +157,13 @@ public class EmployeeService {
         employee.setEmploymentStatus(newStatus);
         employee.setUpdatedBy(currentRequest.username());
         Employee saved = repository.save(employee);
+
+        // M62 / P1-11: status_history is the queryable source-of-truth.
+        // Effective-dated as of today() — admin status transitions are
+        // immediate. (Termination uses TerminationService which writes a
+        // dedicated slice with the formal effective_date.)
+        historyService.recordStatusSlice(saved.getId(), newStatus,
+                java.time.LocalDate.now(), reason, MODULE, ENTITY, saved.getId().toString());
 
         auditService.record(MODULE, ENTITY, id.toString(), "STATUS_CHANGE",
                 new StatusSnapshot(oldStatus, null),

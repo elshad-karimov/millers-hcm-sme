@@ -49,13 +49,14 @@ public class CompensationService {
                 || incoming.getMonthlyBaseSalary().signum() < 0) {
             throw new BadRequestException("monthlyBaseSalary must be non-negative");
         }
-        // Close any open (effective_to=null) prior record by setting its end the day
-        // before the new effective_from. Simple but effective for monthly salaries.
+        // M62: close any open (effective_to=null) prior record by delegating to
+        // the shared EffectiveDatedRecord.closeOn() default method. Same
+        // behaviour as before, but the date arithmetic is no longer duplicated.
         repository.findActiveOn(incoming.getEmployeeId(), incoming.getEffectiveFrom())
-                .filter(c -> c.getEffectiveTo() == null
+                .filter(c -> c.isCurrent()
                         && !c.getEffectiveFrom().equals(incoming.getEffectiveFrom()))
                 .ifPresent(c -> {
-                    c.setEffectiveTo(incoming.getEffectiveFrom().minusDays(1));
+                    c.closeOn(incoming.getEffectiveFrom());
                     repository.save(c);
                 });
         incoming.setCreatedBy(currentRequest.username());

@@ -17,6 +17,7 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.corehr.service.EmployeeHistoryService;
 import az.millers.hcm.lifecycle.api.dto.ContractChangeResponse;
 import az.millers.hcm.lifecycle.api.dto.ContractChangeSubmitRequest;
 import az.millers.hcm.lifecycle.domain.ChangeType;
@@ -54,6 +55,7 @@ public class ContractChangeService {
     private final StaffingService staffingService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final EmployeeHistoryService historyService;
 
     public ContractChangeService(ContractChangeRepository changes,
                                   EmployeeRepository employees,
@@ -61,7 +63,8 @@ public class ContractChangeService {
                                   CompensationService compensationService,
                                   StaffingService staffingService,
                                   AuditService audit,
-                                  CurrentRequest currentRequest) {
+                                  CurrentRequest currentRequest,
+                                  EmployeeHistoryService historyService) {
         this.changes = changes;
         this.employees = employees;
         this.workflowService = workflowService;
@@ -69,6 +72,7 @@ public class ContractChangeService {
         this.staffingService = staffingService;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.historyService = historyService;
     }
 
     @Transactional(readOnly = true)
@@ -203,6 +207,21 @@ public class ContractChangeService {
             employees.save(employee);
         }
 
+        // M62 / P1-10: record a new employment-history slice for every change
+        // type that mutates the employment aggregate. SALARY is already
+        // effective-dated in payroll.employee_compensation, so we skip it here;
+        // GRADE / EMPLOYMENT_TYPE / LOCATION currently no-op on the Employee
+        // entity (see switch above) but the slice still captures the audit
+        // intent in the history table.
+        if (writesEmploymentSlice(c.getChangeType())) {
+            historyService.recordEmploymentSlice(
+                    employee,
+                    c.getEffectiveDate(),
+                    c.getChangeType().name()
+                            + (c.getReason() == null ? "" : " — " + c.getReason()),
+                    MODULE, ENTITY, c.getId().toString());
+        }
+
         c.setStatus(ContractChangeStatus.APPLIED);
         c.setAppliedAt(OffsetDateTime.now());
         c.setAppliedBy(currentRequest.username());
@@ -210,6 +229,16 @@ public class ContractChangeService {
         audit.record(MODULE, ENTITY, id.toString(), "APPLIED", before,
                 ContractChangeResponse.from(saved));
         return saved;
+    }
+
+    /**
+     * SALARY changes are tracked in {@code payroll.employee_compensation} —
+     * they already have effective-dated history of their own. All other
+     * change types are state on the Employee aggregate and need a new
+     * slice in {@code core_hr.employee_employment_history}.
+     */
+    private boolean writesEmploymentSlice(ChangeType type) {
+        return type != ChangeType.SALARY;
     }
 
     // ---------- Internals ----------
