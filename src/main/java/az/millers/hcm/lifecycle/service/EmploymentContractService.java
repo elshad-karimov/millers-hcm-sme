@@ -50,17 +50,20 @@ public class EmploymentContractService {
     private final AuditService audit;
     private final AccessScopeService accessScope;
     private final CurrentRequest currentRequest;
+    private final ProbationReviewService probationReviews;
 
     public EmploymentContractService(EmploymentContractRepository repository,
                                       EmployeeRepository employees,
                                       AuditService audit,
                                       AccessScopeService accessScope,
-                                      CurrentRequest currentRequest) {
+                                      CurrentRequest currentRequest,
+                                      ProbationReviewService probationReviews) {
         this.repository = repository;
         this.employees = employees;
         this.audit = audit;
         this.accessScope = accessScope;
         this.currentRequest = currentRequest;
+        this.probationReviews = probationReviews;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────────
@@ -166,6 +169,12 @@ public class EmploymentContractService {
         incoming.setUpdatedBy(currentRequest.username());
         EmploymentContract saved = repository.save(incoming);
 
+        // M73 / P2-01: auto-schedule the MID_POINT + FINAL probation reviews
+        // when the activated contract carries a probation period. Safe to call
+        // unconditionally — the service no-ops on contracts without probation,
+        // and the partial unique index prevents duplicates if re-fired.
+        probationReviews.autoScheduleForContract(saved);
+
         audit.record(MODULE, ENTITY, id.toString(),
                 "ACTIVATED", before, ContractResponse.from(saved));
         return ContractResponse.from(saved);
@@ -209,9 +218,16 @@ public class EmploymentContractService {
         c.setStatus(ContractStatus.TERMINATED);
         c.setUpdatedBy(currentRequest.username());
         EmploymentContract saved = repository.save(c);
+
+        // M73 / P2-01: stop reminder alerts on now-irrelevant probation reviews.
+        int cancelled = probationReviews.cancelForContract(saved.getId(),
+                "Contract terminated: " + (reason == null ? "" : reason));
+
         audit.record(MODULE, ENTITY, id.toString(), "TERMINATED",
                 before,
-                java.util.Map.of("reason", reason == null ? "" : reason));
+                java.util.Map.of(
+                        "reason", reason == null ? "" : reason,
+                        "probationReviewsCancelled", cancelled));
         return ContractResponse.from(saved);
     }
 

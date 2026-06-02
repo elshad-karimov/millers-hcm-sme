@@ -48,6 +48,7 @@ import {
   type Note,
   type Reward,
 } from '../api/assetsNotesRewards'
+import { probationReviewsApi, type ProbationReview } from '../api/probationReviews'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -115,6 +116,7 @@ export function EmployeeDetailPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])
+  const [probationReviews, setProbationReviews] = useState<ProbationReview[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -142,8 +144,9 @@ export function EmployeeDetailPage() {
       assetsNotesRewardsApi.listAssets(id).catch(() => []),
       assetsNotesRewardsApi.listNotes(id).catch(() => []),
       assetsNotesRewardsApi.listRewards(id).catch(() => []),
+      probationReviewsApi.listForEmployee(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -159,6 +162,7 @@ export function EmployeeDetailPage() {
         setAssets(ast)
         setNotes(nts)
         setRewards(rws)
+        setProbationReviews(prs)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -260,6 +264,32 @@ export function EmployeeDetailPage() {
     { title: 'To', dataIndex: 'endDate', render: (v?: string | null) => v ?? 'in progress' },
     { title: 'GPA', dataIndex: 'gpa', render: (v?: number | null) => v ?? '—' },
     { title: 'Verified', dataIndex: 'verificationStatus', render: tag },
+  ], [])
+
+  const probationReviewColumns: ColumnsType<ProbationReview> = useMemo(() => [
+    { title: 'Type', dataIndex: 'reviewType', render: tag },
+    { title: 'Scheduled', dataIndex: 'scheduledDate' },
+    {
+      title: 'Completed',
+      dataIndex: 'completedDate',
+      render: (v?: string | null) => v ?? '—',
+    },
+    { title: 'Status', dataIndex: 'status', render: tag },
+    {
+      title: 'Outcome',
+      dataIndex: 'outcome',
+      render: (v?: string | null) => (v ? tag(v) : '—'),
+    },
+    {
+      title: 'Manager rating',
+      dataIndex: 'managerRating',
+      render: (v?: number | null) => (v != null ? `${v}/5` : '—'),
+    },
+    {
+      title: 'HR rating',
+      dataIndex: 'hrRating',
+      render: (v?: number | null) => (v != null ? `${v}/5` : '—'),
+    },
   ], [])
 
   const assetColumns: ColumnsType<Asset> = useMemo(() => [
@@ -542,6 +572,19 @@ export function EmployeeDetailPage() {
           dataSource={rewards}
           pagination={false}
           locale={{ emptyText: <Empty description="No rewards or recognition on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'probationReviews',
+      label: `Probation reviews (${probationReviews.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={probationReviewColumns}
+          dataSource={probationReviews}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No probation reviews on file" /> }}
         />
       ),
     },
