@@ -8,6 +8,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import az.millers.hcm.lifecycle.service.ContractChangeService;
+import az.millers.hcm.lifecycle.service.DisciplinaryActionService;
 import az.millers.hcm.lifecycle.service.TerminationService;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 
@@ -18,11 +19,14 @@ public class LifecycleWorkflowListener {
 
     private final TerminationService termination;
     private final ContractChangeService contractChange;
+    private final DisciplinaryActionService disciplinary;
 
     public LifecycleWorkflowListener(TerminationService termination,
-                                      ContractChangeService contractChange) {
+                                      ContractChangeService contractChange,
+                                      DisciplinaryActionService disciplinary) {
         this.termination = termination;
         this.contractChange = contractChange;
+        this.disciplinary = disciplinary;
     }
 
     @EventListener
@@ -47,6 +51,20 @@ public class LifecycleWorkflowListener {
                 case REJECTED, RETURNED      -> contractChange.onRejected(id, event.comment());
                 case CANCELLED               -> contractChange.onCancelled(id, event.comment());
                 default -> log.warn("Unexpected terminal status {} for contract-change workflow {}",
+                        event.status(), event.instanceId());
+            }
+            return;
+        }
+        // M67 / P1-12 — disciplinary action approval. Same dispatch shape; the
+        // service decides what to do with each terminal status.
+        if (DisciplinaryActionService.WORKFLOW_DEFINITION.equals(event.definitionCode())
+                && "DisciplinaryAction".equals(event.subjectEntity())) {
+            UUID id = UUID.fromString(event.subjectId());
+            switch (event.status()) {
+                case APPROVED, AUTO_APPROVED -> disciplinary.onApproved(id, event.comment());
+                case REJECTED, RETURNED      -> disciplinary.onRejected(id, event.comment());
+                case CANCELLED               -> disciplinary.onCancelled(id, event.comment());
+                default -> log.warn("Unexpected terminal status {} for disciplinary workflow {}",
                         event.status(), event.instanceId());
             }
         }
