@@ -11,6 +11,24 @@ export type EmploymentStatus =
   | 'CONTRACTOR'
   | 'INTERN'
 
+// M61 / P1-09 — employment type, separate from employment status
+export type EmploymentType =
+  | 'PERMANENT'
+  | 'FIXED_TERM'
+  | 'PART_TIME'
+  | 'PROBATIONARY'
+  | 'CONTRACTOR'
+  | 'INTERN'
+
+// M61 / P1-18 — marital status (PRD §8.1)
+export type MaritalStatus =
+  | 'SINGLE'
+  | 'MARRIED'
+  | 'DIVORCED'
+  | 'WIDOWED'
+  | 'CIVIL_PARTNERSHIP'
+  | 'OTHER'
+
 export interface Employee {
   id: string
   employeeNo: string
@@ -19,11 +37,19 @@ export interface Employee {
   middleName?: string | null
   birthDate?: string | null
   gender?: string | null
+  /** M61 / P1-18 */
+  maritalStatus?: MaritalStatus | null
+  /** M61 / P1-18 — ISO 3166-1 alpha-2 country code */
+  nationality?: string | null
   nationalId?: string | null
   email?: string | null
   phone?: string | null
   hireDate: string
   employmentStatus: EmploymentStatus
+  /** M61 / P1-09 — drives payroll pro-rata */
+  employmentType: EmploymentType
+  /** M61 / P1-09 — FTE percentage (0..100); only applied for non-salaried types */
+  ftePercent: number
   departmentName?: string | null
   positionTitle?: string | null
   costCentre?: string | null
@@ -40,6 +66,10 @@ export interface EmployeeRequest {
   middleName?: string
   birthDate?: string
   gender?: string
+  /** M61 / P1-18 */
+  maritalStatus?: MaritalStatus
+  /** M61 / P1-18 — ISO 3166-1 alpha-2 country code */
+  nationality?: string
   nationalId?: string
   email?: string
   phone?: string
@@ -48,6 +78,10 @@ export interface EmployeeRequest {
   positionTitle?: string
   costCentre?: string
   managerId?: string
+  /** M61 / P1-09 — defaults to PERMANENT */
+  employmentType?: EmploymentType
+  /** M61 / P1-09 — defaults to 100 */
+  ftePercent?: number
 }
 
 export interface PageResponse<T> {

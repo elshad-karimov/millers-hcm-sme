@@ -1,11 +1,14 @@
 package az.millers.hcm.corehr.api.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
+import az.millers.hcm.corehr.domain.EmploymentType;
+import az.millers.hcm.corehr.domain.MaritalStatus;
 
 public record EmployeeResponse(
         UUID id,
@@ -15,11 +18,15 @@ public record EmployeeResponse(
         String middleName,
         LocalDate birthDate,
         String gender,
+        MaritalStatus maritalStatus,
+        String nationality,
         String nationalId,
         String email,
         String phone,
         LocalDate hireDate,
         EmploymentStatus employmentStatus,
+        EmploymentType employmentType,
+        BigDecimal ftePercent,
         String departmentName,
         String positionTitle,
         String costCentre,
@@ -44,11 +51,15 @@ public record EmployeeResponse(
                 e.getMiddleName(),
                 e.getBirthDate(),
                 e.getGender(),
+                e.getMaritalStatus(),
+                e.getNationality(),
                 e.getNationalId(),
                 e.getEmail(),
                 e.getPhone(),
                 e.getHireDate(),
                 e.getEmploymentStatus(),
+                e.getEmploymentType(),
+                e.getFtePercent(),
                 e.getDepartmentName(),
                 e.getPositionTitle(),
                 e.getCostCentre(),

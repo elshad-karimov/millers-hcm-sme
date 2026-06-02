@@ -176,10 +176,14 @@ public class ApplicationService {
                 : LocalDate.now();
 
         // Create the Employee record (status defaults to ON_PROBATION inside EmployeeService).
+        // M61: new fields (maritalStatus, nationality, employmentType, ftePercent)
+        // all default to null/PERMANENT/100 — recruitment doesn't yet capture them.
         EmployeeRequest empReq = new EmployeeRequest(
                 c.getFirstName(), c.getLastName(), c.getMiddleName(),
                 null,                 // birthDate
                 null,                 // gender
+                null,                 // maritalStatus (M61)
+                null,                 // nationality   (M61)
                 null,                 // nationalId
                 c.getEmail(),
                 c.getPhone(),
@@ -192,7 +196,9 @@ public class ApplicationService {
                 null,                 // managerId
                 null,                 // delegateManagerId (M37)
                 null,                 // delegateFrom
-                null);                // delegateTo
+                null,                 // delegateTo
+                null,                 // employmentType (M61) — defaults to PERMANENT
+                null);                // ftePercent     (M61) — defaults to 100.00
         Employee created = employeeService.create(empReq);
 
         a.setCurrentStage(ApplicationStage.HIRED);

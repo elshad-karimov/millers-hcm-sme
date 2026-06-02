@@ -1,5 +1,6 @@
 package az.millers.hcm.corehr.service;
 
+import java.math.BigDecimal;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,6 +18,7 @@ import az.millers.hcm.corehr.api.dto.EmployeeRequest;
 import az.millers.hcm.corehr.api.dto.EmployeeResponse;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
+import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
@@ -97,6 +99,7 @@ public class EmployeeService {
                 && repository.existsByEmailIgnoreCase(request.email())) {
             throw new BadRequestException("An employee with this email already exists");
         }
+        validateNationalIdUnique(request.nationalId(), null);
 
         Employee employee = new Employee();
         employee.setEmployeeNo(nextEmployeeNo());
@@ -121,6 +124,7 @@ public class EmployeeService {
             throw new BadRequestException("An employee cannot be their own manager");
         }
         validateDelegation(id, request);
+        validateNationalIdUnique(request.nationalId(), id);
         EmployeeResponse before = EmployeeResponse.from(employee);
 
         applyRequest(employee, request);
@@ -155,6 +159,8 @@ public class EmployeeService {
         employee.setMiddleName(request.middleName());
         employee.setBirthDate(request.birthDate());
         employee.setGender(request.gender());
+        employee.setMaritalStatus(request.maritalStatus());
+        employee.setNationality(request.nationality());
         employee.setNationalId(request.nationalId());
         employee.setEmail(request.email());
         employee.setPhone(request.phone());
@@ -168,11 +174,45 @@ public class EmployeeService {
         employee.setDelegateManagerId(request.delegateManagerId());
         employee.setDelegateFrom(request.delegateFrom());
         employee.setDelegateTo(request.delegateTo());
+        // M61 / P1-09: employment type + FTE. Both default to a full-time
+        // PERMANENT employee when the caller doesn't supply them, preserving
+        // pre-M61 API behaviour.
+        employee.setEmploymentType(
+                request.employmentType() != null ? request.employmentType() : EmploymentType.PERMANENT);
+        employee.setFtePercent(
+                request.ftePercent() != null ? request.ftePercent() : new BigDecimal("100.00"));
     }
 
     private void validateManager(UUID managerId) {
         if (managerId != null && !repository.existsById(managerId)) {
             throw new BadRequestException("Manager not found: " + managerId);
+        }
+    }
+
+    /**
+     * Application-side uniqueness check on the AES-encrypted {@code national_id}
+     * column (M61 / P1-01).
+     *
+     * <p>A DB UNIQUE constraint can't catch duplicates because each row is
+     * encrypted with its own AES-GCM IV — identical plaintexts produce
+     * different ciphertexts. We scan every populated row, decrypt via the
+     * standard JPA AttributeConverter, and reject duplicates application-side.
+     *
+     * @param incoming  the candidate national ID — null / blank values short-circuit
+     * @param selfId    the employee being updated (null on create) so we don't
+     *                  reject the row's own existing value
+     */
+    private void validateNationalIdUnique(String incoming, UUID selfId) {
+        if (!StringUtils.hasText(incoming)) return;
+        String trimmed = incoming.trim();
+        for (Object[] row : repository.findIdAndNationalIdWhereNationalIdNotNull()) {
+            UUID rowId = (UUID) row[0];
+            String stored = (String) row[1];
+            if (selfId != null && selfId.equals(rowId)) continue;
+            if (stored != null && stored.equalsIgnoreCase(trimmed)) {
+                throw new BadRequestException(
+                        "An employee with this national ID already exists");
+            }
         }
     }
 

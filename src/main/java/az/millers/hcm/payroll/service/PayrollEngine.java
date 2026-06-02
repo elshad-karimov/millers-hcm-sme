@@ -5,12 +5,16 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,10 @@ import az.millers.hcm.compbenefits.domain.AllowanceType;
 import az.millers.hcm.compbenefits.domain.EmployeeAllowance;
 import az.millers.hcm.compbenefits.repo.AllowanceTypeRepository;
 import az.millers.hcm.compbenefits.repo.EmployeeAllowanceRepository;
+import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.domain.EmploymentStatus;
+import az.millers.hcm.corehr.domain.EmploymentType;
+import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.payroll.domain.PayrollAllowance;
 import az.millers.hcm.payroll.domain.PayrollBonus;
 import az.millers.hcm.payroll.domain.PayrollResult;
@@ -48,6 +56,23 @@ import az.millers.hcm.timesheet.repo.TimesheetRepository;
 @Service
 public class PayrollEngine {
 
+    private static final Logger log = LoggerFactory.getLogger(PayrollEngine.class);
+
+    /**
+     * Employment statuses eligible to be included in a payroll run (M61 / P1-02).
+     * Statuses outside this set (TERMINATED, RETIRED, …) have their stale
+     * APPROVED timesheets silently skipped — the engine logs each skip so HR
+     * can audit the decision. A separate final-settlement path covers payouts
+     * to terminated employees.
+     */
+    private static final Set<EmploymentStatus> PAYABLE_STATUSES = EnumSet.of(
+            EmploymentStatus.ACTIVE,
+            EmploymentStatus.ON_PROBATION,
+            EmploymentStatus.ON_LEAVE,
+            EmploymentStatus.ON_BUSINESS_TRIP,
+            EmploymentStatus.CONTRACTOR,
+            EmploymentStatus.INTERN);
+
     private final PayrollRunRepository runs;
     private final PayrollResultRepository results;
     private final PayrollBonusRepository bonuses;
@@ -57,6 +82,7 @@ public class PayrollEngine {
     private final EmployeeCompensationRepository compensations;
     private final EmployeeAllowanceRepository employeeAllowances;
     private final AllowanceTypeRepository allowanceTypes;
+    private final EmployeeRepository employees;
     private final StatutoryCalculator calculator;
     private final ObjectMapper objectMapper;
 
@@ -69,6 +95,7 @@ public class PayrollEngine {
                           EmployeeCompensationRepository compensations,
                           EmployeeAllowanceRepository employeeAllowances,
                           AllowanceTypeRepository allowanceTypes,
+                          EmployeeRepository employees,
                           StatutoryCalculator calculator,
                           ObjectMapper objectMapper) {
         this.runs = runs;
@@ -80,6 +107,7 @@ public class PayrollEngine {
         this.compensations = compensations;
         this.employeeAllowances = employeeAllowances;
         this.allowanceTypes = allowanceTypes;
+        this.employees = employees;
         this.calculator = calculator;
         this.objectMapper = objectMapper;
     }
@@ -118,12 +146,41 @@ public class PayrollEngine {
 
         for (Timesheet ts : approved) {
             UUID employeeId = ts.getEmployeeId();
+
+            // M61 / P1-02: payroll-eligibility gate. Stale APPROVED timesheets
+            // belonging to TERMINATED/RETIRED/SUSPENDED employees must never
+            // land in a live run — that's a financial-integrity bug. Final
+            // settlement payouts are a separate, intentional path through
+            // TerminationService.
+            Employee emp = employees.findById(employeeId).orElse(null);
+            if (emp == null) {
+                log.warn("PayrollEngine: timesheet {} references missing employee {} — skipping",
+                        ts.getId(), employeeId);
+                continue;
+            }
+            if (!PAYABLE_STATUSES.contains(emp.getEmploymentStatus())) {
+                log.info("PayrollEngine: skipping employee {} (status={}) — not payroll-eligible",
+                        employeeId, emp.getEmploymentStatus());
+                continue;
+            }
+
             BigDecimal baseSalary = compensations.findActiveOn(employeeId, ruleDate)
                     .map(c -> c.getMonthlyBaseSalary())
                     .orElse(null);
             if (baseSalary == null) {
                 // Skip employees without a compensation record — record a placeholder result for traceability.
                 continue;
+            }
+
+            // M61 / P1-09: apply pro-rata multiplier for non-salaried employment
+            // types. PERMANENT / FIXED_TERM / PROBATIONARY stay at 1.0 even when
+            // fte_percent differs (FTE on salaried staff is informational); only
+            // PART_TIME, CONTRACTOR, INTERN are scaled by fte / 100.
+            EmploymentType empType = emp.getEmploymentType() != null
+                    ? emp.getEmploymentType() : EmploymentType.PERMANENT;
+            BigDecimal proRata = empType.proRataMultiplier(emp.getFtePercent());
+            if (proRata.compareTo(BigDecimal.ONE) != 0) {
+                baseSalary = baseSalary.multiply(proRata).setScale(2, RoundingMode.HALF_UP);
             }
 
             // OT per-day from timesheet rows.

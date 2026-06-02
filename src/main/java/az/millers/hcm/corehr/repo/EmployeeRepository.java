@@ -19,6 +19,26 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
 
     boolean existsByEmployeeNo(String employeeNo);
 
+    /**
+     * Loads {@code (id, national_id)} pairs for every row with a non-null
+     * national ID. Used by {@code EmployeeService} to enforce
+     * application-side uniqueness on the AES-encrypted national_id column
+     * (M61 / P1-01).
+     *
+     * <p>A DB UNIQUE constraint can't catch duplicates because each row's
+     * AES-GCM IV is independent — identical plaintexts produce different
+     * ciphertexts. We scan + decrypt instead. Acceptable at HCM scale
+     * (≤ ~10⁵ employees); revisit with a deterministic HMAC index if
+     * tenants ever push past that.
+     *
+     * <p>Returns {@code Object[]} so we don't pull the full {@link Employee}
+     * aggregate just to compare two columns. Hibernate decrypts the second
+     * column via the {@code EncryptedStringConverter} as it would on a
+     * normal load.
+     */
+    @Query("select e.id, e.nationalId from Employee e where e.nationalId is not null")
+    java.util.List<Object[]> findIdAndNationalIdWhereNationalIdNotNull();
+
     java.util.Optional<Employee> findByEmployeeNo(String employeeNo);
 
     java.util.Optional<Employee> findByUsername(String username);
