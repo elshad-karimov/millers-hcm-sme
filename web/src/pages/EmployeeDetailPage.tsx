@@ -49,6 +49,11 @@ import {
   type Reward,
 } from '../api/assetsNotesRewards'
 import { probationReviewsApi, type ProbationReview } from '../api/probationReviews'
+import {
+  payrollApi,
+  type BankAccountResponse,
+  type CompensationResponse,
+} from '../api/payroll'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -117,6 +122,8 @@ export function EmployeeDetailPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])
   const [probationReviews, setProbationReviews] = useState<ProbationReview[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([])
+  const [compensations, setCompensations] = useState<CompensationResponse[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -145,8 +152,10 @@ export function EmployeeDetailPage() {
       assetsNotesRewardsApi.listNotes(id).catch(() => []),
       assetsNotesRewardsApi.listRewards(id).catch(() => []),
       probationReviewsApi.listForEmployee(id).catch(() => []),
+      payrollApi.bankAccounts(id).catch(() => []),
+      payrollApi.compensationHistory(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -163,6 +172,8 @@ export function EmployeeDetailPage() {
         setNotes(nts)
         setRewards(rws)
         setProbationReviews(prs)
+        setBankAccounts(banks)
+        setCompensations(comps)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -264,6 +275,50 @@ export function EmployeeDetailPage() {
     { title: 'To', dataIndex: 'endDate', render: (v?: string | null) => v ?? 'in progress' },
     { title: 'GPA', dataIndex: 'gpa', render: (v?: number | null) => v ?? '—' },
     { title: 'Verified', dataIndex: 'verificationStatus', render: tag },
+  ], [])
+
+  const bankAccountColumns: ColumnsType<BankAccountResponse> = useMemo(() => [
+    {
+      title: '',
+      dataIndex: 'primary',
+      width: 60,
+      render: (v: boolean) => (v ? <Tag color="green">PRIMARY</Tag> : null),
+    },
+    { title: 'Bank', dataIndex: 'bankName', render: (v?: string | null) => v ?? '—' },
+    { title: 'Code', dataIndex: 'bankCode', render: (v?: string | null) => v ?? '—' },
+    { title: 'IBAN', dataIndex: 'ibanMasked', render: (v?: string | null) => v ?? '—' },
+    {
+      title: 'Account',
+      dataIndex: 'accountNumberMasked',
+      render: (v?: string | null) => v ?? '—',
+    },
+    { title: 'SWIFT/BIC', dataIndex: 'swiftBic', render: (v?: string | null) => v ?? '—' },
+    { title: 'Currency', dataIndex: 'currency' },
+    {
+      title: 'Split %',
+      dataIndex: 'salarySplitPercent',
+      render: (v: number) => `${v}%`,
+    },
+    {
+      title: 'Active',
+      dataIndex: 'active',
+      render: (v: boolean) => (v ? <Tag color="green">YES</Tag> : <Tag>INACTIVE</Tag>),
+    },
+  ], [])
+
+  const compensationColumns: ColumnsType<CompensationResponse> = useMemo(() => [
+    { title: 'Effective from', dataIndex: 'effectiveFrom' },
+    {
+      title: 'Effective to',
+      dataIndex: 'effectiveTo',
+      render: (v?: string | null) => v ?? 'current',
+    },
+    {
+      title: 'Monthly base salary',
+      dataIndex: 'monthlyBaseSalary',
+      render: (v: number, r) => `${v.toFixed(2)} ${r.currency ?? ''}`,
+    },
+    { title: 'Reason', dataIndex: 'reason', render: (v?: string | null) => v ?? '—' },
   ], [])
 
   const probationReviewColumns: ColumnsType<ProbationReview> = useMemo(() => [
@@ -585,6 +640,32 @@ export function EmployeeDetailPage() {
           dataSource={probationReviews}
           pagination={false}
           locale={{ emptyText: <Empty description="No probation reviews on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'banking',
+      label: `Bank accounts (${bankAccounts.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={bankAccountColumns}
+          dataSource={bankAccounts}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No bank accounts on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'compensation',
+      label: `Compensation history (${compensations.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={compensationColumns}
+          dataSource={compensations}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No compensation records on file" /> }}
         />
       ),
     },

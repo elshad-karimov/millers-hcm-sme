@@ -104,20 +104,44 @@ export interface BankAccountResponse {
   employeeId: string
   bankCode?: string | null
   bankName?: string | null
+  /** Last-4 mask — always populated. */
+  ibanMasked?: string | null
+  /** Plaintext — only for cleared roles (SYSTEM_ADMIN / HR_ADMIN / AUDITOR). */
   iban?: string | null
+  accountNumberMasked?: string | null
   accountNumber?: string | null
+  /** M74 — ISO 9362 SWIFT/BIC code. */
+  swiftBic?: string | null
   currency: string
+  /** M74 — fraction of net salary routed to this account. Sums to 100 across active accounts. */
+  salarySplitPercent: number
+  /** M74 — true for the primary account. At most one active primary per employee. */
+  primary: boolean
   active: boolean
+  notes?: string | null
+  lastChangeWorkflowId?: string | null
+  createdAt: string
+  createdBy?: string | null
+  updatedAt: string
+  updatedBy?: string | null
 }
 
 export interface BankAccountRequest {
+  /** Non-null on update; omitted on create. */
+  id?: string
   employeeId: string
   bankCode?: string
   bankName?: string
   iban?: string
   accountNumber?: string
+  /** Uppercase 8 or 11 chars (ISO 9362). */
+  swiftBic?: string
   currency?: string
+  /** Defaults to 100 when omitted (single-account case). */
+  salarySplitPercent?: number
+  primary?: boolean
   active?: boolean
+  notes?: string
 }
 
 export interface AddBonusRequest {
@@ -189,11 +213,32 @@ export const payrollApi = {
   setCompensation: (payload: CompensationRequest) =>
     api.post<CompensationResponse>('/payroll/compensation', payload).then((r) => r.data),
 
-  // Bank accounts
+  // Bank accounts (M74 — multi-row with salary split)
+  bankAccounts: (employeeId: string, activeOnly = false) =>
+    api
+      .get<BankAccountResponse[]>('/payroll/bank-accounts', {
+        params: { employeeId, activeOnly },
+      })
+      .then((r) => r.data),
+  /**
+   * Legacy single-account accessor — returns the primary active account.
+   * Pre-M74 frontend callers calling .bankAccount() keep working; new code
+   * should prefer .bankAccounts() for the full list.
+   */
   bankAccount: (employeeId: string) =>
     api
-      .get<BankAccountResponse | null>('/payroll/bank-accounts', { params: { employeeId } })
-      .then((r) => r.data ?? null),
+      .get<BankAccountResponse[]>('/payroll/bank-accounts', {
+        params: { employeeId, activeOnly: true },
+      })
+      .then((r) => r.data.find((a) => a.primary) ?? r.data[0] ?? null),
+  createBankAccount: (payload: BankAccountRequest) =>
+    api.post<BankAccountResponse>('/payroll/bank-accounts', payload).then((r) => r.data),
+  updateBankAccount: (id: string, payload: BankAccountRequest) =>
+    api
+      .put<BankAccountResponse>(`/payroll/bank-accounts/${id}`, payload)
+      .then((r) => r.data),
+  deleteBankAccount: (id: string) => api.delete(`/payroll/bank-accounts/${id}`),
+  /** Backward compatibility — pre-M74 callers used setBankAccount as upsert. */
   setBankAccount: (payload: BankAccountRequest) =>
     api.post<BankAccountResponse>('/payroll/bank-accounts', payload).then((r) => r.data),
 }
