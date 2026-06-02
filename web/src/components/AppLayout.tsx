@@ -12,6 +12,7 @@ import {
   DollarCircleOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
+  FileTextOutlined,
   GlobalOutlined,
   HomeOutlined,
   IdcardOutlined,
@@ -63,6 +64,9 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/permission/balances', module: 'absence', screen: 'permission-balances' },
   { prefix: '/permission/requests', module: 'absence', screen: 'permission-requests' },
   { prefix: '/business-trips', module: 'travel', screen: 'business-trips' },
+  { prefix: '/letters/templates', module: 'letters', screen: 'letters-templates' },
+  { prefix: '/letters/request', module: 'letters', screen: 'letters-request' },
+  { prefix: '/letters', module: 'letters', screen: 'letters-requests' },
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
@@ -272,6 +276,33 @@ export function AppLayout() {
                 icon: <RocketOutlined />,
                 label: <Link to="/business-trips">Business trips</Link>,
               },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── HR letters (M77) — queue is HR + Manager; templates HR-only ────────
+    ...(hrOrManager
+      ? [
+          {
+            key: 'letters',
+            icon: <FileTextOutlined />,
+            label: 'HR letters',
+            children: [
+              {
+                key: 'letters-requests',
+                icon: <FileDoneOutlined />,
+                label: <Link to="/letters">Letter requests</Link>,
+              },
+              ...(isHR
+                ? [
+                    {
+                      key: 'letters-templates',
+                      icon: <ProfileOutlined />,
+                      label: <Link to="/letters/templates">Templates</Link>,
+                    },
+                  ]
+                : []),
             ],
           } satisfies ItemType,
         ]

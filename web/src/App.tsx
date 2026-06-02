@@ -61,6 +61,9 @@ import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { TeamPage } from './pages/TeamPage'
+import { LetterTemplatesPage } from './pages/LetterTemplatesPage'
+import { LetterRequestsPage } from './pages/LetterRequestsPage'
+import { LetterRequestFormPage } from './pages/LetterRequestFormPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -118,9 +121,13 @@ export default function App() {
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />
         <Route path="permission/requests/new" element={<PermissionRequestFormPage />} />
         <Route path="business-trips/new" element={<BusinessTripFormPage />} />
+        <Route path="letters/request" element={<LetterRequestFormPage />} />
 
         {/* ── HR + Manager routes ────────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
+          {/* HR letters — request queue (scope-restricted in service) */}
+          <Route path="letters" element={<LetterRequestsPage />} />
+
           {/* Time & Attendance */}
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />
           <Route path="attendance/schedules/new" element={<ScheduleFormPage />} />
@@ -177,6 +184,9 @@ export default function App() {
           <Route path="positions" element={<PositionsPage />} />
           <Route path="positions/new" element={<PositionFormPage />} />
           <Route path="positions/:id/edit" element={<PositionFormPage />} />
+
+          {/* Letter templates (HR admin) */}
+          <Route path="letters/templates" element={<LetterTemplatesPage />} />
 
           {/* Absence admin */}
           <Route path="leave/types" element={<LeaveTypesPage />} />

@@ -26,6 +26,9 @@ import az.millers.hcm.compbenefits.repo.EmployeeAllowanceRepository;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.letters.api.dto.LetterRequestResponse;
+import az.millers.hcm.letters.api.dto.LetterSubmitRequest;
+import az.millers.hcm.letters.service.LetterRequestService;
 import az.millers.hcm.leave.api.dto.LeaveBalanceResponse;
 import az.millers.hcm.leave.api.dto.LeaveRequestResponse;
 import az.millers.hcm.leave.api.dto.LeaveSubmitRequest;
@@ -97,6 +100,7 @@ public class SelfController {
     private final PerformanceReviewRepository reviews;
     private final GoalRepository goals;
     private final EmployeeAllowanceRepository allowances;
+    private final LetterRequestService letterRequestService;
 
     public SelfController(EmployeeContextService context,
                           EmployeeRepository employeeRepo,
@@ -117,8 +121,10 @@ public class SelfController {
                           EmployeeCompetencyRepository employeeCompetencies,
                           PerformanceReviewRepository reviews,
                           GoalRepository goals,
-                          EmployeeAllowanceRepository allowances) {
+                          EmployeeAllowanceRepository allowances,
+                          LetterRequestService letterRequestService) {
         this.context = context;
+        this.letterRequestService = letterRequestService;
         this.employeeRepo = employeeRepo;
         this.leaveBalances = leaveBalances;
         this.leaveTypes = leaveTypes;
@@ -444,5 +450,26 @@ public class SelfController {
         return allowances.findActiveForEmployeeOn(
                 e.getId(), AllowanceStatus.ACTIVE, LocalDate.now())
                 .stream().map(EmployeeAllowanceResponse::from).toList();
+    }
+
+    // ----- HR letters (M77 / P2-17) -----------------------------------------
+
+    @GetMapping("/letters")
+    public List<LetterRequestResponse> myLetters() {
+        Employee me = context.currentEmployee();
+        return letterRequestService.mine(me.getId())
+                .stream().map(LetterRequestResponse::from).toList();
+    }
+
+    @PostMapping("/letters/submit")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LetterRequestResponse submitLetter(@Valid @RequestBody LetterSubmitRequest req) {
+        Employee me = context.currentEmployee();
+        LetterSubmitRequest scoped = new LetterSubmitRequest(
+                me.getId(),
+                req.templateId(),
+                req.purpose(),
+                req.customFields());
+        return LetterRequestResponse.from(letterRequestService.submit(scoped));
     }
 }
