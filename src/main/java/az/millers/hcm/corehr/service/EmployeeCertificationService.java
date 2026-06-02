@@ -3,8 +3,6 @@ package az.millers.hcm.corehr.service;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +16,7 @@ import az.millers.hcm.corehr.domain.VerificationStatus;
 import az.millers.hcm.corehr.repo.EmployeeCertificationRepository;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.PiiAccessRoles;
 import az.millers.hcm.security.scope.AccessScopeService;
 
 /**
@@ -162,15 +161,10 @@ public class EmployeeCertificationService {
         }
     }
 
+    /**
+     * PII gate — delegates to the shared {@link PiiAccessRoles} helper.
+     */
     private boolean callerCanSeePlaintextNumber() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            String r = a.getAuthority();
-            if ("ROLE_SYSTEM_ADMIN".equals(r) || "ROLE_HR_ADMIN".equals(r) || "ROLE_AUDITOR".equals(r)) {
-                return true;
-            }
-        }
-        return false;
+        return PiiAccessRoles.callerCanSeePlaintextPii();
     }
 }

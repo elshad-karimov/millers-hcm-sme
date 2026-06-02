@@ -36,6 +36,12 @@ import {
   type Health,
 } from '../api/credentials'
 import { disciplinaryApi, type DisciplinaryAction } from '../api/disciplinary'
+import {
+  profileTabsApi,
+  type Dependent,
+  type Education,
+  type WorkExperience,
+} from '../api/profileTabs'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -97,6 +103,9 @@ export function EmployeeDetailPage() {
   const [certifications, setCertifications] = useState<Certification[]>([])
   const [health, setHealth] = useState<Health | null>(null)
   const [disciplinary, setDisciplinary] = useState<DisciplinaryAction[]>([])
+  const [dependents, setDependents] = useState<Dependent[]>([])
+  const [educations, setEducations] = useState<Education[]>([])
+  const [experiences, setExperiences] = useState<WorkExperience[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -118,8 +127,11 @@ export function EmployeeDetailPage() {
       credentialsApi.listCertifications(id).catch(() => []),
       canSeeHealth ? credentialsApi.getHealth(id).catch(() => null) : Promise.resolve(null),
       canSeeDisciplinary ? disciplinaryApi.listForEmployee(id).catch(() => []) : Promise.resolve([]),
+      profileTabsApi.listDependents(id).catch(() => []),
+      profileTabsApi.listEducation(id).catch(() => []),
+      profileTabsApi.listExperience(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -129,6 +141,9 @@ export function EmployeeDetailPage() {
         setCertifications(certs)
         setHealth(hth)
         setDisciplinary(da)
+        setDependents(deps)
+        setEducations(eds)
+        setExperiences(exs)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -195,6 +210,55 @@ export function EmployeeDetailPage() {
     { title: 'License #', dataIndex: 'licenseNumberMasked', render: (v?: string | null) => v ?? '—' },
     { title: 'Issued', dataIndex: 'issueDate', render: (v?: string | null) => v ?? '—' },
     { title: 'Expires', dataIndex: 'expiryDate', render: (v?: string | null) => v ?? '—' },
+    { title: 'Verified', dataIndex: 'verificationStatus', render: tag },
+  ], [])
+
+  const dependentColumns: ColumnsType<Dependent> = useMemo(() => [
+    { title: 'Name', render: (_, r) => `${r.firstName} ${r.lastName}` },
+    { title: 'Relationship', dataIndex: 'relationshipType', render: tag },
+    { title: 'DOB', dataIndex: 'dateOfBirth', render: (v?: string | null) => v ?? '—' },
+    { title: 'Phone', dataIndex: 'phone', render: (v?: string | null) => v ?? '—' },
+    {
+      title: 'Insurance',
+      dataIndex: 'insuranceEligible',
+      render: (v: boolean) => (v ? <Tag color="green">ELIGIBLE</Tag> : '—'),
+    },
+    {
+      title: 'Benefits',
+      dataIndex: 'benefitEligible',
+      render: (v: boolean) => (v ? <Tag color="blue">ELIGIBLE</Tag> : '—'),
+    },
+    {
+      title: 'Active',
+      dataIndex: 'active',
+      render: (v: boolean) => (v ? <Tag color="green">YES</Tag> : <Tag>INACTIVE</Tag>),
+    },
+  ], [])
+
+  const educationColumns: ColumnsType<Education> = useMemo(() => [
+    { title: 'Level', dataIndex: 'educationLevel', render: tag },
+    { title: 'Institution', dataIndex: 'institutionName' },
+    { title: 'Country', dataIndex: 'country', render: (v?: string | null) => v ?? '—' },
+    { title: 'Degree', dataIndex: 'degree', render: (v?: string | null) => v ?? '—' },
+    { title: 'Major', dataIndex: 'major', render: (v?: string | null) => v ?? '—' },
+    { title: 'From', dataIndex: 'startDate', render: (v?: string | null) => v ?? '—' },
+    { title: 'To', dataIndex: 'endDate', render: (v?: string | null) => v ?? 'in progress' },
+    { title: 'GPA', dataIndex: 'gpa', render: (v?: number | null) => v ?? '—' },
+    { title: 'Verified', dataIndex: 'verificationStatus', render: tag },
+  ], [])
+
+  const experienceColumns: ColumnsType<WorkExperience> = useMemo(() => [
+    { title: 'Type', dataIndex: 'experienceType', render: tag },
+    { title: 'Employer', dataIndex: 'employerName' },
+    { title: 'Industry', dataIndex: 'industry', render: (v?: string | null) => v ?? '—' },
+    { title: 'Title', dataIndex: 'jobTitle' },
+    { title: 'From', dataIndex: 'startDate' },
+    { title: 'To', dataIndex: 'endDate', render: (v?: string | null) => v ?? 'current' },
+    {
+      title: 'Salary',
+      render: (_, r) =>
+        r.lastSalary != null ? `${r.lastSalary} ${r.lastSalaryCurrency ?? ''}` : '—',
+    },
     { title: 'Verified', dataIndex: 'verificationStatus', render: tag },
   ], [])
 
@@ -337,6 +401,45 @@ export function EmployeeDetailPage() {
           dataSource={certifications}
           pagination={false}
           locale={{ emptyText: <Empty description="No external certifications on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'dependents',
+      label: `Dependents (${dependents.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={dependentColumns}
+          dataSource={dependents}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No dependents on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'education',
+      label: `Education (${educations.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={educationColumns}
+          dataSource={educations}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No education history on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'experience',
+      label: `Experience (${experiences.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={experienceColumns}
+          dataSource={experiences}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No work experience on file" /> }}
         />
       ),
     },
