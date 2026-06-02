@@ -102,6 +102,47 @@ export interface OrgUnitHistory {
   changedBy?: string | null
 }
 
+// M84 — bulk reorg manifest
+export type BulkReorgKind = 'ADD' | 'UPDATE' | 'MOVE' | 'REMOVE'
+
+export interface BulkReorgOperation {
+  kind: BulkReorgKind
+  code: string
+  name?: string
+  unitType?: OrgUnitType
+  parentCode?: string
+  headEmployeeId?: string
+  sortOrder?: number
+  costCentreCode?: string
+  location?: string
+  contactEmail?: string
+  glAccount?: string
+  headcountBudget?: number
+  active?: boolean
+  newParentCode?: string
+  reason?: string
+}
+
+export interface BulkReorgManifest {
+  dryRun: boolean
+  operations: BulkReorgOperation[]
+}
+
+export interface BulkReorgRowResult {
+  index: number
+  kind: BulkReorgKind
+  code: string
+  applied: boolean
+  message: string
+}
+
+export interface BulkReorgResult {
+  dryRun: boolean
+  operationsTotal: number
+  operationsApplied: number
+  rows: BulkReorgRowResult[]
+}
+
 // M81 — span-of-control
 export interface SpanOfControlRow {
   managerId: string
@@ -184,6 +225,12 @@ export const orgApi = {
   recentVersionHistory: (versionId: string) =>
     api
       .get<OrgUnitHistory[]>(`/org/versions/${versionId}/recent-history`)
+      .then((r) => r.data),
+
+  // M84 — bulk reorg
+  bulkReorg: (versionId: string, manifest: BulkReorgManifest) =>
+    api
+      .post<BulkReorgResult>(`/org/versions/${versionId}/bulk-reorg`, manifest)
       .then((r) => r.data),
 }
 

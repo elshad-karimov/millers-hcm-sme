@@ -22,6 +22,9 @@ import az.millers.hcm.organization.api.dto.RollbackRequest;
 import az.millers.hcm.organization.api.dto.StatusTransitionRequest;
 import az.millers.hcm.organization.api.dto.StructureVersionRequest;
 import az.millers.hcm.organization.api.dto.StructureVersionResponse;
+import az.millers.hcm.organization.api.dto.BulkReorgManifest;
+import az.millers.hcm.organization.api.dto.BulkReorgResult;
+import az.millers.hcm.organization.service.BulkReorgService;
 import az.millers.hcm.organization.service.OrgChartSvgRenderer;
 import az.millers.hcm.organization.service.OrgStructureService;
 import jakarta.validation.Valid;
@@ -34,11 +37,26 @@ public class OrgStructureController {
 
     private final OrgStructureService service;
     private final OrgChartSvgRenderer chartRenderer;
+    private final BulkReorgService bulkReorgService;
 
     public OrgStructureController(OrgStructureService service,
-                                   OrgChartSvgRenderer chartRenderer) {
+                                   OrgChartSvgRenderer chartRenderer,
+                                   BulkReorgService bulkReorgService) {
         this.service = service;
         this.chartRenderer = chartRenderer;
+        this.bulkReorgService = bulkReorgService;
+    }
+
+    /**
+     * M84 — Bulk reorganisation. Atomic: either every operation applies or
+     * the whole transaction rolls back. {@code dryRun} pre-flights without
+     * writing. HR_ADMIN / SYSTEM_ADMIN only.
+     */
+    @PostMapping("/versions/{id}/bulk-reorg")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN')")
+    public BulkReorgResult bulkReorg(@PathVariable UUID id,
+                                      @Valid @RequestBody BulkReorgManifest manifest) {
+        return bulkReorgService.apply(id, manifest);
     }
 
     /**

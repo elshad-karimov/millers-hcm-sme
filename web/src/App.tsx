@@ -69,6 +69,7 @@ import { PersonalInfoRequestFormPage } from './pages/PersonalInfoRequestFormPage
 import { EmployeeManagementReportsPage } from './pages/EmployeeManagementReportsPage'
 import { ActivityFeedPage } from './pages/ActivityFeedPage'
 import { SpanOfControlPage } from './pages/SpanOfControlPage'
+import { BulkReorgPage } from './pages/BulkReorgPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -194,6 +195,7 @@ export default function App() {
           <Route path="organization" element={<OrgStructurePage />} />
           <Route path="organization/units/new" element={<OrgUnitFormPage />} />
           <Route path="organization/units/:unitId/edit" element={<OrgUnitFormPage />} />
+          <Route path="organization/bulk-reorg" element={<BulkReorgPage />} />
           <Route path="positions" element={<PositionsPage />} />
           <Route path="positions/new" element={<PositionFormPage />} />
           <Route path="positions/:id/edit" element={<PositionFormPage />} />

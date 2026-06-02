@@ -228,6 +228,9 @@ export function OrgStructurePage() {
         extra={
           canEditDraft && (
             <Space>
+              <Button onClick={() => navigate('/organization/bulk-reorg')}>
+                Bulk reorg…
+              </Button>
               <Button onClick={rollback}>Rollback…</Button>
               <Button type="primary" onClick={createDraft}>
                 New draft

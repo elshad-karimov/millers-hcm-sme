@@ -52,6 +52,7 @@ const { Header, Content } = Layout
 const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/home', module: 'home', screen: 'home' },
   { prefix: '/employees', module: 'people', screen: 'employees' },
+  { prefix: '/organization/bulk-reorg', module: 'people', screen: 'organization-bulk-reorg' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions', module: 'people', screen: 'positions' },
   { prefix: '/attendance/schedules', module: 'time', screen: 'attendance-schedules' },
