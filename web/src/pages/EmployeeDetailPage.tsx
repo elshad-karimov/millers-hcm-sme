@@ -42,6 +42,12 @@ import {
   type Education,
   type WorkExperience,
 } from '../api/profileTabs'
+import {
+  assetsNotesRewardsApi,
+  type Asset,
+  type Note,
+  type Reward,
+} from '../api/assetsNotesRewards'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -106,6 +112,9 @@ export function EmployeeDetailPage() {
   const [dependents, setDependents] = useState<Dependent[]>([])
   const [educations, setEducations] = useState<Education[]>([])
   const [experiences, setExperiences] = useState<WorkExperience[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  const [rewards, setRewards] = useState<Reward[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -130,8 +139,11 @@ export function EmployeeDetailPage() {
       profileTabsApi.listDependents(id).catch(() => []),
       profileTabsApi.listEducation(id).catch(() => []),
       profileTabsApi.listExperience(id).catch(() => []),
+      assetsNotesRewardsApi.listAssets(id).catch(() => []),
+      assetsNotesRewardsApi.listNotes(id).catch(() => []),
+      assetsNotesRewardsApi.listRewards(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -144,6 +156,9 @@ export function EmployeeDetailPage() {
         setDependents(deps)
         setEducations(eds)
         setExperiences(exs)
+        setAssets(ast)
+        setNotes(nts)
+        setRewards(rws)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -245,6 +260,54 @@ export function EmployeeDetailPage() {
     { title: 'To', dataIndex: 'endDate', render: (v?: string | null) => v ?? 'in progress' },
     { title: 'GPA', dataIndex: 'gpa', render: (v?: number | null) => v ?? '—' },
     { title: 'Verified', dataIndex: 'verificationStatus', render: tag },
+  ], [])
+
+  const assetColumns: ColumnsType<Asset> = useMemo(() => [
+    { title: 'Type', dataIndex: 'assetType', render: tag },
+    { title: 'Name', dataIndex: 'assetName' },
+    { title: 'ID/Tag', dataIndex: 'assetIdentifier', render: (v?: string | null) => v ?? '—' },
+    { title: 'Status', dataIndex: 'status', render: tag },
+    { title: 'Assigned', dataIndex: 'assignedAt' },
+    {
+      title: 'Returned',
+      dataIndex: 'returnedAt',
+      render: (v?: string | null) => v ?? '—',
+    },
+    {
+      title: 'Expected',
+      dataIndex: 'expectedReturnDate',
+      render: (v?: string | null) => v ?? '—',
+    },
+  ], [])
+
+  const noteColumns: ColumnsType<Note> = useMemo(() => [
+    {
+      title: '',
+      dataIndex: 'pinned',
+      width: 32,
+      render: (v: boolean) => (v ? '📌' : null),
+    },
+    { title: 'Type', dataIndex: 'noteType', render: tag },
+    { title: 'Visibility', dataIndex: 'visibilityLevel', render: tag },
+    { title: 'Body', dataIndex: 'noteBody', ellipsis: true },
+    { title: 'By', dataIndex: 'createdBy', render: (v?: string | null) => v ?? '—' },
+    {
+      title: 'When',
+      dataIndex: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+  ], [])
+
+  const rewardColumns: ColumnsType<Reward> = useMemo(() => [
+    { title: 'Type', dataIndex: 'rewardType', render: tag },
+    { title: 'Title', dataIndex: 'title' },
+    { title: 'Awarded', dataIndex: 'awardedAt' },
+    {
+      title: 'Value',
+      render: (_, r) =>
+        r.awardValue != null ? `${r.awardValue} ${r.currency ?? ''}` : '—',
+    },
+    { title: 'By', dataIndex: 'awardedBy', render: (v?: string | null) => v ?? '—' },
   ], [])
 
   const experienceColumns: ColumnsType<WorkExperience> = useMemo(() => [
@@ -440,6 +503,45 @@ export function EmployeeDetailPage() {
           dataSource={experiences}
           pagination={false}
           locale={{ emptyText: <Empty description="No work experience on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'assets',
+      label: `Assets (${assets.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={assetColumns}
+          dataSource={assets}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No company assets assigned" /> }}
+        />
+      ),
+    },
+    {
+      key: 'notes',
+      label: `Notes (${notes.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={noteColumns}
+          dataSource={notes}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No notes on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'rewards',
+      label: `Rewards (${rewards.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={rewardColumns}
+          dataSource={rewards}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No rewards or recognition on file" /> }}
         />
       ),
     },
