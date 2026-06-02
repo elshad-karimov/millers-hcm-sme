@@ -70,6 +70,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/personal-info/request', module: 'personal-info', screen: 'personal-info-request' },
   { prefix: '/personal-info-changes', module: 'personal-info', screen: 'personal-info-queue' },
   { prefix: '/reports/emp-mgmt', module: 'reports', screen: 'reports-emp-mgmt' },
+  { prefix: '/reports/span-of-control', module: 'reports', screen: 'reports-span' },
   { prefix: '/activity', module: 'reports', screen: 'activity-feed' },
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
@@ -513,6 +514,12 @@ export function AppLayout() {
                 key: 'reports-emp-mgmt',
                 icon: <FileDoneOutlined />,
                 label: <Link to="/reports/emp-mgmt">Employee Management</Link>,
+              },
+              // M81 span-of-control — same gate as emp-mgmt.
+              {
+                key: 'reports-span',
+                icon: <ApartmentOutlined />,
+                label: <Link to="/reports/span-of-control">Span of control</Link>,
               },
               ...(isHR || isAdminOrAuditor
                 ? [

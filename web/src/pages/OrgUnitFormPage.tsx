@@ -77,6 +77,12 @@ export function OrgUnitFormPage() {
             unitType: owning.unitType,
             parentId: owning.parentId ?? undefined,
             sortOrder: owning.sortOrder,
+            // M81 — extended attributes
+            costCentreCode: owning.costCentreCode ?? undefined,
+            location: owning.location ?? undefined,
+            contactEmail: owning.contactEmail ?? undefined,
+            glAccount: owning.glAccount ?? undefined,
+            headcountBudget: owning.headcountBudget ?? undefined,
           })
         } else {
           if (!versionId) {
@@ -168,6 +174,32 @@ export function OrgUnitFormPage() {
           <Form.Item name="sortOrder" label="Sort order">
             <InputNumber min={0} style={{ width: 160 }} />
           </Form.Item>
+
+          {/* M81 — finance / facilities attributes */}
+          <Form.Item
+            name="costCentreCode"
+            label="Cost centre code"
+            tooltip="Free-text code; surfaces in payroll bank-file exports + GL postings."
+          >
+            <Input maxLength={64} style={{ maxWidth: 280 }} />
+          </Form.Item>
+          <Form.Item name="location" label="Location">
+            <Input maxLength={200} style={{ maxWidth: 280 }} />
+          </Form.Item>
+          <Form.Item
+            name="contactEmail"
+            label="Contact email"
+            rules={[{ type: 'email', message: 'Must be a valid email' }]}
+          >
+            <Input maxLength={160} style={{ maxWidth: 280 }} />
+          </Form.Item>
+          <Form.Item name="glAccount" label="GL account">
+            <Input maxLength={64} style={{ maxWidth: 280 }} />
+          </Form.Item>
+          <Form.Item name="headcountBudget" label="Headcount budget">
+            <InputNumber min={0} style={{ width: 160 }} />
+          </Form.Item>
+
           <Form.Item>
             <Space>
               <Button onClick={() => navigate(backPath)}>Cancel</Button>

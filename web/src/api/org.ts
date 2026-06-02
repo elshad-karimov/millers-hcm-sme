@@ -41,6 +41,13 @@ export interface OrgUnitResponse {
   parentId?: string | null
   headEmployeeId?: string | null
   sortOrder: number
+  // M81 — finance / facilities attributes
+  costCentreCode?: string | null
+  location?: string | null
+  contactEmail?: string | null
+  glAccount?: string | null
+  headcountBudget?: number | null
+  active: boolean
 }
 
 export interface OrgUnitRequest {
@@ -50,6 +57,71 @@ export interface OrgUnitRequest {
   parentId?: string | null
   headEmployeeId?: string | null
   sortOrder?: number
+  // M81 — extended attributes; all optional
+  costCentreCode?: string
+  location?: string
+  contactEmail?: string
+  glAccount?: string
+  headcountBudget?: number
+  active?: boolean
+}
+
+// M81 — per-unit policy override
+export interface OrgUnitPolicy {
+  id: string
+  orgUnitId: string
+  versionId: string
+  leaveGroupId?: string | null
+  payrollGroupId?: string | null
+  notes?: string | null
+  createdAt: string
+  createdBy?: string | null
+  updatedAt: string
+  updatedBy?: string | null
+}
+
+// M81 — per-unit history row
+export type OrgChangeKind =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'REMOVE'
+  | 'MOVE'
+  | 'RENAME'
+  | 'HEAD_CHANGE'
+  | 'POLICY_CHANGE'
+
+export interface OrgUnitHistory {
+  id: string
+  orgUnitId: string
+  versionId: string
+  changeKind: OrgChangeKind
+  beforeValue?: unknown
+  afterValue?: unknown
+  changeReason?: string | null
+  changedAt: string
+  changedBy?: string | null
+}
+
+// M81 — span-of-control
+export interface SpanOfControlRow {
+  managerId: string
+  employeeNo?: string | null
+  fullName?: string | null
+  positionTitle?: string | null
+  departmentName?: string | null
+  directReports: number
+  transitiveReports: number
+  depth: number
+  flag: 'OK' | 'OVERSPAN' | 'UNDERSPAN'
+}
+
+export interface SpanOfControlReport {
+  managersCount: number
+  overspanCount: number
+  underspanCount: number
+  overspanThreshold: number
+  underspanThreshold: number
+  rows: SpanOfControlRow[]
 }
 
 export interface OrgTreeNode extends OrgUnitResponse {
@@ -91,4 +163,34 @@ export const orgApi = {
   updateUnit: (unitId: string, payload: OrgUnitRequest) =>
     api.put<OrgUnitResponse>(`/org/units/${unitId}`, payload).then((r) => r.data),
   removeUnit: (unitId: string) => api.delete(`/org/units/${unitId}`).then((r) => r.data),
+
+  // M81 — policy + history
+  getPolicy: (unitId: string, versionId: string) =>
+    api
+      .get<OrgUnitPolicy | null>(`/org/units/${unitId}/policy/${versionId}`)
+      .then((r) => r.data),
+  upsertPolicy: (
+    unitId: string,
+    versionId: string,
+    payload: { leaveGroupId?: string; payrollGroupId?: string; notes?: string },
+  ) =>
+    api
+      .put<OrgUnitPolicy>(`/org/units/${unitId}/policy/${versionId}`, payload)
+      .then((r) => r.data),
+  deletePolicy: (unitId: string, versionId: string) =>
+    api.delete(`/org/units/${unitId}/policy/${versionId}`),
+  unitHistory: (unitId: string) =>
+    api.get<OrgUnitHistory[]>(`/org/units/${unitId}/history`).then((r) => r.data),
+  recentVersionHistory: (versionId: string) =>
+    api
+      .get<OrgUnitHistory[]>(`/org/versions/${versionId}/recent-history`)
+      .then((r) => r.data),
+}
+
+// M81 — span-of-control lives under the existing emp-mgmt report family
+export const orgReportApi = {
+  spanOfControl: () =>
+    api
+      .get<SpanOfControlReport>('/reports/emp-mgmt/span-of-control')
+      .then((r) => r.data),
 }

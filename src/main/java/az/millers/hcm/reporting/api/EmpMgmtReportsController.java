@@ -12,8 +12,10 @@ import az.millers.hcm.reporting.api.dto.EmpMgmtDtos.ContractExpiringReport;
 import az.millers.hcm.reporting.api.dto.EmpMgmtDtos.EmpMgmtSummary;
 import az.millers.hcm.reporting.api.dto.EmpMgmtDtos.ProbationDueReport;
 import az.millers.hcm.reporting.api.dto.EmpMgmtDtos.RehireReport;
+import az.millers.hcm.reporting.api.dto.OrgReportDtos.SpanOfControlReport;
 import az.millers.hcm.reporting.service.ActivityFeedService;
 import az.millers.hcm.reporting.service.EmpMgmtReportsService;
+import az.millers.hcm.reporting.service.SpanOfControlService;
 
 /**
  * Employee-Management report family + global activity feed (M80 / P2-29-33).
@@ -29,11 +31,20 @@ public class EmpMgmtReportsController {
 
     private final EmpMgmtReportsService reports;
     private final ActivityFeedService activity;
+    private final SpanOfControlService spanOfControl;
 
     public EmpMgmtReportsController(EmpMgmtReportsService reports,
-                                     ActivityFeedService activity) {
+                                     ActivityFeedService activity,
+                                     SpanOfControlService spanOfControl) {
         this.reports = reports;
         this.activity = activity;
+        this.spanOfControl = spanOfControl;
+    }
+
+    @GetMapping("/span-of-control")
+    @PreAuthorize(READ_ROLES)
+    public SpanOfControlReport spanOfControl() {
+        return spanOfControl.report();
     }
 
     @GetMapping("/summary")

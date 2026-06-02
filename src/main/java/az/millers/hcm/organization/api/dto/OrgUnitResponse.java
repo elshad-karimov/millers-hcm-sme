@@ -13,7 +13,14 @@ public record OrgUnitResponse(
         OrgUnitType unitType,
         UUID parentId,
         UUID headEmployeeId,
-        int sortOrder) {
+        int sortOrder,
+        /** M81 — finance / facilities attributes. */
+        String costCentreCode,
+        String location,
+        String contactEmail,
+        String glAccount,
+        Integer headcountBudget,
+        boolean active) {
 
     public static OrgUnitResponse from(OrgUnit u) {
         return new OrgUnitResponse(
@@ -24,6 +31,12 @@ public record OrgUnitResponse(
                 u.getUnitType(),
                 u.getParentId(),
                 u.getHeadEmployeeId(),
-                u.getSortOrder());
+                u.getSortOrder(),
+                u.getCostCentreCode(),
+                u.getLocation(),
+                u.getContactEmail(),
+                u.getGlAccount(),
+                u.getHeadcountBudget(),
+                u.isActive());
     }
 }

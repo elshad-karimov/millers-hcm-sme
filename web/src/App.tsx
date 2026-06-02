@@ -68,6 +68,7 @@ import { PersonalInfoChangesPage } from './pages/PersonalInfoChangesPage'
 import { PersonalInfoRequestFormPage } from './pages/PersonalInfoRequestFormPage'
 import { EmployeeManagementReportsPage } from './pages/EmployeeManagementReportsPage'
 import { ActivityFeedPage } from './pages/ActivityFeedPage'
+import { SpanOfControlPage } from './pages/SpanOfControlPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -138,6 +139,7 @@ export default function App() {
 
           {/* Employee-Management reports (M80) — scope-restricted in service */}
           <Route path="reports/emp-mgmt" element={<EmployeeManagementReportsPage />} />
+          <Route path="reports/span-of-control" element={<SpanOfControlPage />} />
 
           {/* Time & Attendance */}
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />

@@ -49,17 +49,20 @@ public class OrgStructureService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final WorkflowService workflowService;
+    private final OrgUnitHistoryService history;
 
     public OrgStructureService(StructureVersionRepository versions,
                                OrgUnitRepository units,
                                AuditService audit,
                                CurrentRequest currentRequest,
-                               WorkflowService workflowService) {
+                               WorkflowService workflowService,
+                               OrgUnitHistoryService history) {
         this.versions = versions;
         this.units = units;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.workflowService = workflowService;
+        this.history = history;
     }
 
     // ---------- Version queries ----------
@@ -253,6 +256,9 @@ public class OrgStructureService {
         u.setVersionId(versionId);
         applyRequest(u, req);
         OrgUnit saved = units.save(u);
+        history.record(saved.getId(), versionId,
+                az.millers.hcm.organization.domain.OrgUnitHistory.ChangeKind.CREATE,
+                null, OrgUnitResponse.from(saved), null);
         audit.record(MODULE, ENTITY_UNIT, saved.getId().toString(),
                 "ADD_UNIT", null, OrgUnitResponse.from(saved));
         return saved;
@@ -278,8 +284,24 @@ public class OrgStructureService {
         OrgUnitResponse before = OrgUnitResponse.from(u);
         applyRequest(u, req);
         OrgUnit saved = units.save(u);
+        OrgUnitResponse after = OrgUnitResponse.from(saved);
+        // Classify the change so the per-unit timeline shows the most useful
+        // kind label instead of generic UPDATE.
+        var kind = az.millers.hcm.organization.domain.OrgUnitHistory.ChangeKind.UPDATE;
+        if (before.parentId() != null
+                ? !before.parentId().equals(after.parentId())
+                : after.parentId() != null) {
+            kind = az.millers.hcm.organization.domain.OrgUnitHistory.ChangeKind.MOVE;
+        } else if (!before.name().equals(after.name())) {
+            kind = az.millers.hcm.organization.domain.OrgUnitHistory.ChangeKind.RENAME;
+        } else if (before.headEmployeeId() != null
+                ? !before.headEmployeeId().equals(after.headEmployeeId())
+                : after.headEmployeeId() != null) {
+            kind = az.millers.hcm.organization.domain.OrgUnitHistory.ChangeKind.HEAD_CHANGE;
+        }
+        history.record(saved.getId(), saved.getVersionId(), kind, before, after, null);
         audit.record(MODULE, ENTITY_UNIT, saved.getId().toString(),
-                "UPDATE_UNIT", before, OrgUnitResponse.from(saved));
+                "UPDATE_UNIT", before, after);
         return saved;
     }
 
@@ -292,7 +314,11 @@ public class OrgStructureService {
             throw new BadRequestException("Remove or re-parent the children first");
         }
         OrgUnitResponse before = OrgUnitResponse.from(u);
+        UUID vId = u.getVersionId();
         units.delete(u);
+        history.record(unitId, vId,
+                az.millers.hcm.organization.domain.OrgUnitHistory.ChangeKind.REMOVE,
+                before, null, null);
         audit.record(MODULE, ENTITY_UNIT, unitId.toString(),
                 "REMOVE_UNIT", before, null);
     }
@@ -367,6 +393,14 @@ public class OrgStructureService {
         u.setParentId(req.parentId());
         u.setHeadEmployeeId(req.headEmployeeId());
         u.setSortOrder(req.sortOrder() == null ? 0 : req.sortOrder());
+        // M81 — extended attributes. Null = clear / not set.
+        u.setCostCentreCode(req.costCentreCode());
+        u.setLocation(req.location());
+        u.setContactEmail(req.contactEmail());
+        u.setGlAccount(req.glAccount());
+        u.setHeadcountBudget(req.headcountBudget());
+        // Boolean wrapper so null on update keeps existing value.
+        if (req.active() != null) u.setActive(req.active());
     }
 
     private void requireDraft(StructureVersion v) {

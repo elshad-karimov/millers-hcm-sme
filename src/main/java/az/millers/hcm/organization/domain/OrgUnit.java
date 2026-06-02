@@ -47,6 +47,27 @@ public class OrgUnit {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /** M81 — finance / facilities attributes. All optional. */
+    @Column(name = "cost_centre_code", length = 64)
+    private String costCentreCode;
+
+    @Column(length = 200)
+    private String location;
+
+    @Column(name = "contact_email", length = 160)
+    private String contactEmail;
+
+    @Column(name = "gl_account", length = 64)
+    private String glAccount;
+
+    /** M81 — non-negative integer (DB CHECK). NULL = no budget set. */
+    @Column(name = "headcount_budget")
+    private Integer headcountBudget;
+
+    /** M81 — defaults to true; flips to false on logical decommissioning. */
+    @Column(nullable = false)
+    private boolean active = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
