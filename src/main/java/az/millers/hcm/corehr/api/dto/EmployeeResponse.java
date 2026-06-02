@@ -37,6 +37,8 @@ public record EmployeeResponse(
         UUID delegateManagerId,
         LocalDate delegateFrom,
         LocalDate delegateTo,
+        /** M66 / P1-08. Null = falls through to the default leave group. */
+        UUID leaveGroupId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -69,6 +71,7 @@ public record EmployeeResponse(
                 e.getDelegateManagerId(),
                 e.getDelegateFrom(),
                 e.getDelegateTo(),
+                e.getLeaveGroupId(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getCreatedBy(),

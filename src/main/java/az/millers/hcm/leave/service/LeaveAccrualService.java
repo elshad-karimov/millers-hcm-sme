@@ -24,9 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
+import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.leave.domain.LeaveBalance;
+import az.millers.hcm.leave.domain.LeaveGroupEntitlement;
 import az.millers.hcm.leave.domain.LeaveType;
 import az.millers.hcm.leave.repo.LeaveBalanceRepository;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
@@ -80,15 +82,18 @@ public class LeaveAccrualService {
     private final LeaveBalanceRepository balances;
     private final EmployeeRepository employees;
     private final AuditService audit;
+    private final LeaveGroupService leaveGroupService;
 
     public LeaveAccrualService(LeaveTypeRepository leaveTypes,
                                LeaveBalanceRepository balances,
                                EmployeeRepository employees,
-                               AuditService audit) {
+                               AuditService audit,
+                               LeaveGroupService leaveGroupService) {
         this.leaveTypes = leaveTypes;
         this.balances = balances;
         this.employees = employees;
         this.audit = audit;
+        this.leaveGroupService = leaveGroupService;
     }
 
     /**
@@ -155,6 +160,16 @@ public class LeaveAccrualService {
                     .forEach(row -> hireDates.put((UUID) row[0], (LocalDate) row[1]));
         }
 
+        // M66 / P1-08: load each employee's leaveGroupId so the override
+        // lookup below can short-circuit to the per-group entitlement when
+        // one is configured. Null = fall through to the default group inside
+        // LeaveGroupService.resolveEntitlementSource.
+        Map<UUID, UUID> leaveGroups = new HashMap<>();
+        if (!activeEmpIds.isEmpty()) {
+            employees.findIdAndLeaveGroupIdByIdIn(activeEmpIds)
+                    .forEach(row -> leaveGroups.put((UUID) row[0], (UUID) row[1]));
+        }
+
         // First day of the target period — used as the "as of" date for tenure.
         LocalDate periodDate = LocalDate.of(year, month, 1);
 
@@ -166,10 +181,16 @@ public class LeaveAccrualService {
 
         for (UUID empId : activeEmpIds) {
             LocalDate hireDate = hireDates.get(empId); // may be null for legacy data
+            UUID leaveGroupId = leaveGroups.get(empId); // may be null → default group
             for (LeaveType t : eligibleTypes) {
+                // M66: check per-(group, type) override first. Returns null when
+                // no override exists, in which case the existing priority chain
+                // (brackets → monthlyAccrualDays → default/12) applies unchanged.
+                LeaveGroupEntitlement override = leaveGroupService
+                        .resolveEntitlementSource(leaveGroupId, t.getId());
                 // Per-employee bump: seniority brackets (if configured) win over
                 // the flat monthlyAccrualDays / default/12 fallback chain.
-                BigDecimal bump = monthlyBumpFor(t, hireDate, periodDate);
+                BigDecimal bump = monthlyBumpFor(t, override, hireDate, periodDate);
                 if (bump.signum() == 0) {
                     skipped++;
                     continue;
@@ -220,39 +241,59 @@ public class LeaveAccrualService {
     /**
      * Convenience overload for callers that don't have a hire date
      * (e.g. dry-run preview where the employee set isn't fully loaded).
-     * Delegates to {@link #monthlyBumpFor(LeaveType, LocalDate, LocalDate)}
-     * with a {@code null} hire date — brackets are skipped, falling back to
-     * the flat {@code monthlyAccrualDays / default/12} chain.
+     * Skips brackets, no override, falls back to the flat
+     * {@code monthlyAccrualDays / default/12} chain.
      */
     BigDecimal monthlyBumpFor(LeaveType t) {
-        return monthlyBumpFor(t, null, LocalDate.now());
+        return monthlyBumpFor(t, null, null, LocalDate.now());
     }
 
     /**
-     * Per-employee monthly bump, honouring seniority brackets (M47).
+     * Backwards-compatible overload — same semantics as before M66, no override.
+     */
+    BigDecimal monthlyBumpFor(LeaveType t, LocalDate hireDate, LocalDate periodDate) {
+        return monthlyBumpFor(t, null, hireDate, periodDate);
+    }
+
+    /**
+     * Per-employee monthly bump, honouring seniority brackets (M47) and
+     * per-(group, type) overrides (M66).
      *
      * <p>Priority:
      * <ol>
-     *   <li>Seniority brackets — when the type has a configured schedule
-     *       AND the employee's hire date is known, the bracket whose
-     *       {@code [yearsMin, yearsMax]} range contains
-     *       {@code ChronoUnit.YEARS.between(hireDate, periodDate)} wins;
-     *       the monthly bump is {@code bracket.annualDays / 12}.</li>
-     *   <li>Explicit {@code monthlyAccrualDays} on the leave type.</li>
-     *   <li>Fallback: {@code defaultAnnualEntitlementDays / 12}.</li>
+     *   <li><strong>Override seniority brackets</strong> (M66) — if the
+     *       employee's group has an override row WITH non-empty
+     *       {@code seniority_brackets_json}, those take precedence over the
+     *       type's own brackets.</li>
+     *   <li><strong>Type seniority brackets</strong> (M47) — when set and the
+     *       employee's hire date is known, the matching bracket's
+     *       {@code annualDays / 12} wins.</li>
+     *   <li><strong>Override monthly_accrual_days</strong> (M66) — explicit
+     *       per-month amount from the group override.</li>
+     *   <li><strong>Type monthly_accrual_days</strong> — explicit per-month
+     *       amount from the leave type.</li>
+     *   <li><strong>Override annual_entitlement_days / 12</strong> (M66).</li>
+     *   <li><strong>Type default_annual_entitlement_days / 12</strong>.</li>
      *   <li>Zero — when no source is configured.</li>
      * </ol>
      *
-     * @param t          the leave type (may carry seniority brackets)
-     * @param hireDate   employee hire date; {@code null} skips brackets
-     * @param periodDate the 1st of the target accrual month (tenure "as of" date)
+     * <p>The override layer is consulted before the corresponding type field
+     * at every level, so a group can override <em>only</em> the annual days
+     * budget while inheriting the type's seniority schedule (or vice versa).
+     *
+     * @param t           the leave type (carries default entitlement values)
+     * @param override    per-(group, type) override row; {@code null} = no override
+     * @param hireDate    employee hire date; {@code null} skips brackets
+     * @param periodDate  the 1st of the target accrual month (tenure "as of" date)
      */
-    BigDecimal monthlyBumpFor(LeaveType t, LocalDate hireDate, LocalDate periodDate) {
-        // Priority 1: seniority brackets (per-employee, M47)
-        if (hasBrackets(t) && hireDate != null) {
+    BigDecimal monthlyBumpFor(LeaveType t, LeaveGroupEntitlement override,
+                               LocalDate hireDate, LocalDate periodDate) {
+        // Priority 1+2: brackets (override wins over type)
+        List<SeniorityBracket> brackets = effectiveBrackets(t, override);
+        if (brackets != null && !brackets.isEmpty() && hireDate != null) {
             long tenureYears = Math.max(0L,
                     ChronoUnit.YEARS.between(hireDate, periodDate));
-            Optional<SeniorityBracket> matched = t.getSeniorityBrackets().stream()
+            Optional<SeniorityBracket> matched = brackets.stream()
                     .filter(b -> tenureYears >= b.yearsMin()
                               && (b.yearsMax() == null || tenureYears <= b.yearsMax()))
                     .findFirst();
@@ -260,24 +301,40 @@ public class LeaveAccrualService {
                 return matched.get().annualDays()
                         .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
             }
-            // No bracket matched (mis-configured schedule) — fall through
             log.warn("No seniority bracket matched tenure={} years for type={} emp hire={}; "
                      + "falling back to flat accrual", tenureYears, t.getCode(), hireDate);
         }
 
-        // Priority 2: explicit per-month amount
-        if (t.getMonthlyAccrualDays() != null) {
-            return t.getMonthlyAccrualDays();
+        // Priority 3+4: explicit monthly amount (override wins over type)
+        BigDecimal monthly = override != null && override.getMonthlyAccrualDays() != null
+                ? override.getMonthlyAccrualDays()
+                : t.getMonthlyAccrualDays();
+        if (monthly != null) {
+            return monthly;
         }
 
-        // Priority 3: default annual / 12
-        if (t.getDefaultAnnualEntitlementDays() != null
-                && t.getDefaultAnnualEntitlementDays().signum() > 0) {
-            return t.getDefaultAnnualEntitlementDays()
-                    .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+        // Priority 5+6: annual / 12 (override wins over type)
+        BigDecimal annual = override != null && override.getAnnualEntitlementDays() != null
+                ? override.getAnnualEntitlementDays()
+                : t.getDefaultAnnualEntitlementDays();
+        if (annual != null && annual.signum() > 0) {
+            return annual.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
         }
 
         return BigDecimal.ZERO;
+    }
+
+    /**
+     * Override brackets win over type brackets when populated. Returns
+     * whichever non-empty list applies, or null.
+     */
+    private List<SeniorityBracket> effectiveBrackets(LeaveType t, LeaveGroupEntitlement override) {
+        if (override != null
+                && override.getSeniorityBrackets() != null
+                && !override.getSeniorityBrackets().isEmpty()) {
+            return override.getSeniorityBrackets();
+        }
+        return t.getSeniorityBrackets();
     }
 
     /** Returns true iff the leave type has at least one seniority bracket (M47). */

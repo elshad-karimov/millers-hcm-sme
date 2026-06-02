@@ -54,5 +54,7 @@ public record EmployeeRequest(
         /** M61 / P1-09. Defaults to 100.00 when null. */
         @DecimalMin(value = "0.01", message = "ftePercent must be > 0")
         @DecimalMax(value = "100.00", message = "ftePercent must be ≤ 100")
-        BigDecimal ftePercent) {
+        BigDecimal ftePercent,
+        /** M66 / P1-08. Null = use the default leave group. */
+        UUID leaveGroupId) {
 }

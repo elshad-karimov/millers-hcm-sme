@@ -97,6 +97,18 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
             @Param("ids") java.util.Collection<UUID> ids);
 
     /**
+     * Returns {@code (id, leaveGroupId)} pairs for the given employee IDs.
+     * Used by {@link az.millers.hcm.leave.service.LeaveAccrualService} to
+     * resolve per-group entitlement overrides without loading the full
+     * {@link az.millers.hcm.corehr.domain.Employee} aggregate (M66 / P1-08).
+     * {@code leaveGroupId} may be null — the accrual walker treats null as
+     * "fall through to the default group".
+     */
+    @Query("select e.id, e.leaveGroupId from Employee e where e.id in :ids")
+    java.util.List<Object[]> findIdAndLeaveGroupIdByIdIn(
+            @Param("ids") java.util.Collection<UUID> ids);
+
+    /**
      * All employees whose status is not in the excluded set, ordered by name.
      * Used by the self-service peers endpoint so any authenticated user can
      * populate a replacement-employee picker without HR_ADMIN role.

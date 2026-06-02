@@ -131,6 +131,15 @@ public class Employee {
     private UUID managerId;
 
     /**
+     * Logical leave-policy group (M66 / P1-08). Resolved by
+     * {@code LeaveAccrualService} to look up per-group entitlement overrides
+     * before falling back to the {@code LeaveType} defaults. {@code NULL}
+     * means "use the default group" (the one with {@code is_default = true}).
+     */
+    @Column(name = "leave_group_id")
+    private UUID leaveGroupId;
+
+    /**
      * Acting / delegate manager (PRD 9 / 14.9 — M37). When non-null
      * AND today() ∈ [delegateFrom, delegateTo], the workflow engine
      * routes approval tasks normally bound for THIS employee to the

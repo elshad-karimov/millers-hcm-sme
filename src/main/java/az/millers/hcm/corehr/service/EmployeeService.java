@@ -199,6 +199,9 @@ public class EmployeeService {
                 request.employmentType() != null ? request.employmentType() : EmploymentType.PERMANENT);
         employee.setFtePercent(
                 request.ftePercent() != null ? request.ftePercent() : new BigDecimal("100.00"));
+        // M66 / P1-08. Null = "use the default group" — no fallback assignment
+        // needed here; LeaveAccrualService resolves it lazily.
+        employee.setLeaveGroupId(request.leaveGroupId());
     }
 
     private void validateManager(UUID managerId) {

@@ -54,6 +54,8 @@ export interface Employee {
   positionTitle?: string | null
   costCentre?: string | null
   managerId?: string | null
+  /** M66 / P1-08 — null = use the default leave group */
+  leaveGroupId?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -82,6 +84,8 @@ export interface EmployeeRequest {
   employmentType?: EmploymentType
   /** M61 / P1-09 — defaults to 100 */
   ftePercent?: number
+  /** M66 / P1-08 — null = use the default leave group */
+  leaveGroupId?: string
 }
 
 export interface PageResponse<T> {
