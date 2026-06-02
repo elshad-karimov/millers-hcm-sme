@@ -110,6 +110,15 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
             @Param("ids") java.util.Collection<UUID> ids);
 
     /**
+     * M82 — returns {@code (id, orgUnitId)} pairs so a batch-mode walker can
+     * resolve OrgUnitPolicy overrides up the tree without re-loading the
+     * full Employee aggregate.
+     */
+    @Query("select e.id, e.orgUnitId from Employee e where e.id in :ids")
+    java.util.List<Object[]> findIdAndOrgUnitIdByIdIn(
+            @Param("ids") java.util.Collection<UUID> ids);
+
+    /**
      * All employees whose status is not in the excluded set, ordered by name.
      * Used by the self-service peers endpoint so any authenticated user can
      * populate a replacement-employee picker without HR_ADMIN role.

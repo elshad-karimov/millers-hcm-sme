@@ -15,6 +15,9 @@ import az.millers.hcm.payroll.api.dto.PayrollGroupResponse;
 import az.millers.hcm.payroll.domain.BankFileFormat;
 import az.millers.hcm.payroll.domain.PayCycle;
 import az.millers.hcm.payroll.domain.PayrollGroup;
+import az.millers.hcm.organization.domain.VersionStatus;
+import az.millers.hcm.organization.repo.StructureVersionRepository;
+import az.millers.hcm.organization.service.OrgUnitPolicyService;
 import az.millers.hcm.payroll.repo.PayrollGroupRepository;
 import az.millers.hcm.security.CurrentRequest;
 
@@ -32,13 +35,19 @@ public class PayrollGroupService {
     private final PayrollGroupRepository repo;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final OrgUnitPolicyService orgPolicies;
+    private final StructureVersionRepository orgVersions;
 
     public PayrollGroupService(PayrollGroupRepository repo,
                                 AuditService audit,
-                                CurrentRequest currentRequest) {
+                                CurrentRequest currentRequest,
+                                OrgUnitPolicyService orgPolicies,
+                                StructureVersionRepository orgVersions) {
         this.repo = repo;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.orgPolicies = orgPolicies;
+        this.orgVersions = orgVersions;
     }
 
     @Transactional(readOnly = true)
@@ -58,11 +67,41 @@ public class PayrollGroupService {
      * Returns the effective payroll group for an employee given their (possibly
      * null) {@code payrollGroupId}. Falls back to the seeded default — same
      * override-or-fallback pattern as {@code LeaveGroupService} (M66).
+     *
+     * <p>Back-compat overload — keeps existing callers working. New code should
+     * prefer {@link #resolveFor(UUID, UUID)} to pick up M82 org-tree fallback.
      */
     @Transactional(readOnly = true)
     public PayrollGroup resolveFor(UUID employeePayrollGroupId) {
+        return resolveFor(employeePayrollGroupId, null);
+    }
+
+    /**
+     * M82 — full fallback chain:
+     * <ol>
+     *   <li>employee row's own {@code payrollGroupId} (if non-null)</li>
+     *   <li>{@link OrgUnitPolicyService#resolvePayrollGroup} walk up the active
+     *       structure version's tree (if the employee has an orgUnitId)</li>
+     *   <li>seeded DEFAULT payroll group</li>
+     * </ol>
+     *
+     * <p>When no version is ACTIVE (e.g. fresh tenant before the org tree has
+     * been built), step 2 is skipped silently.
+     */
+    @Transactional(readOnly = true)
+    public PayrollGroup resolveFor(UUID employeePayrollGroupId, UUID orgUnitId) {
         if (employeePayrollGroupId != null) {
             return get(employeePayrollGroupId);
+        }
+        if (orgUnitId != null) {
+            UUID activeVersionId = orgVersions.findFirstByStatus(VersionStatus.ACTIVE)
+                    .map(v -> v.getId()).orElse(null);
+            if (activeVersionId != null) {
+                UUID viaPolicy = orgPolicies.resolvePayrollGroup(null, orgUnitId, activeVersionId);
+                if (viaPolicy != null) {
+                    return get(viaPolicy);
+                }
+            }
         }
         return repo.findFirstByDefaultGroupTrue()
                 .orElseThrow(() -> new IllegalStateException(

@@ -32,6 +32,9 @@ import az.millers.hcm.leave.domain.LeaveGroupEntitlement;
 import az.millers.hcm.leave.domain.LeaveType;
 import az.millers.hcm.leave.repo.LeaveBalanceRepository;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
+import az.millers.hcm.organization.domain.VersionStatus;
+import az.millers.hcm.organization.repo.StructureVersionRepository;
+import az.millers.hcm.organization.service.OrgUnitPolicyService;
 
 /**
  * Monthly leave-accrual walker (PRD 8.5.2 — milestone 34).
@@ -83,17 +86,23 @@ public class LeaveAccrualService {
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final LeaveGroupService leaveGroupService;
+    private final OrgUnitPolicyService orgPolicies;
+    private final StructureVersionRepository orgVersions;
 
     public LeaveAccrualService(LeaveTypeRepository leaveTypes,
                                LeaveBalanceRepository balances,
                                EmployeeRepository employees,
                                AuditService audit,
-                               LeaveGroupService leaveGroupService) {
+                               LeaveGroupService leaveGroupService,
+                               OrgUnitPolicyService orgPolicies,
+                               StructureVersionRepository orgVersions) {
         this.leaveTypes = leaveTypes;
         this.balances = balances;
         this.employees = employees;
         this.audit = audit;
         this.leaveGroupService = leaveGroupService;
+        this.orgPolicies = orgPolicies;
+        this.orgVersions = orgVersions;
     }
 
     /**
@@ -170,6 +179,18 @@ public class LeaveAccrualService {
                     .forEach(row -> leaveGroups.put((UUID) row[0], (UUID) row[1]));
         }
 
+        // M82: when an employee's own leaveGroupId is null, walk up the
+        // active org-structure version's policy chain. orgUnitPairs holds
+        // (employeeId → orgUnitId); activeVersionId is null when no version
+        // is ACTIVE (fresh tenants), in which case we just skip the walk.
+        Map<UUID, UUID> orgUnitPairs = new HashMap<>();
+        if (!activeEmpIds.isEmpty()) {
+            employees.findIdAndOrgUnitIdByIdIn(activeEmpIds)
+                    .forEach(row -> orgUnitPairs.put((UUID) row[0], (UUID) row[1]));
+        }
+        final UUID activeVersionId = orgVersions.findFirstByStatus(VersionStatus.ACTIVE)
+                .map(v -> v.getId()).orElse(null);
+
         // First day of the target period — used as the "as of" date for tenure.
         LocalDate periodDate = LocalDate.of(year, month, 1);
 
@@ -181,7 +202,15 @@ public class LeaveAccrualService {
 
         for (UUID empId : activeEmpIds) {
             LocalDate hireDate = hireDates.get(empId); // may be null for legacy data
-            UUID leaveGroupId = leaveGroups.get(empId); // may be null → default group
+            UUID rowLeaveGroup = leaveGroups.get(empId); // may be null
+            // M82: walk the org-tree policy chain when the employee row itself
+            // doesn't pin a group. activeVersionId may be null on fresh
+            // tenants — then resolveLeaveGroup() returns the row override or
+            // null and we fall through to LeaveGroupService's default group.
+            UUID leaveGroupId = activeVersionId == null
+                    ? rowLeaveGroup
+                    : orgPolicies.resolveLeaveGroup(
+                            rowLeaveGroup, orgUnitPairs.get(empId), activeVersionId);
             for (LeaveType t : eligibleTypes) {
                 // M66: check per-(group, type) override first. Returns null when
                 // no override exists, in which case the existing priority chain
