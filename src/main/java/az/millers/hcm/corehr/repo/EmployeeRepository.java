@@ -126,6 +126,30 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     java.util.List<Employee> findDirectReports(@Param("managerId") UUID managerId);
 
     /**
+     * Employees rehired via the M78 flow — i.e. their row has a non-null
+     * {@code previousEmployeeId}. Used by the M80 "Recent rehires" report.
+     */
+    @Query("""
+            select e from Employee e
+            where e.previousEmployeeId is not null
+              and (:ids is null or e.id in :ids)
+            order by e.hireDate desc
+            """)
+    java.util.List<Employee> findRehired(@Param("ids") java.util.Collection<UUID> ids);
+
+    /**
+     * Identification rows pending verification — used by the M80 "PII
+     * verification pending" widget. When {@code ids} is null the query
+     * counts every row; otherwise it scopes to the supplied employee set.
+     */
+    @Query("""
+            select count(i) from EmployeeIdentification i
+            where i.verificationStatus = az.millers.hcm.corehr.domain.VerificationStatus.UNVERIFIED
+              and (:ids is null or i.employeeId in :ids)
+            """)
+    long countUnverifiedIdentifications(@Param("ids") java.util.Collection<UUID> ids);
+
+    /**
      * Returns the transitive set of employee IDs that report (directly or
      * indirectly) into {@code rootEmployeeId}, including the root itself.
      * Used by {@code AccessScopeService} to build the manager scope.

@@ -66,6 +66,8 @@ import { LetterRequestsPage } from './pages/LetterRequestsPage'
 import { LetterRequestFormPage } from './pages/LetterRequestFormPage'
 import { PersonalInfoChangesPage } from './pages/PersonalInfoChangesPage'
 import { PersonalInfoRequestFormPage } from './pages/PersonalInfoRequestFormPage'
+import { EmployeeManagementReportsPage } from './pages/EmployeeManagementReportsPage'
+import { ActivityFeedPage } from './pages/ActivityFeedPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -133,6 +135,9 @@ export default function App() {
 
           {/* Personal-info change requests — scope-restricted in service */}
           <Route path="personal-info-changes" element={<PersonalInfoChangesPage />} />
+
+          {/* Employee-Management reports (M80) — scope-restricted in service */}
+          <Route path="reports/emp-mgmt" element={<EmployeeManagementReportsPage />} />
 
           {/* Time & Attendance */}
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />
@@ -245,6 +250,11 @@ export default function App() {
         {/* ── SYSTEM_ADMIN + AUDITOR ─────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'AUDITOR']} />}>
           <Route path="admin/bi-export" element={<BiExportPage />} />
+        </Route>
+
+        {/* ── Activity feed — HR_ADMIN + SYSTEM_ADMIN + AUDITOR (M80) ── */}
+        <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR']} />}>
+          <Route path="activity" element={<ActivityFeedPage />} />
         </Route>
       </Route>
 

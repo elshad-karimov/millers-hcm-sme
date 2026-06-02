@@ -69,6 +69,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/letters', module: 'letters', screen: 'letters-requests' },
   { prefix: '/personal-info/request', module: 'personal-info', screen: 'personal-info-request' },
   { prefix: '/personal-info-changes', module: 'personal-info', screen: 'personal-info-queue' },
+  { prefix: '/reports/emp-mgmt', module: 'reports', screen: 'reports-emp-mgmt' },
+  { prefix: '/activity', module: 'reports', screen: 'activity-feed' },
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
@@ -484,24 +486,43 @@ export function AppLayout() {
         ]
       : []),
 
-    // ── Reports & Analytics (HR only) ─────────────────────────────────────
-    ...(isHR
+    // ── Reports & Analytics (HR only; emp-mgmt also for managers) ─────────
+    ...(isHR || isManager
       ? [
           {
             key: 'reports',
             icon: <BarChartOutlined />,
             label: 'Reports & Analytics',
             children: [
+              ...(isHR
+                ? [
+                    {
+                      key: 'reports',
+                      icon: <BarChartOutlined />,
+                      label: <Link to="/reports">Live reports</Link>,
+                    },
+                    {
+                      key: 'reports-schedules',
+                      icon: <ClockCircleOutlined />,
+                      label: <Link to="/reports/schedules">Schedules & history</Link>,
+                    },
+                  ]
+                : []),
+              // M80 emp-mgmt reports — managers see their scope-restricted subset.
               {
-                key: 'reports',
-                icon: <BarChartOutlined />,
-                label: <Link to="/reports">Live reports</Link>,
+                key: 'reports-emp-mgmt',
+                icon: <FileDoneOutlined />,
+                label: <Link to="/reports/emp-mgmt">Employee Management</Link>,
               },
-              {
-                key: 'reports-schedules',
-                icon: <ClockCircleOutlined />,
-                label: <Link to="/reports/schedules">Schedules & history</Link>,
-              },
+              ...(isHR || isAdminOrAuditor
+                ? [
+                    {
+                      key: 'activity-feed',
+                      icon: <ClockCircleTwoTone twoToneColor="#1677ff" />,
+                      label: <Link to="/activity">Activity feed</Link>,
+                    },
+                  ]
+                : []),
             ],
           } satisfies ItemType,
         ]
