@@ -215,6 +215,13 @@ public class EmployeeService {
         // M66 / P1-08. Null = "use the default group" — no fallback assignment
         // needed here; LeaveAccrualService resolves it lazily.
         employee.setLeaveGroupId(request.leaveGroupId());
+        // M75 / P2-19 + P2-21
+        employee.setPayrollGroupId(request.payrollGroupId());
+        UUID matrixMgr = request.matrixManagerId();
+        if (matrixMgr != null && matrixMgr.equals(employee.getId())) {
+            throw new BadRequestException("An employee cannot be their own matrix manager");
+        }
+        employee.setMatrixManagerId(matrixMgr);
     }
 
     private void validateManager(UUID managerId) {

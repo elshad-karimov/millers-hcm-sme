@@ -199,7 +199,9 @@ public class ApplicationService {
                 null,                 // delegateTo
                 null,                 // employmentType (M61) — defaults to PERMANENT
                 null,                 // ftePercent     (M61) — defaults to 100.00
-                null);                // leaveGroupId   (M66) — defaults to system default group
+                null,                 // leaveGroupId   (M66) — defaults to system default group
+                null,                 // payrollGroupId (M75) — defaults to system default group
+                null);                // matrixManagerId (M75)
         Employee created = employeeService.create(empReq);
 
         a.setCurrentStage(ApplicationStage.HIRED);

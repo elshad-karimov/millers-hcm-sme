@@ -56,5 +56,9 @@ public record EmployeeRequest(
         @DecimalMax(value = "100.00", message = "ftePercent must be ≤ 100")
         BigDecimal ftePercent,
         /** M66 / P1-08. Null = use the default leave group. */
-        UUID leaveGroupId) {
+        UUID leaveGroupId,
+        /** M75 / P2-19. Null = use the default payroll group. */
+        UUID payrollGroupId,
+        /** M75 / P2-21. Dotted-line manager — informational, not consumed by workflow engine. */
+        UUID matrixManagerId) {
 }

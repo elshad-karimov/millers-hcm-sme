@@ -56,6 +56,10 @@ export interface Employee {
   managerId?: string | null
   /** M66 / P1-08 — null = use the default leave group */
   leaveGroupId?: string | null
+  /** M75 / P2-19 — null = use the default payroll group */
+  payrollGroupId?: string | null
+  /** M75 / P2-21 — dotted-line manager (informational) */
+  matrixManagerId?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -86,6 +90,10 @@ export interface EmployeeRequest {
   ftePercent?: number
   /** M66 / P1-08 — null = use the default leave group */
   leaveGroupId?: string
+  /** M75 / P2-19 — null = use the default payroll group */
+  payrollGroupId?: string
+  /** M75 / P2-21 — dotted-line manager (informational) */
+  matrixManagerId?: string
 }
 
 export interface PageResponse<T> {

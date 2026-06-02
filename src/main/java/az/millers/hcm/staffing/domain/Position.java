@@ -41,13 +41,31 @@ public class Position {
     @Column(name = "org_unit_label")
     private String orgUnitLabel;
 
+    /**
+     * Legacy free-text grade label (pre-M75). Still populated for backward
+     * compat; new positions should prefer {@link #gradeId} for proper
+     * pay-band enforcement.
+     */
     private String grade;
 
+    /** Legacy free-text job family label (pre-M75). See {@link #jobFamilyId}. */
     @Column(name = "job_family")
     private String jobFamily;
 
     @Column(name = "job_level")
     private String jobLevel;
+
+    /** M75 / P2-22 — soft FK to {@link Grade}. Null = use free-text {@link #grade}. */
+    @Column(name = "grade_id")
+    private UUID gradeId;
+
+    /** M75 / P2-22 — soft FK to {@link JobFamily}. Null = use free-text {@link #jobFamily}. */
+    @Column(name = "job_family_id")
+    private UUID jobFamilyId;
+
+    /** M75 / P2-22 — soft FK to {@link JobFunction}. Null = no specific function recorded. */
+    @Column(name = "job_function_id")
+    private UUID jobFunctionId;
 
     @Column(name = "approved_headcount", nullable = false)
     private int approvedHeadcount;

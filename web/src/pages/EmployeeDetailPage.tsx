@@ -54,6 +54,10 @@ import {
   type BankAccountResponse,
   type CompensationResponse,
 } from '../api/payroll'
+import {
+  assignmentApi,
+  type EmployeeAssignment,
+} from '../api/staffingCatalog'
 import { useAuth } from '../auth/AuthContext'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
@@ -124,6 +128,7 @@ export function EmployeeDetailPage() {
   const [probationReviews, setProbationReviews] = useState<ProbationReview[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccountResponse[]>([])
   const [compensations, setCompensations] = useState<CompensationResponse[]>([])
+  const [assignments, setAssignments] = useState<EmployeeAssignment[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -154,8 +159,9 @@ export function EmployeeDetailPage() {
       probationReviewsApi.listForEmployee(id).catch(() => []),
       payrollApi.bankAccounts(id).catch(() => []),
       payrollApi.compensationHistory(id).catch(() => []),
+      assignmentApi.list(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -174,6 +180,7 @@ export function EmployeeDetailPage() {
         setProbationReviews(prs)
         setBankAccounts(banks)
         setCompensations(comps)
+        setAssignments(asgs)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -303,6 +310,41 @@ export function EmployeeDetailPage() {
       title: 'Active',
       dataIndex: 'active',
       render: (v: boolean) => (v ? <Tag color="green">YES</Tag> : <Tag>INACTIVE</Tag>),
+    },
+  ], [])
+
+  const assignmentColumns: ColumnsType<EmployeeAssignment> = useMemo(() => [
+    { title: 'Type', dataIndex: 'assignmentType', render: tag },
+    {
+      title: 'Position',
+      dataIndex: 'positionId',
+      render: (v: string) => (
+        <Typography.Text code style={{ fontSize: 12 }}>
+          {v.slice(0, 8)}…
+        </Typography.Text>
+      ),
+    },
+    {
+      title: 'Allocation',
+      dataIndex: 'allocationPercent',
+      render: (v: number) => `${v}%`,
+    },
+    { title: 'From', dataIndex: 'effectiveFrom' },
+    {
+      title: 'To',
+      dataIndex: 'effectiveTo',
+      render: (v?: string | null) => v ?? 'current',
+    },
+    {
+      title: 'Matrix manager',
+      dataIndex: 'matrixManagerId',
+      render: (v?: string | null) =>
+        v ? <Typography.Text code style={{ fontSize: 12 }}>{v.slice(0, 8)}…</Typography.Text> : '—',
+    },
+    {
+      title: '',
+      dataIndex: 'effectiveTo',
+      render: (v?: string | null) => (v == null ? <Tag color="green">open</Tag> : null),
     },
   ], [])
 
@@ -476,6 +518,12 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Cost centre">{employee.costCentre ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Manager ID">{employee.managerId ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Leave group">{employee.leaveGroupId ?? 'default'}</Descriptions.Item>
+      <Descriptions.Item label="Payroll group">
+        {employee.payrollGroupId ?? 'default'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Matrix manager">
+        {employee.matrixManagerId ?? '—'}
+      </Descriptions.Item>
       <Descriptions.Item label="Created">
         {new Date(employee.createdAt).toLocaleString()} by {employee.createdBy ?? '—'}
       </Descriptions.Item>
@@ -627,6 +675,19 @@ export function EmployeeDetailPage() {
           dataSource={rewards}
           pagination={false}
           locale={{ emptyText: <Empty description="No rewards or recognition on file" /> }}
+        />
+      ),
+    },
+    {
+      key: 'assignments',
+      label: `Assignments (${assignments.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          columns={assignmentColumns}
+          dataSource={assignments}
+          pagination={false}
+          locale={{ emptyText: <Empty description="No assignments on file — primary position is on Overview" /> }}
         />
       ),
     },

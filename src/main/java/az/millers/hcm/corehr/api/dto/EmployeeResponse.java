@@ -39,6 +39,10 @@ public record EmployeeResponse(
         LocalDate delegateTo,
         /** M66 / P1-08. Null = falls through to the default leave group. */
         UUID leaveGroupId,
+        /** M75 / P2-19. Null = falls through to the default payroll group. */
+        UUID payrollGroupId,
+        /** M75 / P2-21. Dotted-line manager. */
+        UUID matrixManagerId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -72,6 +76,8 @@ public record EmployeeResponse(
                 e.getDelegateFrom(),
                 e.getDelegateTo(),
                 e.getLeaveGroupId(),
+                e.getPayrollGroupId(),
+                e.getMatrixManagerId(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getCreatedBy(),

@@ -140,6 +140,25 @@ public class Employee {
     private UUID leaveGroupId;
 
     /**
+     * Payroll group (M75 / P2-19). Routes the employee through a specific
+     * pay calendar + bank file format + currency. {@code NULL} falls
+     * through to the default payroll group.
+     */
+    @Column(name = "payroll_group_id")
+    private UUID payrollGroupId;
+
+    /**
+     * Matrix / dotted-line manager (M75 / P2-21). Distinct from
+     * {@link #managerId} (the line manager driving approval workflows) and
+     * {@link #delegateManagerId} (the temporary stand-in for the line
+     * manager). The matrix manager is the secondary reporting line for
+     * cross-functional roles — informational only, not consumed by the
+     * workflow engine.
+     */
+    @Column(name = "matrix_manager_id")
+    private UUID matrixManagerId;
+
+    /**
      * Acting / delegate manager (PRD 9 / 14.9 — M37). When non-null
      * AND today() ∈ [delegateFrom, delegateTo], the workflow engine
      * routes approval tasks normally bound for THIS employee to the

@@ -275,7 +275,8 @@ public class EmployeeImportService {
                 null, null, null, // delegate fields
                 empType,
                 decimalValue(row, idx.get("ftePercent")),
-                null);            // leaveGroupId — not in bulk import scope
+                null,             // leaveGroupId — not in bulk import scope
+                null, null);      // M75: payrollGroupId, matrixManagerId — not in bulk import scope
     }
 
     // ── Cell reading helpers ──────────────────────────────────────────────────
