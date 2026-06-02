@@ -107,9 +107,76 @@ export interface AuditEntry {
   createdAt: string
 }
 
+// M69 / P1-15 — advanced search filters
+export interface EmployeeListParams {
+  page?: number
+  size?: number
+  search?: string
+  /** Single status or multi-value array. */
+  status?: EmploymentStatus | EmploymentStatus[]
+  employmentType?: EmploymentType
+  /** ISO 3166-1 alpha-2. */
+  nationality?: string
+  maritalStatus?: MaritalStatus
+  departmentOrgUnitId?: string
+  departmentName?: string
+  positionId?: string
+  managerId?: string
+  leaveGroupId?: string
+  costCentre?: string
+  hireDateFrom?: string
+  hireDateTo?: string
+}
+
+// M69 / P1-16 — bulk import job tracking
+export type ImportJobStatus = 'PENDING' | 'VALIDATING' | 'PREVIEW' | 'COMMITTED' | 'FAILED'
+
+export interface ImportRowError {
+  row: number
+  message: string
+  fields: string[]
+}
+
+export interface ImportJob {
+  id: string
+  startedAt: string
+  finishedAt?: string | null
+  startedBy: string
+  fileName: string
+  fileSizeBytes?: number | null
+  status: ImportJobStatus
+  dryRun: boolean
+  rowsTotal: number
+  rowsValid: number
+  rowsInvalid: number
+  rowsCommitted: number
+  errorReport?: ImportRowError[] | null
+  errorMessage?: string | null
+}
+
 export const employeesApi = {
-  list: (params: { page?: number; size?: number; search?: string; status?: EmploymentStatus }) =>
+  list: (params: EmployeeListParams = {}) =>
     api.get<PageResponse<Employee>>('/employees', { params }).then((r) => r.data),
+
+  /**
+   * Bulk import endpoint (M69 / P1-16). Pass an XLSX file picked from a file
+   * input; dryRun=true validates without committing.
+   */
+  import: (file: File, dryRun = false) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api
+      .post<ImportJob>('/employees/import', fd, {
+        params: { dryRun },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data)
+  },
+
+  importHistory: (params: { page?: number; size?: number } = {}) =>
+    api
+      .get<PageResponse<ImportJob>>('/employees/import/history', { params })
+      .then((r) => r.data),
   get: (id: string) => api.get<Employee>(`/employees/${id}`).then((r) => r.data),
   create: (payload: EmployeeRequest) =>
     api.post<Employee>('/employees', payload).then((r) => r.data),

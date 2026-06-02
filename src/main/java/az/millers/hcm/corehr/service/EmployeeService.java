@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -16,6 +17,7 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.OnboardingWorkflow;
 import az.millers.hcm.corehr.api.dto.EmployeeRequest;
 import az.millers.hcm.corehr.api.dto.EmployeeResponse;
+import az.millers.hcm.corehr.api.dto.EmployeeSearchFilter;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.domain.EmploymentType;
@@ -50,31 +52,42 @@ public class EmployeeService {
         this.historyService = historyService;
     }
 
+    /**
+     * Pre-M69 list signature, preserved for the controller's
+     * legacy {@code search} + {@code status} params. Delegates to the new
+     * {@link #list(EmployeeSearchFilter, Pageable)} so the ABAC scope + Spec
+     * composition lives in exactly one place.
+     */
     @Transactional(readOnly = true)
     public Page<Employee> list(String search, EmploymentStatus status, Pageable pageable) {
-        // ABAC scope (PRD 14.9): HR/admin/auditor → unrestricted, others see
-        // only their reporting chain (DEPARTMENT_MANAGER) or themselves (EMPLOYEE).
+        EmployeeSearchFilter filter = new EmployeeSearchFilter(
+                StringUtils.hasText(search) ? search : null,
+                status == null ? null : java.util.Set.of(status),
+                null, null, null, null, null, null, null, null, null, null, null);
+        return list(filter, pageable);
+    }
+
+    /**
+     * M69 / P1-15 — advanced search. Builds a {@link Specification} from the
+     * filter, then AND-combines it with the ABAC scope predicate. Both
+     * predicates pass through the JpaSpecificationExecutor so Postgres sees
+     * one query with one WHERE clause — no N+1, no in-memory filtering.
+     */
+    @Transactional(readOnly = true)
+    public Page<Employee> list(EmployeeSearchFilter filter, Pageable pageable) {
+        Specification<Employee> userFilter = EmployeeSpecifications.from(filter);
+
+        // ABAC scope (PRD 14.9): unrestricted callers see everything, scoped
+        // callers (DEPARTMENT_MANAGER / EMPLOYEE / org-unit HR_SPECIALIST) get
+        // their employee-id set anded in.
         Set<UUID> scope = accessScope.scopeOrNullForCurrentUser();
-        if (scope == null) {
-            if (StringUtils.hasText(search)) {
-                return repository.findByLastNameContainingIgnoreCaseOrFirstNameContainingIgnoreCase(
-                        search, search, pageable);
-            }
-            if (status != null) {
-                return repository.findByEmploymentStatus(status, pageable);
-            }
-            return repository.findAll(pageable);
-        }
-        if (scope.isEmpty()) {
-            return Page.empty(pageable);
-        }
-        if (StringUtils.hasText(search)) {
-            return repository.findByIdInAndNameContaining(scope, search, pageable);
-        }
-        if (status != null) {
-            return repository.findByIdInAndEmploymentStatus(scope, status, pageable);
-        }
-        return repository.findByIdIn(scope, pageable);
+        Specification<Employee> scopeFilter = scope == null
+                ? EmployeeSpecifications.matchAll()
+                : (scope.isEmpty()
+                    ? (root, q, cb) -> cb.disjunction()      // empty scope → no rows
+                    : EmployeeSpecifications.inScope(scope));
+
+        return repository.findAll(userFilter.and(scopeFilter), pageable);
     }
 
     @Transactional(readOnly = true)

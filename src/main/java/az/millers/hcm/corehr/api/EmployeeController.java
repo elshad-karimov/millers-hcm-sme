@@ -1,11 +1,14 @@
 package az.millers.hcm.corehr.api;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,8 +26,11 @@ import az.millers.hcm.common.PageResponse;
 import az.millers.hcm.corehr.api.dto.AuditEntryResponse;
 import az.millers.hcm.corehr.api.dto.EmployeeRequest;
 import az.millers.hcm.corehr.api.dto.EmployeeResponse;
+import az.millers.hcm.corehr.api.dto.EmployeeSearchFilter;
 import az.millers.hcm.corehr.api.dto.StatusChangeRequest;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
+import az.millers.hcm.corehr.domain.EmploymentType;
+import az.millers.hcm.corehr.domain.MaritalStatus;
 import az.millers.hcm.corehr.service.EmployeeService;
 import jakarta.validation.Valid;
 
@@ -40,19 +46,42 @@ public class EmployeeController {
         this.auditService = auditService;
     }
 
+    /**
+     * M69 / P1-15 — advanced search. Every filter param is optional; the
+     * service AND-s every supplied dimension. The legacy {@code search} +
+     * {@code status} params still work — when only those are supplied the
+     * filter is functionally identical to the pre-M69 behaviour.
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
     public PageResponse<EmployeeResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) EmploymentStatus status) {
+            // Multi-valued: ?status=ACTIVE&status=ON_PROBATION. Single-value
+            // ?status=ACTIVE remains backward-compatible.
+            @RequestParam(required = false) Set<EmploymentStatus> status,
+            @RequestParam(required = false) EmploymentType employmentType,
+            @RequestParam(required = false) String nationality,
+            @RequestParam(required = false) MaritalStatus maritalStatus,
+            @RequestParam(required = false) UUID departmentOrgUnitId,
+            @RequestParam(required = false) String departmentName,
+            @RequestParam(required = false) UUID positionId,
+            @RequestParam(required = false) UUID managerId,
+            @RequestParam(required = false) UUID leaveGroupId,
+            @RequestParam(required = false) String costCentre,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hireDateFrom,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hireDateTo) {
 
         var pageable = PageRequest.of(page, size, Sort.by("lastName").ascending());
-        Page<?> result = employeeService.list(search, status, pageable);
-        @SuppressWarnings("unchecked")
+        EmployeeSearchFilter filter = new EmployeeSearchFilter(
+                search, status, employmentType, nationality, maritalStatus,
+                departmentOrgUnitId, departmentName, positionId, managerId,
+                leaveGroupId, costCentre, hireDateFrom, hireDateTo);
         Page<az.millers.hcm.corehr.domain.Employee> employees =
-                (Page<az.millers.hcm.corehr.domain.Employee>) result;
+                employeeService.list(filter, pageable);
         return PageResponse.of(employees, EmployeeResponse::from);
     }
 
