@@ -74,6 +74,14 @@ public class PerformanceReview {
     @Column(name = "calibration_notes", columnDefinition = "text")
     private String calibrationNotes;
 
+    /** M92 — Potential rating 1-5 set during calibration. NULL until calibration adds it. */
+    @Column(name = "potential_rating", precision = 4, scale = 2)
+    private BigDecimal potentialRating;
+
+    /** M92 — Rationale for the potential score (visible to HR + the employee's manager). */
+    @Column(name = "potential_notes", columnDefinition = "text")
+    private String potentialNotes;
+
     @Column(name = "goal_score", precision = 6, scale = 3)
     private BigDecimal goalScore;
 
