@@ -73,6 +73,7 @@ import { BulkReorgPage } from './pages/BulkReorgPage'
 import { InterviewKitsPage } from './pages/InterviewKitsPage'
 import { InterviewDetailPage } from './pages/InterviewDetailPage'
 import { InterviewScheduleFormPage } from './pages/InterviewScheduleFormPage'
+import { TalentPoolPage } from './pages/TalentPoolPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -232,6 +233,8 @@ export default function App() {
           {/* M86 — interview scheduling + scoring */}
           <Route path="recruitment/interviews/schedule" element={<InterviewScheduleFormPage />} />
           <Route path="recruitment/interviews/:id" element={<InterviewDetailPage />} />
+          {/* M87 — talent pool / CRM */}
+          <Route path="recruitment/talent-pool" element={<TalentPoolPage />} />
 
           {/* Lifecycle */}
           <Route path="lifecycle/terminations" element={<TerminationsPage />} />

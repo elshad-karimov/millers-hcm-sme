@@ -62,6 +62,15 @@ public class Candidate {
     @Column(columnDefinition = "text")
     private String notes;
 
+    /** M87 — talent-pool standing for CRM filtering. */
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "pool_status", nullable = false, length = 20)
+    private CandidatePoolStatus poolStatus = CandidatePoolStatus.ACTIVE;
+
+    /** M87 — last outreach / response for stale-pool reports. */
+    @Column(name = "last_contacted_at")
+    private OffsetDateTime lastContactedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
