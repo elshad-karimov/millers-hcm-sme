@@ -162,7 +162,9 @@ public class CalibrationSessionService {
                             r.getFinalBand(),
                             r.getRecommendation(),
                             r.getBonusPercent(),
-                            r.getCalibrationNotes());
+                            r.getCalibrationNotes(),
+                            r.getPotentialRating(),
+                            r.getPotentialNotes());
                 })
                 .collect(Collectors.toList());
 

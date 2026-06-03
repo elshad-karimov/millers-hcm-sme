@@ -15,5 +15,9 @@ public record CalibrationBoardEntry(
         String finalBand,
         String recommendation,
         BigDecimal bonusPercent,
-        String calibrationNotes) {
+        String calibrationNotes,
+        /** M93 — potential rating feeds the 9-box succession grid (M92). */
+        BigDecimal potentialRating,
+        /** M93 — rationale for the potential rating. */
+        String potentialNotes) {
 }

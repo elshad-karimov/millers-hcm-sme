@@ -38,6 +38,10 @@ export interface CalibrationBoardEntry {
   recommendation?: string | null
   bonusPercent?: number | null
   calibrationNotes?: string | null
+  /** M93 — potential rating used by the 9-box succession grid (M92). */
+  potentialRating?: number | null
+  /** M93 — rationale for the potential rating. */
+  potentialNotes?: string | null
 }
 
 export interface CalibrationBoardResponse {

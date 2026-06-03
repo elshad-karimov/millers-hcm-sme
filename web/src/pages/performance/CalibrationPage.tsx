@@ -23,6 +23,7 @@ import {
   type CalibrationSession,
   type CalibrationSessionStatus,
 } from '../../api/calibrationApi'
+import { successionApi } from '../../api/succession'
 
 const { Title, Text } = Typography
 
@@ -56,7 +57,12 @@ interface BoardRowEdit {
   recommendation?: string | null
   bonusPercent?: number | null
   calibrationNotes?: string | null
+  /** M93 — potential rating for the 9-box succession grid (M92). */
+  potentialRating?: number | null
+  /** M93 — rationale for the potential rating. */
+  potentialNotes?: string | null
   saving?: boolean
+  savingPotential?: boolean
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -121,6 +127,8 @@ export function CalibrationPage() {
             recommendation: e.recommendation ?? undefined,
             bonusPercent: e.bonusPercent ?? undefined,
             calibrationNotes: e.calibrationNotes ?? undefined,
+            potentialRating: e.potentialRating ?? undefined,
+            potentialNotes: e.potentialNotes ?? undefined,
           }
         }
         setEdits(init)
@@ -215,6 +223,32 @@ export function CalibrationPage() {
 
   const updateEdit = (reviewId: string, patch: Partial<BoardRowEdit>) => {
     setEdits((prev) => ({ ...prev, [reviewId]: { ...(prev[reviewId] ?? {}), ...patch } }))
+  }
+
+  // ── Potential rating save (M93) ──────────────────────────────────────────
+  // Distinct from handleSaveRow because potential isn't gated on an active
+  // calibration session — HR can set/refine it any time before the cycle
+  // closes. Calls the M92 SuccessionPlanService endpoint directly.
+  const handleSavePotential = async (entry: CalibrationBoardEntry) => {
+    const edit = edits[entry.reviewId] ?? {}
+    if (edit.potentialRating == null) {
+      message.warning('Set a potential rating between 1 and 5 first')
+      return
+    }
+    setEdits((prev) => ({ ...prev, [entry.reviewId]: { ...edit, savingPotential: true } }))
+    try {
+      await successionApi.setPotential(entry.reviewId, {
+        potentialRating: edit.potentialRating,
+        potentialNotes: edit.potentialNotes ?? undefined,
+      })
+      message.success(`Potential saved — ${entry.employeeName}`)
+      loadBoard()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } }
+      message.error(e?.response?.data?.message ?? 'Failed to save potential')
+    } finally {
+      setEdits((prev) => ({ ...prev, [entry.reviewId]: { ...edit, savingPotential: false } }))
+    }
   }
 
   // ── Sessions table columns ───────────────────────────────────────────────
@@ -337,6 +371,33 @@ export function CalibrationPage() {
           onChange={(v) => updateEdit(e.reviewId, { bonusPercent: v ?? undefined })}
           disabled={!activeSession}
         />
+      ),
+    },
+    {
+      // M93 — Potential rating feeds the 9-box succession grid (M92).
+      // NOT gated on activeSession: HR can set/refine potential anytime.
+      title: 'Potential',
+      width: 170,
+      render: (_, e) => (
+        <Space size={4}>
+          <InputNumber
+            min={1}
+            max={5}
+            step={0.5}
+            precision={2}
+            size="small"
+            style={{ width: 80 }}
+            value={edits[e.reviewId]?.potentialRating ?? undefined}
+            onChange={(v) => updateEdit(e.reviewId, { potentialRating: v ?? undefined })}
+          />
+          <Button
+            size="small"
+            loading={edits[e.reviewId]?.savingPotential}
+            onClick={() => handleSavePotential(e)}
+          >
+            Save
+          </Button>
+        </Space>
       ),
     },
     {
