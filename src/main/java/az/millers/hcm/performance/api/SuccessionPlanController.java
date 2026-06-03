@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchReport;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.PotentialRatingRequest;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.SuccessionGrid;
 import az.millers.hcm.performance.service.SuccessionPlanService;
@@ -41,6 +42,13 @@ public class SuccessionPlanController {
     @PreAuthorize(READ)
     public SuccessionGrid grid(@PathVariable UUID cycleId) {
         return service.grid(cycleId);
+    }
+
+    /** M94 — per-manager bench depth (ready-now / ready-soon / long-term / dev). */
+    @GetMapping("/bench/{cycleId}")
+    @PreAuthorize(READ)
+    public BenchReport bench(@PathVariable UUID cycleId) {
+        return service.benchDepth(cycleId);
     }
 
     @PutMapping("/reviews/{reviewId}/potential")

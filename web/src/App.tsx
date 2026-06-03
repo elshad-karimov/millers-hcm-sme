@@ -43,6 +43,7 @@ import { ContractChangeDetailPage } from './pages/ContractChangeDetailPage'
 import { ReviewCyclesPage } from './pages/ReviewCyclesPage'
 import { CalibrationPage } from './pages/performance/CalibrationPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
+import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import CareerPage from './pages/career/CareerPage'
 import { ReviewCycleFormPage } from './pages/ReviewCycleFormPage'
 import { GoalsPage } from './pages/GoalsPage'
@@ -176,6 +177,9 @@ export default function App() {
           {/* M92 — 9-box succession grid */}
           <Route path="performance/succession" element={<SuccessionGridPage />} />
           <Route path="performance/succession/:cycleId" element={<SuccessionGridPage />} />
+          {/* M94 — bench depth report */}
+          <Route path="performance/succession/bench" element={<BenchDepthPage />} />
+          <Route path="performance/succession/:cycleId/bench" element={<BenchDepthPage />} />
           <Route path="career" element={<CareerPage />} />
           <Route path="performance/goals" element={<GoalsPage />} />
           <Route path="performance/reviews" element={<PerformanceReviewsPage />} />

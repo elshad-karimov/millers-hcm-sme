@@ -66,4 +66,34 @@ public final class SuccessionGridDtos {
     public record PotentialRatingRequest(
             BigDecimal potentialRating,
             String potentialNotes) {}
+
+    /** Readiness tier for a successor (M94). */
+    public enum Readiness {
+        /** {@code Star} — HIGH/HIGH. Ready to step up immediately. */
+        READY_NOW,
+        /** {@code Future Star} / {@code High Performer} — promotable in 1-2 yrs. */
+        READY_SOON,
+        /** {@code Core Player} / {@code Trusted Pro} — long-term bench. */
+        READY_LONG_TERM,
+        /** Anything else placed on the grid (LOW perf or LOW pot). */
+        UNDER_DEVELOPMENT
+    }
+
+    /** One row of the bench-depth report — counts per manager. */
+    public record BenchRow(
+            UUID managerId,
+            String managerName,
+            int totalReports,
+            int placedReports,
+            int readyNow,
+            int readySoon,
+            int readyLongTerm,
+            int underDevelopment) {}
+
+    /** Bench-depth response for one cycle. */
+    public record BenchReport(
+            UUID cycleId,
+            String cycleName,
+            int totalManagers,
+            List<BenchRow> rows) {}
 }

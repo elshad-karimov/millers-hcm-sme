@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,9 +20,12 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Band;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchReport;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchRow;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.GridCell;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.GridEmployee;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.PotentialRatingRequest;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.SuccessionGrid;
 import az.millers.hcm.performance.domain.PerformanceReview;
 import az.millers.hcm.performance.domain.ReviewCycle;
@@ -59,6 +64,23 @@ public class SuccessionPlanService {
         this.reviews = reviews;
         this.employees = employees;
         this.audit = audit;
+    }
+
+    /**
+     * Map a (performance, potential) cell to a {@link Readiness} tier (M94).
+     *
+     * <p>Stars (HIGH/HIGH) are ready immediately. Future Stars and High
+     * Performers are promotable in 1-2 years. Core Players and Trusted Pros
+     * round out the long-term bench. Everything with LOW on either axis
+     * needs development before they appear as a successor.
+     */
+    static Readiness readinessFor(Band performance, Band potential) {
+        if (performance == Band.HIGH && potential == Band.HIGH) return Readiness.READY_NOW;
+        if (performance == Band.MID  && potential == Band.HIGH) return Readiness.READY_SOON;
+        if (performance == Band.HIGH && potential == Band.MID)  return Readiness.READY_SOON;
+        if (performance == Band.MID  && potential == Band.MID)  return Readiness.READY_LONG_TERM;
+        if (performance == Band.HIGH && potential == Band.LOW)  return Readiness.READY_LONG_TERM;
+        return Readiness.UNDER_DEVELOPMENT;
     }
 
     /** Canonical 9-box archetype labels (performance × potential). */
@@ -127,6 +149,75 @@ public class SuccessionPlanService {
         return new SuccessionGrid(
                 cycleId, cycle.getName(),
                 all.size(), placed, missingPerf, missingPot, cells);
+    }
+
+    /**
+     * Per-manager succession bench depth (M94).
+     *
+     * <p>For every manager who has at least one direct report in the cycle,
+     * count how many of those reports are placed at each readiness tier.
+     * Sorted by ready-now desc, then ready-soon desc — the leadership
+     * conversation usually starts at the deepest benches.
+     *
+     * <p>The manager set is derived from the employees' {@code managerId} —
+     * NOT from the review's recorded managerId (that's a snapshot at review
+     * time and can drift). A manager with no placed reports still appears
+     * with zeros so HR can see who's flying blind.
+     */
+    @Transactional(readOnly = true)
+    public BenchReport benchDepth(UUID cycleId) {
+        ReviewCycle cycle = cycles.findById(cycleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review cycle not found: " + cycleId));
+        List<PerformanceReview> all = reviews.findByCycleIdOrderByCreatedAtDesc(cycleId);
+
+        // Group reviews by the employee's current manager. We load each
+        // employee once and cache the result — typical cycle has 100s of
+        // reviews against 10s of managers, so the N+1 risk is moderate;
+        // a future optimisation can pre-join via a custom query.
+        Map<UUID, List<PerformanceReview>> byManager = new LinkedHashMap<>();
+        Map<UUID, Employee> empCache = new HashMap<>();
+        for (PerformanceReview r : all) {
+            Employee emp = empCache.computeIfAbsent(r.getEmployeeId(),
+                    id -> employees.findById(id).orElse(null));
+            if (emp == null || emp.getManagerId() == null) continue;
+            byManager.computeIfAbsent(emp.getManagerId(), m -> new ArrayList<>()).add(r);
+        }
+
+        List<BenchRow> rows = new ArrayList<>(byManager.size());
+        for (Map.Entry<UUID, List<PerformanceReview>> e : byManager.entrySet()) {
+            UUID managerId = e.getKey();
+            List<PerformanceReview> reports = e.getValue();
+            int total = reports.size();
+            int placed = 0, readyNow = 0, readySoon = 0, readyLong = 0, underDev = 0;
+            for (PerformanceReview r : reports) {
+                if (r.getFinalRating() == null || r.getPotentialRating() == null) continue;
+                placed++;
+                Readiness tier = readinessFor(
+                        Band.of(r.getFinalRating()),
+                        Band.of(r.getPotentialRating()));
+                switch (tier) {
+                    case READY_NOW         -> readyNow++;
+                    case READY_SOON        -> readySoon++;
+                    case READY_LONG_TERM   -> readyLong++;
+                    case UNDER_DEVELOPMENT -> underDev++;
+                }
+            }
+            String mgrName = employees.findById(managerId)
+                    .map(emp ->
+                            ((emp.getFirstName() == null ? "" : emp.getFirstName()) + " "
+                                    + (emp.getLastName() == null ? "" : emp.getLastName())).trim())
+                    .orElse("(unknown manager)");
+            rows.add(new BenchRow(managerId, mgrName, total, placed,
+                    readyNow, readySoon, readyLong, underDev));
+        }
+
+        // Deepest bench first: ready-now desc, then ready-soon desc.
+        rows.sort(Comparator
+                .comparingInt(BenchRow::readyNow).reversed()
+                .thenComparing(Comparator.comparingInt(BenchRow::readySoon).reversed())
+                .thenComparing(Comparator.comparing(BenchRow::managerName,
+                        Comparator.nullsLast(String::compareToIgnoreCase))));
+        return new BenchReport(cycleId, cycle.getName(), rows.size(), rows);
     }
 
     /**

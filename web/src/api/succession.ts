@@ -37,9 +37,31 @@ export interface PotentialRatingRequest {
   potentialNotes?: string
 }
 
+// M94 — bench depth report (per-manager readiness counts).
+
+export interface BenchRow {
+  managerId: string
+  managerName: string
+  totalReports: number
+  placedReports: number
+  readyNow: number
+  readySoon: number
+  readyLongTerm: number
+  underDevelopment: number
+}
+
+export interface BenchReport {
+  cycleId: string
+  cycleName: string
+  totalManagers: number
+  rows: BenchRow[]
+}
+
 export const successionApi = {
   grid: (cycleId: string) =>
     api.get<SuccessionGrid>(`/performance/succession/grid/${cycleId}`).then((r) => r.data),
   setPotential: (reviewId: string, req: PotentialRatingRequest) =>
     api.put<void>(`/performance/succession/reviews/${reviewId}/potential`, req).then((r) => r.data),
+  bench: (cycleId: string) =>
+    api.get<BenchReport>(`/performance/succession/bench/${cycleId}`).then((r) => r.data),
 }

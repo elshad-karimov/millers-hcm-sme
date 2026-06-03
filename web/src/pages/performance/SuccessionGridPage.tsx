@@ -24,7 +24,7 @@ import {
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   successionApi,
   type Band,
@@ -148,6 +148,9 @@ export function SuccessionGridPage() {
       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
         <Title level={3} style={{ margin: 0 }}>9-box succession grid</Title>
         <Space>
+          {cycleId && (
+            <Link to={`/performance/succession/${cycleId}/bench`}>Bench depth →</Link>
+          )}
           <Text type="secondary">Cycle:</Text>
           <Select
             style={{ minWidth: 280 }}
