@@ -57,6 +57,37 @@ export interface BenchReport {
   rows: BenchRow[]
 }
 
+// M96 — Development drill: who's in the UNDER_DEVELOPMENT cell, and what
+// learning paths are they on right now.
+
+export interface AssignmentSummary {
+  assignmentId: string
+  pathId: string
+  pathName: string
+  status: string
+  progressPercent: number
+}
+
+export interface DevelopmentEmployee {
+  reviewId: string
+  employeeId: string
+  employeeName: string
+  department?: string | null
+  performanceRating: number
+  potentialRating: number
+  recommendation?: string | null
+  activeAssignments: AssignmentSummary[]
+}
+
+export interface DevelopmentList {
+  cycleId: string
+  cycleName: string
+  managerId?: string | null
+  managerName?: string | null
+  total: number
+  employees: DevelopmentEmployee[]
+}
+
 export const successionApi = {
   grid: (cycleId: string) =>
     api.get<SuccessionGrid>(`/performance/succession/grid/${cycleId}`).then((r) => r.data),
@@ -64,4 +95,10 @@ export const successionApi = {
     api.put<void>(`/performance/succession/reviews/${reviewId}/potential`, req).then((r) => r.data),
   bench: (cycleId: string) =>
     api.get<BenchReport>(`/performance/succession/bench/${cycleId}`).then((r) => r.data),
+  development: (cycleId: string, managerId?: string) =>
+    api
+      .get<DevelopmentList>(`/performance/succession/development/${cycleId}`, {
+        params: managerId ? { managerId } : undefined,
+      })
+      .then((r) => r.data),
 }

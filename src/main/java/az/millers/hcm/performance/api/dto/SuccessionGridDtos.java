@@ -96,4 +96,34 @@ public final class SuccessionGridDtos {
             String cycleName,
             int totalManagers,
             List<BenchRow> rows) {}
+
+    // ── Development bucket drill-down (M96) ─────────────────────────────────
+
+    /** A single existing learning-path assignment surfaced beside an employee. */
+    public record AssignmentSummary(
+            UUID assignmentId,
+            UUID pathId,
+            String pathName,
+            String status,
+            int progressPercent) {}
+
+    /** One employee in the under-development bucket + their current path assignments. */
+    public record DevelopmentEmployee(
+            UUID reviewId,
+            UUID employeeId,
+            String employeeName,
+            String department,
+            BigDecimal performanceRating,
+            BigDecimal potentialRating,
+            String recommendation,
+            List<AssignmentSummary> activeAssignments) {}
+
+    /** Development drill response. {@code managerId} echoed back for the UI. */
+    public record DevelopmentList(
+            UUID cycleId,
+            String cycleName,
+            UUID managerId,
+            String managerName,
+            int total,
+            List<DevelopmentEmployee> employees) {}
 }

@@ -165,8 +165,11 @@ public class LearningPathAssignmentService {
      * Status writes happen lazily on read so callers don't need to remember
      * to refresh after they Pass a course — the next view of the assignment
      * picks up the latest enrolment state.
+     *
+     * <p>Public so {@code SuccessionPlanService} (M96 drill-down) can reuse
+     * the canonical progress computation without duplicating it.
      */
-    AssignmentResponse toResponse(LearningPathAssignment a) {
+    public AssignmentResponse toResponse(LearningPathAssignment a) {
         List<LearningPathCourse> pathSteps =
                 steps.findByPathIdOrderByStepOrderAsc(a.getPathId());
         // Pre-load each step's enrolment for this employee (NOT_STARTED if

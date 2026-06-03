@@ -19,14 +19,22 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.AssignmentSummary;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Band;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchReport;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchRow;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.DevelopmentEmployee;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.DevelopmentList;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.GridCell;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.GridEmployee;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.PotentialRatingRequest;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.SuccessionGrid;
+import az.millers.hcm.learning.domain.LearningPathAssignment;
+import az.millers.hcm.learning.domain.PathAssignmentStatus;
+import az.millers.hcm.learning.repo.LearningPathAssignmentRepository;
+import az.millers.hcm.learning.repo.LearningPathRepository;
+import az.millers.hcm.learning.service.LearningPathAssignmentService;
 import az.millers.hcm.performance.domain.PerformanceReview;
 import az.millers.hcm.performance.domain.ReviewCycle;
 import az.millers.hcm.performance.repo.PerformanceReviewRepository;
@@ -55,15 +63,24 @@ public class SuccessionPlanService {
     private final PerformanceReviewRepository reviews;
     private final EmployeeRepository employees;
     private final AuditService audit;
+    private final LearningPathAssignmentRepository pathAssignments;
+    private final LearningPathRepository paths;
+    private final LearningPathAssignmentService pathAssignmentService;
 
     public SuccessionPlanService(ReviewCycleRepository cycles,
                                   PerformanceReviewRepository reviews,
                                   EmployeeRepository employees,
-                                  AuditService audit) {
+                                  AuditService audit,
+                                  LearningPathAssignmentRepository pathAssignments,
+                                  LearningPathRepository paths,
+                                  LearningPathAssignmentService pathAssignmentService) {
         this.cycles = cycles;
         this.reviews = reviews;
         this.employees = employees;
         this.audit = audit;
+        this.pathAssignments = pathAssignments;
+        this.paths = paths;
+        this.pathAssignmentService = pathAssignmentService;
     }
 
     /**
@@ -218,6 +235,95 @@ public class SuccessionPlanService {
                 .thenComparing(Comparator.comparing(BenchRow::managerName,
                         Comparator.nullsLast(String::compareToIgnoreCase))));
         return new BenchReport(cycleId, cycle.getName(), rows.size(), rows);
+    }
+
+    /**
+     * Drill from a {@link Readiness#UNDER_DEVELOPMENT} bench cell to the
+     * employees it contains, with their currently active learning-path
+     * assignments inlined (M96).
+     *
+     * <p>Connects M94's bench-depth bucket → M95's path assignment surface
+     * so HR can go from "manager X has 4 people who need development" to
+     * "here they are; one already has a path; assign these other three to
+     * the Leadership Foundations path" in two clicks.
+     *
+     * @param managerId optional — when present, narrow to that manager's
+     *                  direct reports; otherwise return the whole bucket
+     *                  for the cycle.
+     */
+    @Transactional(readOnly = true)
+    public DevelopmentList developmentBucket(UUID cycleId, UUID managerId) {
+        ReviewCycle cycle = cycles.findById(cycleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review cycle not found: " + cycleId));
+        List<PerformanceReview> all = reviews.findByCycleIdOrderByCreatedAtDesc(cycleId);
+
+        Map<UUID, Employee> empCache = new HashMap<>();
+        List<DevelopmentEmployee> out = new ArrayList<>();
+        for (PerformanceReview r : all) {
+            if (r.getFinalRating() == null || r.getPotentialRating() == null) continue;
+            Readiness tier = readinessFor(
+                    Band.of(r.getFinalRating()), Band.of(r.getPotentialRating()));
+            if (tier != Readiness.UNDER_DEVELOPMENT) continue;
+            Employee emp = empCache.computeIfAbsent(r.getEmployeeId(),
+                    id -> employees.findById(id).orElse(null));
+            if (emp == null) continue;
+            // Optional manager-id filter — by the employee's CURRENT manager,
+            // matching the bench-depth grouping for consistency.
+            if (managerId != null && !managerId.equals(emp.getManagerId())) continue;
+
+            String fullName = ((emp.getFirstName() == null ? "" : emp.getFirstName()) + " "
+                    + (emp.getLastName() == null ? "" : emp.getLastName())).trim();
+            out.add(new DevelopmentEmployee(
+                    r.getId(),
+                    r.getEmployeeId(),
+                    fullName,
+                    emp.getDepartmentName(),
+                    r.getFinalRating(),
+                    r.getPotentialRating(),
+                    r.getRecommendation(),
+                    activeAssignmentsFor(r.getEmployeeId())));
+        }
+
+        out.sort(Comparator.comparing(DevelopmentEmployee::employeeName,
+                Comparator.nullsLast(String::compareToIgnoreCase)));
+
+        String managerName = null;
+        if (managerId != null) {
+            managerName = employees.findById(managerId)
+                    .map(e -> ((e.getFirstName() == null ? "" : e.getFirstName()) + " "
+                            + (e.getLastName() == null ? "" : e.getLastName())).trim())
+                    .orElse(null);
+        }
+        return new DevelopmentList(cycleId, cycle.getName(), managerId, managerName,
+                out.size(), out);
+    }
+
+    /**
+     * Look up an employee's non-terminal path assignments and compute their
+     * progress percent via the shared {@code LearningPathAssignmentService}
+     * (so the drill-down's progress always matches the assignments page —
+     * one source of truth).
+     */
+    private List<AssignmentSummary> activeAssignmentsFor(UUID employeeId) {
+        List<LearningPathAssignment> raw = pathAssignments
+                .findByEmployeeIdOrderByAssignedAtDesc(employeeId);
+        List<AssignmentSummary> out = new ArrayList<>();
+        for (LearningPathAssignment a : raw) {
+            // Only show non-terminal — completed/cancelled clutter the drill.
+            if (a.getStatus() == PathAssignmentStatus.COMPLETED
+                    || a.getStatus() == PathAssignmentStatus.CANCELLED) continue;
+            // toResponse() carries the derived progress — calling the
+            // shared service keeps the calc canonical.
+            var resp = pathAssignmentService.toResponse(a);
+            out.add(new AssignmentSummary(
+                    resp.id(), resp.pathId(),
+                    resp.pathName() == null
+                            ? paths.findById(a.getPathId()).map(p -> p.getName()).orElse("(deleted)")
+                            : resp.pathName(),
+                    resp.status().name(),
+                    resp.progressPercent()));
+        }
+        return out;
     }
 
     /**

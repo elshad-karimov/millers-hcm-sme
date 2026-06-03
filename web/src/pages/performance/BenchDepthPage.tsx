@@ -5,8 +5,17 @@
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
+  Button,
   Card,
   Col,
+  DatePicker,
+  Drawer,
+  Empty,
+  Form,
+  Input,
+  List,
+  Modal,
+  Progress,
   Row,
   Select,
   Space,
@@ -14,23 +23,49 @@ import {
   Statistic,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { successionApi, type BenchReport, type BenchRow } from '../../api/succession'
+import {
+  successionApi,
+  type BenchReport,
+  type BenchRow,
+  type DevelopmentEmployee,
+  type DevelopmentList,
+} from '../../api/succession'
 import { performanceApi, type ReviewCycle } from '../../api/performance'
+import { learningPathsApi, pathAssignmentsApi, type LearningPath } from '../../api/learningPaths'
+import { useAuth } from '../../auth/AuthContext'
+import { RoleSets } from '../../auth/roleSets'
 
 const { Title, Text } = Typography
 
 export function BenchDepthPage() {
   const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canAssign = hasRole(...RoleSets.HR_WRITE)
   const navigate = useNavigate()
   const { cycleId: routeCycleId } = useParams<{ cycleId?: string }>()
   const [cycles, setCycles] = useState<ReviewCycle[]>([])
   const [cycleId, setCycleId] = useState<string | undefined>(routeCycleId)
   const [report, setReport] = useState<BenchReport | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // ── M96 — development drill state ─────────────────────────────────────
+  const [drillManager, setDrillManager] = useState<BenchRow | null>(null)
+  const [drillData, setDrillData] = useState<DevelopmentList | null>(null)
+  const [drillLoading, setDrillLoading] = useState(false)
+  const [paths, setPaths] = useState<LearningPath[]>([])
+  const [assignTarget, setAssignTarget] = useState<DevelopmentEmployee | null>(null)
+  const [assignForm] = Form.useForm<{
+    pathId: string
+    targetCompletionDate?: ReturnType<typeof dayjs>
+    notes?: string
+  }>()
+  const [assigning, setAssigning] = useState(false)
 
   useEffect(() => {
     performanceApi
@@ -52,6 +87,55 @@ export function BenchDepthPage() {
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load bench'))
       .finally(() => setLoading(false))
   }, [cycleId, message])
+
+  // ── M96 — drill open / refresh / assign helpers ──────────────────────
+  const openDrill = (r: BenchRow) => {
+    if (!cycleId) return
+    setDrillManager(r)
+    setDrillLoading(true)
+    Promise.all([
+      successionApi.development(cycleId, r.managerId),
+      paths.length === 0 ? learningPathsApi.list(true) : Promise.resolve(paths),
+    ])
+      .then(([dev, ps]) => {
+        setDrillData(dev)
+        if (paths.length === 0) setPaths(ps)
+      })
+      .catch((e) =>
+        message.error(e?.response?.data?.message ?? 'Failed to load development list'),
+      )
+      .finally(() => setDrillLoading(false))
+  }
+
+  const refreshDrill = async () => {
+    if (!cycleId || !drillManager) return
+    const fresh = await successionApi.development(cycleId, drillManager.managerId)
+    setDrillData(fresh)
+  }
+
+  const submitAssign = async () => {
+    if (!assignTarget) return
+    const v = await assignForm.validateFields()
+    setAssigning(true)
+    try {
+      await pathAssignmentsApi.assign(v.pathId, {
+        employeeId: assignTarget.employeeId,
+        targetCompletionDate: v.targetCompletionDate?.format('YYYY-MM-DD'),
+        notes: v.notes,
+      })
+      message.success(`Assigned to ${assignTarget.employeeName}`)
+      setAssignTarget(null)
+      assignForm.resetFields()
+      await refreshDrill()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Assign failed',
+      )
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   // Roll-up totals across all managers so the header summary mirrors the grid.
   const totals = report
@@ -128,8 +212,16 @@ export function BenchDepthPage() {
       width: 130,
       align: 'center',
       sorter: (a, b) => a.underDevelopment - b.underDevelopment,
-      render: (v: number) =>
-        v > 0 ? <Tag color="orange">{v}</Tag> : <Text type="secondary">0</Text>,
+      render: (v: number, r) =>
+        v > 0 ? (
+          <Tooltip title="Drill into the development bucket — see who's on which path">
+            <a onClick={() => openDrill(r)}>
+              <Tag color="orange" style={{ cursor: 'pointer' }}>{v}</Tag>
+            </a>
+          </Tooltip>
+        ) : (
+          <Text type="secondary">0</Text>
+        ),
     },
     {
       title: '',
@@ -217,6 +309,134 @@ export function BenchDepthPage() {
           </Card>
         </>
       )}
+
+      {/* M96 — Development drill drawer */}
+      <Drawer
+        open={!!drillManager}
+        title={
+          drillManager
+            ? `Development bucket — ${drillManager.managerName} (${drillManager.underDevelopment})`
+            : ''
+        }
+        onClose={() => { setDrillManager(null); setDrillData(null) }}
+        width={640}
+      >
+        {drillLoading || !drillData ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
+            <Spin />
+          </div>
+        ) : drillData.employees.length === 0 ? (
+          <Empty description="Nobody in the development bucket — placement may be incomplete." />
+        ) : (
+          <List
+            itemLayout="vertical"
+            dataSource={drillData.employees}
+            renderItem={(emp) => (
+              <List.Item
+                key={emp.employeeId}
+                actions={
+                  canAssign
+                    ? [
+                        <Button
+                          key="assign"
+                          type="primary"
+                          size="small"
+                          onClick={() => {
+                            setAssignTarget(emp)
+                            assignForm.resetFields()
+                          }}
+                        >
+                          Assign path…
+                        </Button>,
+                      ]
+                    : undefined
+                }
+              >
+                <List.Item.Meta
+                  title={
+                    <Space>
+                      <Link to={`/employees/${emp.employeeId}`}>{emp.employeeName}</Link>
+                      <Tag>{emp.department ?? '—'}</Tag>
+                    </Space>
+                  }
+                  description={
+                    <Space size="large">
+                      <Text type="secondary">
+                        Performance {emp.performanceRating?.toFixed(2)} · Potential {emp.potentialRating?.toFixed(2)}
+                      </Text>
+                      {emp.recommendation && <Tag>{emp.recommendation.replace(/_/g, ' ')}</Tag>}
+                    </Space>
+                  }
+                />
+                <div style={{ marginTop: 8 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Active learning paths ({emp.activeAssignments.length})
+                  </Text>
+                  {emp.activeAssignments.length === 0 ? (
+                    <div style={{ marginTop: 4 }}>
+                      <Text type="secondary">No active assignments — start one with the button.</Text>
+                    </div>
+                  ) : (
+                    <List
+                      size="small"
+                      dataSource={emp.activeAssignments}
+                      renderItem={(a) => (
+                        <List.Item style={{ padding: '6px 0' }}>
+                          <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
+                            <Link to={`/learning/paths`}>{a.pathName}</Link>
+                            <Space>
+                              <Tag color="blue">{a.status.replace(/_/g, ' ')}</Tag>
+                              <Progress
+                                percent={a.progressPercent}
+                                size="small"
+                                style={{ width: 120 }}
+                              />
+                            </Space>
+                          </Space>
+                        </List.Item>
+                      )}
+                    />
+                  )}
+                </div>
+              </List.Item>
+            )}
+          />
+        )}
+      </Drawer>
+
+      {/* Assign path modal (per-employee from drill) */}
+      <Modal
+        open={!!assignTarget}
+        title={assignTarget ? `Assign a learning path to ${assignTarget.employeeName}` : ''}
+        onCancel={() => setAssignTarget(null)}
+        onOk={submitAssign}
+        confirmLoading={assigning}
+        okText="Assign"
+      >
+        <Form form={assignForm} layout="vertical">
+          <Form.Item
+            name="pathId"
+            label="Learning path"
+            rules={[{ required: true, message: 'Pick a path' }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="Pick a curriculum"
+              options={paths.map((p) => ({ value: p.id, label: `${p.pathNo} — ${p.name}` }))}
+            />
+          </Form.Item>
+          <Form.Item name="targetCompletionDate" label="Target completion (optional)">
+            <DatePicker style={{ width: 220 }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes (optional)">
+            <Input.TextArea
+              rows={3}
+              placeholder="Why this path? Linked review / manager input?"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   )
 }

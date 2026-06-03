@@ -10,9 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchReport;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.DevelopmentList;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.PotentialRatingRequest;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.SuccessionGrid;
 import az.millers.hcm.performance.service.SuccessionPlanService;
@@ -49,6 +51,20 @@ public class SuccessionPlanController {
     @PreAuthorize(READ)
     public BenchReport bench(@PathVariable UUID cycleId) {
         return service.benchDepth(cycleId);
+    }
+
+    /**
+     * M96 — drill from the {@code UNDER_DEVELOPMENT} bench cell to the
+     * employees, with their currently active learning-path assignments
+     * inlined so the UI can offer one-click "assign a path".
+     *
+     * @param managerId optional — narrow to one manager's direct reports.
+     */
+    @GetMapping("/development/{cycleId}")
+    @PreAuthorize(READ)
+    public DevelopmentList development(@PathVariable UUID cycleId,
+                                        @RequestParam(required = false) UUID managerId) {
+        return service.developmentBucket(cycleId, managerId);
     }
 
     @PutMapping("/reviews/{reviewId}/potential")
