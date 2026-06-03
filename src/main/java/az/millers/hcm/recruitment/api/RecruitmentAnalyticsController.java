@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.security.SecurityRoles;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleReport;
@@ -25,8 +26,8 @@ import az.millers.hcm.recruitment.service.RecruitmentAnalyticsService;
 @RequestMapping("/api/reports/recruitment")
 public class RecruitmentAnalyticsController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','RECRUITER','AUDITOR')";
+    /** Reuses {@link SecurityRoles#READ_RECRUITMENT} so the role list is defined once. */
+    private static final String READ_ROLES = SecurityRoles.READ_RECRUITMENT;
 
     private final RecruitmentAnalyticsService service;
 

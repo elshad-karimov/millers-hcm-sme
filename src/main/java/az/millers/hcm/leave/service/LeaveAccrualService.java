@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
-
 import az.millers.hcm.leave.api.dto.SeniorityBracket;
 
 import org.slf4j.Logger;
@@ -23,6 +21,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.audit.AuditIdempotency;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
@@ -85,6 +84,7 @@ public class LeaveAccrualService {
     private final LeaveBalanceRepository balances;
     private final EmployeeRepository employees;
     private final AuditService audit;
+    private final AuditIdempotency auditIdempotency;
     private final LeaveGroupService leaveGroupService;
     private final OrgUnitPolicyService orgPolicies;
     private final StructureVersionRepository orgVersions;
@@ -93,6 +93,7 @@ public class LeaveAccrualService {
                                LeaveBalanceRepository balances,
                                EmployeeRepository employees,
                                AuditService audit,
+                               AuditIdempotency auditIdempotency,
                                LeaveGroupService leaveGroupService,
                                OrgUnitPolicyService orgPolicies,
                                StructureVersionRepository orgVersions) {
@@ -100,6 +101,7 @@ public class LeaveAccrualService {
         this.balances = balances;
         this.employees = employees;
         this.audit = audit;
+        this.auditIdempotency = auditIdempotency;
         this.leaveGroupService = leaveGroupService;
         this.orgPolicies = orgPolicies;
         this.orgVersions = orgVersions;
@@ -118,17 +120,6 @@ public class LeaveAccrualService {
             int balancesCredited,
             int balancesSkipped,
             BigDecimal totalDaysCredited) {}
-
-    /**
-     * Matches a {@code "period":"YYYY-MM"} JSON marker tolerating the
-     * whitespace PostgreSQL JSONB inserts on round-trip (Jackson writes
-     * compact JSON, but JSONB normalises to {@code "key": "value"} on
-     * read). Used by {@link #alreadyAccrued} to keep the walker
-     * idempotent across re-runs.
-     */
-    private static Pattern periodMarker(String periodKey) {
-        return Pattern.compile("\"period\"\\s*:\\s*\"" + Pattern.quote(periodKey) + "\"");
-    }
 
     /**
      * Cron: 02:00 on the 1st of every month. Uses the system clock's
@@ -394,15 +385,12 @@ public class LeaveAccrualService {
 
     /**
      * Returns true iff the audit log already has a MONTHLY_ACCRUAL row
-     * for this {@code (balance, period)} pair. Cheap because audit log
-     * is indexed on (entity_name, entity_id) and the per-balance history
-     * is at most one row per month.
+     * for this {@code (balance, period)} pair. Delegates to the shared
+     * {@link AuditIdempotency} helper so the regex-over-JSON dance lives
+     * in exactly one place across schedulers.
      */
     private boolean alreadyAccrued(UUID balanceId, String periodKey) {
-        Pattern marker = periodMarker(periodKey);
-        return audit.history(ENTITY, balanceId.toString()).stream()
-                .filter(a -> ACTION.equals(a.getAction()))
-                .map(a -> a.getNewValue() == null ? "" : a.getNewValue())
-                .anyMatch(json -> marker.matcher(json).find());
+        return auditIdempotency.hasMarker(ENTITY, balanceId.toString(), ACTION,
+                Map.of("period", periodKey));
     }
 }

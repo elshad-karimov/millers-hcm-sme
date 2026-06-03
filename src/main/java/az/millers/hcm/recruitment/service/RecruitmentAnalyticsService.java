@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,6 +14,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.common.DateWindow;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelRow;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceReport;
@@ -67,12 +67,11 @@ public class RecruitmentAnalyticsService {
 
     @Transactional(readOnly = true)
     public FunnelReport funnel(LocalDate from, LocalDate to) {
-        LocalDate windowFrom = from == null ? LocalDate.now().minusYears(1) : from;
-        LocalDate windowTo = to == null ? LocalDate.now() : to;
-        OffsetDateTime fromTs = windowFrom.atStartOfDay().toInstant(ZoneOffset.UTC)
-                .atOffset(ZoneOffset.UTC);
-        OffsetDateTime toTs = windowTo.plusDays(1).atStartOfDay()
-                .toInstant(ZoneOffset.UTC).atOffset(ZoneOffset.UTC);
+        DateWindow window = DateWindow.ofOrDefault(from, to, java.time.Period.ofYears(1));
+        LocalDate windowFrom = window.from();
+        LocalDate windowTo = window.to();
+        OffsetDateTime fromTs = window.fromTs();
+        OffsetDateTime toTs = window.toTsExclusive();
 
         List<Application> apps = applications.findAll().stream()
                 .filter(a -> !a.getCreatedAt().isBefore(fromTs)
@@ -142,12 +141,11 @@ public class RecruitmentAnalyticsService {
 
     @Transactional(readOnly = true)
     public TimeToHireReport timeToHire(LocalDate from, LocalDate to) {
-        LocalDate windowFrom = from == null ? LocalDate.now().minusYears(1) : from;
-        LocalDate windowTo = to == null ? LocalDate.now() : to;
-        OffsetDateTime fromTs = windowFrom.atStartOfDay().toInstant(ZoneOffset.UTC)
-                .atOffset(ZoneOffset.UTC);
-        OffsetDateTime toTs = windowTo.plusDays(1).atStartOfDay()
-                .toInstant(ZoneOffset.UTC).atOffset(ZoneOffset.UTC);
+        DateWindow window = DateWindow.ofOrDefault(from, to, java.time.Period.ofYears(1));
+        LocalDate windowFrom = window.from();
+        LocalDate windowTo = window.to();
+        OffsetDateTime fromTs = window.fromTs();
+        OffsetDateTime toTs = window.toTsExclusive();
 
         // Hired applications in window.
         List<Application> hiredApps = applications.findAll().stream()
@@ -218,12 +216,11 @@ public class RecruitmentAnalyticsService {
 
     @Transactional(readOnly = true)
     public SourceReport sourceEffectiveness(LocalDate from, LocalDate to) {
-        LocalDate windowFrom = from == null ? LocalDate.now().minusYears(1) : from;
-        LocalDate windowTo = to == null ? LocalDate.now() : to;
-        OffsetDateTime fromTs = windowFrom.atStartOfDay().toInstant(ZoneOffset.UTC)
-                .atOffset(ZoneOffset.UTC);
-        OffsetDateTime toTs = windowTo.plusDays(1).atStartOfDay()
-                .toInstant(ZoneOffset.UTC).atOffset(ZoneOffset.UTC);
+        DateWindow window = DateWindow.ofOrDefault(from, to, java.time.Period.ofYears(1));
+        LocalDate windowFrom = window.from();
+        LocalDate windowTo = window.to();
+        OffsetDateTime fromTs = window.fromTs();
+        OffsetDateTime toTs = window.toTsExclusive();
 
         // Map candidateId → source. One DB hit; we filter applications by
         // the in-window timestamp and group on source.

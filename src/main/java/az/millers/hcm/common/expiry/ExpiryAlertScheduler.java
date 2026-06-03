@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import az.millers.hcm.audit.AuditIdempotency;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
@@ -67,17 +67,20 @@ public class ExpiryAlertScheduler {
     private final EmployeeRepository employees;
     private final NotificationService notifications;
     private final AuditService audit;
+    private final AuditIdempotency auditIdempotency;
     private final int[] daysAhead;
 
     public ExpiryAlertScheduler(List<ExpiryAlertSource> sources,
                                 EmployeeRepository employees,
                                 NotificationService notifications,
                                 AuditService audit,
+                                AuditIdempotency auditIdempotency,
                                 @Value("${hcm.expiry.days-ahead:}") String configuredDays) {
         this.sources = sources;
         this.employees = employees;
         this.notifications = notifications;
         this.audit = audit;
+        this.auditIdempotency = auditIdempotency;
         this.daysAhead = parseDays(configuredDays);
     }
 
@@ -150,20 +153,15 @@ public class ExpiryAlertScheduler {
     }
 
     /**
-     * Audit-log-backed dedup check. We look for an EXPIRY_ALERT_SENT row whose
-     * JSON newValue carries a marker matching this {@code (today, delta)}
-     * pair. Pattern is identical to {@code LeaveAccrualService.alreadyAccrued}.
+     * Audit-log-backed dedup check. Delegates to the shared
+     * {@link AuditIdempotency} helper so all schedulers share one
+     * regex-over-JSON implementation (M90).
      */
     private boolean alreadyAlerted(ExpiryAlertSource source, ExpiryTrackable item,
                                     int delta, LocalDate today) {
-        Pattern marker = Pattern.compile(
-                "\"day\"\\s*:\\s*\"" + Pattern.quote(today.toString()) + "\""
-                        + ".*?\"delta\"\\s*:\\s*" + delta + "\\b",
-                Pattern.DOTALL);
-        return audit.history(source.entityName(), item.getId().toString()).stream()
-                .filter(a -> AUDIT_ACTION.equals(a.getAction()))
-                .map(a -> a.getNewValue() == null ? "" : a.getNewValue())
-                .anyMatch(json -> marker.matcher(json).find());
+        return auditIdempotency.hasMarker(
+                source.entityName(), item.getId().toString(), AUDIT_ACTION,
+                Map.of("day", today.toString(), "delta", delta));
     }
 
     private int dispatch(ExpiryAlertSource source, ExpiryTrackable item, int delta,

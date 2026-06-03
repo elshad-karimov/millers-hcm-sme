@@ -29,10 +29,9 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/recruitment/interviews")
 public class InterviewController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','RECRUITER','AUDITOR','DEPARTMENT_MANAGER')";
-    private static final String WRITE_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','RECRUITER','DEPARTMENT_MANAGER')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_INTERVIEWS;
+    private static final String WRITE_ROLES = az.millers.hcm.security.SecurityRoles.WRITE_INTERVIEWS;
 
     private final InterviewService service;
 

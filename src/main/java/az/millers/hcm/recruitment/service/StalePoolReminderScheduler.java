@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import az.millers.hcm.audit.AuditIdempotency;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.recruitment.domain.Candidate;
@@ -55,17 +55,20 @@ public class StalePoolReminderScheduler {
     private final CandidateRepository candidates;
     private final NotificationService notifications;
     private final AuditService audit;
+    private final AuditIdempotency auditIdempotency;
     private final int thresholdDays;
     private final String fallbackRecipient;
 
     public StalePoolReminderScheduler(CandidateRepository candidates,
                                       NotificationService notifications,
                                       AuditService audit,
+                                      AuditIdempotency auditIdempotency,
                                       @Value("${hcm.recruitment.stale.threshold-days:30}") int thresholdDays,
                                       @Value("${hcm.recruitment.stale.fallback-recipient:hr.admin}") String fallbackRecipient) {
         this.candidates = candidates;
         this.notifications = notifications;
         this.audit = audit;
+        this.auditIdempotency = auditIdempotency;
         this.thresholdDays = thresholdDays < 1 ? 30 : thresholdDays;
         this.fallbackRecipient = fallbackRecipient == null || fallbackRecipient.isBlank()
                 ? "hr.admin" : fallbackRecipient;
@@ -136,14 +139,8 @@ public class StalePoolReminderScheduler {
     }
 
     private boolean alreadyNotified(String recipient, LocalDate today) {
-        Pattern marker = Pattern.compile(
-                "\"day\"\\s*:\\s*\"" + Pattern.quote(today.toString()) + "\""
-                        + ".*?\"recipient\"\\s*:\\s*\"" + Pattern.quote(recipient) + "\"",
-                Pattern.DOTALL);
-        return audit.history(ENTITY, recipient).stream()
-                .filter(a -> AUDIT_ACTION.equals(a.getAction()))
-                .map(a -> a.getNewValue() == null ? "" : a.getNewValue())
-                .anyMatch(json -> marker.matcher(json).find());
+        return auditIdempotency.hasMarker(ENTITY, recipient, AUDIT_ACTION,
+                Map.of("day", today.toString(), "recipient", recipient));
     }
 
     private void dispatchDigest(String recipient, List<Candidate> stale, LocalDate today) {

@@ -43,10 +43,9 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/recruitment")
 public class TalentPoolController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','RECRUITER','AUDITOR')";
-    private static final String WRITE_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','RECRUITER')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_RECRUITMENT;
+    private static final String WRITE_ROLES = az.millers.hcm.security.SecurityRoles.WRITE_RECRUITMENT;
 
     private final TalentPoolService service;
 
