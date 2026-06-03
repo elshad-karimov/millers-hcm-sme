@@ -19,6 +19,7 @@ import az.millers.hcm.selfservice.service.EmployeeContextService;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignmentResponse;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.CancelRequest;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.SuggestedPath;
 import az.millers.hcm.learning.service.LearningPathAssignmentService;
 import az.millers.hcm.security.SecurityRoles;
 
@@ -74,6 +75,18 @@ public class LearningPathAssignmentController {
     @PreAuthorize(READ)
     public List<AssignmentResponse> forPath(@PathVariable UUID pathId) {
         return service.forPath(pathId);
+    }
+
+    /**
+     * M98 — ranked path suggestions for an employee based on their
+     * competency gaps. Active paths only; ones the employee already has
+     * an active assignment for are still returned but sorted to the
+     * bottom and flagged with {@code alreadyAssigned}.
+     */
+    @GetMapping("/suggestions/{employeeId}")
+    @PreAuthorize(READ)
+    public List<SuggestedPath> suggestions(@PathVariable UUID employeeId) {
+        return service.suggestForEmployee(employeeId);
     }
 
     /** Self-service: the caller's own assignments. Any authenticated user. */

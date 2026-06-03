@@ -37,7 +37,12 @@ import {
   type DevelopmentList,
 } from '../../api/succession'
 import { performanceApi, type ReviewCycle } from '../../api/performance'
-import { learningPathsApi, pathAssignmentsApi, type LearningPath } from '../../api/learningPaths'
+import {
+  learningPathsApi,
+  pathAssignmentsApi,
+  type LearningPath,
+  type SuggestedPath,
+} from '../../api/learningPaths'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -60,6 +65,8 @@ export function BenchDepthPage() {
   const [drillLoading, setDrillLoading] = useState(false)
   const [paths, setPaths] = useState<LearningPath[]>([])
   const [assignTarget, setAssignTarget] = useState<DevelopmentEmployee | null>(null)
+  const [suggestions, setSuggestions] = useState<SuggestedPath[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [assignForm] = Form.useForm<{
     pathId: string
     targetCompletionDate?: ReturnType<typeof dayjs>
@@ -344,6 +351,15 @@ export function BenchDepthPage() {
                           onClick={() => {
                             setAssignTarget(emp)
                             assignForm.resetFields()
+                            // M98 — fetch ranked suggestions for this
+                            // employee. Falls back to the full template list
+                            // if there are no gaps recorded yet.
+                            setSuggestionsLoading(true)
+                            pathAssignmentsApi
+                              .suggestions(emp.employeeId)
+                              .then(setSuggestions)
+                              .catch(() => setSuggestions([]))
+                              .finally(() => setSuggestionsLoading(false))
                           }}
                         >
                           Assign path…
@@ -416,14 +432,49 @@ export function BenchDepthPage() {
         <Form form={assignForm} layout="vertical">
           <Form.Item
             name="pathId"
-            label="Learning path"
+            label={
+              <Space>
+                <span>Learning path</span>
+                {suggestionsLoading ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>(ranking by skills gap…)</Text>
+                ) : suggestions.length > 0 && suggestions[0].competenciesCovered > 0 ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>(ranked by competency gaps)</Text>
+                ) : null}
+              </Space>
+            }
             rules={[{ required: true, message: 'Pick a path' }]}
           >
             <Select
               showSearch
               optionFilterProp="label"
               placeholder="Pick a curriculum"
-              options={paths.map((p) => ({ value: p.id, label: `${p.pathNo} — ${p.name}` }))}
+              options={
+                // M98 — prefer the ranked suggestions when we have them.
+                // Each option carries the coverage tag inline; tooltips
+                // attached via title attribute since AntD Select options
+                // don't accept JSX children for the dropdown item itself.
+                (suggestions.length > 0 ? suggestions : null)
+                  ? suggestions.map((s) => ({
+                      value: s.pathId,
+                      // The `label` is used for both filter-by-search AND
+                      // the selected-value chip. Keep it plain so search works.
+                      label:
+                        `${s.pathCode} — ${s.pathName}` +
+                        (s.competenciesCovered > 0
+                          ? `  · covers ${s.competenciesCovered} gap${s.competenciesCovered === 1 ? '' : 's'} (+${s.totalLevelLift})`
+                          : '') +
+                        (s.alreadyAssigned ? '  · already assigned' : ''),
+                      disabled: s.alreadyAssigned,
+                      title:
+                        s.coveredCompetencyNames.length > 0
+                          ? `Closes gaps in: ${s.coveredCompetencyNames.join(', ')}`
+                          : undefined,
+                    }))
+                  : paths.map((p) => ({
+                      value: p.id,
+                      label: `${p.pathNo} — ${p.name}`,
+                    }))
+              }
             />
           </Form.Item>
           <Form.Item name="targetCompletionDate" label="Target completion (optional)">

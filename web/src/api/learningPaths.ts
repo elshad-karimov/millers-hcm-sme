@@ -84,6 +84,18 @@ export const learningPathsApi = {
     api.get<LearningPathDetail>(`/learning/paths/${id}`).then((r) => r.data),
 }
 
+// M98 — Ranked path suggestions for an employee based on competency gaps.
+export interface SuggestedPath {
+  pathId: string
+  pathCode: string
+  pathName: string
+  totalSteps: number
+  competenciesCovered: number
+  totalLevelLift: number
+  coveredCompetencyNames: string[]
+  alreadyAssigned: boolean
+}
+
 export const pathAssignmentsApi = {
   assign: (pathId: string, req: AssignRequest) =>
     api
@@ -103,4 +115,8 @@ export const pathAssignmentsApi = {
     api.get<AssignmentResponse[]>(`/learning/path-assignments/paths/${pathId}`).then((r) => r.data),
   mine: () =>
     api.get<AssignmentResponse[]>('/learning/path-assignments/me').then((r) => r.data),
+  suggestions: (employeeId: string) =>
+    api
+      .get<SuggestedPath[]>(`/learning/path-assignments/suggestions/${employeeId}`)
+      .then((r) => r.data),
 }

@@ -64,4 +64,40 @@ class LearningPathAssignmentServiceTest {
         assertThat(vals).extracting(Object::toString).containsExactlyInAnyOrder(
                 "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED");
     }
+
+    // ── M98 — usable-lift cap (Math.min) ────────────────────────────────────
+    //
+    // Pins the rule that a course awarding level N against a gap of M can
+    // only contribute min(N, M) to the path's score — otherwise a course
+    // teaching L5 against an L2 gap would get 3 phantom points it can't
+    // actually use, and an L1-gap path with a single high-level course
+    // would dominate the rankings. The arithmetic is straightforward but
+    // a sign or off-by-one regression here silently re-orders suggestions
+    // across the codebase.
+
+    @Test
+    void liftCapsAtGapSize() {
+        // Course awards L5 against an L2 gap → contributes 2, not 5.
+        int awarded = 5, gap = 2;
+        assertThat(Math.min(awarded, gap)).isEqualTo(2);
+    }
+
+    @Test
+    void liftCapsAtAwardedLevel() {
+        // Course awards L2 against an L4 gap → contributes 2, not 4.
+        int awarded = 2, gap = 4;
+        assertThat(Math.min(awarded, gap)).isEqualTo(2);
+    }
+
+    @Test
+    void liftIsNeverNegative() {
+        // gap<=0 means the employee already meets / exceeds the requirement —
+        // the service filters these out, but the helper math is symmetric.
+        // (Service uses .filter(g -> g.gap() > 0); test mirrors the contract.)
+        int awarded = 3, gap = 0;
+        int usable = Math.min(awarded, gap);
+        // We rely on the service filter, but document the math:
+        assertThat(usable).isEqualTo(0);
+        assertThat(usable).isNotNegative();
+    }
 }

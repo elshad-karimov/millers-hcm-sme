@@ -31,6 +31,21 @@ public final class PathAssignmentDtos {
             String status,            // EnrollmentStatus name, or "NOT_STARTED"
             boolean completed) {}
 
+    /** A learning path suggested for an employee, ranked by competency-gap coverage (M98). */
+    public record SuggestedPath(
+            UUID pathId,
+            String pathCode,
+            String pathName,
+            int totalSteps,
+            /** Distinct competencies this path's courses can close for the employee. */
+            int competenciesCovered,
+            /** Sum across covered competencies of how many levels the path advances. */
+            int totalLevelLift,
+            /** Competency names covered — small list for the UI tooltip. */
+            java.util.List<String> coveredCompetencyNames,
+            /** True if the employee already has an active assignment for this path. */
+            boolean alreadyAssigned) {}
+
     /** Top-level assignment view, with derived progress. */
     public record AssignmentResponse(
             UUID id,

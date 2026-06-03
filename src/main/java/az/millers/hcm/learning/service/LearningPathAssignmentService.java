@@ -2,10 +2,14 @@ package az.millers.hcm.learning.service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -16,10 +20,12 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.learning.api.dto.GapItem;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignmentResponse;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.CancelRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.StepProgress;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.SuggestedPath;
 import az.millers.hcm.learning.domain.Course;
 import az.millers.hcm.learning.domain.Enrollment;
 import az.millers.hcm.learning.domain.EnrollmentStatus;
@@ -63,6 +69,7 @@ public class LearningPathAssignmentService {
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final GapAnalysisService gapAnalysis;
 
     public LearningPathAssignmentService(LearningPathAssignmentRepository assignments,
                                           LearningPathRepository paths,
@@ -71,7 +78,8 @@ public class LearningPathAssignmentService {
                                           CourseRepository courses,
                                           EmployeeRepository employees,
                                           AuditService audit,
-                                          CurrentRequest currentRequest) {
+                                          CurrentRequest currentRequest,
+                                          GapAnalysisService gapAnalysis) {
         this.assignments = assignments;
         this.paths = paths;
         this.steps = steps;
@@ -80,6 +88,7 @@ public class LearningPathAssignmentService {
         this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.gapAnalysis = gapAnalysis;
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────
@@ -156,6 +165,112 @@ public class LearningPathAssignmentService {
     public List<AssignmentResponse> forPath(UUID pathId) {
         return assignments.findByPathIdOrderByAssignedAtDesc(pathId).stream()
                 .map(this::toResponse).toList();
+    }
+
+    /**
+     * Suggest active learning paths for an employee, ranked by how many of
+     * the employee's competency gaps they close (M98).
+     *
+     * <p>Walks {@link GapAnalysisService#gapAnalysis} for the employee, then
+     * for every active path counts:
+     * <ul>
+     *   <li>{@code competenciesCovered} — distinct gap-competencies that at
+     *       least one of the path's courses awards;</li>
+     *   <li>{@code totalLevelLift} — for each covered competency, the max
+     *       awarded level across that path's courses (capped at the gap
+     *       size, so a course awarding L5 against an L2 gap doesn't get
+     *       3 extra points it can't actually use).</li>
+     * </ul>
+     *
+     * <p>Paths the employee already has an active assignment for are
+     * returned with {@code alreadyAssigned=true} but sort to the bottom so
+     * the UI shows fresh suggestions first.
+     *
+     * <p>Reuses {@link GapAnalysisService} entirely — the gap math + course
+     * recommendations live in one place. This method only adds the path-
+     * level rollup.
+     */
+    @Transactional(readOnly = true)
+    public List<SuggestedPath> suggestForEmployee(UUID employeeId) {
+        List<GapItem> gaps = gapAnalysis.gapAnalysis(employeeId).stream()
+                .filter(g -> g.gap() > 0)
+                .toList();
+
+        // course → list of (competencyId, gapSize, maxAwardedLevel)
+        // Built once from gaps; consulted per path.
+        Map<UUID, List<CourseAward>> coursesToAwards = buildCourseAwardIndex(gaps);
+
+        Set<UUID> alreadyActive = new HashSet<>();
+        for (LearningPathAssignment a : assignments.findByEmployeeIdOrderByAssignedAtDesc(employeeId)) {
+            if (a.getStatus() == PathAssignmentStatus.ASSIGNED
+                    || a.getStatus() == PathAssignmentStatus.IN_PROGRESS) {
+                alreadyActive.add(a.getPathId());
+            }
+        }
+
+        List<SuggestedPath> out = new ArrayList<>();
+        for (LearningPath p : paths.findAll()) {
+            if (!p.isActive()) continue;
+            out.add(scorePath(p, coursesToAwards, alreadyActive));
+        }
+
+        // Ranking: not-already-assigned first; then competencies-covered desc;
+        // then total-level-lift desc; then path name for stable order.
+        out.sort(Comparator
+                .comparing(SuggestedPath::alreadyAssigned)
+                .thenComparing(Comparator.comparingInt(SuggestedPath::competenciesCovered).reversed())
+                .thenComparing(Comparator.comparingInt(SuggestedPath::totalLevelLift).reversed())
+                .thenComparing(SuggestedPath::pathName,
+                        Comparator.nullsLast(String::compareToIgnoreCase)));
+        return out;
+    }
+
+    /** Per-course aggregate of which gap competencies that course can close. */
+    private record CourseAward(UUID competencyId, String competencyName,
+                                int gapSize, int awardedLevel) {}
+
+    private Map<UUID, List<CourseAward>> buildCourseAwardIndex(List<GapItem> gaps) {
+        Map<UUID, List<CourseAward>> out = new HashMap<>();
+        for (GapItem g : gaps) {
+            for (GapItem.CourseRecommendation rec : g.recommendedCourses()) {
+                out.computeIfAbsent(rec.courseId(), k -> new ArrayList<>()).add(
+                        new CourseAward(
+                                g.competencyId(), g.competencyName(),
+                                g.gap(), rec.awardedLevel()));
+            }
+        }
+        return out;
+    }
+
+    private SuggestedPath scorePath(LearningPath p,
+                                     Map<UUID, List<CourseAward>> coursesToAwards,
+                                     Set<UUID> alreadyActive) {
+        List<LearningPathCourse> pathSteps = steps.findByPathIdOrderByStepOrderAsc(p.getId());
+        // For each competency, track the BEST award across this path's courses
+        // (capped at the gap size — a course can't lift more than the gap).
+        Map<UUID, Integer> bestLiftByCompetency = new HashMap<>();
+        Map<UUID, String> nameByCompetency = new HashMap<>();
+        for (LearningPathCourse step : pathSteps) {
+            List<CourseAward> awards = coursesToAwards.get(step.getCourseId());
+            if (awards == null) continue;
+            for (CourseAward a : awards) {
+                int usableLift = Math.min(a.awardedLevel(), a.gapSize());
+                if (usableLift <= 0) continue;
+                bestLiftByCompetency.merge(a.competencyId(), usableLift, Math::max);
+                nameByCompetency.put(a.competencyId(), a.competencyName());
+            }
+        }
+        int totalLift = bestLiftByCompetency.values().stream().mapToInt(Integer::intValue).sum();
+        // Preserve insertion order for the UI tooltip list; cap at 5.
+        List<String> coveredNames = new ArrayList<>(new LinkedHashSet<>(nameByCompetency.values()));
+        if (coveredNames.size() > 5) coveredNames = coveredNames.subList(0, 5);
+        return new SuggestedPath(
+                p.getId(), p.getPathNo(), p.getName(),
+                pathSteps.size(),
+                bestLiftByCompetency.size(),
+                totalLift,
+                coveredNames,
+                alreadyActive.contains(p.getId()));
     }
 
     // ── Status auto-roll (called on read) ────────────────────────────────────
