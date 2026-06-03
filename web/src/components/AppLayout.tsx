@@ -40,6 +40,7 @@ import { useAuth } from '../auth/AuthContext'
 import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
 import { brand } from '../theme'
+import { RoleSets } from '../auth/roleSets'
 
 const { Header, Content } = Layout
 
@@ -118,9 +119,9 @@ export function AppLayout() {
   const { module: activeModule, screen: selectedKey } = resolveLocation(location.pathname)
 
   // Role convenience flags — determine which nav groups are visible
-  const isHR = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR')
-  const isManager = hasRole('DEPARTMENT_MANAGER')
-  const isAdmin = hasRole('SYSTEM_ADMIN')
+  const isHR = hasRole(...RoleSets.HR_READ)
+  const isManager = hasRole(...RoleSets.MANAGER_ONLY)
+  const isAdmin = hasRole(...RoleSets.SYS_ADMIN_ONLY)
   /** SYSTEM_ADMIN or AUDITOR — can access BI Export and other audit tools */
   const isAdminOrAuditor = hasRole('SYSTEM_ADMIN', 'AUDITOR')
   /** Any role that can access team / HR data beyond self-service. */

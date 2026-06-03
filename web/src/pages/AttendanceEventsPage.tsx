@@ -22,11 +22,12 @@ import {
 } from '../api/attendance'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 export function AttendanceEventsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
-  const canImport = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canImport = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [rows, setRows] = useState<AttendanceEvent[]>([])

@@ -24,6 +24,7 @@ import {
   type BonusMatrixRuleRequest,
 } from '../api/compbenefits'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 interface FormValues {
   code: string
@@ -42,7 +43,7 @@ interface FormValues {
 export function BonusMatrixPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [rows, setRows] = useState<BonusMatrixRule[]>([])
   const [loading, setLoading] = useState(false)

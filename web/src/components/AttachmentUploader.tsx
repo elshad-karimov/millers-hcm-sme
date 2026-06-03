@@ -19,6 +19,7 @@ import {
   type Attachment,
 } from '../api/attachments'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 interface Props {
   ownerModule: string
@@ -58,7 +59,7 @@ function isPreviewable(contentType?: string | null): boolean {
 export function AttachmentUploader({ ownerModule, ownerEntity, ownerId, pageSize = 50 }: Props) {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canDelete = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN')
+  const canDelete = hasRole(...RoleSets.HR_WRITE)
 
   const [items, setItems] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(false)

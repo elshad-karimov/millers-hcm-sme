@@ -23,6 +23,7 @@ import {
 } from '../api/attendance'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<SummaryStatus, string> = {
   PRESENT: 'green',
@@ -42,8 +43,8 @@ function fmtMinutes(m: number) {
 export function AttendanceSummaryPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
-  const canCorrect = hasRole('HR_ADMIN', 'HR_SPECIALIST')
-  const canRunEngine = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN')
+  const canCorrect = hasRole(...RoleSets.HR_TEAM_WRITE)
+  const canRunEngine = hasRole(...RoleSets.HR_WRITE)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [rows, setRows] = useState<DailySummary[]>([])

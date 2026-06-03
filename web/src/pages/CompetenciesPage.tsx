@@ -38,6 +38,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { positionsApi, type Position } from '../api/positions'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const CATEGORIES: CompetencyCategory[] = [
   'TECHNICAL',
@@ -495,7 +496,7 @@ function PositionRequirementsTab({ competencies }: { competencies: Competency[] 
 
 export function CompetenciesPage() {
   const { hasRole } = useAuth()
-  const canManage = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canManage = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [competencies, setCompetencies] = useState<Competency[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])

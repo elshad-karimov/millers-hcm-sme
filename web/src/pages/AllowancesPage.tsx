@@ -29,6 +29,7 @@ import {
 } from '../api/compbenefits'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const CATEGORIES: AllowanceCategory[] = [
   'TRANSPORT',
@@ -85,7 +86,7 @@ interface AssignForm {
 export function AllowancesPage() {
   const { hasRole } = useAuth()
   const { message, modal } = AntdApp.useApp()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_WRITE)
 
   const [types, setTypes] = useState<AllowanceType[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])

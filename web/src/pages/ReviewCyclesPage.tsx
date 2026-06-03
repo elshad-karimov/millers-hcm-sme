@@ -18,6 +18,7 @@ import {
   type ReviewCycle,
 } from '../api/performance'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: CycleStatus[] = ['DRAFT', 'OPEN', 'CALIBRATING', 'CLOSED', 'COMPLETED']
 
@@ -42,7 +43,7 @@ export function ReviewCyclesPage() {
   const { hasRole } = useAuth()
   const { message, modal } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [rows, setRows] = useState<ReviewCycle[]>([])
   const [status, setStatus] = useState<CycleStatus | undefined>()

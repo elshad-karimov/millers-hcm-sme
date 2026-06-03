@@ -19,6 +19,7 @@ import dayjs from 'dayjs'
 import { payrollApi, type CompensationResponse } from '../api/payroll'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 interface FormValues {
   employeeId: string
@@ -31,7 +32,7 @@ interface FormValues {
 export function PayrollCompensationPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [employeeId, setEmployeeId] = useState<string | undefined>()

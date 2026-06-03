@@ -20,6 +20,7 @@ import {
   type WorkflowStatus,
 } from '../api/workflow'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<WorkflowStatus, string> = {
   PENDING: 'gold',
@@ -125,9 +126,9 @@ export function WorkflowPanel({ module, entity, subjectId, onChanged }: Props) {
         const canActAsApprover =
           i.status === 'PENDING' &&
           !!i.currentStepRole &&
-          (hasRole(i.currentStepRole.replace('ROLE_', '')) || hasRole('SYSTEM_ADMIN')) &&
+          (hasRole(i.currentStepRole.replace('ROLE_', '')) || hasRole(...RoleSets.SYS_ADMIN_ONLY)) &&
           user?.username !== i.initiatedBy
-        const canCancel = i.status === 'PENDING' && (user?.username === i.initiatedBy || hasRole('SYSTEM_ADMIN'))
+        const canCancel = i.status === 'PENDING' && (user?.username === i.initiatedBy || hasRole(...RoleSets.SYS_ADMIN_ONLY))
         const canComment = i.status === 'PENDING'
         const items = (history[i.id] ?? []).map((a) => ({
           color: ACTION_COLOR[a.action],

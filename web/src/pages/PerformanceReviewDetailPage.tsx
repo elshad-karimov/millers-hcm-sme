@@ -29,6 +29,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { FormPageShell } from '../components/FormPageShell'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const LIST_PATH = '/performance/reviews'
 
@@ -80,8 +81,8 @@ export function PerformanceReviewDetailPage() {
   const navigate = useNavigate()
   const { message, modal } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canManager = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN', 'DEPARTMENT_MANAGER')
-  const canCalibrate = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canManager = hasRole(...RoleSets.HR_PLUS_MANAGERS_WRITE)
+  const canCalibrate = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [r, setR] = useState<PerformanceReview | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)

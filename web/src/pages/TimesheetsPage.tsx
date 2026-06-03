@@ -22,6 +22,7 @@ import {
 } from '../api/timesheet'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<TimesheetStatus, string> = {
   DRAFT: 'default',
@@ -35,7 +36,7 @@ export function TimesheetsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canGenerate = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN')
+  const canGenerate = hasRole(...RoleSets.HR_WRITE)
 
   const [period, setPeriod] = useState<dayjs.Dayjs>(dayjs())
   const [employees, setEmployees] = useState<Employee[]>([])

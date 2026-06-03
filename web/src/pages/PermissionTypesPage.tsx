@@ -12,12 +12,13 @@ import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { permissionApi, type PermissionType } from '../api/permission'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 export function PermissionTypesPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [rows, setRows] = useState<PermissionType[]>([])
   const [loading, setLoading] = useState(false)

@@ -22,6 +22,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { AttachmentUploader } from '../components/AttachmentUploader'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<TripStatus, string> = {
   DRAFT: 'default',
@@ -43,7 +44,7 @@ export function BusinessTripsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canSubmit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canSubmit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [rows, setRows] = useState<BusinessTrip[]>([])

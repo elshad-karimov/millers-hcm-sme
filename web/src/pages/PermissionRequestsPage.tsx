@@ -22,6 +22,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { AttachmentUploader } from '../components/AttachmentUploader'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: PermissionRequestStatus[] = [
   'PENDING',
@@ -42,7 +43,7 @@ export function PermissionRequestsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canSubmit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canSubmit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [types, setTypes] = useState<PermissionType[]>([])

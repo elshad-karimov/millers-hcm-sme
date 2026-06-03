@@ -84,11 +84,12 @@ import { WarehouseAnalyticsPage } from './pages/admin/WarehouseAnalyticsPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
+import { RoleSets } from './auth/roleSets'
 
 /** Lands HR/admins on the home dashboard; non-HR users on their My Workspace. */
 function IndexRedirect() {
   const { hasRole } = useAuth()
-  const target = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER')
+  const target = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
     ? '/home'
     : '/my'
   return <Navigate to={target} replace />

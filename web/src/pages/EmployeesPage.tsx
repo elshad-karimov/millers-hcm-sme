@@ -14,6 +14,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { Link, useNavigate } from 'react-router-dom'
 import { employeesApi, type Employee, type EmploymentStatus } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
   'ACTIVE',
@@ -55,7 +56,7 @@ export function EmployeesPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [data, setData] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)

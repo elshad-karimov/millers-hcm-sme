@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
 import { brand } from '../theme'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<VersionStatus, string> = {
   DRAFT: 'default',
@@ -51,8 +52,8 @@ export function OrgStructurePage() {
   const { hasRole } = useAuth()
   const { message, modal } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEditDraft = hasRole('HR_ADMIN', 'HR_SPECIALIST')
-  const canApprove = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEditDraft = hasRole(...RoleSets.HR_TEAM_WRITE)
+  const canApprove = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialVersionId = searchParams.get('versionId')

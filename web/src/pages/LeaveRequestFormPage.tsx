@@ -21,6 +21,7 @@ import { selfApi } from '../api/self'
 import type { EmployeePeer } from '../api/self'
 import { useAuth } from '../auth/AuthContext'
 import { FormPageShell } from '../components/FormPageShell'
+import { RoleSets } from '../auth/roleSets'
 
 const LIST_PATH = '/leave/requests'
 
@@ -40,7 +41,7 @@ export function LeaveRequestFormPage() {
   const { hasRole } = useAuth()
   const [form] = Form.useForm<FormValues>()
   /** HR/admin can pick any employee; plain EMPLOYEE submits for themselves only. */
-  const isHrMode = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER')
+  const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [peers, setPeers] = useState<EmployeePeer[]>([])
   const [selfLabel, setSelfLabel] = useState<string>('')

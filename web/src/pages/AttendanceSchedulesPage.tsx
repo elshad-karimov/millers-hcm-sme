@@ -12,6 +12,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { attendanceApi, type WorkSchedule } from '../api/attendance'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -27,7 +28,7 @@ export function AttendanceSchedulesPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [rows, setRows] = useState<WorkSchedule[]>([])
   const [loading, setLoading] = useState(false)

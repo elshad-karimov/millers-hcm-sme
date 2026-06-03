@@ -20,6 +20,7 @@ import {
   type VacancyState,
 } from '../api/positions'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const VACANCY_OPTIONS: VacancyState[] = [
   'OCCUPIED',
@@ -48,7 +49,7 @@ export function PositionsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [rows, setRows] = useState<Position[]>([])
   const [loading, setLoading] = useState(false)

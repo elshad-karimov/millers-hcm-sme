@@ -61,6 +61,7 @@ import {
 import { timelineApi, type TimelineEvent } from '../api/team'
 import { statusOverlayApi, type StatusOverlay } from '../api/statusOverlay'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
   'ACTIVE',
@@ -118,7 +119,7 @@ export function EmployeeDetailPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
   const canAudit = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR')
   const canSeeDisciplinary = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN', 'AUDITOR')
   const canSeeHealth = hasRole('HR_ADMIN', 'SYSTEM_ADMIN', 'OCCUPATIONAL_HEALTH')

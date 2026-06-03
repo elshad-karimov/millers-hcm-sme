@@ -19,6 +19,7 @@ import {
 } from '../api/lifecycle'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: ContractChangeStatus[] = [
   'PENDING',
@@ -65,7 +66,7 @@ export function ContractChangesPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canSubmit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canSubmit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [rows, setRows] = useState<ContractChange[]>([])

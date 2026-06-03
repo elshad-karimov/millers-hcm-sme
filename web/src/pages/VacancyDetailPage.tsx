@@ -30,6 +30,7 @@ import {
   type VacancyStatus,
 } from '../api/recruitment'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STAGE_ORDER: ApplicationStage[] = [
   'CV_SCREENING',
@@ -64,7 +65,7 @@ export function VacancyDetailPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'RECRUITER')
+  const canEdit = hasRole(...RoleSets.RECRUITMENT_TEAM)
 
   const [vacancy, setVacancy] = useState<Vacancy | null>(null)
   const [applications, setApplications] = useState<Application[]>([])

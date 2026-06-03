@@ -71,6 +71,7 @@ import {
   type UpcomingLeaveRow,
 } from '../api/dashboard'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 // ── Chart colour palette ───────────────────────────────────────────────────────
 const C = {
@@ -881,8 +882,8 @@ function ExecutivePanel() {
 export function ReportsPage() {
   const { hasRole } = useAuth()
 
-  const canSeeManagerTab  = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'DEPARTMENT_MANAGER')
-  const canSeeExecutiveTab = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'FINANCE_USER', 'AUDITOR')
+  const canSeeManagerTab  = hasRole(...RoleSets.MANAGER_TAB)
+  const canSeeExecutiveTab = hasRole(...RoleSets.EXECUTIVE_TAB)
 
   const items = [
     { key: 'headcount',   label: 'Headcount',   children: <HeadcountPanel /> },

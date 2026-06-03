@@ -26,6 +26,7 @@ import { employeesApi, type Employee } from '../api/employees'
 import { FormPageShell } from '../components/FormPageShell'
 import { AttachmentUploader } from '../components/AttachmentUploader'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const LIST_PATH = '/lifecycle/terminations'
 
@@ -43,8 +44,8 @@ export function TerminationDetailPage() {
   const navigate = useNavigate()
   const { message, modal } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canProcess = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
-  const canEditClearance = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN')
+  const canProcess = hasRole(...RoleSets.HR_ADMIN_WRITE)
+  const canEditClearance = hasRole(...RoleSets.HR_WRITE)
 
   const [t, setT] = useState<Termination | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)

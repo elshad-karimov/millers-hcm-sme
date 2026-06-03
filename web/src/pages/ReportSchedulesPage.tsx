@@ -32,6 +32,7 @@ import {
 } from '../api/reportScheduling'
 import { attachmentsApi } from '../api/attachments'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const REPORT_TYPES: ReportType[] = [
   'HEADCOUNT',
@@ -109,7 +110,7 @@ function downloadRunFile(run: ReportRun, onError: (m: string) => void) {
 function DefinitionsTab({ onChanged }: { onChanged: () => void }) {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
   const [rows, setRows] = useState<ReportDefinition[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
@@ -288,7 +289,7 @@ function DefinitionsTab({ onChanged }: { onChanged: () => void }) {
 function SchedulesTab({ onChanged }: { onChanged: () => void }) {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [rows, setRows] = useState<ReportSchedule[]>([])
   const [defs, setDefs] = useState<ReportDefinition[]>([])
@@ -465,7 +466,7 @@ function SchedulesTab({ onChanged }: { onChanged: () => void }) {
 function RunsTab({ refreshKey }: { refreshKey: number }) {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canResend = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canResend = hasRole(...RoleSets.HR_ADMIN_WRITE)
   const [rows, setRows] = useState<ReportRun[]>([])
   const [loading, setLoading] = useState(false)
   const [resendingId, setResendingId] = useState<string | null>(null)

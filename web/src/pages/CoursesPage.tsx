@@ -18,6 +18,7 @@ import {
   type CourseStatus,
 } from '../api/learning'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const CATEGORIES: CourseCategory[] = [
   'COMPLIANCE',
@@ -47,7 +48,7 @@ export function CoursesPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canManage = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canManage = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [rows, setRows] = useState<Course[]>([])
   const [total, setTotal] = useState(0)

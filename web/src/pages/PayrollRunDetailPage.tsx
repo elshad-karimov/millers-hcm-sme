@@ -26,6 +26,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<PayrollRunStatus, string> = {
   DRAFT: 'default',
@@ -42,7 +43,7 @@ export function PayrollRunDetailPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canCalculate = hasRole('HR_ADMIN', 'SYSTEM_ADMIN', 'PAYROLL_SPECIALIST')
+  const canCalculate = hasRole(...RoleSets.PAYROLL_WRITE)
   const canMarkPaid = hasRole('HR_ADMIN', 'SYSTEM_ADMIN', 'FINANCE_USER')
 
   const [run, setRun] = useState<PayrollRun | null>(null)
@@ -223,7 +224,7 @@ export function PayrollRunDetailPage() {
                 </Button>
               </Popconfirm>
             )}
-            {run.status === 'PAID' && hasRole('HR_ADMIN', 'SYSTEM_ADMIN') && (
+            {run.status === 'PAID' && hasRole(...RoleSets.HR_ADMIN_WRITE) && (
               <Button onClick={() => wrap('Close', () => payrollApi.close(run.id))}>Close</Button>
             )}
             {(run.status === 'APPROVED' || run.status === 'PAID' || run.status === 'CLOSED') && (

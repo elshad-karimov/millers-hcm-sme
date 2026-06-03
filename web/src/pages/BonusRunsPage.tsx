@@ -32,6 +32,7 @@ import { performanceApi, type ReviewCycle } from '../api/performance'
 import { payrollApi, type PayrollRun } from '../api/payroll'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<BonusRunStatus, string> = {
   DRAFT: 'default',
@@ -61,7 +62,7 @@ interface PushForm {
 export function BonusRunsPage() {
   const { hasRole } = useAuth()
   const { message, modal } = AntdApp.useApp()
-  const canEdit = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [rows, setRows] = useState<BonusRun[]>([])
   const [loading, setLoading] = useState(false)

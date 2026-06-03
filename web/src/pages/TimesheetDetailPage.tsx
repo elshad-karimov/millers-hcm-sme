@@ -29,6 +29,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<TimesheetStatus, string> = {
   DRAFT: 'default',
@@ -56,7 +57,7 @@ export function TimesheetDetailPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canEdit = hasRole('HR_ADMIN', 'HR_SPECIALIST')
+  const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
 
   const [ts, setTs] = useState<Timesheet | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)

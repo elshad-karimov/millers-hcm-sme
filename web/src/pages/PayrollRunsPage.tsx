@@ -15,6 +15,7 @@ import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import { payrollApi, type PayrollRun, type PayrollRunStatus } from '../api/payroll'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_COLOR: Record<PayrollRunStatus, string> = {
   DRAFT: 'default',
@@ -30,7 +31,7 @@ export function PayrollRunsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canCreate = hasRole('HR_ADMIN', 'SYSTEM_ADMIN', 'PAYROLL_SPECIALIST')
+  const canCreate = hasRole(...RoleSets.PAYROLL_WRITE)
 
   const [rows, setRows] = useState<PayrollRun[]>([])
   const [loading, setLoading] = useState(false)

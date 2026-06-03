@@ -21,6 +21,7 @@ import {
 } from '../api/performance'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: ReviewStatus[] = [
   'SELF_IN_PROGRESS',
@@ -58,7 +59,7 @@ export function PerformanceReviewsPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
-  const canStart = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN', 'DEPARTMENT_MANAGER')
+  const canStart = hasRole(...RoleSets.HR_PLUS_MANAGERS_WRITE)
 
   const [cycles, setCycles] = useState<ReviewCycle[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])

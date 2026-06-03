@@ -25,6 +25,7 @@ import { employeesApi, type Employee } from '../api/employees'
 import { selfApi } from '../api/self'
 import { useAuth } from '../auth/AuthContext'
 import { FormPageShell } from '../components/FormPageShell'
+import { RoleSets } from '../auth/roleSets'
 
 const LIST_PATH = '/permission/requests'
 
@@ -42,7 +43,7 @@ export function PermissionRequestFormPage() {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
   const [form] = Form.useForm<FormValues>()
-  const isHrMode = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER')
+  const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selfLabel, setSelfLabel] = useState<string>('')
   const [types, setTypes] = useState<PermissionType[]>([])

@@ -20,13 +20,14 @@ import {
 } from '../api/permission'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const CURRENT_YEAR = new Date().getFullYear()
 
 export function PermissionBalancesPage() {
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
-  const canAdjust = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canAdjust = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [year, setYear] = useState(CURRENT_YEAR)
   const [employeeId, setEmployeeId] = useState<string | undefined>()

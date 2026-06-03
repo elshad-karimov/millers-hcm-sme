@@ -36,6 +36,7 @@ import { employeesApi, type Employee } from '../api/employees'
 import { AttachmentUploader } from '../components/AttachmentUploader'
 import { FormPageShell } from '../components/FormPageShell'
 import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 const LIST_PATH = '/learning/courses'
 
@@ -59,7 +60,7 @@ export function CourseDetailPage() {
   const navigate = useNavigate()
   const { message, modal } = AntdApp.useApp()
   const { hasRole } = useAuth()
-  const canManage = hasRole('HR_ADMIN', 'SYSTEM_ADMIN')
+  const canManage = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [course, setCourse] = useState<Course | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
