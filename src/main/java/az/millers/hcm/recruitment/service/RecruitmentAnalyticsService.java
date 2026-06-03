@@ -21,6 +21,7 @@ import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceRow;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleCandidateRow;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleReport;
+import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleSummary;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.TimeToHireReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.TimeToHireRow;
 import az.millers.hcm.recruitment.domain.Application;
@@ -303,6 +304,32 @@ public class RecruitmentAnalyticsService {
         }
         rows.sort(Comparator.comparingLong(StaleCandidateRow::daysSinceContact).reversed());
         return new StaleReport(days, rows.size(), rows);
+    }
+
+    /**
+     * Lightweight stale-pool summary (M89) for the home-dashboard tile.
+     * Buckets the same population the {@link #stale(int)} report walks so the
+     * tile shows the same counts the analytics page does, just aggregated.
+     */
+    @Transactional(readOnly = true)
+    public StaleSummary staleSummary(int thresholdDays) {
+        StaleReport report = stale(thresholdDays);
+        long b30 = 0, b60 = 0, b90 = 0, never = 0;
+        for (StaleCandidateRow r : report.rows()) {
+            if (r.lastContactedAt() == null) {
+                never++;
+                continue;
+            }
+            long d = r.daysSinceContact();
+            if (d >= 90) b90++;
+            else if (d >= 60) b60++;
+            else if (d >= 30) b30++;
+            // < 30 days can't appear because the underlying report already
+            // filters by the threshold (default 30) — but if the caller
+            // chose a lower threshold the row drops into b30 only when
+            // d ≥ 30, so it's never double-counted.
+        }
+        return new StaleSummary(report.thresholdDays(), report.total(), b30, b60, b90, never);
     }
 
     // ── Math helpers ─────────────────────────────────────────────────────────

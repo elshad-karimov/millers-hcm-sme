@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleReport;
+import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleSummary;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.TimeToHireReport;
 import az.millers.hcm.recruitment.service.RecruitmentAnalyticsService;
 
@@ -61,5 +62,16 @@ public class RecruitmentAnalyticsController {
     @PreAuthorize(READ_ROLES)
     public StaleReport stale(@RequestParam(defaultValue = "30") int thresholdDays) {
         return service.stale(thresholdDays);
+    }
+
+    /**
+     * M89 — lightweight bucketed summary for the home-dashboard widget.
+     * Same security envelope as the full report; intentionally distinct path
+     * so the tile call doesn't ship the full candidate list down the wire.
+     */
+    @GetMapping("/stale/summary")
+    @PreAuthorize(READ_ROLES)
+    public StaleSummary staleSummary(@RequestParam(defaultValue = "30") int thresholdDays) {
+        return service.staleSummary(thresholdDays);
     }
 }

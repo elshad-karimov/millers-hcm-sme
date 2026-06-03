@@ -64,6 +64,16 @@ export interface StaleReport {
   rows: StaleCandidateRow[]
 }
 
+/** M89 — bucketed counts for the home-dashboard tile. */
+export interface StaleSummary {
+  thresholdDays: number
+  total: number
+  bucket30to59: number
+  bucket60to89: number
+  bucket90plus: number
+  neverContacted: number
+}
+
 export const recruitmentAnalyticsApi = {
   funnel: (from?: string, to?: string) =>
     api
@@ -82,5 +92,11 @@ export const recruitmentAnalyticsApi = {
   stale: (thresholdDays = 30) =>
     api
       .get<StaleReport>('/reports/recruitment/stale', { params: { thresholdDays } })
+      .then((r) => r.data),
+  staleSummary: (thresholdDays = 30) =>
+    api
+      .get<StaleSummary>('/reports/recruitment/stale/summary', {
+        params: { thresholdDays },
+      })
       .then((r) => r.data),
 }

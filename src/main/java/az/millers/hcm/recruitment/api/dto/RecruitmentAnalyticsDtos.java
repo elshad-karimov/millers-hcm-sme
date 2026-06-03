@@ -61,4 +61,17 @@ public final class RecruitmentAnalyticsDtos {
             int thresholdDays,
             long total,
             List<StaleCandidateRow> rows) {}
+
+    /**
+     * Lightweight stale-pool summary (M89) for the home-dashboard widget.
+     * Counts are bucketed by how long since last contact so the tile can
+     * colour-code urgency without paging the full list.
+     */
+    public record StaleSummary(
+            int thresholdDays,
+            long total,
+            long bucket30to59,
+            long bucket60to89,
+            long bucket90plus,
+            long neverContacted) {}
 }

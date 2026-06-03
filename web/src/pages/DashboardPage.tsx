@@ -30,6 +30,7 @@ import { employeesApi } from '../api/employees'
 import { workflowApi } from '../api/workflow'
 import { leaveApi } from '../api/leave'
 import { recruitmentApi } from '../api/recruitment'
+import { recruitmentAnalyticsApi, type StaleSummary } from '../api/recruitmentAnalytics'
 import { payrollApi } from '../api/payroll'
 
 const { Text, Title } = Typography
@@ -201,12 +202,16 @@ interface DashStats {
   pendingLeave: number | null
   pendingTimesheets: number | null
   payrollLabel: string
+  staleCandidates: StaleSummary | null
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { user, hasRole } = useAuth()
+  const showRecruiterTiles = hasRole(
+    'SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'RECRUITER',
+  )
   const navigate = useNavigate()
   const now = new Date()
   const greeting = greetingForHour(now.getHours())
@@ -223,20 +228,25 @@ export function DashboardPage() {
     pendingLeave: null,
     pendingTimesheets: null,
     payrollLabel: '—',
+    staleCandidates: null,
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [empActive, empOnLeave, inboxRes, leaveRes, vacRes, runsRes] = await Promise.allSettled([
-        employeesApi.list({ status: 'ACTIVE', page: 0, size: 1 }),
-        employeesApi.list({ status: 'ON_LEAVE', page: 0, size: 1 }),
-        workflowApi.inbox(),
-        leaveApi.requests({ status: 'PENDING', page: 0, size: 1 }),
-        recruitmentApi.vacancies({ status: 'OPEN', page: 0, size: 1 }),
-        payrollApi.runs(),
-      ])
+      const [empActive, empOnLeave, inboxRes, leaveRes, vacRes, runsRes, staleRes] =
+        await Promise.allSettled([
+          employeesApi.list({ status: 'ACTIVE', page: 0, size: 1 }),
+          employeesApi.list({ status: 'ON_LEAVE', page: 0, size: 1 }),
+          workflowApi.inbox(),
+          leaveApi.requests({ status: 'PENDING', page: 0, size: 1 }),
+          recruitmentApi.vacancies({ status: 'OPEN', page: 0, size: 1 }),
+          payrollApi.runs(),
+          showRecruiterTiles
+            ? recruitmentAnalyticsApi.staleSummary(30)
+            : Promise.resolve(null),
+        ])
       if (!alive) return
 
       const inbox = inboxRes.status === 'fulfilled' ? inboxRes.value : []
@@ -263,6 +273,10 @@ export function DashboardPage() {
         payrollLabel: nextRun
           ? `${MONTH_SHORT[nextRun.periodMonth - 1]} ${nextRun.periodYear}`
           : 'No active run',
+        staleCandidates:
+          staleRes.status === 'fulfilled' && staleRes.value
+            ? (staleRes.value as StaleSummary)
+            : null,
       })
       setLoading(false)
     })()
@@ -487,16 +501,43 @@ export function DashboardPage() {
                 />
               </Col>
               <Col xs={24} sm={12}>
-                <PendingCard
-                  icon={<UserAddOutlined />}
-                  iconColor={brand.cyanDeep}
-                  iconBg="rgba(63,191,191,0.15)"
-                  label="Recruitment"
-                  count={3}
-                  subLabel="Interviews scheduled today"
-                  actionLabel="View interviews"
-                  to="/recruitment/vacancies"
-                />
+                {showRecruiterTiles ? (
+                  <PendingCard
+                    icon={<UserAddOutlined />}
+                    iconColor={
+                      (stats.staleCandidates?.bucket90plus ?? 0) > 0
+                        ? '#cf1322'
+                        : brand.cyanDeep
+                    }
+                    iconBg="rgba(63,191,191,0.15)"
+                    label="Stale Candidates"
+                    count={
+                      loading
+                        ? '…'
+                        : (stats.staleCandidates?.total ?? '—')
+                    }
+                    subLabel={
+                      stats.staleCandidates
+                        ? `${stats.staleCandidates.bucket90plus} ≥ 90d · ` +
+                          `${stats.staleCandidates.bucket60to89} ≥ 60d · ` +
+                          `${stats.staleCandidates.bucket30to59} ≥ 30d`
+                        : 'No contact in 30+ days'
+                    }
+                    actionLabel="Review pool"
+                    to="/recruitment/analytics"
+                  />
+                ) : (
+                  <PendingCard
+                    icon={<UserAddOutlined />}
+                    iconColor={brand.cyanDeep}
+                    iconBg="rgba(63,191,191,0.15)"
+                    label="Recruitment"
+                    count={loading ? '…' : (stats.openPositions ?? '—')}
+                    subLabel="Open positions"
+                    actionLabel="View vacancies"
+                    to="/recruitment/vacancies"
+                  />
+                )}
               </Col>
               <Col xs={24} sm={12}>
                 <PendingCard
