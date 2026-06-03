@@ -1,5 +1,7 @@
 package az.millers.hcm.compbenefits.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -61,19 +63,19 @@ public class BonusRunController {
 
     @PostMapping("/generate")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public BonusRunResponse generate(@Valid @RequestBody BonusRunGenerateRequest req) {
         return BonusRunResponse.from(service.generate(req));
     }
 
     @PostMapping("/{id}/push")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public BonusRunResponse push(@PathVariable UUID id, @Valid @RequestBody BonusRunPushRequest req) {
         return BonusRunResponse.from(service.push(id, req.targetPayrollRunId()));
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public BonusRunResponse cancel(@PathVariable UUID id,
                                      @RequestParam(required = false) String reason) {
         return BonusRunResponse.from(service.cancel(id, reason));

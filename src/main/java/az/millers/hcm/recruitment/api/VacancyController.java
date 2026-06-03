@@ -1,5 +1,7 @@
 package az.millers.hcm.recruitment.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -36,7 +38,7 @@ public class VacancyController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','RECRUITER','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_INTERVIEWS)
     public PageResponse<VacancyResponse> list(
             @RequestParam(required = false) VacancyStatus status,
             @RequestParam(defaultValue = "0") int page,

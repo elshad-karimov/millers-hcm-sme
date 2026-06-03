@@ -16,83 +16,116 @@ package az.millers.hcm.security;
  * <ul>
  *   <li>{@code R_*} constants are bare role names (without the
  *       {@code ROLE_} prefix Spring Security adds).</li>
- *   <li>{@code Read.*} / {@code Write.*} constants are fully-formed SpEL
+ *   <li>{@code READ_*} / {@code WRITE_*} constants are fully-formed SpEL
  *       expressions ready to pass into {@code @PreAuthorize}.</li>
- *   <li>The role-set constants are grouped by <em>capability</em>, not by
- *       module — a capability like {@code Read.HR} answers "who can read
- *       HR-owned employee data" and is reused everywhere that question is
- *       asked.</li>
+ *   <li>Role-sets are named by <em>capability</em>, not module — a single
+ *       capability like {@code READ_HR_PLUS_MANAGERS} answers "which roles
+ *       can read HR-owned data including the employee's direct line
+ *       manager" and is reused everywhere that question is asked. Sharing
+ *       happens because the capability is the same, not because the names
+ *       happen to overlap.</li>
  * </ul>
  *
- * <p>Adding a new role-set: add the SpEL string here. Adding a new role to
- * an existing set: edit the one constant. Both changes ripple to every
- * controller automatically — that is the entire point.
- *
  * <p>Class-level SpEL must be a compile-time-constant {@code String}, so
- * everything here is a {@code public static final String}, not a method.
+ * everything here is {@code public static final String}, not a method.
+ *
+ * <h3>Adding a new capability</h3>
+ * <p>Add a new {@code READ_X} / {@code WRITE_X} constant. Adding a role to
+ * an existing capability: edit the one constant. Both changes ripple to
+ * every controller automatically — that is the entire point.
  */
 public final class SecurityRoles {
 
     private SecurityRoles() {}
 
     // ── Role names ──────────────────────────────────────────────────────────
+    // (verified against codebase role usage as of M90 — keep this list in
+    // sync with the Keycloak realm definition)
 
     public static final String R_SYSTEM_ADMIN        = "SYSTEM_ADMIN";
     public static final String R_HR_ADMIN            = "HR_ADMIN";
-    public static final String R_HR_SPECIALIST       = "HR_SPECIALIST";
+    public static final String R_HR_SPECIALIST      = "HR_SPECIALIST";
     public static final String R_AUDITOR             = "AUDITOR";
     public static final String R_RECRUITER           = "RECRUITER";
     public static final String R_DEPARTMENT_MANAGER  = "DEPARTMENT_MANAGER";
     public static final String R_EMPLOYEE            = "EMPLOYEE";
     public static final String R_OCCUPATIONAL_HEALTH = "OCCUPATIONAL_HEALTH";
-    public static final String R_PAYROLL_MANAGER     = "PAYROLL_MANAGER";
+    public static final String R_PAYROLL_SPECIALIST  = "PAYROLL_SPECIALIST";
+    public static final String R_FINANCE_USER        = "FINANCE_USER";
 
-    // ── Read role-sets ──────────────────────────────────────────────────────
+    // ── Building blocks ─────────────────────────────────────────────────────
+    // Small primitives that the named role-sets below compose. Kept package-
+    // private so callers compose via the named role-sets, not these.
 
-    /** Recruitment read surface — vacancies, candidates, applications, interviews, analytics. */
-    public static final String READ_RECRUITMENT =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','"
-                    + R_HR_SPECIALIST + "','" + R_RECRUITER + "','" + R_AUDITOR + "')";
+    private static final String SA      = "'" + R_SYSTEM_ADMIN + "'";
+    private static final String HRA     = "'" + R_HR_ADMIN + "'";
+    private static final String HRS     = "'" + R_HR_SPECIALIST + "'";
+    private static final String DM      = "'" + R_DEPARTMENT_MANAGER + "'";
+    private static final String AUD     = "'" + R_AUDITOR + "'";
+    private static final String REC     = "'" + R_RECRUITER + "'";
+    private static final String PAYR    = "'" + R_PAYROLL_SPECIALIST + "'";
+    private static final String FIN     = "'" + R_FINANCE_USER + "'";
 
-    /** Recruitment write surface — manage candidates, vacancies, interview kits, talent pool. */
-    public static final String WRITE_RECRUITMENT =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','" + R_RECRUITER + "')";
+    // ── HR (employee directory, profile, lifecycle) ─────────────────────────
+
+    /** HR-only read: directory, leave admin, sensitive HR documents. */
+    public static final String READ_HR =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + AUD + ")";
 
     /**
-     * Recruitment read surface that ALSO grants department managers — used
-     * for the interview-rounds surface (technical interviewers are usually
-     * the hiring manager, not the recruiter).
+     * HR read + direct-line department manager. Used by profile tabs,
+     * assets/notes/rewards, assignment history, status overlays, employment
+     * contracts, probation reviews, org-unit policies, employee-mgmt reports.
      */
-    public static final String READ_INTERVIEWS =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','"
-                    + R_HR_SPECIALIST + "','" + R_RECRUITER + "','" + R_AUDITOR + "','"
-                    + R_DEPARTMENT_MANAGER + "')";
+    public static final String READ_HR_PLUS_MANAGERS =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + DM + "," + AUD + ")";
 
-    /** Same as {@link #READ_INTERVIEWS} but excludes AUDITOR (writes). */
-    public static final String WRITE_INTERVIEWS =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','"
-                    + R_HR_SPECIALIST + "','" + R_RECRUITER + "','" + R_DEPARTMENT_MANAGER + "')";
-
-    /** Core HR read surface — employee directory, org units, position assignments. */
-    public static final String READ_HR =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','"
-                    + R_HR_SPECIALIST + "','" + R_AUDITOR + "')";
-
-    /** Core HR write surface — edit employee, terminate, re-org. */
+    /** HR write — most "edit employee X" endpoints. */
     public static final String WRITE_HR =
-            "hasAnyRole('" + R_HR_ADMIN + "','" + R_HR_SPECIALIST + "')";
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + ")";
 
-    /** Lifecycle read surface — termination + contract change + probation + disciplinary. */
-    public static final String READ_LIFECYCLE =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','"
-                    + R_HR_SPECIALIST + "','" + R_AUDITOR + "','" + R_DEPARTMENT_MANAGER + "')";
+    /** HR admin-only write — narrower; e.g. leave-group master, bank-account assignment. */
+    public static final String WRITE_HR_ADMIN_ONLY =
+            "hasAnyRole(" + SA + "," + HRA + ")";
 
-    /** Lifecycle write surface. */
-    public static final String WRITE_LIFECYCLE =
-            "hasAnyRole('" + R_HR_ADMIN + "','" + R_HR_SPECIALIST + "')";
+    /** HR write + department managers — e.g. probation review submission. */
+    public static final String WRITE_HR_PLUS_MANAGERS =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + DM + ")";
 
-    /** Reporting + analytics read surface. */
-    public static final String READ_REPORTS =
-            "hasAnyRole('" + R_SYSTEM_ADMIN + "','" + R_HR_ADMIN + "','"
-                    + R_HR_SPECIALIST + "','" + R_AUDITOR + "','" + R_DEPARTMENT_MANAGER + "')";
+    // ── Recruitment ─────────────────────────────────────────────────────────
+
+    /** Recruitment read — vacancies, candidates, applications, interview kits, analytics. */
+    public static final String READ_RECRUITMENT =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + REC + "," + AUD + ")";
+
+    /** Recruitment write — manage candidates, kits, talent pool. */
+    public static final String WRITE_RECRUITMENT =
+            "hasAnyRole(" + SA + "," + HRA + "," + REC + ")";
+
+    /** Interview rounds — adds DEPARTMENT_MANAGER (the hiring manager). */
+    public static final String READ_INTERVIEWS =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + REC + "," + AUD + "," + DM + ")";
+
+    /** Interview rounds — write surface (schedule, score, decision). */
+    public static final String WRITE_INTERVIEWS =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + REC + "," + DM + ")";
+
+    // ── Payroll ─────────────────────────────────────────────────────────────
+
+    /** Payroll read — runs, results, payslips. Includes FINANCE_USER for treasury view. */
+    public static final String READ_PAYROLL =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + PAYR + "," + AUD + "," + FIN + ")";
+
+    /** Payroll read — internal HR view (bank accounts, encrypted PII). No FINANCE_USER. */
+    public static final String READ_PAYROLL_INTERNAL =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + PAYR + "," + AUD + ")";
+
+    /** Payroll calculation / approval write. */
+    public static final String WRITE_PAYROLL =
+            "hasAnyRole(" + SA + "," + HRA + "," + PAYR + ")";
+
+    // ── Reporting ───────────────────────────────────────────────────────────
+
+    /** Reporting + analytics — same shape as {@link #READ_HR_PLUS_MANAGERS}. */
+    public static final String READ_REPORTS = READ_HR_PLUS_MANAGERS;
 }

@@ -1,5 +1,7 @@
 package az.millers.hcm.compbenefits.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -44,19 +46,19 @@ public class EmployeeAllowanceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public EmployeeAllowanceResponse create(@Valid @RequestBody EmployeeAllowanceRequest req) {
         return EmployeeAllowanceResponse.from(service.create(req));
     }
 
     @PostMapping("/{id}/end")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public EmployeeAllowanceResponse end(@PathVariable UUID id, @RequestParam LocalDate endDate) {
         return EmployeeAllowanceResponse.from(service.end(id, endDate));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public EmployeeAllowanceResponse cancel(@PathVariable UUID id,
                                               @RequestParam(required = false) String reason) {
         return EmployeeAllowanceResponse.from(service.cancel(id, reason));

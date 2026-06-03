@@ -1,5 +1,7 @@
 package az.millers.hcm.attendance.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -53,7 +55,7 @@ public class AttendanceEventController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<AttendanceEventResponse> list(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam LocalDate fromDate,

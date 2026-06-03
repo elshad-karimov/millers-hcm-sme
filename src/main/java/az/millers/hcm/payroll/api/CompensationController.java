@@ -1,5 +1,7 @@
 package az.millers.hcm.payroll.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -38,7 +40,7 @@ public class CompensationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CompensationResponse upsert(@Valid @RequestBody CompensationRequest req) {
         EmployeeCompensation c = new EmployeeCompensation();
         c.setEmployeeId(req.employeeId());

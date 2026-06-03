@@ -1,5 +1,7 @@
 package az.millers.hcm.compbenefits.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -44,13 +46,13 @@ public class AllowanceTypeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public AllowanceTypeResponse create(@Valid @RequestBody AllowanceTypeRequest req) {
         return AllowanceTypeResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public AllowanceTypeResponse update(@PathVariable UUID id,
                                           @Valid @RequestBody AllowanceTypeRequest req) {
         return AllowanceTypeResponse.from(service.update(id, req));

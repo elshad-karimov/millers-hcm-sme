@@ -1,5 +1,7 @@
 package az.millers.hcm.performance.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -56,7 +58,7 @@ public class PerformanceReviewController {
 
     @PostMapping("/start")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public PerformanceReviewResponse start(@Valid @RequestBody ReviewStartRequest req) {
         return PerformanceReviewResponse.from(service.start(req));
     }
@@ -69,27 +71,27 @@ public class PerformanceReviewController {
     }
 
     @PostMapping("/{id}/manager")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public PerformanceReviewResponse submitManager(@PathVariable UUID id,
                                                      @Valid @RequestBody ManagerReviewRequest req) {
         return PerformanceReviewResponse.from(service.submitManagerReview(id, req));
     }
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public PerformanceReviewResponse submitForApproval(@PathVariable UUID id) {
         return PerformanceReviewResponse.from(service.submitForApproval(id));
     }
 
     @PostMapping("/{id}/calibrate")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PerformanceReviewResponse calibrate(@PathVariable UUID id,
                                                  @Valid @RequestBody CalibrationRequest req) {
         return PerformanceReviewResponse.from(service.calibrate(id, req));
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PerformanceReviewResponse close(@PathVariable UUID id) {
         return PerformanceReviewResponse.from(service.close(id));
     }

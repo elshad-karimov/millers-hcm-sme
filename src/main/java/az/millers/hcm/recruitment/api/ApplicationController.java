@@ -1,5 +1,7 @@
 package az.millers.hcm.recruitment.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +34,7 @@ public class ApplicationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','RECRUITER','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_INTERVIEWS)
     public List<ApplicationResponse> list(
             @RequestParam(required = false) UUID vacancyId,
             @RequestParam(required = false) UUID candidateId) {

@@ -1,5 +1,7 @@
 package az.millers.hcm.staffing.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -45,20 +47,20 @@ public class GradeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public GradeResponse create(@Valid @RequestBody GradeRequest req) {
         return GradeResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public GradeResponse update(@PathVariable UUID id, @Valid @RequestBody GradeRequest req) {
         return GradeResponse.from(service.update(id, req));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public void delete(@PathVariable UUID id) {
         service.delete(id);
     }

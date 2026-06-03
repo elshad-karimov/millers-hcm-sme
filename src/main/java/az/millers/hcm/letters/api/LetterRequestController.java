@@ -1,5 +1,7 @@
 package az.millers.hcm.letters.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -43,7 +45,7 @@ public class LetterRequestController {
      * so DEPARTMENT_MANAGER callers only see their team's requests.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<LetterRequestResponse> list(
             @RequestParam(required = false) LetterStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -60,7 +62,7 @@ public class LetterRequestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public LetterRequestResponse create(@Valid @RequestBody LetterSubmitRequest req) {
         return LetterRequestResponse.from(service.submit(req));
     }

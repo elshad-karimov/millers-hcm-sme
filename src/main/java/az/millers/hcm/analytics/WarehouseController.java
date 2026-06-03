@@ -1,5 +1,7 @@
 package az.millers.hcm.analytics;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +15,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/analytics/warehouse")
-@PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+@PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
 public class WarehouseController {
 
     private final WarehouseEtlService etl;

@@ -26,8 +26,8 @@ import az.millers.hcm.reporting.service.SpanOfControlService;
 @RequestMapping("/api/reports/emp-mgmt")
 public class EmpMgmtReportsController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_REPORTS;
 
     private final EmpMgmtReportsService reports;
     private final ActivityFeedService activity;

@@ -1,5 +1,7 @@
 package az.millers.hcm.permission.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.Year;
 import java.util.List;
 import java.util.UUID;
@@ -60,13 +62,13 @@ public class PermissionController {
 
     @PostMapping("/types")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PermissionTypeResponse createType(@Valid @RequestBody PermissionTypeRequest req) {
         return PermissionTypeResponse.from(typeService.create(req));
     }
 
     @PutMapping("/types/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PermissionTypeResponse updateType(@PathVariable UUID id,
                                               @Valid @RequestBody PermissionTypeRequest req) {
         return PermissionTypeResponse.from(typeService.update(id, req));
@@ -81,7 +83,7 @@ public class PermissionController {
     // ---------- Balances ----------
 
     @GetMapping("/balances")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public List<PermissionBalanceResponse> listBalances(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam(required = false) Integer year) {
@@ -93,7 +95,7 @@ public class PermissionController {
     }
 
     @PostMapping("/balances/adjust")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PermissionBalanceResponse adjustBalance(@Valid @RequestBody PermissionBalanceAdjustment req) {
         return PermissionBalanceResponse.from(balanceService.applyAdjustment(req));
     }
@@ -101,7 +103,7 @@ public class PermissionController {
     // ---------- Requests ----------
 
     @GetMapping("/requests")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<PermissionRequestResponse> listRequests(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam(required = false) PermissionRequestStatus status,

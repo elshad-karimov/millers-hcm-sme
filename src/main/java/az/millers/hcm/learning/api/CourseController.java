@@ -1,5 +1,7 @@
 package az.millers.hcm.learning.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -79,32 +81,32 @@ public class CourseController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CourseResponse create(@Valid @RequestBody CourseRequest req) {
         return CourseResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CourseResponse update(@PathVariable UUID id, @Valid @RequestBody CourseRequest req) {
         return CourseResponse.from(service.update(id, req));
     }
 
     @PostMapping("/{id}/publish")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CourseResponse publish(@PathVariable UUID id) {
         return CourseResponse.from(service.publish(id));
     }
 
     @PostMapping("/{id}/archive")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CourseResponse archive(@PathVariable UUID id) {
         return CourseResponse.from(service.archive(id));
     }
 
     @PostMapping("/{id}/questions")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public QuestionResponse addQuestion(@PathVariable UUID id,
                                           @Valid @RequestBody QuestionRequest req) {
         return QuestionResponse.from(service.addQuestion(id, req), true);
@@ -112,7 +114,7 @@ public class CourseController {
 
     @PostMapping("/{id}/competencies")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public Map<String, Object> mapCompetency(@PathVariable UUID id,
                                               @Valid @RequestBody CourseCompetencyRequest req) {
         service.mapCompetency(id, req);

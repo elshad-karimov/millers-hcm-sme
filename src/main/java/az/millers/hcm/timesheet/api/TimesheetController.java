@@ -1,5 +1,7 @@
 package az.millers.hcm.timesheet.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -49,7 +51,7 @@ public class TimesheetController {
     }
 
     @PostMapping("/generate")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public TimesheetResponse generate(@Valid @RequestBody GenerateTimesheetRequest req) {
         Timesheet ts = service.generate(req.employeeId(), req.periodYear(), req.periodMonth());
         List<TimesheetDayResponse> dayList = service.daysOf(ts.getId()).stream()

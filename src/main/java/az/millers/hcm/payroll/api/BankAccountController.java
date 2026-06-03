@@ -34,9 +34,9 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/payroll/bank-accounts")
 public class BankAccountController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','PAYROLL_SPECIALIST','AUDITOR')";
-    private static final String WRITE_ROLES = "hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_PAYROLL_INTERNAL;
+    private static final String WRITE_ROLES = az.millers.hcm.security.SecurityRoles.WRITE_HR_ADMIN_ONLY;
 
     private final BankAccountService service;
 

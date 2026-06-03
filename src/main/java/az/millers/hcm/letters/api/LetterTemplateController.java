@@ -1,5 +1,7 @@
 package az.millers.hcm.letters.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -46,13 +48,13 @@ public class LetterTemplateController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LetterTemplateResponse create(@Valid @RequestBody LetterTemplateRequest req) {
         return LetterTemplateResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LetterTemplateResponse update(@PathVariable UUID id,
                                           @Valid @RequestBody LetterTemplateRequest req) {
         return LetterTemplateResponse.from(service.update(id, req));
@@ -60,7 +62,7 @@ public class LetterTemplateController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public void deactivate(@PathVariable UUID id) {
         service.deactivate(id);
     }

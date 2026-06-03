@@ -1,5 +1,7 @@
 package az.millers.hcm.staffing.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -47,20 +49,20 @@ public class JobFunctionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public JobFunctionResponse create(@Valid @RequestBody JobFunctionRequest req) {
         return JobFunctionResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public JobFunctionResponse update(@PathVariable UUID id, @Valid @RequestBody JobFunctionRequest req) {
         return JobFunctionResponse.from(service.update(id, req));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public void delete(@PathVariable UUID id) {
         service.delete(id);
     }

@@ -1,5 +1,7 @@
 package az.millers.hcm.reporting.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -51,7 +53,7 @@ public class ReportDefinitionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public DefinitionResponse create(@Valid @RequestBody DefinitionRequest req) {
         return DefinitionResponse.from(service.create(
                 req.name(), req.reportType(), req.defaultFormat(),
@@ -59,7 +61,7 @@ public class ReportDefinitionController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public DefinitionResponse update(@PathVariable UUID id, @Valid @RequestBody DefinitionRequest req) {
         return DefinitionResponse.from(service.update(id,
                 req.name(), req.reportType(), req.defaultFormat(),

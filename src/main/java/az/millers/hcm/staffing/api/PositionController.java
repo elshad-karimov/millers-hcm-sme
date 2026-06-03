@@ -1,5 +1,7 @@
 package az.millers.hcm.staffing.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -79,7 +81,7 @@ public class PositionController {
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PositionResponse close(@PathVariable UUID id,
                                    @RequestBody(required = false) az.millers.hcm.organization.api.dto.StatusTransitionRequest req) {
         return PositionResponse.from(service.close(id, req == null ? null : req.reason()));

@@ -35,10 +35,9 @@ import az.millers.hcm.leave.service.LeaveGroupService;
 @RequestMapping("/api/leave/groups")
 public class LeaveGroupController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','AUDITOR')";
-    private static final String WRITE_ROLES =
-            "hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_HR;
+    private static final String WRITE_ROLES = az.millers.hcm.security.SecurityRoles.WRITE_HR_ADMIN_ONLY;
 
     private final LeaveGroupService service;
 

@@ -1,5 +1,7 @@
 package az.millers.hcm.lifecycle.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -35,7 +37,7 @@ public class ContractChangeController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<ContractChangeResponse> list(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam(required = false) ChangeType type,

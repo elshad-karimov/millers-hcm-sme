@@ -1,5 +1,7 @@
 package az.millers.hcm.selfservice.timeline;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -28,7 +30,7 @@ public class TimelineController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public List<TimelineEvent> get(@PathVariable UUID employeeId,
                                     @RequestParam(defaultValue = "200") int limit) {
         return service.forEmployee(employeeId, Math.min(Math.max(limit, 1), 500));

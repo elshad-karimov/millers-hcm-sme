@@ -1,5 +1,7 @@
 package az.millers.hcm.leave.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -45,13 +47,13 @@ public class LeaveTypeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LeaveTypeResponse create(@Valid @RequestBody LeaveTypeRequest req) {
         return LeaveTypeResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LeaveTypeResponse update(@PathVariable UUID id, @Valid @RequestBody LeaveTypeRequest req) {
         return LeaveTypeResponse.from(service.update(id, req));
     }

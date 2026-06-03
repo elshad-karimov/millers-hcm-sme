@@ -1,5 +1,7 @@
 package az.millers.hcm.reporting.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.Year;
 import java.util.UUID;
 
@@ -45,7 +47,7 @@ public class DashboardController {
     // ------------------------------------------------------------------ //
 
     @GetMapping("/headcount-trend")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public HeadcountTrend headcountTrend(
             @RequestParam(defaultValue = "12") int months) {
         return svc.headcountTrend(Math.min(months, 24));
@@ -68,7 +70,7 @@ public class DashboardController {
     // ------------------------------------------------------------------ //
 
     @GetMapping("/turnover")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public TurnoverDashboard turnover(
             @RequestParam(defaultValue = "0") int year) {
         int y = year == 0 ? Year.now().getValue() : year;

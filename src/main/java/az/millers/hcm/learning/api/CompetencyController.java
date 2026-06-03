@@ -1,5 +1,7 @@
 package az.millers.hcm.learning.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -45,13 +47,13 @@ public class CompetencyController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CompetencyResponse create(@Valid @RequestBody CompetencyRequest req) {
         return CompetencyResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public CompetencyResponse update(@PathVariable UUID id, @Valid @RequestBody CompetencyRequest req) {
         return CompetencyResponse.from(service.update(id, req));
     }

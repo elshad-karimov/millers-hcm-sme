@@ -1,5 +1,7 @@
 package az.millers.hcm.payroll.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -38,26 +40,26 @@ public class PayrollRunController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','PAYROLL_SPECIALIST','AUDITOR','FINANCE_USER')")
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public List<PayrollRunResponse> list() {
         return service.list().stream().map(PayrollRunResponse::from).toList();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','PAYROLL_SPECIALIST','AUDITOR','FINANCE_USER')")
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public PayrollRunResponse get(@PathVariable UUID id) {
         return PayrollRunResponse.from(service.get(id));
     }
 
     @GetMapping("/{id}/results")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','PAYROLL_SPECIALIST','AUDITOR','FINANCE_USER')")
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public List<PayrollResultResponse> results(@PathVariable UUID id) {
         return service.resultsOf(id).stream().map(PayrollResultResponse::from).toList();
     }
 
     /** M41: allowance breakdown for one employee on a run. */
     @GetMapping("/{id}/results/{employeeId}/allowances")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','PAYROLL_SPECIALIST','AUDITOR','FINANCE_USER')")
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public List<PayrollAllowanceResponse> allowances(@PathVariable UUID id,
                                                      @PathVariable UUID employeeId) {
         return service.allowancesOf(id, employeeId).stream()
@@ -67,7 +69,7 @@ public class PayrollRunController {
 
     /** M41: full per-run allowance snapshot. */
     @GetMapping("/{id}/allowances")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','PAYROLL_SPECIALIST','AUDITOR','FINANCE_USER')")
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public List<PayrollAllowanceResponse> allowancesForRun(@PathVariable UUID id) {
         return service.allowancesOfRun(id).stream()
                 .map(PayrollAllowanceResponse::from)
@@ -76,20 +78,20 @@ public class PayrollRunController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN','PAYROLL_SPECIALIST')")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
     public PayrollRunResponse create(@Valid @RequestBody CreateRunRequest req) {
         return PayrollRunResponse.from(service.create(req));
     }
 
     @PostMapping("/{id}/calculate")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN','PAYROLL_SPECIALIST')")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
     public PayrollRunResponse calculate(@PathVariable UUID id) {
         return PayrollRunResponse.from(service.calculate(id));
     }
 
     @PostMapping("/{id}/bonuses")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN','PAYROLL_SPECIALIST')")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
     public void addBonus(@PathVariable UUID id, @Valid @RequestBody AddBonusRequest req) {
         service.addBonus(id, req);
     }
@@ -107,7 +109,7 @@ public class PayrollRunController {
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PayrollRunResponse close(@PathVariable UUID id) {
         return PayrollRunResponse.from(service.close(id));
     }

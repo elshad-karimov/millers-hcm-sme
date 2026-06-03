@@ -1,5 +1,7 @@
 package az.millers.hcm.compbenefits.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -47,13 +49,13 @@ public class BonusMatrixController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public BonusMatrixRuleResponse create(@Valid @RequestBody BonusMatrixRuleRequest req) {
         return BonusMatrixRuleResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public BonusMatrixRuleResponse update(@PathVariable UUID id,
                                             @Valid @RequestBody BonusMatrixRuleRequest req) {
         return BonusMatrixRuleResponse.from(service.update(id, req));

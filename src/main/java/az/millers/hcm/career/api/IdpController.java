@@ -1,5 +1,7 @@
 package az.millers.hcm.career.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import az.millers.hcm.career.api.dto.*;
 import az.millers.hcm.career.service.IdpService;
 import org.springframework.http.HttpStatus;
@@ -33,7 +35,7 @@ public class IdpController {
     // HR / admin access — any employee
     // ──────────────────────────────────────────────────────────────────────────
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PostMapping("/api/employees/{employeeId}/idp")
     @ResponseStatus(HttpStatus.CREATED)
     public IdpResponse createForEmployee(@PathVariable UUID employeeId,
@@ -41,31 +43,31 @@ public class IdpController {
         return service.create(employeeId, req);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     @GetMapping("/api/employees/{employeeId}/idp")
     public List<IdpResponse> listForEmployee(@PathVariable UUID employeeId) {
         return service.list(employeeId);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     @GetMapping("/api/idp/{idpId}")
     public IdpResponse get(@PathVariable UUID idpId) {
         return service.get(idpId);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PostMapping("/api/idp/{idpId}/activate")
     public IdpResponse activate(@PathVariable UUID idpId) {
         return service.activate(idpId);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PostMapping("/api/idp/{idpId}/complete")
     public IdpResponse complete(@PathVariable UUID idpId) {
         return service.complete(idpId);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PostMapping("/api/idp/{idpId}/cancel")
     public IdpResponse cancel(@PathVariable UUID idpId) {
         return service.cancel(idpId);
@@ -78,7 +80,7 @@ public class IdpController {
         return service.addManagerComment(idpId, body.get("comment"));
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PostMapping("/api/idp/{idpId}/skill-gaps")
     @ResponseStatus(HttpStatus.CREATED)
     public IdpResponse addSkillGap(@PathVariable UUID idpId,
@@ -86,14 +88,14 @@ public class IdpController {
         return service.addSkillGap(idpId, req);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @DeleteMapping("/api/idp/{idpId}/skill-gaps/{gapId}")
     public IdpResponse removeSkillGap(@PathVariable UUID idpId,
                                       @PathVariable UUID gapId) {
         return service.removeSkillGap(idpId, gapId);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PostMapping("/api/idp/{idpId}/activities")
     @ResponseStatus(HttpStatus.CREATED)
     public IdpResponse addActivity(@PathVariable UUID idpId,
@@ -101,7 +103,7 @@ public class IdpController {
         return service.addActivity(idpId, req);
     }
 
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     @PatchMapping("/api/idp/{idpId}/activities/{activityId}/status")
     public IdpResponse updateActivityStatus(@PathVariable UUID idpId,
                                             @PathVariable UUID activityId,

@@ -1,5 +1,7 @@
 package az.millers.hcm.corehr.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,7 +32,7 @@ public class RehireController {
 
     @PostMapping("/rehire")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public EmployeeResponse rehire(@Valid @RequestBody RehireRequest req) {
         return EmployeeResponse.from(service.rehire(req));
     }

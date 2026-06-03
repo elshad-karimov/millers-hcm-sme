@@ -1,5 +1,7 @@
 package az.millers.hcm.performance.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -50,13 +52,13 @@ public class GoalController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public GoalResponse create(@Valid @RequestBody GoalRequest req) {
         return GoalResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public GoalResponse update(@PathVariable UUID id, @Valid @RequestBody GoalRequest req) {
         return GoalResponse.from(service.update(id, req));
     }
@@ -69,7 +71,7 @@ public class GoalController {
     }
 
     @PostMapping("/{id}/rate")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public GoalResponse rate(@PathVariable UUID id, @Valid @RequestBody GoalRatingRequest req) {
         return GoalResponse.from(service.rate(id, req));
     }

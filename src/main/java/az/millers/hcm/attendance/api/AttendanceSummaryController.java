@@ -1,5 +1,7 @@
 package az.millers.hcm.attendance.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -31,7 +33,7 @@ public class AttendanceSummaryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public List<DailySummaryResponse> list(
             @RequestParam LocalDate fromDate,
             @RequestParam LocalDate toDate,
@@ -43,7 +45,7 @@ public class AttendanceSummaryController {
     }
 
     @PostMapping("/run")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public EngineRunResponse run(@Valid @RequestBody RunEngineRequest req) {
         var r = engine.run(req.fromDate(), req.toDate(), req.employeeId());
         return new EngineRunResponse(r.employeesProcessed(), r.summariesWritten());

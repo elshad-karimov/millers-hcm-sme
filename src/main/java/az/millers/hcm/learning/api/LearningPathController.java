@@ -1,5 +1,7 @@
 package az.millers.hcm.learning.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -58,13 +60,13 @@ public class LearningPathController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LearningPathResponse create(@Valid @RequestBody LearningPathRequest req) {
         return service.create(req);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LearningPathResponse update(@PathVariable UUID id,
                                         @Valid @RequestBody LearningPathRequest req) {
         return service.update(id, req);
@@ -72,14 +74,14 @@ public class LearningPathController {
 
     @PostMapping("/{id}/courses")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LearningPathResponse addCourse(@PathVariable UUID id,
                                            @Valid @RequestBody LearningPathCourseRequest req) {
         return service.addCourse(id, req);
     }
 
     @DeleteMapping("/{id}/courses/{stepId}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LearningPathResponse removeCourse(@PathVariable UUID id,
                                               @PathVariable UUID stepId) {
         return service.removeCourse(id, stepId);

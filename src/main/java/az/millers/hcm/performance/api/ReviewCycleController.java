@@ -1,5 +1,7 @@
 package az.millers.hcm.performance.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -45,20 +47,20 @@ public class ReviewCycleController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ReviewCycleResponse create(@Valid @RequestBody ReviewCycleRequest req) {
         return ReviewCycleResponse.from(service.create(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ReviewCycleResponse update(@PathVariable UUID id,
                                        @Valid @RequestBody ReviewCycleRequest req) {
         return ReviewCycleResponse.from(service.update(id, req));
     }
 
     @PostMapping("/{id}/status/{status}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ReviewCycleResponse changeStatus(@PathVariable UUID id,
                                               @PathVariable CycleStatus status,
                                               @RequestParam(required = false) String reason) {

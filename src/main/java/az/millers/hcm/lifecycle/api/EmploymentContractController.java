@@ -46,10 +46,9 @@ import az.millers.hcm.lifecycle.service.EmploymentContractService;
 @RestController
 public class EmploymentContractController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','SYSTEM_ADMIN','AUDITOR')";
-    private static final String WRITE_ROLES =
-            "hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_HR_PLUS_MANAGERS;
+    private static final String WRITE_ROLES = az.millers.hcm.security.SecurityRoles.WRITE_HR;
 
     private final EmploymentContractService service;
 

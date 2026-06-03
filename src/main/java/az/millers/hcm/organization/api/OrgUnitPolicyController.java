@@ -31,10 +31,9 @@ import jakarta.validation.constraints.Size;
 @RequestMapping("/api/org")
 public class OrgUnitPolicyController {
 
-    private static final String READ_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','AUDITOR')";
-    private static final String WRITE_ROLES =
-            "hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST')";
+    /** Centralised role sets — see {@link az.millers.hcm.security.SecurityRoles}. */
+    private static final String READ_ROLES = az.millers.hcm.security.SecurityRoles.READ_HR_PLUS_MANAGERS;
+    private static final String WRITE_ROLES = az.millers.hcm.security.SecurityRoles.WRITE_HR;
 
     private final OrgUnitPolicyService policies;
     private final OrgUnitHistoryService history;

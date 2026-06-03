@@ -1,5 +1,7 @@
 package az.millers.hcm.attendance.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -33,13 +35,13 @@ public class WorkScheduleController {
     }
 
     @GetMapping("/schedules")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public List<WorkScheduleResponse> list() {
         return service.list().stream().map(WorkScheduleResponse::from).toList();
     }
 
     @GetMapping("/schedules/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public WorkScheduleResponse get(@PathVariable UUID id) {
         return WorkScheduleResponse.from(service.get(id));
     }
@@ -61,7 +63,7 @@ public class WorkScheduleController {
     // ---------- Assignments ----------
 
     @GetMapping("/assignments")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public List<ScheduleAssignmentResponse> assignmentsFor(@RequestParam UUID employeeId) {
         return service.assignmentsFor(employeeId).stream()
                 .map(ScheduleAssignmentResponse::from).toList();

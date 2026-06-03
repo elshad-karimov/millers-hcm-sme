@@ -1,5 +1,7 @@
 package az.millers.hcm.learning.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -49,7 +51,7 @@ public class GapAnalysisController {
 
     @PostMapping("/positions/{positionId}/requirements")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PositionRequirementResponse addRequirement(@PathVariable UUID positionId,
                                                       @RequestBody @Valid PositionRequirementRequest req) {
         return service.addOrUpdateRequirement(positionId, req);
@@ -57,7 +59,7 @@ public class GapAnalysisController {
 
     @DeleteMapping("/positions/{positionId}/requirements/{competencyId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public void removeRequirement(@PathVariable UUID positionId,
                                    @PathVariable UUID competencyId) {
         service.removeRequirement(positionId, competencyId);

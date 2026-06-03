@@ -1,5 +1,7 @@
 package az.millers.hcm.leave.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,7 +39,7 @@ public class LeaveAccrualController {
      * month, dryRun=false". HR_ADMIN / SYSTEM_ADMIN only.
      */
     @PostMapping("/run-now")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public AccrualResult runNow(
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,

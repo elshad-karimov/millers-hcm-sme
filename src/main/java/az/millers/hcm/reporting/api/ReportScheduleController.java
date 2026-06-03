@@ -1,5 +1,7 @@
 package az.millers.hcm.reporting.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -44,7 +46,7 @@ public class ReportScheduleController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ScheduleResponse create(@Valid @RequestBody ScheduleRequest req) {
         return ScheduleResponse.from(service.create(
                 req.name(), req.definitionId(), req.cron(),
@@ -52,7 +54,7 @@ public class ReportScheduleController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ScheduleResponse update(@PathVariable UUID id,
                                      @Valid @RequestBody ScheduleUpdateRequest req) {
         return ScheduleResponse.from(service.update(id,
@@ -62,7 +64,7 @@ public class ReportScheduleController {
 
     /** Force-run a schedule now (also useful for testing without waiting). */
     @PostMapping("/{id}/run-now")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ScheduleResponse runNow(@PathVariable UUID id) {
         var s = service.get(id);
         return ScheduleResponse.from(service.runOne(s, java.time.OffsetDateTime.now()));

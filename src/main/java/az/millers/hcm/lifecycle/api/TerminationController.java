@@ -1,5 +1,7 @@
 package az.millers.hcm.lifecycle.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -37,7 +39,7 @@ public class TerminationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<TerminationResponse> list(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam(required = false) TerminationStatus status,
@@ -61,7 +63,7 @@ public class TerminationController {
     }
 
     @PostMapping("/{id}/clearance")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public TerminationResponse updateClearance(@PathVariable UUID id,
                                                 @RequestBody ClearanceUpdateRequest req) {
         return TerminationResponse.from(service.updateClearance(id, req));
@@ -75,7 +77,7 @@ public class TerminationController {
     }
 
     @PostMapping("/{id}/process")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public TerminationResponse process(@PathVariable UUID id) {
         return TerminationResponse.from(service.process(id));
     }

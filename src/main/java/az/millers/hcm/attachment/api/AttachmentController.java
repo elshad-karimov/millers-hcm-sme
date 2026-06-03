@@ -1,5 +1,7 @@
 package az.millers.hcm.attachment.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -164,7 +166,7 @@ public class AttachmentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
     public AttachmentResponse delete(@PathVariable UUID id) {
         return AttachmentResponse.from(service.delete(id));
     }

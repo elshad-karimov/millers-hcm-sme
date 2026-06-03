@@ -1,5 +1,7 @@
 package az.millers.hcm.recruitment.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -35,7 +37,7 @@ public class CandidateController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','RECRUITER')")
+    @PreAuthorize(SecurityRoles.READ_RECRUITMENT)
     public PageResponse<CandidateResponse> list(
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,

@@ -1,5 +1,7 @@
 package az.millers.hcm.corehr.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -53,7 +55,7 @@ public class EmployeeController {
      * filter is functionally identical to the pre-M69 behaviour.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<EmployeeResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -86,7 +88,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public EmployeeResponse get(@PathVariable UUID id) {
         return EmployeeResponse.from(employeeService.get(id));
     }

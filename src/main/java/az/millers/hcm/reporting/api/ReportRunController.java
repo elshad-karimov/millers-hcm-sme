@@ -1,5 +1,7 @@
 package az.millers.hcm.reporting.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -47,7 +49,7 @@ public class ReportRunController {
      * Restricted to HR/admin since it spends an outbound email.
      */
     @PostMapping("/{id}/resend-email")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public RunResponse resendEmail(@PathVariable UUID id) {
         return RunResponse.from(service.resendEmail(id));
     }
@@ -57,7 +59,7 @@ public class ReportRunController {
      * fixing a webhook URL or rotating a Slack incoming-webhook token.
      */
     @PostMapping("/{id}/resend-webhook")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public RunResponse resendWebhook(@PathVariable UUID id) {
         return RunResponse.from(service.resendWebhook(id));
     }

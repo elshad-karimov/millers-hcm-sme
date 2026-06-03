@@ -1,5 +1,7 @@
 package az.millers.hcm.leave.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.Year;
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +30,7 @@ public class LeaveBalanceController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public List<LeaveBalanceResponse> list(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam(required = false) Integer year) {
@@ -40,7 +42,7 @@ public class LeaveBalanceController {
     }
 
     @PostMapping("/adjust")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public LeaveBalanceResponse adjust(@Valid @RequestBody LeaveBalanceAdjustment req) {
         return LeaveBalanceResponse.from(service.applyAdjustment(req));
     }

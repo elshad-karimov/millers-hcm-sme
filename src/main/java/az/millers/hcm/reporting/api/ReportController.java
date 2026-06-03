@@ -1,5 +1,7 @@
 package az.millers.hcm.reporting.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -31,13 +33,13 @@ public class ReportController {
     }
 
     @GetMapping("/headcount")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public HeadcountReport headcount() {
         return service.headcount();
     }
 
     @GetMapping("/attrition")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public AttritionReport attrition(@RequestParam(required = false) Integer year) {
         return service.attrition(year);
     }
@@ -49,13 +51,13 @@ public class ReportController {
     }
 
     @GetMapping("/leave")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public LeaveReport leave(@RequestParam(required = false) Integer year) {
         return service.leaveUsage(year);
     }
 
     @GetMapping("/attendance")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public AttendanceReport attendance(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -63,19 +65,19 @@ public class ReportController {
     }
 
     @GetMapping("/training")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public TrainingReport training() {
         return service.trainingCompliance();
     }
 
     @GetMapping("/performance")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PerformanceReport performance(@RequestParam(required = false) UUID cycleId) {
         return service.performance(cycleId);
     }
 
     @GetMapping("/recruitment")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','RECRUITER')")
+    @PreAuthorize(SecurityRoles.READ_RECRUITMENT)
     public RecruitmentReport recruitment() {
         return service.recruitment();
     }

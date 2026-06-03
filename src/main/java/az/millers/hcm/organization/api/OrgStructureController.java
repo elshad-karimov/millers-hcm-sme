@@ -1,5 +1,7 @@
 package az.millers.hcm.organization.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -65,7 +67,7 @@ public class OrgStructureController {
      */
     @GetMapping(value = "/versions/{id}/chart.svg",
             produces = "image/svg+xml")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','DEPARTMENT_MANAGER')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public ResponseEntity<String> chartSvg(@PathVariable UUID id) {
         OrgTreeNode root = service.buildTree(id);
         String title = "Org chart — v" + service.getVersion(id).getVersionNumber();
@@ -81,7 +83,7 @@ public class OrgStructureController {
     // ---------- Versions ----------
 
     @GetMapping("/versions")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public List<StructureVersionResponse> listVersions() {
         return service.listVersions().stream().map(StructureVersionResponse::from).toList();
     }
@@ -95,7 +97,7 @@ public class OrgStructureController {
     }
 
     @GetMapping("/versions/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public StructureVersionResponse getVersion(@PathVariable UUID id) {
         return StructureVersionResponse.from(service.getVersion(id));
     }
@@ -114,7 +116,7 @@ public class OrgStructureController {
     }
 
     @PostMapping("/versions/{id}/approve")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public StructureVersionResponse approve(@PathVariable UUID id,
                                             @RequestBody(required = false) StatusTransitionRequest req) {
         return StructureVersionResponse.from(
@@ -122,7 +124,7 @@ public class OrgStructureController {
     }
 
     @PostMapping("/versions/{id}/reject")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public StructureVersionResponse reject(@PathVariable UUID id,
                                             @RequestBody(required = false) StatusTransitionRequest req) {
         return StructureVersionResponse.from(
@@ -130,14 +132,14 @@ public class OrgStructureController {
     }
 
     @PostMapping("/versions/{id}/activate")
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public StructureVersionResponse activate(@PathVariable UUID id) {
         return StructureVersionResponse.from(service.activate(id));
     }
 
     @PostMapping("/versions/rollback")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN')")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public StructureVersionResponse rollback(@Valid @RequestBody RollbackRequest req) {
         return StructureVersionResponse.from(service.rollback(req));
     }
@@ -145,7 +147,7 @@ public class OrgStructureController {
     // ---------- Units ----------
 
     @GetMapping("/versions/{id}/units")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR)
     public List<OrgUnitResponse> listUnits(@PathVariable UUID id) {
         return service.unitsOf(id).stream().map(OrgUnitResponse::from).toList();
     }

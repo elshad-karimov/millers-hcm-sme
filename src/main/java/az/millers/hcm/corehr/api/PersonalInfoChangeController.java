@@ -1,5 +1,7 @@
 package az.millers.hcm.corehr.api;
 
+import az.millers.hcm.security.SecurityRoles;
+
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -28,7 +30,7 @@ public class PersonalInfoChangeController {
 
     /** HR / scoped-manager queue. Scope filter is applied inside the service. */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','AUDITOR')")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public PageResponse<PersonalInfoChangeResponse> list(
             @RequestParam(required = false) PersonalInfoChangeStatus status,
             @RequestParam(defaultValue = "0") int page,
