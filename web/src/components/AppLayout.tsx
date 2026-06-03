@@ -92,6 +92,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/performance/succession/bench', module: 'performance', screen: 'performance-bench' },
   { prefix: '/performance/succession', module: 'performance', screen: 'performance-succession' },
   { prefix: '/learning/courses', module: 'learning', screen: 'learning-courses' },
+  { prefix: '/learning/paths', module: 'learning', screen: 'learning-paths' },
   { prefix: '/learning/my', module: 'learning', screen: 'learning-my' },
   { prefix: '/learning/certificates', module: 'learning', screen: 'learning-certificates' },
   { prefix: '/learning/competencies', module: 'learning', screen: 'learning-competencies' },
@@ -471,6 +472,11 @@ export function AppLayout() {
                 key: 'learning-courses',
                 icon: <ReadOutlined />,
                 label: <Link to="/learning/courses">Course catalog</Link>,
+              },
+              {
+                key: 'learning-paths',
+                icon: <SolutionOutlined />,
+                label: <Link to="/learning/paths">Learning paths</Link>,
               },
               {
                 key: 'learning-my',

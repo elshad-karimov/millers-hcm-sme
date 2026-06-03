@@ -54,6 +54,7 @@ import { CoursesPage } from './pages/CoursesPage'
 import { CourseFormPage } from './pages/CourseFormPage'
 import { CourseDetailPage } from './pages/CourseDetailPage'
 import { MyLearningPage } from './pages/MyLearningPage'
+import { LearningPathsPage } from './pages/LearningPathsPage'
 import { CertificatesPage } from './pages/CertificatesPage'
 import { CompetenciesPage } from './pages/CompetenciesPage'
 import { BonusMatrixPage } from './pages/BonusMatrixPage'
@@ -192,6 +193,8 @@ export default function App() {
           <Route path="learning/courses/:id" element={<CourseDetailPage />} />
           <Route path="learning/courses/:id/edit" element={<CourseFormPage />} />
           <Route path="learning/my" element={<MyLearningPage />} />
+          {/* M95 — Learning path templates + assignments */}
+          <Route path="learning/paths" element={<LearningPathsPage />} />
           <Route path="learning/certificates" element={<CertificatesPage />} />
           <Route path="learning/competencies" element={<CompetenciesPage />} />
 
