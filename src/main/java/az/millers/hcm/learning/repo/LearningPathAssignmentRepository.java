@@ -18,4 +18,12 @@ public interface LearningPathAssignmentRepository extends JpaRepository<Learning
     List<LearningPathAssignment> findByEmployeeIdOrderByAssignedAtDesc(UUID employeeId);
 
     List<LearningPathAssignment> findByPathIdOrderByAssignedAtDesc(UUID pathId);
+
+    /**
+     * M97 — assignments whose target date matters for reminders. Filters to
+     * non-terminal statuses (ASSIGNED + IN_PROGRESS) and only those with a
+     * target date set; ones without a target can't be reminded against.
+     */
+    List<LearningPathAssignment> findByStatusInAndTargetCompletionDateIsNotNull(
+            List<PathAssignmentStatus> statuses);
 }
