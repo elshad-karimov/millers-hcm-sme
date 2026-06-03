@@ -71,6 +71,8 @@ import { ActivityFeedPage } from './pages/ActivityFeedPage'
 import { SpanOfControlPage } from './pages/SpanOfControlPage'
 import { BulkReorgPage } from './pages/BulkReorgPage'
 import { InterviewKitsPage } from './pages/InterviewKitsPage'
+import { InterviewDetailPage } from './pages/InterviewDetailPage'
+import { InterviewScheduleFormPage } from './pages/InterviewScheduleFormPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -227,6 +229,9 @@ export default function App() {
           <Route path="recruitment/candidates/:id/edit" element={<CandidateFormPage />} />
           {/* M85 — interview kit admin */}
           <Route path="recruitment/interview-kits" element={<InterviewKitsPage />} />
+          {/* M86 — interview scheduling + scoring */}
+          <Route path="recruitment/interviews/schedule" element={<InterviewScheduleFormPage />} />
+          <Route path="recruitment/interviews/:id" element={<InterviewDetailPage />} />
 
           {/* Lifecycle */}
           <Route path="lifecycle/terminations" element={<TerminationsPage />} />

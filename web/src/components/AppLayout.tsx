@@ -79,6 +79,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
   { prefix: '/recruitment/interview-kits', module: 'recruitment', screen: 'recruitment-interview-kits' },
+  { prefix: '/recruitment/interviews', module: 'recruitment', screen: 'recruitment-interviews' },
   { prefix: '/lifecycle/terminations', module: 'lifecycle', screen: 'lifecycle-terminations' },
   { prefix: '/lifecycle/contract-changes', module: 'lifecycle', screen: 'lifecycle-contract-changes' },
   { prefix: '/performance/cycles', module: 'performance', screen: 'performance-cycles' },
