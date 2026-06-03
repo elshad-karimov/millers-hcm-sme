@@ -70,6 +70,7 @@ import { EmployeeManagementReportsPage } from './pages/EmployeeManagementReports
 import { ActivityFeedPage } from './pages/ActivityFeedPage'
 import { SpanOfControlPage } from './pages/SpanOfControlPage'
 import { BulkReorgPage } from './pages/BulkReorgPage'
+import { InterviewKitsPage } from './pages/InterviewKitsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
@@ -224,6 +225,8 @@ export default function App() {
           <Route path="recruitment/candidates" element={<CandidatesPage />} />
           <Route path="recruitment/candidates/new" element={<CandidateFormPage />} />
           <Route path="recruitment/candidates/:id/edit" element={<CandidateFormPage />} />
+          {/* M85 — interview kit admin */}
+          <Route path="recruitment/interview-kits" element={<InterviewKitsPage />} />
 
           {/* Lifecycle */}
           <Route path="lifecycle/terminations" element={<TerminationsPage />} />
