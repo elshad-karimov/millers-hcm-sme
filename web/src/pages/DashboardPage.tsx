@@ -31,6 +31,7 @@ import { workflowApi } from '../api/workflow'
 import { leaveApi } from '../api/leave'
 import { recruitmentApi } from '../api/recruitment'
 import { recruitmentAnalyticsApi, type StaleSummary } from '../api/recruitmentAnalytics'
+import { pathAssignmentsApi, type PathBacklogSummary } from '../api/learningPaths'
 import { payrollApi } from '../api/payroll'
 
 const { Text, Title } = Typography
@@ -203,6 +204,7 @@ interface DashStats {
   pendingTimesheets: number | null
   payrollLabel: string
   staleCandidates: StaleSummary | null
+  pathBacklog: PathBacklogSummary | null
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
@@ -211,6 +213,10 @@ export function DashboardPage() {
   const { user, hasRole } = useAuth()
   const showRecruiterTiles = hasRole(
     'SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'RECRUITER',
+  )
+  // M99 — HR-only tile. Same role envelope the backend endpoint requires.
+  const showLearningTiles = hasRole(
+    'SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR',
   )
   const navigate = useNavigate()
   const now = new Date()
@@ -229,13 +235,14 @@ export function DashboardPage() {
     pendingTimesheets: null,
     payrollLabel: '—',
     staleCandidates: null,
+    pathBacklog: null,
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [empActive, empOnLeave, inboxRes, leaveRes, vacRes, runsRes, staleRes] =
+      const [empActive, empOnLeave, inboxRes, leaveRes, vacRes, runsRes, staleRes, backlogRes] =
         await Promise.allSettled([
           employeesApi.list({ status: 'ACTIVE', page: 0, size: 1 }),
           employeesApi.list({ status: 'ON_LEAVE', page: 0, size: 1 }),
@@ -245,6 +252,9 @@ export function DashboardPage() {
           payrollApi.runs(),
           showRecruiterTiles
             ? recruitmentAnalyticsApi.staleSummary(30)
+            : Promise.resolve(null),
+          showLearningTiles
+            ? pathAssignmentsApi.backlogSummary()
             : Promise.resolve(null),
         ])
       if (!alive) return
@@ -276,6 +286,10 @@ export function DashboardPage() {
         staleCandidates:
           staleRes.status === 'fulfilled' && staleRes.value
             ? (staleRes.value as StaleSummary)
+            : null,
+        pathBacklog:
+          backlogRes.status === 'fulfilled' && backlogRes.value
+            ? (backlogRes.value as PathBacklogSummary)
             : null,
       })
       setLoading(false)
@@ -551,6 +565,33 @@ export function DashboardPage() {
                   to="/payroll/runs"
                 />
               </Col>
+              {/* M99 — HR-only path completion tile. Mirrors the M89 stale
+                  tile pattern: count = total active, sub-label breaks it
+                  into urgency buckets, red icon when overdue. */}
+              {showLearningTiles && (
+                <Col xs={24} sm={12}>
+                  <PendingCard
+                    icon={<BookOutlined />}
+                    iconColor={
+                      (stats.pathBacklog?.overdue ?? 0) > 0
+                        ? '#cf1322'
+                        : brand.purpleDeep
+                    }
+                    iconBg="rgba(91,63,229,0.10)"
+                    label="Learning Paths"
+                    count={loading ? '…' : (stats.pathBacklog?.active ?? '—')}
+                    subLabel={
+                      stats.pathBacklog
+                        ? `${stats.pathBacklog.overdue} overdue · ` +
+                          `${stats.pathBacklog.dueWithin7} due 7d · ` +
+                          `${stats.pathBacklog.dueWithin30} due 30d`
+                        : 'Active assignments'
+                    }
+                    actionLabel="View paths"
+                    to="/learning/paths"
+                  />
+                </Col>
+              )}
             </Row>
           </div>
 

@@ -31,6 +31,25 @@ public final class PathAssignmentDtos {
             String status,            // EnrollmentStatus name, or "NOT_STARTED"
             boolean completed) {}
 
+    /**
+     * Bucketed home-dashboard summary of active path assignments (M99).
+     *
+     * <p>Named {@code PathBacklogSummary} (not just {@code AssignmentSummary})
+     * because {@code SuccessionGridDtos.AssignmentSummary} is a different
+     * concept (per-employee assignment snapshot for the M96 drill).
+     */
+    public record PathBacklogSummary(
+            /** ASSIGNED or IN_PROGRESS with a target date set. */
+            long active,
+            /** Active assignments with no target date — no reminder fires. */
+            long noTarget,
+            /** target_completion_date < today. */
+            long overdue,
+            /** today &le; target_completion_date &le; today+7. */
+            long dueWithin7,
+            /** today+8 &le; target_completion_date &le; today+30. */
+            long dueWithin30) {}
+
     /** A learning path suggested for an employee, ranked by competency-gap coverage (M98). */
     public record SuggestedPath(
             UUID pathId,

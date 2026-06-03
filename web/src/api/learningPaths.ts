@@ -84,6 +84,15 @@ export const learningPathsApi = {
     api.get<LearningPathDetail>(`/learning/paths/${id}`).then((r) => r.data),
 }
 
+// M99 — Home-dashboard backlog summary (bucketed active assignments).
+export interface PathBacklogSummary {
+  active: number
+  noTarget: number
+  overdue: number
+  dueWithin7: number
+  dueWithin30: number
+}
+
 // M98 — Ranked path suggestions for an employee based on competency gaps.
 export interface SuggestedPath {
   pathId: string
@@ -118,5 +127,9 @@ export const pathAssignmentsApi = {
   suggestions: (employeeId: string) =>
     api
       .get<SuggestedPath[]>(`/learning/path-assignments/suggestions/${employeeId}`)
+      .then((r) => r.data),
+  backlogSummary: () =>
+    api
+      .get<PathBacklogSummary>('/learning/path-assignments/backlog-summary')
       .then((r) => r.data),
 }

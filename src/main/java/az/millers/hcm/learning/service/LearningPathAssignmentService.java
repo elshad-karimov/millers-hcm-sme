@@ -1,5 +1,6 @@
 package az.millers.hcm.learning.service;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,6 +26,7 @@ import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignmentResponse;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.CancelRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.StepProgress;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.PathBacklogSummary;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.SuggestedPath;
 import az.millers.hcm.learning.domain.Course;
 import az.millers.hcm.learning.domain.Enrollment;
@@ -165,6 +167,51 @@ public class LearningPathAssignmentService {
     public List<AssignmentResponse> forPath(UUID pathId) {
         return assignments.findByPathIdOrderByAssignedAtDesc(pathId).stream()
                 .map(this::toResponse).toList();
+    }
+
+    /**
+     * Home-dashboard summary across all active path assignments (M99) — a
+     * single trip to the repo, bucketed in-memory. Used by the HR tile on
+     * DashboardPage to make M97's reminder activity visible at a glance.
+     *
+     * <p>Bucket boundaries (relative to {@code today}):
+     * <pre>
+     *   overdue     :  target &lt; today
+     *   dueWithin7  :  today &lt;= target &lt;= today+7
+     *   dueWithin30 :  today+8 &lt;= target &lt;= today+30
+     * </pre>
+     * Assignments with a target later than 30 days out are still counted in
+     * {@code active} but not in any urgency bucket — they're not yet on the
+     * radar.
+     */
+    @Transactional(readOnly = true)
+    public PathBacklogSummary backlogSummary() {
+        return bucketBacklog(
+                assignments.findAll().stream()
+                        .filter(a -> a.getStatus() == PathAssignmentStatus.ASSIGNED
+                                || a.getStatus() == PathAssignmentStatus.IN_PROGRESS)
+                        .toList(),
+                LocalDate.now());
+    }
+
+    /**
+     * Pure bucketing logic — extracted so the unit test can drive it directly
+     * with a deterministic {@code today} and without a DB. Package-private
+     * for tests; the {@link PathAssignmentStatus} filtering happens upstream
+     * in {@link #backlogSummary()}.
+     */
+    static PathBacklogSummary bucketBacklog(List<LearningPathAssignment> active, LocalDate today) {
+        long noTarget = 0, overdue = 0, due7 = 0, due30 = 0;
+        for (LearningPathAssignment a : active) {
+            LocalDate t = a.getTargetCompletionDate();
+            if (t == null) { noTarget++; continue; }
+            long days = java.time.temporal.ChronoUnit.DAYS.between(today, t);
+            if (days < 0) overdue++;
+            else if (days <= 7) due7++;
+            else if (days <= 30) due30++;
+            // > 30 days: still active, just not on the radar yet.
+        }
+        return new PathBacklogSummary(active.size(), noTarget, overdue, due7, due30);
     }
 
     /**

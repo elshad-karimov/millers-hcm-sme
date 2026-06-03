@@ -6,6 +6,8 @@ import java.lang.reflect.Method;
 
 import org.junit.jupiter.api.Test;
 
+import az.millers.hcm.learning.domain.LearningPathAssignment;
+
 /**
  * Pins the progress-percent helper used by assignment responses (M95).
  *
@@ -99,5 +101,87 @@ class LearningPathAssignmentServiceTest {
         // We rely on the service filter, but document the math:
         assertThat(usable).isEqualTo(0);
         assertThat(usable).isNotNegative();
+    }
+
+    // ── M99 — backlog bucket math ───────────────────────────────────────────
+    //
+    // The home tile's overdue / due-in-7 / due-in-30 counts must match the
+    // reminder schedule's intuition: the boundaries are inclusive on the
+    // lower end of each window so today=target lands in due-in-7, not in
+    // overdue. A sign or off-by-one regression here would silently shift
+    // a manager's nudge cohort.
+
+    private static LearningPathAssignment fixtureWithTarget(java.time.LocalDate target) {
+        LearningPathAssignment a = new LearningPathAssignment();
+        a.setTargetCompletionDate(target);
+        return a;
+    }
+
+    @Test
+    void backlogTodayIsDueWithin7NotOverdue() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(today)), today);
+        assertThat(summary.active()).isEqualTo(1);
+        assertThat(summary.overdue()).isZero();
+        assertThat(summary.dueWithin7()).isEqualTo(1);
+        assertThat(summary.dueWithin30()).isZero();
+    }
+
+    @Test
+    void backlogYesterdayIsOverdue() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(today.minusDays(1))), today);
+        assertThat(summary.overdue()).isEqualTo(1);
+        assertThat(summary.dueWithin7()).isZero();
+    }
+
+    @Test
+    void backlogBoundary7IsDueWithin7Not30() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(today.plusDays(7))), today);
+        assertThat(summary.dueWithin7()).isEqualTo(1);
+        assertThat(summary.dueWithin30()).isZero();
+    }
+
+    @Test
+    void backlogBoundary8IsDueWithin30() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(today.plusDays(8))), today);
+        assertThat(summary.dueWithin7()).isZero();
+        assertThat(summary.dueWithin30()).isEqualTo(1);
+    }
+
+    @Test
+    void backlogBoundary30IsDueWithin30() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(today.plusDays(30))), today);
+        assertThat(summary.dueWithin30()).isEqualTo(1);
+    }
+
+    @Test
+    void backlogBeyond30IsActiveButNotInUrgencyBucket() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(today.plusDays(60))), today);
+        assertThat(summary.active()).isEqualTo(1);
+        assertThat(summary.dueWithin7()).isZero();
+        assertThat(summary.dueWithin30()).isZero();
+        assertThat(summary.overdue()).isZero();
+        assertThat(summary.noTarget()).isZero();
+    }
+
+    @Test
+    void backlogNullTargetCountsAsNoTarget() {
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 6, 3);
+        var summary = LearningPathAssignmentService.bucketBacklog(
+                java.util.List.of(fixtureWithTarget(null)), today);
+        assertThat(summary.active()).isEqualTo(1);
+        assertThat(summary.noTarget()).isEqualTo(1);
+        assertThat(summary.overdue() + summary.dueWithin7() + summary.dueWithin30()).isZero();
     }
 }

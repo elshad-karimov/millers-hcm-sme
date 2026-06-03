@@ -19,6 +19,7 @@ import az.millers.hcm.selfservice.service.EmployeeContextService;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignmentResponse;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.CancelRequest;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.PathBacklogSummary;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.SuggestedPath;
 import az.millers.hcm.learning.service.LearningPathAssignmentService;
 import az.millers.hcm.security.SecurityRoles;
@@ -95,5 +96,15 @@ public class LearningPathAssignmentController {
     public List<AssignmentResponse> mine() {
         Employee emp = employeeContext.currentEmployee();
         return emp == null ? List.of() : service.forEmployee(emp.getId());
+    }
+
+    /**
+     * M99 — lightweight summary for the home dashboard tile. Returns active
+     * counts bucketed by urgency (overdue / due-in-7 / due-in-30). HR-only.
+     */
+    @GetMapping("/backlog-summary")
+    @PreAuthorize(READ)
+    public PathBacklogSummary backlogSummary() {
+        return service.backlogSummary();
     }
 }
