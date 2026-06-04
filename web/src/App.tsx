@@ -9,6 +9,7 @@ import { PositionFormPage } from './pages/PositionFormPage'
 import { PositionControlPage } from './pages/PositionControlPage'
 import { InboxPage } from './pages/InboxPage'
 import { AttendanceSchedulesPage } from './pages/AttendanceSchedulesPage'
+import { RosterPage } from './pages/RosterPage'
 import { ScheduleFormPage } from './pages/ScheduleFormPage'
 import { ScheduleAssignmentFormPage } from './pages/ScheduleAssignmentFormPage'
 import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
@@ -161,6 +162,8 @@ export default function App() {
 
           {/* Time & Attendance */}
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />
+          {/* M110 — shift catalog + weekly roster */}
+          <Route path="attendance/roster" element={<RosterPage />} />
           <Route path="attendance/schedules/new" element={<ScheduleFormPage />} />
           <Route path="attendance/schedules/:id/edit" element={<ScheduleFormPage />} />
           <Route path="attendance/schedules/:scheduleId/assign" element={<ScheduleAssignmentFormPage />} />
