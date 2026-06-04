@@ -10,6 +10,7 @@ import { PositionControlPage } from './pages/PositionControlPage'
 import { InboxPage } from './pages/InboxPage'
 import { AttendanceSchedulesPage } from './pages/AttendanceSchedulesPage'
 import { RosterPage } from './pages/RosterPage'
+import { ShiftPatternsPage } from './pages/ShiftPatternsPage'
 import { ScheduleFormPage } from './pages/ScheduleFormPage'
 import { ScheduleAssignmentFormPage } from './pages/ScheduleAssignmentFormPage'
 import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
@@ -164,6 +165,8 @@ export default function App() {
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />
           {/* M110 — shift catalog + weekly roster */}
           <Route path="attendance/roster" element={<RosterPage />} />
+          {/* M111 — rotation patterns + auto-roster generation */}
+          <Route path="attendance/shift-patterns" element={<ShiftPatternsPage />} />
           <Route path="attendance/schedules/new" element={<ScheduleFormPage />} />
           <Route path="attendance/schedules/:id/edit" element={<ScheduleFormPage />} />
           <Route path="attendance/schedules/:scheduleId/assign" element={<ScheduleAssignmentFormPage />} />

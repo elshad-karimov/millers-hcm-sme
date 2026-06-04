@@ -59,6 +59,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/positions', module: 'people', screen: 'positions' },
   { prefix: '/attendance/schedules', module: 'time', screen: 'attendance-schedules' },
   { prefix: '/attendance/roster', module: 'time', screen: 'attendance-roster' },
+  { prefix: '/attendance/shift-patterns', module: 'time', screen: 'attendance-shift-patterns' },
   { prefix: '/attendance/events', module: 'time', screen: 'attendance-events' },
   { prefix: '/attendance/summary', module: 'time', screen: 'attendance-summary' },
   { prefix: '/leave/types', module: 'absence', screen: 'leave-types' },
@@ -221,6 +222,11 @@ export function AppLayout() {
                 key: 'attendance-roster',
                 icon: <CalendarOutlined />,
                 label: <Link to="/attendance/roster">Roster</Link>,
+              },
+              {
+                key: 'attendance-shift-patterns',
+                icon: <CalendarOutlined />,
+                label: <Link to="/attendance/shift-patterns">Shift patterns</Link>,
               },
               {
                 key: 'attendance-events',
