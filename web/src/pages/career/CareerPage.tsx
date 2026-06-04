@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button, Card, Col, DatePicker, Drawer, Form, Input, List, message,
-  Modal, Popconfirm, Progress, Row, Select, Space, Steps, Table, Tag, Typography,
+  Modal, Popconfirm, Progress, Row, Select, Space, Table, Tag, Typography,
 } from 'antd';
 import {
   AimOutlined, BookOutlined, CheckCircleOutlined, DeleteOutlined,
