@@ -15,6 +15,8 @@ import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.staffing.service.PositionHeadcountService;
+import az.millers.hcm.staffing.service.StaffingService;
 
 /**
  * Bring a previously-terminated employee back as a new row (M78 / P2-15).
@@ -34,15 +36,21 @@ public class RehireService {
     private final EmployeeHistoryService historyService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final PositionHeadcountService headcountGate;
+    private final StaffingService staffingService;
 
     public RehireService(EmployeeRepository repository,
                           EmployeeHistoryService historyService,
                           AuditService audit,
-                          CurrentRequest currentRequest) {
+                          CurrentRequest currentRequest,
+                          PositionHeadcountService headcountGate,
+                          StaffingService staffingService) {
         this.repository = repository;
         this.historyService = historyService;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.headcountGate = headcountGate;
+        this.staffingService = staffingService;
     }
 
     @Transactional
@@ -65,6 +73,12 @@ public class RehireService {
             throw new BadRequestException(
                     "newHireDate must be on or after the prior hire date");
         }
+
+        // M109 — same gate as a direct hire. Picks up either the override
+        // positionId from the request or the prior employee's position.
+        java.util.UUID rehirePositionId = req.positionId() != null
+                ? req.positionId() : prior.getPositionId();
+        headcountGate.assertCanFill(rehirePositionId);
 
         Employee fresh = new Employee();
         fresh.setEmployeeNo(String.format("EMP-%05d", repository.nextEmployeeNoSequence()));
@@ -100,6 +114,12 @@ public class RehireService {
         fresh.setUpdatedBy(currentRequest.username());
 
         Employee saved = repository.save(fresh);
+
+        // M109 — bump the seat counter to match the gate decision above.
+        if (saved.getPositionId() != null) {
+            staffingService.adjustOccupancy(saved.getPositionId(), +1,
+                    "Rehire of " + prior.getEmployeeNo() + " as " + saved.getEmployeeNo());
+        }
 
         // Open initial M62 history slices at the new hire date so downstream
         // tenure queries see a clean break from the prior employment.

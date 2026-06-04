@@ -119,6 +119,43 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
             @Param("ids") java.util.Collection<UUID> ids);
 
     /**
+     * M109 — count employees that actually <em>occupy</em> a position right now,
+     * i.e. anyone in an active employment status (everything except TERMINATED
+     * and RETIRED). Used by {@code PositionHeadcountService} to enforce the
+     * approved-headcount budget on direct hires / position swaps and by the
+     * nightly reconciliation walker to fix any drift between
+     * {@code Position.occupiedHeadcount} and the ground-truth.
+     *
+     * <p>We count <em>anyone with a position assignment that isn't terminated
+     * or retired</em>, including ON_LEAVE / MATERNITY_LEAVE / etc., because
+     * the seat is still allocated.
+     */
+    @Query("""
+            select count(e) from Employee e
+            where e.positionId = :positionId
+              and e.employmentStatus not in (
+                az.millers.hcm.corehr.domain.EmploymentStatus.TERMINATED,
+                az.millers.hcm.corehr.domain.EmploymentStatus.RETIRED)
+            """)
+    long countActiveByPositionId(@Param("positionId") UUID positionId);
+
+    /**
+     * M109 — bulk version of {@link #countActiveByPositionId(UUID)} so the
+     * nightly reconciliation walker can do one query instead of N.
+     * Returns {@code (positionId, count)} pairs, omitting positions with
+     * zero matches (LEFT JOIN would need a Position-side query).
+     */
+    @Query("""
+            select e.positionId, count(e) from Employee e
+            where e.positionId is not null
+              and e.employmentStatus not in (
+                az.millers.hcm.corehr.domain.EmploymentStatus.TERMINATED,
+                az.millers.hcm.corehr.domain.EmploymentStatus.RETIRED)
+            group by e.positionId
+            """)
+    java.util.List<Object[]> groupCountActiveByPositionId();
+
+    /**
      * All employees whose status is not in the excluded set, ordered by name.
      * Used by the self-service peers endpoint so any authenticated user can
      * populate a replacement-employee picker without HR_ADMIN role.

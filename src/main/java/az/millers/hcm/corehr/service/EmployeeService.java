@@ -24,6 +24,8 @@ import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
+import az.millers.hcm.staffing.service.PositionHeadcountService;
+import az.millers.hcm.staffing.service.StaffingService;
 
 @Service
 public class EmployeeService {
@@ -37,19 +39,25 @@ public class EmployeeService {
     private final CurrentRequest currentRequest;
     private final AccessScopeService accessScope;
     private final EmployeeHistoryService historyService;
+    private final PositionHeadcountService headcountGate;
+    private final StaffingService staffingService;
 
     public EmployeeService(EmployeeRepository repository,
                            AuditService auditService,
                            OnboardingWorkflow onboardingWorkflow,
                            CurrentRequest currentRequest,
                            AccessScopeService accessScope,
-                           EmployeeHistoryService historyService) {
+                           EmployeeHistoryService historyService,
+                           PositionHeadcountService headcountGate,
+                           StaffingService staffingService) {
         this.repository = repository;
         this.auditService = auditService;
         this.onboardingWorkflow = onboardingWorkflow;
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
         this.historyService = historyService;
+        this.headcountGate = headcountGate;
+        this.staffingService = staffingService;
     }
 
     /**
@@ -116,6 +124,8 @@ public class EmployeeService {
             throw new BadRequestException("An employee with this email already exists");
         }
         validateNationalIdUnique(request.nationalId(), null);
+        // M109 — direct hire path must respect position budget.
+        headcountGate.assertCanFill(request.positionId());
 
         Employee employee = new Employee();
         employee.setEmployeeNo(nextEmployeeNo());
@@ -125,6 +135,14 @@ public class EmployeeService {
         employee.setUpdatedBy(currentRequest.username());
 
         Employee saved = repository.save(employee);
+
+        // M109 — bump the seat counter so Position.occupiedHeadcount stays in
+        // lockstep with the ground-truth employee table. Skipped when the new
+        // hire has no position assignment yet.
+        if (saved.getPositionId() != null) {
+            staffingService.adjustOccupancy(saved.getPositionId(), +1,
+                    "Direct hire " + saved.getEmployeeNo());
+        }
 
         // M62 / P1-10 + P1-11: open the initial history slices at hire date.
         // This guarantees every employee has a non-empty history from day one
@@ -151,9 +169,29 @@ public class EmployeeService {
         validateNationalIdUnique(request.nationalId(), id);
         EmployeeResponse before = EmployeeResponse.from(employee);
 
+        // M109 — if the position changes, gate the move AND keep seat counters
+        // in sync. Same-position updates are no-ops at the gate.
+        UUID oldPositionId = employee.getPositionId();
+        UUID newPositionId = request.positionId();
+        boolean positionChanged = !java.util.Objects.equals(oldPositionId, newPositionId);
+        if (positionChanged) {
+            headcountGate.assertCanMove(oldPositionId, newPositionId);
+        }
+
         applyRequest(employee, request);
         employee.setUpdatedBy(currentRequest.username());
         Employee saved = repository.save(employee);
+
+        if (positionChanged) {
+            if (oldPositionId != null) {
+                staffingService.adjustOccupancy(oldPositionId, -1,
+                        "Position swap (out) for " + saved.getEmployeeNo());
+            }
+            if (newPositionId != null) {
+                staffingService.adjustOccupancy(newPositionId, +1,
+                        "Position swap (in) for " + saved.getEmployeeNo());
+            }
+        }
 
         auditService.record(MODULE, ENTITY, id.toString(),
                 "UPDATE", before, EmployeeResponse.from(saved));

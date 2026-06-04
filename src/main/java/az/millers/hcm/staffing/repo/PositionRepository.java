@@ -1,5 +1,6 @@
 package az.millers.hcm.staffing.repo;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -26,4 +27,10 @@ public interface PositionRepository extends JpaRepository<Position, UUID> {
 
     Page<Position> findByTitleContainingIgnoreCaseOrCodeContainingIgnoreCase(
             String title, String code, Pageable pageable);
+
+    /** All ACTIVE positions — used by the M109 reconciliation walker. */
+    List<Position> findByStatus(PositionStatus status);
+
+    /** All ACTIVE positions grouped by org unit — for the control dashboard. */
+    List<Position> findByStatusOrderByOrgUnitLabelAscTitleAsc(PositionStatus status);
 }

@@ -16,6 +16,7 @@ import az.millers.hcm.recruitment.domain.Vacancy;
 import az.millers.hcm.recruitment.domain.VacancyStatus;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.staffing.service.PositionHeadcountService;
 
 @Service
 public class VacancyService {
@@ -26,12 +27,15 @@ public class VacancyService {
     private final VacancyRepository repository;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final PositionHeadcountService headcountGate;
 
     public VacancyService(VacancyRepository repository, AuditService audit,
-                          CurrentRequest currentRequest) {
+                          CurrentRequest currentRequest,
+                          PositionHeadcountService headcountGate) {
         this.repository = repository;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.headcountGate = headcountGate;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +52,10 @@ public class VacancyService {
 
     @Transactional
     public Vacancy create(VacancyRequest req) {
+        // M109 — refuse to post requisitions for a position that has no room.
+        int openings = req.openings() == null ? 1 : req.openings();
+        headcountGate.assertCanPostVacancy(req.positionId(), openings);
+
         Vacancy v = new Vacancy();
         v.setVacancyNo(String.format("VAC-%05d", repository.nextNoSequence()));
         v.setStatus(VacancyStatus.OPEN);

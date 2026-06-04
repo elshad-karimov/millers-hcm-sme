@@ -22,6 +22,8 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.staffing.domain.Position;
 import az.millers.hcm.staffing.repo.PositionRepository;
+import az.millers.hcm.staffing.service.PositionHeadcountService;
+import az.millers.hcm.staffing.service.StaffingService;
 
 /**
  * CRUD for {@link EmployeeAssignment} — M75 / P2-20. Effective-dated via the
@@ -50,19 +52,25 @@ public class EmployeeAssignmentService {
     private final AuditService audit;
     private final AccessScopeService accessScope;
     private final CurrentRequest currentRequest;
+    private final PositionHeadcountService headcountGate;
+    private final StaffingService staffingService;
 
     public EmployeeAssignmentService(EmployeeAssignmentRepository repository,
                                       EmployeeRepository employees,
                                       PositionRepository positions,
                                       AuditService audit,
                                       AccessScopeService accessScope,
-                                      CurrentRequest currentRequest) {
+                                      CurrentRequest currentRequest,
+                                      PositionHeadcountService headcountGate,
+                                      StaffingService staffingService) {
         this.repository = repository;
         this.employees = employees;
         this.positions = positions;
         this.audit = audit;
         this.accessScope = accessScope;
         this.currentRequest = currentRequest;
+        this.headcountGate = headcountGate;
+        this.staffingService = staffingService;
     }
 
     @Transactional(readOnly = true)
@@ -124,11 +132,25 @@ public class EmployeeAssignmentService {
         EmployeeAssignment saved = repository.save(a);
 
         // Mirror PRIMARY → Employee.positionId so legacy queries keep working.
+        // M109 — also gate the move and keep occupied counters in sync.
         if (saved.getAssignmentType() == AssignmentType.PRIMARY
                 && saved.getEffectiveTo() == null) {
-            employee.setPositionId(position.getId());
+            UUID oldPositionId = employee.getPositionId();
+            UUID newPositionId = position.getId();
+            if (!java.util.Objects.equals(oldPositionId, newPositionId)) {
+                headcountGate.assertCanMove(oldPositionId, newPositionId);
+            }
+            employee.setPositionId(newPositionId);
             employee.setUpdatedBy(currentRequest.username());
             employees.save(employee);
+            if (!java.util.Objects.equals(oldPositionId, newPositionId)) {
+                if (oldPositionId != null) {
+                    staffingService.adjustOccupancy(oldPositionId, -1,
+                            "PRIMARY assignment change (out) for " + employee.getEmployeeNo());
+                }
+                staffingService.adjustOccupancy(newPositionId, +1,
+                        "PRIMARY assignment change (in) for " + employee.getEmployeeNo());
+            }
         }
 
         audit.record(MODULE, ENTITY, saved.getId().toString(),

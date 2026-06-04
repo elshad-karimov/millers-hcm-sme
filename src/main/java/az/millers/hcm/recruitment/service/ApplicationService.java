@@ -31,7 +31,6 @@ import az.millers.hcm.recruitment.repo.CandidateRepository;
 import az.millers.hcm.recruitment.repo.OfferRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
-import az.millers.hcm.staffing.service.StaffingService;
 
 /**
  * Pipeline lifecycle.
@@ -55,7 +54,6 @@ public class ApplicationService {
     private final CandidateRepository candidates;
     private final OfferRepository offers;
     private final EmployeeService employeeService;
-    private final StaffingService staffingService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -65,7 +63,6 @@ public class ApplicationService {
                                CandidateRepository candidates,
                                OfferRepository offers,
                                EmployeeService employeeService,
-                               StaffingService staffingService,
                                AuditService audit,
                                CurrentRequest currentRequest) {
         this.applications = applications;
@@ -74,7 +71,6 @@ public class ApplicationService {
         this.candidates = candidates;
         this.offers = offers;
         this.employeeService = employeeService;
-        this.staffingService = staffingService;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -210,19 +206,10 @@ public class ApplicationService {
         a.setCreatedEmployeeId(created.getId());
         Application saved = applications.save(a);
 
-        // Increment the position's occupied headcount (PRD 8.10.8).
-        if (v.getPositionId() != null) {
-            try {
-                staffingService.adjustOccupancy(v.getPositionId(), +1,
-                        "Hired via " + a.getApplicationNo());
-            } catch (Exception ex) {
-                // Don't unwind the hire if the position bookkeeping fails — log as anomaly.
-                audit.record(MODULE, ENTITY, a.getId().toString(),
-                        "POSITION_UPDATE_FAILED", null,
-                        Map.of("positionId", v.getPositionId().toString(),
-                                "error", ex.getMessage()));
-            }
-        }
+        // M109 — position-headcount bump now lives inside
+        // EmployeeService.create() so every hire path (recruitment, direct,
+        // rehire, contract change) goes through exactly one bookkeeping
+        // step. We deliberately don't bump here to avoid double-counting.
 
         // If all openings filled, close the vacancy.
         long hires = applications.countByVacancyIdAndStatus(v.getId(), ApplicationStatus.HIRED);

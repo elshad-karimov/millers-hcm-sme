@@ -6,6 +6,7 @@ import { OrgStructurePage } from './pages/OrgStructurePage'
 import { OrgUnitFormPage } from './pages/OrgUnitFormPage'
 import { PositionsPage } from './pages/PositionsPage'
 import { PositionFormPage } from './pages/PositionFormPage'
+import { PositionControlPage } from './pages/PositionControlPage'
 import { InboxPage } from './pages/InboxPage'
 import { AttendanceSchedulesPage } from './pages/AttendanceSchedulesPage'
 import { ScheduleFormPage } from './pages/ScheduleFormPage'
@@ -227,6 +228,8 @@ export default function App() {
           <Route path="positions" element={<PositionsPage />} />
           <Route path="positions/new" element={<PositionFormPage />} />
           <Route path="positions/:id/edit" element={<PositionFormPage />} />
+          {/* M109 — position control gate dashboard */}
+          <Route path="positions/control" element={<PositionControlPage />} />
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />

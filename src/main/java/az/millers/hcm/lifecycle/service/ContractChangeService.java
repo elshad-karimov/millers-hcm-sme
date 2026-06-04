@@ -28,6 +28,7 @@ import az.millers.hcm.payroll.domain.EmployeeCompensation;
 import az.millers.hcm.payroll.service.CompensationService;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.domain.Position;
+import az.millers.hcm.staffing.service.PositionHeadcountService;
 import az.millers.hcm.staffing.service.StaffingService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
@@ -53,6 +54,7 @@ public class ContractChangeService {
     private final WorkflowService workflowService;
     private final CompensationService compensationService;
     private final StaffingService staffingService;
+    private final PositionHeadcountService headcountGate;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final EmployeeHistoryService historyService;
@@ -62,6 +64,7 @@ public class ContractChangeService {
                                   WorkflowService workflowService,
                                   CompensationService compensationService,
                                   StaffingService staffingService,
+                                  PositionHeadcountService headcountGate,
                                   AuditService audit,
                                   CurrentRequest currentRequest,
                                   EmployeeHistoryService historyService) {
@@ -70,6 +73,7 @@ public class ContractChangeService {
         this.workflowService = workflowService;
         this.compensationService = compensationService;
         this.staffingService = staffingService;
+        this.headcountGate = headcountGate;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.historyService = historyService;
@@ -268,6 +272,12 @@ public class ContractChangeService {
         }
         Position newPos = staffingService.get(newPositionId);
         UUID oldPositionId = employee.getPositionId();
+        // M109 — refuse the contract change if the target position is at capacity.
+        // This must run before either occupancy adjustment so we never leave a
+        // half-applied state when the gate trips.
+        if (!newPositionId.equals(oldPositionId)) {
+            headcountGate.assertCanMove(oldPositionId, newPositionId);
+        }
         if (oldPositionId != null && !oldPositionId.equals(newPositionId)) {
             try {
                 staffingService.adjustOccupancy(oldPositionId, -1,
