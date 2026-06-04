@@ -36,6 +36,7 @@ import { VacancyDetailPage } from './pages/VacancyDetailPage'
 import { CandidatesPage } from './pages/CandidatesPage'
 import { CandidateFormPage } from './pages/CandidateFormPage'
 import { TerminationsPage } from './pages/TerminationsPage'
+import { ChecklistsPage } from './pages/ChecklistsPage'
 import { TerminationFormPage } from './pages/TerminationFormPage'
 import { TerminationDetailPage } from './pages/TerminationDetailPage'
 import { ContractChangesPage } from './pages/ContractChangesPage'
@@ -265,6 +266,8 @@ export default function App() {
           <Route path="lifecycle/contract-changes" element={<ContractChangesPage />} />
           <Route path="lifecycle/contract-changes/new" element={<ContractChangeFormPage />} />
           <Route path="lifecycle/contract-changes/:id" element={<ContractChangeDetailPage />} />
+          {/* M105/M106 — onboarding & offboarding checklists */}
+          <Route path="lifecycle/checklists" element={<ChecklistsPage />} />
 
           {/* Comp & Benefits */}
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />
