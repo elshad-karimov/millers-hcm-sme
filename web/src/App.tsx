@@ -60,6 +60,7 @@ import { CompetenciesPage } from './pages/CompetenciesPage'
 import { BonusMatrixPage } from './pages/BonusMatrixPage'
 import { AllowancesPage } from './pages/AllowancesPage'
 import { BonusRunsPage } from './pages/BonusRunsPage'
+import { SalaryPlanningPage } from './pages/SalaryPlanningPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
@@ -263,6 +264,8 @@ export default function App() {
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />
           <Route path="compbenefits/allowances" element={<AllowancesPage />} />
           <Route path="compbenefits/bonus-runs" element={<BonusRunsPage />} />
+          {/* M102 — salary planning */}
+          <Route path="compbenefits/salary-planning" element={<SalaryPlanningPage />} />
 
           {/* Reports */}
           <Route path="reports" element={<ReportsPage />} />
