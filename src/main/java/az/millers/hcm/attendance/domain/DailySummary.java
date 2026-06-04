@@ -38,6 +38,14 @@ public class DailySummary {
     @Column(name = "schedule_id")
     private UUID scheduleId;
 
+    /** M112 — Populated when {@link #source} = ROSTER. */
+    @Column(name = "shift_id")
+    private UUID shiftId;
+
+    /** M112 — Where the scheduled window came from: SCHEDULE / ROSTER / NONE. */
+    @Column(name = "source", nullable = false, length = 20)
+    private String source = "SCHEDULE";
+
     @Column(name = "schedule_start")
     private LocalTime scheduleStart;
 

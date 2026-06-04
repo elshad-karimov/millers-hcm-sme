@@ -121,10 +121,23 @@ export function AttendanceSummaryPage() {
     },
     {
       title: 'Schedule',
-      render: (_, r) =>
-        r.scheduleStart && r.scheduleEnd
-          ? `${r.scheduleStart.slice(0, 5)}–${r.scheduleEnd.slice(0, 5)}`
-          : '—',
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <span>
+            {r.scheduleStart && r.scheduleEnd
+              ? `${r.scheduleStart.slice(0, 5)}–${r.scheduleEnd.slice(0, 5)}`
+              : '—'}
+          </span>
+          {r.source === 'ROSTER' && (
+            <Tag color="blue" style={{ marginInlineEnd: 0, fontSize: 10 }}>
+              roster
+            </Tag>
+          )}
+          {r.source === 'NONE' && (
+            <Tag style={{ marginInlineEnd: 0, fontSize: 10 }}>none</Tag>
+          )}
+        </Space>
+      ),
       width: 110,
     },
     {

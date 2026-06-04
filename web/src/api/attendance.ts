@@ -80,11 +80,17 @@ export interface AttendanceEventRequest {
   location?: string
 }
 
+export type SummarySource = 'SCHEDULE' | 'ROSTER' | 'NONE'
+
 export interface DailySummary {
   id: string
   employeeId: string
   workDate: string
   scheduleId?: string | null
+  /** M112 — populated when source === 'ROSTER'. */
+  shiftId?: string | null
+  /** M112 — where the scheduled window came from. */
+  source: SummarySource
   scheduleStart?: string | null
   scheduleEnd?: string | null
   entryTime?: string | null

@@ -13,6 +13,10 @@ public record DailySummaryResponse(
         UUID employeeId,
         LocalDate workDate,
         UUID scheduleId,
+        /** M112 — populated when source == ROSTER. */
+        UUID shiftId,
+        /** M112 — 'SCHEDULE' | 'ROSTER' | 'NONE'. */
+        String source,
         LocalTime scheduleStart,
         LocalTime scheduleEnd,
         OffsetDateTime entryTime,
@@ -35,6 +39,8 @@ public record DailySummaryResponse(
                 s.getEmployeeId(),
                 s.getWorkDate(),
                 s.getScheduleId(),
+                s.getShiftId(),
+                s.getSource(),
                 s.getScheduleStart(),
                 s.getScheduleEnd(),
                 s.getEntryTime(),
