@@ -111,6 +111,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compbenefits/benefits', module: 'compbenefits', screen: 'compbenefits-benefits' },
   { prefix: '/reports/schedules', module: 'reports', screen: 'reports-schedules' },
   { prefix: '/reports', module: 'reports', screen: 'reports' },
+  { prefix: '/engagement/surveys', module: 'engagement', screen: 'engagement-surveys' },
+  { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
   { prefix: '/my/team', module: 'my-team', screen: 'my-team' },
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
@@ -581,6 +583,17 @@ export function AppLayout() {
                 label: <Link to="/compbenefits/benefits">Benefits plans</Link>,
               },
             ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Engagement (HR — M116) ────────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'engagement',
+            icon: <ExperimentOutlined />,
+            label: <Link to="/engagement/surveys">Engagement</Link>,
           } satisfies ItemType,
         ]
       : []),

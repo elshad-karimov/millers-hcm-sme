@@ -73,6 +73,8 @@ import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
+import { MySurveysPage } from './pages/MySurveysPage'
+import { SurveysAdminPage } from './pages/SurveysAdminPage'
 import { TeamPage } from './pages/TeamPage'
 import { LetterTemplatesPage } from './pages/LetterTemplatesPage'
 import { LetterRequestsPage } from './pages/LetterRequestsPage'
@@ -144,6 +146,8 @@ export default function App() {
         <Route path="my/team" element={<TeamPage />} />
         {/* M115 — per-user notification preferences */}
         <Route path="my/notifications" element={<NotificationPreferencesPage />} />
+        {/* M116 — employee survey self-service */}
+        <Route path="my/surveys" element={<MySurveysPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />
@@ -246,6 +250,9 @@ export default function App() {
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />
+
+          {/* M116 — engagement surveys + eNPS (HR admin) */}
+          <Route path="engagement/surveys" element={<SurveysAdminPage />} />
 
           {/* Absence admin */}
           <Route path="leave/types" element={<LeaveTypesPage />} />
