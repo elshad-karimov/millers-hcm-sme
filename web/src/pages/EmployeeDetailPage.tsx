@@ -62,6 +62,8 @@ import { timelineApi, type TimelineEvent } from '../api/team'
 import { statusOverlayApi, type StatusOverlay } from '../api/statusOverlay'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
+// M117 — per-employee field-change history (employment slices + status slices + audit diff)
+import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
   'ACTIVE',
@@ -907,6 +909,15 @@ export function EmployeeDetailPage() {
   }
 
   if (canAudit) {
+    // M117 — field-change history tab. Reuses the audit_log + M62 history
+    // slices already in the DB; renders them as a unified timeline with
+    // a JSON before/after diff drawer.
+    tabItems.push({
+      key: 'changeHistory',
+      label: 'Change history',
+      children: <ChangeHistoryPanel employeeId={id} />,
+    })
+
     tabItems.push({
       key: 'audit',
       label: `Audit (${audit.length})`,
