@@ -72,6 +72,7 @@ import { BenefitsPage } from './pages/BenefitsPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
+import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { TeamPage } from './pages/TeamPage'
 import { LetterTemplatesPage } from './pages/LetterTemplatesPage'
 import { LetterRequestsPage } from './pages/LetterRequestsPage'
@@ -141,6 +142,8 @@ export default function App() {
         <Route path="home" element={<DashboardPage />} />
         <Route path="my" element={<MyWorkspacePage />} />
         <Route path="my/team" element={<TeamPage />} />
+        {/* M115 — per-user notification preferences */}
+        <Route path="my/notifications" element={<NotificationPreferencesPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />

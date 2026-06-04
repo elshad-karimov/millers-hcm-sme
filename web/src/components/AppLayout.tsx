@@ -725,6 +725,10 @@ export function AppLayout() {
           <Typography.Text strong style={{ color: brand.ink }}>
             {user?.username}
           </Typography.Text>
+          {/* M115 — quick link to notification preferences */}
+          <Link to="/my/notifications" style={{ color: brand.purpleDeep, fontSize: 13 }}>
+            Preferences
+          </Link>
           {user?.roles.map((r) => {
             const label = r.replace('ROLE_', '')
             return (

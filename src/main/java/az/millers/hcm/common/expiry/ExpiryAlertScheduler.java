@@ -176,8 +176,10 @@ public class ExpiryAlertScheduler {
         String title = buildTitle(item, delta);
         String body  = buildBody(item, delta);
 
+        // M115 — expiry alerts are mutable; users can opt out per channel.
         if (employee.getUsername() != null && !employee.getUsername().isBlank()) {
             notifications.notifyAll(
+                    az.millers.hcm.notifications.domain.NotificationCategory.EXPIRY_ALERT,
                     employee.getUsername(), title, body,
                     source.moduleName(), source.entityName(), item.getId().toString());
         }
@@ -187,6 +189,7 @@ public class ExpiryAlertScheduler {
             employees.findById(managerId).ifPresent(mgr -> {
                 if (mgr.getUsername() != null && !mgr.getUsername().isBlank()) {
                     notifications.notifyAll(
+                            az.millers.hcm.notifications.domain.NotificationCategory.EXPIRY_ALERT,
                             mgr.getUsername(), title,
                             body + " (Direct report: " + employee.getFirstName()
                                     + " " + employee.getLastName() + ")",

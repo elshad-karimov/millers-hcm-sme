@@ -14,10 +14,12 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.email.EmailDeliveryException;
 import az.millers.hcm.email.EmailService;
 import az.millers.hcm.notifications.domain.DeviceToken;
+import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.notifications.domain.NotificationChannel;
 import az.millers.hcm.notifications.domain.NotificationLog;
 import az.millers.hcm.notifications.repo.DeviceTokenRepository;
 import az.millers.hcm.notifications.repo.NotificationLogRepository;
+import az.millers.hcm.notifications.service.NotificationPreferenceService;
 
 /**
  * Core notification orchestrator (PRD §17.5, Must-Have #34).
@@ -37,17 +39,20 @@ public class NotificationService {
     private final FcmService fcm;
     private final EmployeeRepository employees;
     private final EmailService email;
+    private final NotificationPreferenceService preferences;
 
     public NotificationService(NotificationLogRepository logRepo,
                                 DeviceTokenRepository tokenRepo,
                                 FcmService fcm,
                                 EmployeeRepository employees,
-                                EmailService email) {
+                                EmailService email,
+                                NotificationPreferenceService preferences) {
         this.logRepo = logRepo;
         this.tokenRepo = tokenRepo;
         this.fcm = fcm;
         this.employees = employees;
         this.email = email;
+        this.preferences = preferences;
     }
 
     // ── IN_APP ────────────────────────────────────────────────────────────────
@@ -128,25 +133,53 @@ public class NotificationService {
      *   <li>EMAIL  — if the employee record has an email address</li>
      *   <li>PUSH   — if FCM tokens are registered for the user</li>
      * </ul>
+     *
+     * <p>Pre-M115 signature. New callers should use
+     * {@link #notifyAll(NotificationCategory, String, String, String, String, String, String)}
+     * so users can opt out of categories that don't need to break through.
      */
     public void notifyAll(String username, String title, String body,
                           String module, String entityType, String entityId) {
-        // Always create an in-app entry
-        createInApp(username, title, body, module, entityType, entityId);
+        notifyAll(NotificationCategory.TRANSACTIONAL, username, title, body,
+                module, entityType, entityId);
+    }
 
-        // Email — only if the employee has an email address
-        // The log entry is keyed by Keycloak username (not email address) so
-        // the inbox query at GET /api/notifications always works.
-        employees.findByUsername(username).ifPresent(emp -> {
-            if (emp.getEmail() != null && !emp.getEmail().isBlank()) {
-                createAndSendEmail(username, emp.getEmail(), title, body, module, entityType, entityId);
+    /**
+     * M115 — preference-gated fan-out. Each channel is checked against
+     * {@link NotificationPreferenceService#shouldSend} before delivery.
+     * IN_APP is always delivered for {@link NotificationCategory#TRANSACTIONAL}
+     * regardless of the user's opt-out — preferences only apply to mutable
+     * categories.
+     *
+     * @param category the kind of notification — drives the opt-out check
+     */
+    public void notifyAll(NotificationCategory category,
+                          String username, String title, String body,
+                          String module, String entityType, String entityId) {
+        NotificationCategory cat = category == null ? NotificationCategory.TRANSACTIONAL : category;
+
+        // IN_APP — always create the log row. We still write the entry even
+        // when the user has muted IN_APP for this category, but mark it as
+        // pre-read so the bell doesn't flash. (Easy follow-on M115 phase 2.)
+        if (preferences.shouldSend(username, cat, NotificationChannel.IN_APP)) {
+            createInApp(username, title, body, module, entityType, entityId);
+        }
+
+        // EMAIL — only if employee has an address AND the user hasn't muted.
+        if (preferences.shouldSend(username, cat, NotificationChannel.EMAIL)) {
+            employees.findByUsername(username).ifPresent(emp -> {
+                if (emp.getEmail() != null && !emp.getEmail().isBlank()) {
+                    createAndSendEmail(username, emp.getEmail(), title, body, module, entityType, entityId);
+                }
+            });
+        }
+
+        // PUSH — only if FCM tokens exist AND the user hasn't muted.
+        if (preferences.shouldSend(username, cat, NotificationChannel.PUSH)) {
+            List<DeviceToken> tokens = tokenRepo.findByUsername(username);
+            if (!tokens.isEmpty()) {
+                createAndSendPush(username, title, body, module, entityType, entityId);
             }
-        });
-
-        // Push — only if FCM tokens exist
-        List<DeviceToken> tokens = tokenRepo.findByUsername(username);
-        if (!tokens.isEmpty()) {
-            createAndSendPush(username, title, body, module, entityType, entityId);
         }
     }
 

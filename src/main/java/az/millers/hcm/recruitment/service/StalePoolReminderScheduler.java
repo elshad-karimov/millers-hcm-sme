@@ -166,7 +166,10 @@ public class StalePoolReminderScheduler {
         }
         body.append("Review at /recruitment/analytics.");
 
-        notifications.notifyAll(recipient, title, body.toString(),
+        // M115 — stale-pool reminders are mutable; recruiters can opt out per channel.
+        notifications.notifyAll(
+                az.millers.hcm.notifications.domain.NotificationCategory.STALE_POOL_REMINDER,
+                recipient, title, body.toString(),
                 MODULE, ENTITY, recipient);
 
         // Idempotency marker — what alreadyNotified() looks for.

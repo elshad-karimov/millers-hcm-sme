@@ -135,8 +135,10 @@ public class PathReminderScheduler {
         String body  = buildBody(delta, pathName, a.getTargetCompletionDate(),
                 a.getNotes());
 
+        // M115 — learning reminders are mutable; users can opt out per channel.
         if (employee.getUsername() != null && !employee.getUsername().isBlank()) {
             notifications.notifyAll(
+                    az.millers.hcm.notifications.domain.NotificationCategory.LEARNING_REMINDER,
                     employee.getUsername(), title, body,
                     MODULE, ENTITY, a.getId().toString());
         }
@@ -149,6 +151,7 @@ public class PathReminderScheduler {
             employees.findById(employee.getManagerId()).ifPresent(mgr -> {
                 if (mgr.getUsername() != null && !mgr.getUsername().isBlank()) {
                     notifications.notifyAll(
+                            az.millers.hcm.notifications.domain.NotificationCategory.LEARNING_REMINDER,
                             mgr.getUsername(),
                             title + " — direct report",
                             body + "\n\n(For your direct report "
