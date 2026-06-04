@@ -80,6 +80,7 @@ import { PersonalInfoChangesPage } from './pages/PersonalInfoChangesPage'
 import { PersonalInfoRequestFormPage } from './pages/PersonalInfoRequestFormPage'
 import { EmployeeManagementReportsPage } from './pages/EmployeeManagementReportsPage'
 import { ActivityFeedPage } from './pages/ActivityFeedPage'
+import { AuditLogPage } from './pages/AuditLogPage'
 import { SpanOfControlPage } from './pages/SpanOfControlPage'
 import { BulkReorgPage } from './pages/BulkReorgPage'
 import { InterviewKitsPage } from './pages/InterviewKitsPage'
@@ -312,6 +313,8 @@ export default function App() {
         {/* ── Activity feed — HR_ADMIN + SYSTEM_ADMIN + AUDITOR (M80) ── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR']} />}>
           <Route path="activity" element={<ActivityFeedPage />} />
+          {/* M114 — searchable audit-log browser */}
+          <Route path="admin/audit-log" element={<AuditLogPage />} />
         </Route>
       </Route>
 

@@ -128,4 +128,15 @@ public final class SecurityRoles {
 
     /** Reporting + analytics — same shape as {@link #READ_HR_PLUS_MANAGERS}. */
     public static final String READ_REPORTS = READ_HR_PLUS_MANAGERS;
+
+    // ── Audit ──────────────────────────────────────────────────────────────
+
+    /**
+     * Audit-log browser (M114). Deliberately narrower than {@link #READ_HR} —
+     * HR_SPECIALIST is excluded so an actor can't browse their own log entries
+     * to discover what HR_ADMIN saw of their actions. AUDITOR exists for this
+     * exact purpose.
+     */
+    public static final String READ_AUDIT =
+            "hasAnyRole(" + SA + "," + HRA + "," + AUD + ")";
 }

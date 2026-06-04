@@ -33,6 +33,7 @@ import {
   WalletOutlined,
   FundOutlined,
   DatabaseOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -118,6 +119,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/admin/ldap', module: 'admin', screen: 'admin-ldap' },
   { prefix: '/admin/bi-export', module: 'admin', screen: 'admin-bi-export' },
   { prefix: '/admin/warehouse', module: 'admin', screen: 'admin-warehouse' },
+  { prefix: '/admin/audit-log', module: 'admin', screen: 'admin-audit-log' },
 ]
 
 function resolveLocation(pathname: string) {
@@ -136,6 +138,9 @@ export function AppLayout() {
   const isAdmin = hasRole(...RoleSets.SYS_ADMIN_ONLY)
   /** SYSTEM_ADMIN or AUDITOR — can access BI Export and other audit tools */
   const isAdminOrAuditor = hasRole('SYSTEM_ADMIN', 'AUDITOR')
+  /** SYSTEM_ADMIN + HR_ADMIN + AUDITOR — can browse the audit log (M114).
+   *  Matches SecurityRoles.READ_AUDIT on the backend. */
+  const canBrowseAudit = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR')
   /** Any role that can access team / HR data beyond self-service. */
   const hrOrManager = isHR || isManager
 
@@ -639,8 +644,10 @@ export function AppLayout() {
         ]
       : []),
 
-    // ── Administration (SYSTEM_ADMIN + AUDITOR) ───────────────────────────
-    ...(isAdminOrAuditor
+    // ── Administration ────────────────────────────────────────────────────
+    // SYSTEM_ADMIN + AUDITOR get the full menu. HR_ADMIN gets a slim version
+    // with the audit-log browser only (M114).
+    ...(isAdminOrAuditor || canBrowseAudit
       ? [
           {
             key: 'admin',
@@ -666,16 +673,29 @@ export function AppLayout() {
                     },
                   ]
                 : []),
-              {
-                key: 'admin-bi-export',
-                icon: <FundOutlined />,
-                label: <Link to="/admin/bi-export">BI Export</Link>,
-              },
-              {
-                key: 'admin-warehouse',
-                icon: <DatabaseOutlined />,
-                label: <Link to="/admin/warehouse">Analytics Warehouse</Link>,
-              },
+              ...(isAdminOrAuditor
+                ? [
+                    {
+                      key: 'admin-bi-export',
+                      icon: <FundOutlined />,
+                      label: <Link to="/admin/bi-export">BI Export</Link>,
+                    },
+                    {
+                      key: 'admin-warehouse',
+                      icon: <DatabaseOutlined />,
+                      label: <Link to="/admin/warehouse">Analytics Warehouse</Link>,
+                    },
+                  ]
+                : []),
+              ...(canBrowseAudit
+                ? [
+                    {
+                      key: 'admin-audit-log',
+                      icon: <FileSearchOutlined />,
+                      label: <Link to="/admin/audit-log">Audit log</Link>,
+                    },
+                  ]
+                : []),
             ],
           } satisfies ItemType,
         ]
