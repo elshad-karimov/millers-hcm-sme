@@ -4,7 +4,9 @@ import {
   Button,
   Card,
   Col,
+  Collapse,
   Descriptions,
+  Empty,
   Progress,
   Row,
   Space,
@@ -13,6 +15,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
   App as AntdApp,
 } from 'antd'
@@ -29,6 +32,11 @@ import type { BusinessTrip } from '../api/businessTrip'
 import type { Timesheet } from '../api/timesheet'
 import type { PayrollResult } from '../api/payroll'
 import type { Enrollment, Certificate, EmployeeCompetency } from '../api/learning'
+import {
+  pathAssignmentsApi,
+  type AssignmentResponse,
+  type PathAssignmentStatus,
+} from '../api/learningPaths'
 import type { PerformanceReview } from '../api/performance'
 
 // ============================================================================
@@ -461,19 +469,34 @@ function PayslipsTab() {
 // ============================================================================
 //  Learning tab
 // ============================================================================
+// Colour per assignment status — mirrors M96 drawer.
+const PATH_STATUS_COLOR: Record<PathAssignmentStatus, string> = {
+  ASSIGNED: 'blue',
+  IN_PROGRESS: 'gold',
+  COMPLETED: 'green',
+  CANCELLED: 'default',
+}
+
 function LearningTab() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [certs, setCerts] = useState<Certificate[]>([])
   const [comps, setComps] = useState<EmployeeCompetency[]>([])
+  const [pathAssignments, setPathAssignments] = useState<AssignmentResponse[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    Promise.all([selfApi.enrollments(), selfApi.certificates(), selfApi.competencies()])
-      .then(([e, c, cm]) => {
+    Promise.all([
+      selfApi.enrollments(),
+      selfApi.certificates(),
+      selfApi.competencies(),
+      pathAssignmentsApi.mine(),
+    ])
+      .then(([e, c, cm, pa]) => {
         setEnrollments(e)
         setCerts(c)
         setComps(cm)
+        setPathAssignments(pa)
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -526,8 +549,130 @@ function LearningTab() {
     },
   ]
 
+  // Active assignments first, then completed, then cancelled.
+  const sortedAssignments = [...pathAssignments].sort((a, b) => {
+    const order: Record<PathAssignmentStatus, number> = {
+      IN_PROGRESS: 0, ASSIGNED: 1, COMPLETED: 2, CANCELLED: 3,
+    }
+    return (order[a.status] ?? 9) - (order[b.status] ?? 9)
+  })
+
+  const devPathItems = sortedAssignments.map((a) => {
+    const isActive = a.status === 'ASSIGNED' || a.status === 'IN_PROGRESS'
+    const daysLeft = a.targetCompletionDate
+      ? Math.ceil(
+          (new Date(a.targetCompletionDate).getTime() - Date.now()) / 86_400_000,
+        )
+      : null
+    const overdue = daysLeft !== null && daysLeft < 0
+    return {
+      key: a.id,
+      label: (
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <Tag color={PATH_STATUS_COLOR[a.status]}>{a.status.replace(/_/g, ' ')}</Tag>
+            <Typography.Text strong>{a.pathName ?? 'Learning path'}</Typography.Text>
+          </Space>
+          <Space>
+            {a.targetCompletionDate && (
+              <Typography.Text
+                type={overdue ? 'danger' : 'secondary'}
+                style={{ fontSize: 12 }}
+              >
+                {overdue
+                  ? `${-daysLeft!} day${daysLeft === -1 ? '' : 's'} overdue`
+                  : `Due ${new Date(a.targetCompletionDate).toLocaleDateString()}`}
+              </Typography.Text>
+            )}
+            <Tooltip title={`${a.completedSteps} of ${a.totalSteps} courses completed`}>
+              <Progress
+                percent={a.progressPercent}
+                size="small"
+                style={{ width: 100 }}
+                status={a.status === 'COMPLETED' ? 'success' : overdue ? 'exception' : 'active'}
+              />
+            </Tooltip>
+          </Space>
+        </Space>
+      ),
+      children: (
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          {a.notes && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              <strong>Manager note:</strong> {a.notes}
+            </Typography.Text>
+          )}
+          {a.steps.length === 0 ? (
+            <Typography.Text type="secondary">No steps configured for this path.</Typography.Text>
+          ) : (
+            a.steps.map((step) => (
+              <Space key={step.stepId} style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Space>
+                  <Tag style={{ minWidth: 28, textAlign: 'center' }}>{step.stepOrder}</Tag>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0 }}
+                    onClick={() => navigate(`/learning/courses/${step.courseId}`)}
+                  >
+                    {step.courseCode
+                      ? `${step.courseCode} — ${step.courseTitle ?? ''}`
+                      : step.courseTitle ?? step.courseId}
+                  </Button>
+                  {step.requiredToAdvance && (
+                    <Tag color="red" style={{ fontSize: 11 }}>required</Tag>
+                  )}
+                </Space>
+                <Tag
+                  color={
+                    step.completed ? 'green'
+                    : step.status === 'IN_PROGRESS' ? 'gold'
+                    : step.status === 'FAILED' ? 'red'
+                    : 'default'
+                  }
+                >
+                  {step.status.replace(/_/g, ' ')}
+                </Tag>
+              </Space>
+            ))
+          )}
+        </Space>
+      ),
+      style: { borderLeft: isActive ? `3px solid ${overdue ? '#ff4d4f' : '#1677ff'}` : undefined },
+    }
+  })
+
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {/* M100 — My development paths */}
+      <Card
+        title={
+          <Space>
+            <span>My development paths</span>
+            {sortedAssignments.filter((a) => a.status !== 'CANCELLED' && a.status !== 'COMPLETED').length > 0 && (
+              <Tag color="blue">
+                {sortedAssignments.filter((a) => a.status === 'IN_PROGRESS' || a.status === 'ASSIGNED').length} active
+              </Tag>
+            )}
+          </Space>
+        }
+        size="small"
+      >
+        {sortedAssignments.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No learning paths assigned yet. Ask your HR team to set up a development plan."
+          />
+        ) : (
+          <Collapse
+            bordered={false}
+            ghost
+            size="small"
+            items={devPathItems}
+          />
+        )}
+      </Card>
+
       <Card
         title="My enrollments"
         size="small"
