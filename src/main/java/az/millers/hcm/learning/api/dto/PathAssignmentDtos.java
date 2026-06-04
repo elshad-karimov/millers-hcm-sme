@@ -31,6 +31,28 @@ public final class PathAssignmentDtos {
             String status,            // EnrollmentStatus name, or "NOT_STARTED"
             boolean completed) {}
 
+    /** Inbound payload for bulk-assigning a path to multiple employees (M101). */
+    public record BulkAssignRequest(
+            java.util.List<java.util.UUID> employeeIds,
+            java.time.LocalDate targetCompletionDate,
+            String notes) {}
+
+    /** Per-employee outcome row for a bulk assign (M101). */
+    public record BulkAssignRow(
+            java.util.UUID employeeId,
+            /** null on success; message on skip/error. */
+            String outcome,
+            /** true iff the assignment was created. */
+            boolean success) {}
+
+    /** Top-level bulk assign result (M101). */
+    public record BulkAssignResult(
+            int requested,
+            int succeeded,
+            int skipped,
+            int failed,
+            java.util.List<BulkAssignRow> rows) {}
+
     /**
      * Bucketed home-dashboard summary of active path assignments (M99).
      *

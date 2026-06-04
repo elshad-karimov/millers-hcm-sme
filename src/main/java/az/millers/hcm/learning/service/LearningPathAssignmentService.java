@@ -26,6 +26,9 @@ import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignmentResponse;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.CancelRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.StepProgress;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.BulkAssignRequest;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.BulkAssignResult;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.BulkAssignRow;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.PathBacklogSummary;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.SuggestedPath;
 import az.millers.hcm.learning.domain.Course;
@@ -167,6 +170,44 @@ public class LearningPathAssignmentService {
     public List<AssignmentResponse> forPath(UUID pathId) {
         return assignments.findByPathIdOrderByAssignedAtDesc(pathId).stream()
                 .map(this::toResponse).toList();
+    }
+
+    /**
+     * Assign one path to multiple employees in a single call (M101).
+     *
+     * <p>Iterates {@link #assign} per employee. A {@link BadRequestException}
+     * (e.g. "already has active assignment") counts as a <em>skip</em>, not a
+     * failure — the HR user explicitly selected those people and it's informative
+     * to know which ones were already covered. Any other exception counts as a
+     * failure and is logged but does not abort the remaining employees.
+     *
+     * <p>Each assignment is committed in its own mini-transaction via the
+     * existing {@code assign()} method — a failure on one employee does not
+     * roll back the others. This is intentional: partial success is far better
+     * than silent all-or-nothing failure when assigning to 20 people.
+     */
+    public BulkAssignResult bulkAssign(UUID pathId, BulkAssignRequest req) {
+        if (req.employeeIds() == null || req.employeeIds().isEmpty()) {
+            return new BulkAssignResult(0, 0, 0, 0, List.of());
+        }
+        List<BulkAssignRow> rows = new ArrayList<>(req.employeeIds().size());
+        int succeeded = 0, skipped = 0, failed = 0;
+        for (UUID empId : req.employeeIds()) {
+            try {
+                assign(pathId, new AssignRequest(
+                        empId, req.targetCompletionDate(), req.notes()));
+                rows.add(new BulkAssignRow(empId, null, true));
+                succeeded++;
+            } catch (BadRequestException ex) {
+                // "already has active assignment" — informative skip.
+                rows.add(new BulkAssignRow(empId, ex.getMessage(), false));
+                skipped++;
+            } catch (Exception ex) {
+                rows.add(new BulkAssignRow(empId, "Error: " + ex.getMessage(), false));
+                failed++;
+            }
+        }
+        return new BulkAssignResult(req.employeeIds().size(), succeeded, skipped, failed, rows);
     }
 
     /**

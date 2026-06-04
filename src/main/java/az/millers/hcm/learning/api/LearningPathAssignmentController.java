@@ -18,6 +18,8 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.selfservice.service.EmployeeContextService;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.AssignmentResponse;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.BulkAssignRequest;
+import az.millers.hcm.learning.api.dto.PathAssignmentDtos.BulkAssignResult;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.CancelRequest;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.PathBacklogSummary;
 import az.millers.hcm.learning.api.dto.PathAssignmentDtos.SuggestedPath;
@@ -51,6 +53,18 @@ public class LearningPathAssignmentController {
     public AssignmentResponse assign(@PathVariable UUID pathId,
                                       @Valid @RequestBody AssignRequest req) {
         return service.assign(pathId, req);
+    }
+
+    /**
+     * M101 — assign one path to multiple employees in one call.
+     * Returns a per-employee result so the UI can distinguish successes,
+     * skips (already assigned), and unexpected errors.
+     */
+    @PostMapping("/paths/{pathId}/bulk-assign")
+    @PreAuthorize(WRITE)
+    public BulkAssignResult bulkAssign(@PathVariable UUID pathId,
+                                        @RequestBody BulkAssignRequest req) {
+        return service.bulkAssign(pathId, req);
     }
 
     @DeleteMapping("/{assignmentId}")

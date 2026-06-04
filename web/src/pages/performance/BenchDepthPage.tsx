@@ -5,8 +5,10 @@
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
+  Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   DatePicker,
   Drawer,
@@ -40,6 +42,7 @@ import { performanceApi, type ReviewCycle } from '../../api/performance'
 import {
   learningPathsApi,
   pathAssignmentsApi,
+  type BulkAssignResult,
   type LearningPath,
   type SuggestedPath,
 } from '../../api/learningPaths'
@@ -67,6 +70,16 @@ export function BenchDepthPage() {
   const [assignTarget, setAssignTarget] = useState<DevelopmentEmployee | null>(null)
   const [suggestions, setSuggestions] = useState<SuggestedPath[]>([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  // M101 — bulk assign state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkForm] = Form.useForm<{
+    pathId: string
+    targetCompletionDate?: ReturnType<typeof dayjs>
+    notes?: string
+  }>()
+  const [bulkAssigning, setBulkAssigning] = useState(false)
+  const [bulkResult, setBulkResult] = useState<BulkAssignResult | null>(null)
   const [assignForm] = Form.useForm<{
     pathId: string
     targetCompletionDate?: ReturnType<typeof dayjs>
@@ -94,6 +107,31 @@ export function BenchDepthPage() {
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load bench'))
       .finally(() => setLoading(false))
   }, [cycleId, message])
+
+  // ── M101 — bulk assign helper ─────────────────────────────────────────
+  const submitBulkAssign = async () => {
+    const v = await bulkForm.validateFields()
+    setBulkAssigning(true)
+    try {
+      const result = await pathAssignmentsApi.bulkAssign(v.pathId, {
+        employeeIds: [...selectedIds],
+        targetCompletionDate: v.targetCompletionDate?.format('YYYY-MM-DD'),
+        notes: v.notes,
+      })
+      setBulkResult(result)
+      setBulkOpen(false)
+      bulkForm.resetFields()
+      setSelectedIds(new Set())
+      if (result.succeeded > 0) await refreshDrill()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Bulk assign failed',
+      )
+    } finally {
+      setBulkAssigning(false)
+    }
+  }
 
   // ── M96 — drill open / refresh / assign helpers ──────────────────────
   const openDrill = (r: BenchRow) => {
@@ -317,7 +355,7 @@ export function BenchDepthPage() {
         </>
       )}
 
-      {/* M96 — Development drill drawer */}
+      {/* M96/M101 — Development drill drawer */}
       <Drawer
         open={!!drillManager}
         title={
@@ -325,8 +363,47 @@ export function BenchDepthPage() {
             ? `Development bucket — ${drillManager.managerName} (${drillManager.underDevelopment})`
             : ''
         }
-        onClose={() => { setDrillManager(null); setDrillData(null) }}
+        onClose={() => {
+          setDrillManager(null)
+          setDrillData(null)
+          setSelectedIds(new Set())
+        }}
         width={640}
+        footer={
+          canAssign && drillData && drillData.employees.length > 0 ? (
+            <Space>
+              <Button
+                type="primary"
+                disabled={selectedIds.size === 0}
+                onClick={() => {
+                  setBulkOpen(true)
+                  bulkForm.resetFields()
+                  // Pre-load suggestions for the first selected employee.
+                  const firstId = [...selectedIds][0]
+                  if (firstId) {
+                    setSuggestionsLoading(true)
+                    pathAssignmentsApi
+                      .suggestions(firstId)
+                      .then(setSuggestions)
+                      .catch(() => setSuggestions([]))
+                      .finally(() => setSuggestionsLoading(false))
+                  }
+                }}
+              >
+                Assign to {selectedIds.size} selected…
+              </Button>
+              <Button
+                size="small"
+                onClick={() => {
+                  const allIds = new Set(drillData.employees.map((e) => e.employeeId))
+                  setSelectedIds(selectedIds.size === allIds.size ? new Set() : allIds)
+                }}
+              >
+                {selectedIds.size === drillData.employees.length ? 'Deselect all' : 'Select all'}
+              </Button>
+            </Space>
+          ) : null
+        }
       >
         {drillLoading || !drillData ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
@@ -341,9 +418,28 @@ export function BenchDepthPage() {
             renderItem={(emp) => (
               <List.Item
                 key={emp.employeeId}
+                style={{
+                  background: selectedIds.has(emp.employeeId)
+                    ? 'rgba(22,119,255,0.05)' : undefined,
+                  borderRadius: 6,
+                  paddingLeft: 8,
+                }}
                 actions={
                   canAssign
                     ? [
+                        <Checkbox
+                          key="select"
+                          checked={selectedIds.has(emp.employeeId)}
+                          onChange={(ev) => {
+                            const next = new Set(selectedIds)
+                            ev.target.checked
+                              ? next.add(emp.employeeId)
+                              : next.delete(emp.employeeId)
+                            setSelectedIds(next)
+                          }}
+                        >
+                          Select
+                        </Checkbox>,
                         <Button
                           key="assign"
                           type="primary"
@@ -487,6 +583,102 @@ export function BenchDepthPage() {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* M101 — Bulk assign modal (one path → N selected employees) */}
+      <Modal
+        open={bulkOpen}
+        title={`Assign a path to ${selectedIds.size} selected employee${selectedIds.size === 1 ? '' : 's'}`}
+        onCancel={() => setBulkOpen(false)}
+        onOk={submitBulkAssign}
+        confirmLoading={bulkAssigning}
+        okText={`Assign to ${selectedIds.size}`}
+      >
+        <Form form={bulkForm} layout="vertical">
+          <Form.Item
+            name="pathId"
+            label={
+              <Space>
+                <span>Learning path</span>
+                {suggestionsLoading ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>(ranking by skills gap…)</Text>
+                ) : suggestions.length > 0 && suggestions[0].competenciesCovered > 0 ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>(ranked by competency gaps)</Text>
+                ) : null}
+              </Space>
+            }
+            rules={[{ required: true, message: 'Pick a path' }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="Pick a curriculum"
+              options={
+                suggestions.length > 0
+                  ? suggestions.map((s) => ({
+                      value: s.pathId,
+                      label:
+                        `${s.pathCode} — ${s.pathName}` +
+                        (s.competenciesCovered > 0
+                          ? `  · covers ${s.competenciesCovered} gap${s.competenciesCovered === 1 ? '' : 's'} (+${s.totalLevelLift})`
+                          : '') +
+                        (s.alreadyAssigned ? '  · already assigned' : ''),
+                      disabled: false, // in bulk, HR may override the already-assigned check
+                      title:
+                        s.coveredCompetencyNames.length > 0
+                          ? `Closes gaps in: ${s.coveredCompetencyNames.join(', ')}`
+                          : undefined,
+                    }))
+                  : paths.map((p) => ({
+                      value: p.id,
+                      label: `${p.pathNo} — ${p.name}`,
+                    }))
+              }
+            />
+          </Form.Item>
+          <Form.Item name="targetCompletionDate" label="Target completion (optional)">
+            <DatePicker style={{ width: 220 }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes (optional)">
+            <Input.TextArea
+              rows={3}
+              placeholder="e.g. Required for Q3 promotion eligibility"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* M101 — Bulk assign result summary */}
+      <Modal
+        open={!!bulkResult}
+        title="Bulk assign result"
+        onCancel={() => setBulkResult(null)}
+        footer={<Button type="primary" onClick={() => setBulkResult(null)}>Close</Button>}
+      >
+        {bulkResult && (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Row gutter={16}>
+              <Col span={8}><Statistic title="Succeeded" value={bulkResult.succeeded}
+                valueStyle={{ color: '#52c41a' }} /></Col>
+              <Col span={8}><Statistic title="Skipped" value={bulkResult.skipped}
+                valueStyle={bulkResult.skipped > 0 ? { color: '#fa8c16' } : {}} /></Col>
+              <Col span={8}><Statistic title="Failed" value={bulkResult.failed}
+                valueStyle={bulkResult.failed > 0 ? { color: '#ff4d4f' } : {}} /></Col>
+            </Row>
+            {(bulkResult.skipped > 0 || bulkResult.failed > 0) && (
+              <Alert
+                type="info"
+                showIcon
+                message="Skipped = employee already had an active assignment for this path."
+                description={
+                  bulkResult.failed > 0
+                    ? `${bulkResult.failed} assignment(s) failed due to unexpected errors.`
+                    : undefined
+                }
+              />
+            )}
+          </Space>
+        )}
       </Modal>
     </Space>
   )

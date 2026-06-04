@@ -71,6 +71,27 @@ export interface AssignRequest {
   notes?: string
 }
 
+// M101 — Bulk assign one path to multiple employees.
+export interface BulkAssignRequest {
+  employeeIds: string[]
+  targetCompletionDate?: string
+  notes?: string
+}
+
+export interface BulkAssignRow {
+  employeeId: string
+  outcome?: string | null
+  success: boolean
+}
+
+export interface BulkAssignResult {
+  requested: number
+  succeeded: number
+  skipped: number
+  failed: number
+  rows: BulkAssignRow[]
+}
+
 export interface CancelRequest {
   reason?: string
 }
@@ -131,5 +152,9 @@ export const pathAssignmentsApi = {
   backlogSummary: () =>
     api
       .get<PathBacklogSummary>('/learning/path-assignments/backlog-summary')
+      .then((r) => r.data),
+  bulkAssign: (pathId: string, req: BulkAssignRequest) =>
+    api
+      .post<BulkAssignResult>(`/learning/path-assignments/paths/${pathId}/bulk-assign`, req)
       .then((r) => r.data),
 }
