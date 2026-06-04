@@ -64,6 +64,7 @@ import { BonusMatrixPage } from './pages/BonusMatrixPage'
 import { AllowancesPage } from './pages/AllowancesPage'
 import { BonusRunsPage } from './pages/BonusRunsPage'
 import { SalaryPlanningPage } from './pages/SalaryPlanningPage'
+import { BenefitsPage } from './pages/BenefitsPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
@@ -142,6 +143,8 @@ export default function App() {
         <Route path="business-trips/new" element={<BusinessTripFormPage />} />
         <Route path="letters/request" element={<LetterRequestFormPage />} />
         <Route path="personal-info/request" element={<PersonalInfoRequestFormPage />} />
+        {/* M108 — Benefits: HR sees admin tabs, employees see only "my benefits" */}
+        <Route path="compbenefits/benefits" element={<BenefitsPage />} />
 
         {/* ── HR + Manager routes ────────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
