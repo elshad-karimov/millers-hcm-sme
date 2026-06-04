@@ -108,6 +108,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compbenefits/allowances', module: 'compbenefits', screen: 'compbenefits-allowances' },
   { prefix: '/compbenefits/bonus-runs', module: 'compbenefits', screen: 'compbenefits-bonus-runs' },
   { prefix: '/compbenefits/salary-planning', module: 'compbenefits', screen: 'compbenefits-salary-planning' },
+  { prefix: '/compbenefits/comp-planning', module: 'compbenefits', screen: 'compbenefits-comp-planning' },
   { prefix: '/compbenefits/benefits', module: 'compbenefits', screen: 'compbenefits-benefits' },
   { prefix: '/reports/schedules', module: 'reports', screen: 'reports-schedules' },
   { prefix: '/reports', module: 'reports', screen: 'reports' },
@@ -576,6 +577,11 @@ export function AppLayout() {
                 key: 'compbenefits-salary-planning',
                 icon: <FundOutlined />,
                 label: <Link to="/compbenefits/salary-planning">Salary planning</Link>,
+              },
+              {
+                key: 'compbenefits-comp-planning',
+                icon: <DollarCircleOutlined />,
+                label: <Link to="/compbenefits/comp-planning">Comp planning</Link>,
               },
               {
                 key: 'compbenefits-benefits',

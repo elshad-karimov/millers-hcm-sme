@@ -68,6 +68,7 @@ import { BonusMatrixPage } from './pages/BonusMatrixPage'
 import { AllowancesPage } from './pages/AllowancesPage'
 import { BonusRunsPage } from './pages/BonusRunsPage'
 import { SalaryPlanningPage } from './pages/SalaryPlanningPage'
+import { CompPlanningPage } from './pages/CompPlanningPage'
 import { BenefitsPage } from './pages/BenefitsPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
@@ -229,6 +230,9 @@ export default function App() {
 
           {/* Approvals inbox */}
           <Route path="inbox" element={<InboxPage />} />
+
+          {/* M118 — comp planning workbench (managers see their team, HR sees all) */}
+          <Route path="compbenefits/comp-planning" element={<CompPlanningPage />} />
         </Route>
 
         {/* ── HR-only routes (no DEPARTMENT_MANAGER) ────────────── */}
