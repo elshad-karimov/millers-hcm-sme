@@ -18,6 +18,7 @@ import { LeaveBalancesPage } from './pages/LeaveBalancesPage'
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage'
 import { LeaveRequestFormPage } from './pages/LeaveRequestFormPage'
 import { BusinessTripsPage } from './pages/BusinessTripsPage'
+import { ExpenseClaimsPage } from './pages/ExpenseClaimsPage'
 import { BusinessTripFormPage } from './pages/BusinessTripFormPage'
 import { PermissionTypesPage } from './pages/PermissionTypesPage'
 import { PermissionTypeFormPage } from './pages/PermissionTypeFormPage'
@@ -171,6 +172,8 @@ export default function App() {
 
           {/* Travel */}
           <Route path="business-trips" element={<BusinessTripsPage />} />
+          {/* M104 — expense claims */}
+          <Route path="business-trips/expense-claims" element={<ExpenseClaimsPage />} />
 
           {/* Performance */}
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
