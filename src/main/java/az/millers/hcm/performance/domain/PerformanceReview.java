@@ -106,6 +106,16 @@ public class PerformanceReview {
     @Column(name = "closed_at")
     private OffsetDateTime closedAt;
 
+    /**
+     * M121 — once a {@link CalibrationSession} that touched this review
+     * is COMPLETED, this flag flips to {@code true} and the calibrate /
+     * manager-review write paths reject further edits without an HR
+     * re-open. Prevents a stale UI tab from silently overwriting a
+     * calibration outcome.
+     */
+    @Column(name = "calibration_locked", nullable = false)
+    private boolean calibrationLocked = false;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

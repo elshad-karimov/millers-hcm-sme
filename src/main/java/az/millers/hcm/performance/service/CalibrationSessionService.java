@@ -47,19 +47,26 @@ public class CalibrationSessionService {
     private final NamedParameterJdbcTemplate jdbc;
     private final PerformanceReviewService reviewService;
     private final CurrentRequest currentRequest;
+    /** M121 — target-distribution lookup + edit-log writes. */
+    private final az.millers.hcm.performance.repo.CycleCalibrationTargetRepository targets;
+    private final az.millers.hcm.performance.repo.CalibrationEditLogRepository editLogs;
 
     public CalibrationSessionService(CalibrationSessionRepository sessions,
                                      ReviewCycleRepository cycles,
                                      PerformanceReviewRepository reviews,
                                      NamedParameterJdbcTemplate jdbc,
                                      PerformanceReviewService reviewService,
-                                     CurrentRequest currentRequest) {
+                                     CurrentRequest currentRequest,
+                                     az.millers.hcm.performance.repo.CycleCalibrationTargetRepository targets,
+                                     az.millers.hcm.performance.repo.CalibrationEditLogRepository editLogs) {
         this.sessions = sessions;
         this.cycles = cycles;
         this.reviews = reviews;
         this.jdbc = jdbc;
         this.reviewService = reviewService;
         this.currentRequest = currentRequest;
+        this.targets = targets;
+        this.editLogs = editLogs;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -164,17 +171,28 @@ public class CalibrationSessionService {
                             r.getBonusPercent(),
                             r.getCalibrationNotes(),
                             r.getPotentialRating(),
-                            r.getPotentialNotes());
+                            r.getPotentialNotes(),
+                            r.isCalibrationLocked());
                 })
                 .collect(Collectors.toList());
 
         Map<String, Long> distribution = buildDistribution(cycleReviews);
+
+        // M121 — overlay targets + per-band actual/target/delta cells.
+        java.util.Map<String, java.math.BigDecimal> targetMap = new java.util.LinkedHashMap<>();
+        for (var t : targets.findByCycleId(cycleId)) {
+            targetMap.put(t.getBand(), t.getTargetPercent());
+        }
+        java.util.Map<String, CalibrationBoardMath.BoardCell> cells =
+                CalibrationBoardMath.buildBoardDistribution(distribution, targetMap, entries.size());
 
         return new CalibrationBoardResponse(
                 cycle.getId(),
                 cycle.getName(),
                 entries.size(),
                 distribution,
+                cells,
+                targetMap,
                 entries);
     }
 
@@ -200,8 +218,56 @@ public class CalibrationSessionService {
             throw new BadRequestException(
                     "Session can only be completed from IN_PROGRESS state (current: " + session.getStatus() + ")");
         }
+        // M121 — lock every review touched by this session so a stale
+        // edit can't quietly overwrite the calibration outcome. Uses a
+        // single UPDATE to flip the flag on each distinct review the
+        // edit log mentions, and stamps the count on the session for
+        // the list-screen badge.
+        int locked = jdbc.update(
+                "UPDATE performance.performance_review "
+                + "   SET calibration_locked = TRUE "
+                + " WHERE id IN ("
+                + "     SELECT DISTINCT review_id"
+                + "       FROM performance.calibration_edit_log"
+                + "      WHERE session_id = :sessionId)"
+                + "   AND calibration_locked = FALSE",
+                new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("sessionId", sessionId));
         session.setStatus(STATUS_COMPLETED);
+        session.setLockedAt(java.time.OffsetDateTime.now());
+        session.setLockedReviews(locked);
         return CalibrationSessionResponse.from(sessions.save(session));
+    }
+
+    /**
+     * M121 — HR-admin override to reopen the lock so a fix can be made
+     * after the meeting. Doesn't change session status — sessions stay
+     * COMPLETED — but flips the per-review flag back to false. The
+     * unlock itself writes an edit-log row so HR can still see who
+     * re-opened it.
+     */
+    @Transactional
+    public void unlockReview(UUID reviewId) {
+        PerformanceReview review = reviews.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found: " + reviewId));
+        if (!review.isCalibrationLocked()) return;
+        java.util.Map<String, Object> before = java.util.Map.of("calibrationLocked", true);
+        review.setCalibrationLocked(false);
+        reviews.save(review);
+        // Find the most recent session that touched this review so the
+        // unlock attaches to the correct meeting in the edit log.
+        java.util.List<az.millers.hcm.performance.domain.CalibrationEditLog> recent =
+                editLogs.findByReviewIdOrderByEditedAtDesc(reviewId);
+        UUID sessionId = recent.isEmpty() ? null : recent.get(0).getSessionId();
+        if (sessionId != null) {
+            az.millers.hcm.performance.domain.CalibrationEditLog log =
+                    new az.millers.hcm.performance.domain.CalibrationEditLog();
+            log.setSessionId(sessionId);
+            log.setReviewId(reviewId);
+            log.setEditedBy(currentRequest.username());
+            log.setBeforeJson(before);
+            log.setAfterJson(java.util.Map.of("calibrationLocked", false, "action", "UNLOCKED"));
+            editLogs.save(log);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -222,7 +288,50 @@ public class CalibrationSessionService {
             throw new BadRequestException(
                     "Review " + reviewId + " does not belong to cycle " + session.getCycleId());
         }
-        return reviewService.calibrate(reviewId, req);
+        // M121 — reject calibrating a locked review. HR can call
+        // unlockReview to reopen it.
+        if (review.isCalibrationLocked()) {
+            throw new BadRequestException(
+                    "Review " + reviewId + " is locked by a completed calibration session — unlock first to re-edit");
+        }
+        // M121 — snapshot the BEFORE state of every field calibrate can
+        // touch, then call the underlying calibrate, then capture AFTER.
+        // Done here rather than inside PerformanceReviewService because
+        // the edit log is a calibration-session concept, not a review one.
+        java.util.Map<String, Object> before = snapshotCalibrationFields(review);
+        PerformanceReview after = reviewService.calibrate(reviewId, req);
+        java.util.Map<String, Object> afterSnapshot = snapshotCalibrationFields(after);
+        az.millers.hcm.performance.domain.CalibrationEditLog log =
+                new az.millers.hcm.performance.domain.CalibrationEditLog();
+        log.setSessionId(sessionId);
+        log.setReviewId(reviewId);
+        log.setEditedBy(currentRequest.username());
+        log.setBeforeJson(before);
+        log.setAfterJson(afterSnapshot);
+        editLogs.save(log);
+        return after;
+    }
+
+    /** Capture the calibrate-touched fields for the edit-log. Keep in sync with PerformanceReviewService.calibrate. */
+    private static java.util.Map<String, Object> snapshotCalibrationFields(PerformanceReview r) {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("managerRating", r.getManagerRating());
+        m.put("finalRating", r.getFinalRating());
+        m.put("finalBand", r.getFinalBand());
+        m.put("recommendation", r.getRecommendation());
+        m.put("bonusPercent", r.getBonusPercent());
+        m.put("calibrationNotes", r.getCalibrationNotes());
+        m.put("potentialRating", r.getPotentialRating());
+        m.put("potentialNotes", r.getPotentialNotes());
+        return m;
+    }
+
+    // ── M121 — edit log read surface ───────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<az.millers.hcm.performance.domain.CalibrationEditLog> editLogForSession(UUID sessionId) {
+        findSession(sessionId); // 404 on unknown
+        return editLogs.findBySessionIdOrderByEditedAtDesc(sessionId);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

@@ -19,5 +19,7 @@ public record CalibrationBoardEntry(
         /** M93 — potential rating feeds the 9-box succession grid (M92). */
         BigDecimal potentialRating,
         /** M93 — rationale for the potential rating. */
-        String potentialNotes) {
+        String potentialNotes,
+        /** M121 — true once a calibration session has sealed this row. */
+        boolean calibrationLocked) {
 }

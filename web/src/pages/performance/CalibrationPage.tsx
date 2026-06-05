@@ -19,11 +19,19 @@ import { useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   calibrationApi,
+  type BoardCell,
   type CalibrationBoardEntry,
   type CalibrationSession,
   type CalibrationSessionStatus,
 } from '../../api/calibrationApi'
 import { successionApi } from '../../api/succession'
+import {
+  CalibrationDeltaTable,
+  CalibrationDistributionChart,
+  CalibrationEditLogDrawer,
+  CalibrationLockTag,
+  CalibrationTargetEditor,
+} from './CalibrationV2Widgets'
 
 const { Title, Text } = Typography
 
@@ -80,7 +88,12 @@ export function CalibrationPage() {
   const [cycleName, setCycleName] = useState<string>('')
   const [boardEntries, setBoardEntries] = useState<CalibrationBoardEntry[]>([])
   const [distribution, setDistribution] = useState<Record<string, number>>({})
+  const [boardCells, setBoardCells] = useState<Record<string, BoardCell>>({})
   const [boardLoading, setBoardLoading] = useState(false)
+
+  // M121 — v2 modals/drawers
+  const [targetEditorOpen, setTargetEditorOpen] = useState(false)
+  const [editLogSession, setEditLogSession] = useState<CalibrationSession | null>(null)
 
   // Per-row edit state, keyed by reviewId
   const [edits, setEdits] = useState<Record<string, BoardRowEdit>>({})
@@ -118,6 +131,7 @@ export function CalibrationPage() {
         setCycleName(data.cycleName)
         setBoardEntries(data.entries)
         setDistribution(data.ratingDistribution)
+        setBoardCells(data.boardCells ?? {})
         // Initialise edits from board data
         const init: Record<string, BoardRowEdit> = {}
         for (const e of data.entries) {
@@ -272,7 +286,7 @@ export function CalibrationPage() {
     },
     {
       title: '',
-      width: 200,
+      width: 260,
       render: (_, s) => (
         <Space size={4}>
           {s.status === 'SCHEDULED' && (
@@ -285,6 +299,12 @@ export function CalibrationPage() {
               Complete
             </Button>
           )}
+          {/* M121 — edit log available once the session has had any calibrate calls */}
+          {s.status !== 'SCHEDULED' && (
+            <Button size="small" onClick={() => setEditLogSession(s)}>
+              Edit log
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -293,7 +313,18 @@ export function CalibrationPage() {
   // ── Board table columns ──────────────────────────────────────────────────
 
   const boardColumns: ColumnsType<CalibrationBoardEntry> = [
-    { title: 'Employee', dataIndex: 'employeeName', width: 180, fixed: 'left' },
+    {
+      title: 'Employee',
+      dataIndex: 'employeeName',
+      width: 220,
+      fixed: 'left',
+      render: (name: string, row: CalibrationBoardEntry) => (
+        <Space size={4}>
+          {name}
+          <CalibrationLockTag locked={row.calibrationLocked} />
+        </Space>
+      ),
+    },
     { title: 'Department', dataIndex: 'department', width: 160 },
     {
       title: 'Self',
@@ -501,6 +532,21 @@ export function CalibrationPage() {
         </Card>
       )}
 
+      {/* M121 — actual vs target distribution + edit targets */}
+      {Object.keys(boardCells).length > 0 && cycleId && (
+        <Card
+          title="Distribution vs target"
+          extra={
+            <Button size="small" onClick={() => setTargetEditorOpen(true)}>
+              Edit targets
+            </Button>
+          }
+        >
+          <CalibrationDistributionChart cells={boardCells} />
+          <CalibrationDeltaTable cells={boardCells} />
+        </Card>
+      )}
+
       {/* Calibration board */}
       <Card title={`Calibration Board (${boardEntries.length} reviews)`}>
         <Table
@@ -545,6 +591,22 @@ export function CalibrationPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* M121 — target editor + edit log drawer */}
+      {cycleId && (
+        <CalibrationTargetEditor
+          cycleId={cycleId}
+          open={targetEditorOpen}
+          onClose={() => setTargetEditorOpen(false)}
+          onSaved={loadBoard}
+        />
+      )}
+      <CalibrationEditLogDrawer
+        sessionId={editLogSession?.id ?? null}
+        sessionName={editLogSession?.name ?? ''}
+        open={!!editLogSession}
+        onClose={() => setEditLogSession(null)}
+      />
     </Space>
   )
 }

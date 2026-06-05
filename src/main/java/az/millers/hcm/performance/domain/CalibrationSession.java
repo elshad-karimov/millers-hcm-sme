@@ -54,6 +54,14 @@ public class CalibrationSession {
     @Column(name = "created_by", length = 120)
     private String createdBy;
 
+    /** M121 — wall-clock when the session moved to COMPLETED and reviews were locked. */
+    @Column(name = "locked_at")
+    private OffsetDateTime lockedAt;
+
+    /** M121 — count of reviews sealed by this session's completion. Cached for the list-screen badge. */
+    @Column(name = "locked_reviews", nullable = false)
+    private int lockedReviews = 0;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

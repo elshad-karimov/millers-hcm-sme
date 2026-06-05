@@ -142,6 +142,7 @@ public class PerformanceReviewService {
     @Transactional
     public PerformanceReview submitManagerReview(UUID id, ManagerReviewRequest req) {
         PerformanceReview r = get(id);
+        rejectIfCalibrationLocked(r);
         if (r.getStatus() != ReviewStatus.SELF_SUBMITTED
                 && r.getStatus() != ReviewStatus.MANAGER_IN_PROGRESS) {
             throw new BadRequestException(
@@ -199,6 +200,7 @@ public class PerformanceReviewService {
     @Transactional
     public PerformanceReview calibrate(UUID id, CalibrationRequest req) {
         PerformanceReview r = get(id);
+        rejectIfCalibrationLocked(r);
         if (r.getStatus() != ReviewStatus.APPROVED
                 && r.getStatus() != ReviewStatus.PENDING_APPROVAL
                 && r.getStatus() != ReviewStatus.CALIBRATING) {
@@ -308,6 +310,20 @@ public class PerformanceReviewService {
         }
         if (rating.signum() < 0 || rating.compareTo(BigDecimal.valueOf(5)) > 0) {
             throw new BadRequestException(label + " must be between 0 and 5");
+        }
+    }
+
+    /**
+     * M121 — block any write path on a review that a calibration
+     * session has sealed. HR can call
+     * {@link CalibrationSessionService#unlockReview} to reopen it.
+     */
+    private static void rejectIfCalibrationLocked(PerformanceReview r) {
+        if (r.isCalibrationLocked()) {
+            throw new BadRequestException(
+                    "Review " + r.getReviewNo()
+                            + " is locked by a completed calibration session — "
+                            + "ask HR to unlock before further edits");
         }
     }
 }

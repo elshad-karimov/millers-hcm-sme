@@ -17,9 +17,14 @@ import az.millers.hcm.performance.api.dto.CalibrationRequest;
 import az.millers.hcm.performance.api.dto.CalibrationSessionRequest;
 import az.millers.hcm.performance.api.dto.CalibrationSessionResponse;
 import az.millers.hcm.performance.api.dto.PerformanceReviewResponse;
+import az.millers.hcm.performance.domain.CalibrationEditLog;
 import az.millers.hcm.performance.domain.PerformanceReview;
 import az.millers.hcm.performance.service.CalibrationSessionService;
+import az.millers.hcm.performance.service.CalibrationTargetService;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
+import java.util.Map;
+import org.springframework.web.bind.annotation.PutMapping;
 
 /**
  * Calibration session endpoints (M56 – PRD §8.13).
@@ -38,9 +43,13 @@ import jakarta.validation.Valid;
 public class CalibrationSessionController {
 
     private final CalibrationSessionService service;
+    /** M121 — targets are a separate service to keep CRUD concerns out of the session. */
+    private final CalibrationTargetService targets;
 
-    public CalibrationSessionController(CalibrationSessionService service) {
+    public CalibrationSessionController(CalibrationSessionService service,
+                                        CalibrationTargetService targets) {
         this.service = service;
+        this.targets = targets;
     }
 
     // ── Cycle-scoped ────────────────────────────────────────────────────────
@@ -82,5 +91,31 @@ public class CalibrationSessionController {
     @PostMapping("/api/performance/calibration-sessions/{sessionId}/complete")
     public CalibrationSessionResponse complete(@PathVariable UUID sessionId) {
         return service.completeSession(sessionId);
+    }
+
+    // ── M121 — edit log + target distribution + unlock ──────────────────────
+
+    @GetMapping("/api/performance/calibration-sessions/{sessionId}/edit-log")
+    public List<CalibrationEditLog> editLog(@PathVariable UUID sessionId) {
+        return service.editLogForSession(sessionId);
+    }
+
+    @PostMapping("/api/performance/reviews/{reviewId}/unlock-calibration")
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    public void unlockReview(@PathVariable UUID reviewId) {
+        service.unlockReview(reviewId);
+    }
+
+    @GetMapping("/api/performance/cycles/{cycleId}/calibration-targets")
+    public Map<String, BigDecimal> getTargets(@PathVariable UUID cycleId) {
+        return targets.get(cycleId);
+    }
+
+    @PutMapping("/api/performance/cycles/{cycleId}/calibration-targets")
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    public Map<String, BigDecimal> saveTargets(
+            @PathVariable UUID cycleId,
+            @RequestBody Map<String, BigDecimal> body) {
+        return targets.save(cycleId, body);
     }
 }
