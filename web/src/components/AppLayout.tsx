@@ -55,6 +55,7 @@ const { Header, Content } = Layout
 const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/home', module: 'home', screen: 'home' },
   { prefix: '/employees', module: 'people', screen: 'employees' },
+  { prefix: '/hr/preboarding', module: 'people', screen: 'hr-preboarding' },
   { prefix: '/organization/bulk-reorg', module: 'people', screen: 'organization-bulk-reorg' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
@@ -196,6 +197,11 @@ export function AppLayout() {
                 key: 'employees',
                 icon: <IdcardOutlined />,
                 label: <Link to="/employees">Employees</Link>,
+              },
+              {
+                key: 'hr-preboarding',
+                icon: <UserAddOutlined />,
+                label: <Link to="/hr/preboarding">Pre-boarding</Link>,
               },
               {
                 key: 'organization',

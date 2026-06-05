@@ -96,6 +96,8 @@ import { RecruitmentAnalyticsPage } from './pages/RecruitmentAnalyticsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { ApiKeysPage } from './pages/ApiKeysPage'
+import { PreboardingPage } from './pages/PreboardingPage'
+import { PublicPreboardingPage } from './pages/PublicPreboardingPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { BiExportPage } from './pages/admin/BiExportPage'
@@ -132,6 +134,11 @@ function RequireRole({ roles }: { roles: string[] }) {
 export default function App() {
   return (
     <Routes>
+      {/* M122 — Public candidate-facing pre-boarding portal. OUTSIDE the
+          RequireAuth wrapper because the candidate has no Keycloak
+          account; the magic-link token IS the credential. */}
+      <Route path="/preboarding/:token" element={<PublicPreboardingPage />} />
+
       {/* No /login route — RequireAuth hands off to Keycloak. */}
       <Route
         path="/"
@@ -241,6 +248,8 @@ export default function App() {
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR']} />}>
           {/* People */}
           <Route path="employees" element={<EmployeesPage />} />
+          {/* M122 — pre-boarding invite admin */}
+          <Route path="hr/preboarding" element={<PreboardingPage />} />
           <Route path="employees/new" element={<EmployeeFormPage />} />
           <Route path="employees/:id" element={<EmployeeDetailPage />} />
           <Route path="employees/:id/edit" element={<EmployeeFormPage />} />

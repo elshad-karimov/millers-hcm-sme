@@ -53,6 +53,11 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
+                        // M122 — public pre-boarding portal. The magic-link
+                        // token IS the credential; SecurityConfig doesn't
+                        // need to know more. The controller maps unknown /
+                        // expired tokens to 404.
+                        .requestMatchers("/api/public/preboarding/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 // M120 — recognise X-API-Key BEFORE the bearer-token filter. A
