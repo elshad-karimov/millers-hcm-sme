@@ -19,6 +19,8 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.corehr.service.HolidayService;
 import az.millers.hcm.leave.api.dto.LeaveRequestResponse;
 import az.millers.hcm.leave.api.dto.LeaveSubmitRequest;
+import az.millers.hcm.leave.domain.BlackoutSeverity;
+import az.millers.hcm.leave.domain.BlackoutWindow;
 import az.millers.hcm.leave.domain.LeaveBalance;
 import az.millers.hcm.leave.domain.LeaveRequest;
 import az.millers.hcm.leave.domain.LeaveRequestStatus;
@@ -47,6 +49,8 @@ public class LeaveRequestService {
     private final CurrentRequest currentRequest;
     private final AccessScopeService accessScope;
     private final HolidayService holidays;
+    /** M123 — blackout windows + applicability checker. */
+    private final BlackoutWindowService blackouts;
 
     public LeaveRequestService(LeaveRequestRepository requests,
                                 LeaveTypeRepository types,
@@ -56,13 +60,15 @@ public class LeaveRequestService {
                                 AuditService audit,
                                 CurrentRequest currentRequest,
                                 AccessScopeService accessScope,
-                                HolidayService holidays) {
+                                HolidayService holidays,
+                                BlackoutWindowService blackouts) {
         this.requests = requests;
         this.types = types;
         this.employees = employees;
         this.balances = balances;
         this.workflowService = workflowService;
         this.audit = audit;
+        this.blackouts = blackouts;
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
         this.holidays = holidays;
@@ -157,6 +163,19 @@ public class LeaveRequestService {
             throw new BadRequestException("This leave type requires an attachment");
         }
 
+        // M123 — blackout window gate. BLOCK windows hard-reject; the
+        // BadRequestException carries a multi-line message naming each
+        // conflicting window so the user sees what's in the way.
+        // REQUIRES_APPROVAL windows let the request through but raise
+        // blackoutFlag so HR sees it in their approval inbox.
+        java.util.List<BlackoutWindow> hits = blackouts.applicableFor(
+                req.employeeId(), req.leaveTypeId(), req.startDate(), req.endDate());
+        BlackoutSeverity worst = BlackoutChecker.worstSeverity(hits);
+        if (worst == BlackoutSeverity.BLOCK) {
+            throw new BadRequestException(BlackoutChecker.formatBlockMessage(hits));
+        }
+        boolean blackoutFlag = worst == BlackoutSeverity.REQUIRES_APPROVAL;
+
         LeaveRequest r = new LeaveRequest();
         r.setRequestNo(String.format("LR-%05d", requests.nextRequestNoSequence()));
         r.setEmployeeId(req.employeeId());
@@ -169,6 +188,7 @@ public class LeaveRequestService {
         r.setAttachmentUrl(req.attachmentUrl());
         r.setReplacementEmployeeId(req.replacementEmployeeId());
         r.setStatus(LeaveRequestStatus.PENDING);
+        r.setBlackoutFlag(blackoutFlag);
         r.setCreatedBy(currentRequest.username());
         LeaveRequest saved = requests.save(r);
 

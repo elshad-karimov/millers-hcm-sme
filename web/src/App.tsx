@@ -17,6 +17,7 @@ import { ScheduleAssignmentFormPage } from './pages/ScheduleAssignmentFormPage'
 import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
 import { AttendanceSummaryPage } from './pages/AttendanceSummaryPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
+import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
 import { LeaveTypeFormPage } from './pages/LeaveTypeFormPage'
 import { LeaveBalancesPage } from './pages/LeaveBalancesPage'
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage'
@@ -271,6 +272,8 @@ export default function App() {
 
           {/* Absence admin */}
           <Route path="leave/types" element={<LeaveTypesPage />} />
+          {/* M123 — leave blackout windows admin */}
+          <Route path="leave/blackouts" element={<LeaveBlackoutsPage />} />
           <Route path="leave/types/new" element={<LeaveTypeFormPage />} />
           <Route path="leave/types/:id/edit" element={<LeaveTypeFormPage />} />
           <Route path="permission/types" element={<PermissionTypesPage />} />

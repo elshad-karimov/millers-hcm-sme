@@ -67,6 +67,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/attendance/events', module: 'time', screen: 'attendance-events' },
   { prefix: '/attendance/summary', module: 'time', screen: 'attendance-summary' },
   { prefix: '/leave/types', module: 'absence', screen: 'leave-types' },
+  { prefix: '/leave/blackouts', module: 'absence', screen: 'leave-blackouts' },
   { prefix: '/leave/balances', module: 'absence', screen: 'leave-balances' },
   { prefix: '/leave/requests', module: 'absence', screen: 'leave-requests' },
   { prefix: '/permission/types', module: 'absence', screen: 'permission-types' },
@@ -295,6 +296,11 @@ export function AppLayout() {
                       key: 'leave-types',
                       icon: <SettingOutlined />,
                       label: <Link to="/leave/types">Leave types</Link>,
+                    },
+                    {
+                      key: 'leave-blackouts',
+                      icon: <SafetyCertificateOutlined />,
+                      label: <Link to="/leave/blackouts">Blackout windows</Link>,
                     },
                     { type: 'divider' as const },
                   ]
