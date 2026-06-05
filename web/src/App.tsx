@@ -71,6 +71,7 @@ import { SalaryPlanningPage } from './pages/SalaryPlanningPage'
 import { CompPlanningPage } from './pages/CompPlanningPage'
 import { BenefitsPage } from './pages/BenefitsPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { CustomReportBuilderPage } from './pages/CustomReportBuilderPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
@@ -309,6 +310,8 @@ export default function App() {
           {/* Reports */}
           <Route path="reports" element={<ReportsPage />} />
           <Route path="reports/schedules" element={<ReportSchedulesPage />} />
+          {/* M119 — custom report builder */}
+          <Route path="reports/custom" element={<CustomReportBuilderPage />} />
         </Route>
 
         {/* ── SYSTEM_ADMIN only ──────────────────────────────────── */}

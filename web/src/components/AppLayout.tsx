@@ -111,6 +111,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compbenefits/comp-planning', module: 'compbenefits', screen: 'compbenefits-comp-planning' },
   { prefix: '/compbenefits/benefits', module: 'compbenefits', screen: 'compbenefits-benefits' },
   { prefix: '/reports/schedules', module: 'reports', screen: 'reports-schedules' },
+  { prefix: '/reports/custom', module: 'reports', screen: 'reports-custom' },
   { prefix: '/reports', module: 'reports', screen: 'reports' },
   { prefix: '/engagement/surveys', module: 'engagement', screen: 'engagement-surveys' },
   { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
@@ -623,6 +624,11 @@ export function AppLayout() {
                       key: 'reports-schedules',
                       icon: <ClockCircleOutlined />,
                       label: <Link to="/reports/schedules">Schedules & history</Link>,
+                    },
+                    {
+                      key: 'reports-custom',
+                      icon: <BarChartOutlined />,
+                      label: <Link to="/reports/custom">Custom report builder</Link>,
                     },
                   ]
                 : []),
