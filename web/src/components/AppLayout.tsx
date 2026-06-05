@@ -56,6 +56,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/home', module: 'home', screen: 'home' },
   { prefix: '/employees', module: 'people', screen: 'employees' },
   { prefix: '/hr/preboarding', module: 'people', screen: 'hr-preboarding' },
+  { prefix: '/hr/assets', module: 'people', screen: 'hr-assets' },
   { prefix: '/organization/bulk-reorg', module: 'people', screen: 'organization-bulk-reorg' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
@@ -203,6 +204,11 @@ export function AppLayout() {
                 key: 'hr-preboarding',
                 icon: <UserAddOutlined />,
                 label: <Link to="/hr/preboarding">Pre-boarding</Link>,
+              },
+              {
+                key: 'hr-assets',
+                icon: <InboxOutlined />,
+                label: <Link to="/hr/assets">Assets</Link>,
               },
               {
                 key: 'organization',

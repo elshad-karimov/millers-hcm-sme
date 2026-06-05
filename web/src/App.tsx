@@ -18,6 +18,7 @@ import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
 import { AttendanceSummaryPage } from './pages/AttendanceSummaryPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
+import { AssetsAdminPage } from './pages/AssetsAdminPage'
 import { LeaveTypeFormPage } from './pages/LeaveTypeFormPage'
 import { LeaveBalancesPage } from './pages/LeaveBalancesPage'
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage'
@@ -251,6 +252,8 @@ export default function App() {
           <Route path="employees" element={<EmployeesPage />} />
           {/* M122 — pre-boarding invite admin */}
           <Route path="hr/preboarding" element={<PreboardingPage />} />
+          {/* M124 — asset administration (cross-employee) */}
+          <Route path="hr/assets" element={<AssetsAdminPage />} />
           <Route path="employees/new" element={<EmployeeFormPage />} />
           <Route path="employees/:id" element={<EmployeeDetailPage />} />
           <Route path="employees/:id/edit" element={<EmployeeFormPage />} />
