@@ -95,6 +95,7 @@ import { TalentPoolPage } from './pages/TalentPoolPage'
 import { RecruitmentAnalyticsPage } from './pages/RecruitmentAnalyticsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { UserManagementPage } from './pages/UserManagementPage'
+import { ApiKeysPage } from './pages/ApiKeysPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { BiExportPage } from './pages/admin/BiExportPage'
@@ -320,6 +321,8 @@ export default function App() {
           <Route path="admin/backups" element={<BackupsPage />} />
           <Route path="admin/ldap" element={<LdapSyncPage />} />
           <Route path="admin/warehouse" element={<WarehouseAnalyticsPage />} />
+          {/* M120 — API keys + rate limiting */}
+          <Route path="admin/api-keys" element={<ApiKeysPage />} />
         </Route>
 
         {/* ── SYSTEM_ADMIN + AUDITOR ─────────────────────────────── */}
