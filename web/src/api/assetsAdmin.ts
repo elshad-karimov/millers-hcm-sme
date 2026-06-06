@@ -45,6 +45,32 @@ export interface SearchFilters {
   employeeId?: string
 }
 
+// ── M128 — depreciation ─────────────────────────────────────────────────────
+
+export type DepreciationMethod = 'STRAIGHT_LINE' | 'DECLINING_BALANCE' | 'NONE'
+
+export interface DepreciationPeriodRow {
+  period: number
+  periodStart: string
+  openingValue: number
+  depreciation: number
+  closingValue: number
+}
+
+export interface AssetDepreciation {
+  assetId: string
+  assetName: string
+  method: DepreciationMethod
+  purchaseCost?: number | null
+  purchaseDate?: string | null
+  usefulLifeMonths?: number | null
+  salvageValue?: number | null
+  decliningRatePercent?: number | null
+  totalDepreciation: number
+  bookValueToday?: number | null
+  schedule: DepreciationPeriodRow[]
+}
+
 export const assetsAdminApi = {
   search: (filters: SearchFilters = {}) =>
     api.get<Asset[]>('/assets', { params: filters }).then((r) => r.data),
@@ -54,4 +80,6 @@ export const assetsAdminApi = {
     api.get<AssetEventResponse[]>(`/assets/${id}/events`).then((r) => r.data),
   reissue: (id: string, body: AssetReissueRequest) =>
     api.post<Asset>(`/assets/${id}/reissue`, body).then((r) => r.data),
+  depreciation: (id: string) =>
+    api.get<AssetDepreciation>(`/assets/${id}/depreciation`).then((r) => r.data),
 }

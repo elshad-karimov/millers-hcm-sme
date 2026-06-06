@@ -78,6 +78,32 @@ public class EmployeeAsset {
     @Column(columnDefinition = "text")
     private String notes;
 
+    // ── M128 — depreciation fields ──────────────────────────────────────────
+
+    /** Acquisition cost. Null → asset doesn't carry a financial value. */
+    @Column(name = "purchase_cost", precision = 14, scale = 2)
+    private java.math.BigDecimal purchaseCost;
+
+    /** Acquisition date. Drives the period 0 of the schedule. */
+    @Column(name = "purchase_date")
+    private java.time.LocalDate purchaseDate;
+
+    /** Useful life in months. Must be positive when method ≠ NONE. */
+    @Column(name = "useful_life_months")
+    private Integer usefulLifeMonths;
+
+    /** Residual value at end-of-life. Book value floors here. */
+    @Column(name = "salvage_value", precision = 14, scale = 2)
+    private java.math.BigDecimal salvageValue;
+
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "depreciation_method", nullable = false, length = 32)
+    private DepreciationMethod depreciationMethod = DepreciationMethod.NONE;
+
+    /** Annual % used by DECLINING_BALANCE. Null = double-declining default. */
+    @Column(name = "declining_rate_percent", precision = 5, scale = 2)
+    private java.math.BigDecimal decliningRatePercent;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

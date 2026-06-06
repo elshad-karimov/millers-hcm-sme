@@ -16,9 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 import az.millers.hcm.corehr.api.dto.AssetEventResponse;
 import az.millers.hcm.corehr.api.dto.AssetReissueRequest;
 import az.millers.hcm.corehr.api.dto.AssetResponse;
+import az.millers.hcm.corehr.api.dto.DepreciationResponse.AssetDepreciation;
 import az.millers.hcm.corehr.domain.AssetStatus;
 import az.millers.hcm.corehr.domain.AssetType;
 import az.millers.hcm.corehr.repo.EmployeeAssetRepository;
+import az.millers.hcm.corehr.service.AssetDepreciationService;
 import az.millers.hcm.corehr.service.AssetEventService;
 import az.millers.hcm.corehr.service.EmployeeAssetService;
 import az.millers.hcm.security.SecurityRoles;
@@ -41,13 +43,17 @@ public class AssetAdminController {
     private final EmployeeAssetRepository repo;
     private final EmployeeAssetService assets;
     private final AssetEventService events;
+    /** M128 — depreciation schedule for an asset. */
+    private final AssetDepreciationService depreciation;
 
     public AssetAdminController(EmployeeAssetRepository repo,
                                 EmployeeAssetService assets,
-                                AssetEventService events) {
+                                AssetEventService events,
+                                AssetDepreciationService depreciation) {
         this.repo = repo;
         this.assets = assets;
         this.events = events;
+        this.depreciation = depreciation;
     }
 
     /**
@@ -89,5 +95,11 @@ public class AssetAdminController {
                                   @RequestBody AssetReissueRequest req) {
         return assets.reissue(id, req.newEmployeeId(), req.effectiveAt(),
                 req.conditionAtReturn(), req.conditionAtAssignment(), req.notes());
+    }
+
+    /** M128 — month-by-month depreciation schedule for an asset. */
+    @GetMapping("/{id}/depreciation")
+    public AssetDepreciation depreciation(@PathVariable UUID id) {
+        return depreciation.scheduleFor(id);
     }
 }

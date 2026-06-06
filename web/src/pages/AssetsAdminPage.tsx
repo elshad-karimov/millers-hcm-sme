@@ -14,6 +14,7 @@ import {
   Card,
   DatePicker,
   Drawer,
+  Empty,
   Form,
   Input,
   Modal,
@@ -26,6 +27,15 @@ import {
   Typography,
 } from 'antd'
 import dayjs from 'dayjs'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { assetsAdminApi, type AssetEventResponse, type AssetEventType, type AssetReissueRequest } from '../api/assetsAdmin'
 import type { Asset, AssetStatus, AssetType } from '../api/assetsNotesRewards'
 import { employeesApi, type Employee } from '../api/employees'
@@ -72,6 +82,10 @@ export function AssetsAdminPage() {
   const [reissueFor, setReissueFor] = useState<Asset | null>(null)
   const [reissueForm] = Form.useForm()
 
+  // M128 — depreciation drawer
+  const [depreciationFor, setDepreciationFor] = useState<Asset | null>(null)
+  const [depreciation, setDepreciation] = useState<import('../api/assetsAdmin').AssetDepreciation | null>(null)
+
   const reload = () => {
     setLoading(true)
     assetsAdminApi.search(filters)
@@ -101,6 +115,14 @@ export function AssetsAdminPage() {
     assetsAdminApi.history(asset.id)
       .then(setHistory)
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load history'))
+  }
+
+  const openDepreciation = (asset: Asset) => {
+    setDepreciationFor(asset)
+    setDepreciation(null)
+    assetsAdminApi.depreciation(asset.id)
+      .then(setDepreciation)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load depreciation'))
   }
 
   const openReissue = (asset: Asset) => {
@@ -180,6 +202,7 @@ export function AssetsAdminPage() {
       render: (_: unknown, r: Asset) => (
         <Space>
           <a onClick={() => openHistory(r)}>History</a>
+          <a onClick={() => openDepreciation(r)}>Depreciation</a>
           {(r.status === 'ASSIGNED' || r.status === 'RETURNED') && (
             <a onClick={() => openReissue(r)}>Reissue</a>
           )}
@@ -282,6 +305,82 @@ export function AssetsAdminPage() {
                 ),
               }))}
             />
+          </>
+        )}
+      </Drawer>
+
+      {/* ── M128 — Depreciation drawer ──────────────────────────── */}
+      <Drawer
+        open={!!depreciationFor}
+        onClose={() => setDepreciationFor(null)}
+        width={780}
+        title={depreciationFor ? `Depreciation — ${depreciationFor.assetName}` : ''}
+      >
+        {depreciation && (
+          <>
+            <Paragraph type="secondary" style={{ fontSize: 12 }}>
+              Method: <Tag>{depreciation.method}</Tag>
+              {depreciation.method !== 'NONE' && (
+                <>
+                  Cost: <Text strong>{depreciation.purchaseCost ?? '—'}</Text>{' · '}
+                  Life: {depreciation.usefulLifeMonths ?? '—'} months{' · '}
+                  Salvage: {depreciation.salvageValue ?? 0}
+                </>
+              )}
+            </Paragraph>
+            {depreciation.method === 'NONE' || depreciation.schedule.length === 0
+              ? <Empty description="This asset has no depreciation configured. Set purchase cost, life, and method on the asset record." />
+              : (
+                <>
+                  <Space size="middle" style={{ marginBottom: 12 }}>
+                    <Card size="small">
+                      <Statistic
+                        title="Book value today"
+                        value={depreciation.bookValueToday ?? 0}
+                        precision={2}
+                        valueStyle={{ fontSize: 18 }}
+                      />
+                    </Card>
+                    <Card size="small">
+                      <Statistic
+                        title="Total depreciation"
+                        value={depreciation.totalDepreciation}
+                        precision={2}
+                        valueStyle={{ fontSize: 18 }}
+                      />
+                    </Card>
+                  </Space>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart data={depreciation.schedule.map((r) => ({
+                      m: r.period,
+                      bookValue: r.closingValue,
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="m" />
+                      <YAxis />
+                      <RTooltip />
+                      <Line type="monotone" dataKey="bookValue" stroke="#1677ff" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <Table
+                    rowKey="period"
+                    size="small"
+                    style={{ marginTop: 12 }}
+                    pagination={{ pageSize: 12 }}
+                    dataSource={depreciation.schedule}
+                    columns={[
+                      { title: '#', dataIndex: 'period', width: 50 },
+                      { title: 'Period start', dataIndex: 'periodStart', width: 130 },
+                      { title: 'Opening', dataIndex: 'openingValue', align: 'right' as const,
+                        render: (v: number) => Number(v).toFixed(2) },
+                      { title: 'Depreciation', dataIndex: 'depreciation', align: 'right' as const,
+                        render: (v: number) => <Text type="danger">−{Number(v).toFixed(2)}</Text> },
+                      { title: 'Closing', dataIndex: 'closingValue', align: 'right' as const,
+                        render: (v: number) => <Text strong>{Number(v).toFixed(2)}</Text> },
+                    ]}
+                  />
+                </>
+              )}
           </>
         )}
       </Drawer>
