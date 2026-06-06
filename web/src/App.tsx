@@ -19,6 +19,7 @@ import { AttendanceSummaryPage } from './pages/AttendanceSummaryPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
 import { AssetsAdminPage } from './pages/AssetsAdminPage'
+import { PresenceMapPage } from './pages/PresenceMapPage'
 import { LeaveTypeFormPage } from './pages/LeaveTypeFormPage'
 import { LeaveBalancesPage } from './pages/LeaveBalancesPage'
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage'
@@ -172,6 +173,8 @@ export default function App() {
 
         {/* ── HR + Manager routes ────────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
+          {/* M125 — real-time presence map (manager + HR scope) */}
+          <Route path="presence" element={<PresenceMapPage />} />
           {/* HR letters — request queue (scope-restricted in service) */}
           <Route path="letters" element={<LetterRequestsPage />} />
 

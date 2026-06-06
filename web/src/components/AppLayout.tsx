@@ -61,6 +61,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
   { prefix: '/positions', module: 'people', screen: 'positions' },
+  { prefix: '/presence', module: 'time', screen: 'presence-map' },
   { prefix: '/attendance/schedules', module: 'time', screen: 'attendance-schedules' },
   { prefix: '/attendance/roster', module: 'time', screen: 'attendance-roster' },
   { prefix: '/attendance/shift-patterns', module: 'time', screen: 'attendance-shift-patterns' },
@@ -238,6 +239,11 @@ export function AppLayout() {
             icon: <ClockCircleOutlined />,
             label: 'Time & Attendance',
             children: [
+              {
+                key: 'presence-map',
+                icon: <GlobalOutlined />,
+                label: <Link to="/presence">Presence map</Link>,
+              },
               {
                 key: 'attendance-schedules',
                 icon: <CalendarOutlined />,
