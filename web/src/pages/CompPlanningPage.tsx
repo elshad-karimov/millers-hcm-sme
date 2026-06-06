@@ -23,6 +23,7 @@ import {
   Progress,
   Row,
   Select,
+  Slider,
   Space,
   Spin,
   Statistic,
@@ -35,11 +36,14 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
   compPlanningApi,
+  type AllocationRow,
   type CompCycleStatus,
   type CycleRequest,
   type CycleResponse,
   type DecisionRequest,
   type ProposalResponse,
+  type SimulationRequest,
+  type SimulationResponse,
   type TeamGrid,
   type TeamRow,
 } from '../api/compPlanning'
@@ -705,6 +709,273 @@ function WorkbenchTab({ initialCycleId }: { initialCycleId?: string }) {
   )
 }
 
+// ─── Simulator tab (M129) ────────────────────────────────────────────────────
+//
+// HR slides the weighting knobs (perf / tenure / base) plus a floor and a
+// cap, and the backend runs the pure-static `BonusSimulator` over the
+// cycle's proposal cohort. Output is a per-employee allocation table
+// with score, weight, allocated bonus, and % of base.
+
+function SimulatorTab({ initialCycleId }: { initialCycleId?: string }) {
+  const { message } = AntdApp.useApp()
+
+  const [cycles, setCycles] = useState<CycleResponse[]>([])
+  const [selectedCycleId, setSelectedCycleId] = useState<string | undefined>(initialCycleId)
+  const [loading, setLoading] = useState(true)
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<SimulationResponse | null>(null)
+
+  // Default knobs match the backend service defaults so SPA + service
+  // agree on what "leave it alone" means.
+  const [poolOverride, setPoolOverride] = useState<number | null>(null)
+  const [perfWeight, setPerfWeight] = useState(50)
+  const [tenWeight, setTenWeight] = useState(20)
+  const [baseWeight, setBaseWeight] = useState(30)
+  const [floorPct, setFloorPct] = useState(0)
+  const [capPct, setCapPct] = useState(0)
+
+  useEffect(() => {
+    compPlanningApi.listCycles()
+      .then((cs) => {
+        setCycles(cs)
+        if (!selectedCycleId && cs.length > 0) {
+          const firstOpen = cs.find((c) => c.status === 'OPEN' || c.status === 'CLOSED')
+          setSelectedCycleId((firstOpen ?? cs[0]).id)
+        }
+      })
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load cycles'))
+      .finally(() => setLoading(false))
+    // eslint-disable-next-line
+  }, [])
+
+  const cycle = useMemo(() => cycles.find((c) => c.id === selectedCycleId), [cycles, selectedCycleId])
+
+  const run = async () => {
+    if (!selectedCycleId) return
+    const req: SimulationRequest = {
+      poolTotal: poolOverride && poolOverride > 0 ? poolOverride : null,
+      performanceWeight: perfWeight / 100,
+      tenureWeight:      tenWeight  / 100,
+      baseWeight:        baseWeight / 100,
+      floorPercent:      floorPct,
+      capPercent:        capPct,
+    }
+    setRunning(true)
+    try {
+      const r = await compPlanningApi.simulate(selectedCycleId, req)
+      setResult(r)
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Simulation failed',
+      )
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const cols: ColumnsType<AllocationRow> = [
+    {
+      title: 'Employee',
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{r.employeeName ?? r.employeeId}</Text>
+          {r.employeeNo && <Text type="secondary" style={{ fontSize: 11 }}>{r.employeeNo}</Text>}
+        </Space>
+      ),
+    },
+    {
+      title: 'Base',
+      width: 110,
+      align: 'right',
+      render: (_, r) => <Text>{fmt(r.baseSalary)}</Text>,
+    },
+    {
+      title: 'Rating',
+      width: 80,
+      align: 'right',
+      render: (_, r) => r.performanceRating != null
+        ? <Text>{r.performanceRating.toFixed(1)}</Text>
+        : <Text type="secondary">—</Text>,
+    },
+    {
+      title: 'Tenure',
+      width: 80,
+      align: 'right',
+      render: (_, r) => <Text>{r.tenureMonths} mo</Text>,
+    },
+    {
+      title: 'Score',
+      width: 90,
+      align: 'right',
+      render: (_, r) => <Text>{r.score.toFixed(3)}</Text>,
+    },
+    {
+      title: 'Weight',
+      width: 90,
+      align: 'right',
+      render: (_, r) => <Text>{(r.weight * 100).toFixed(2)}%</Text>,
+    },
+    {
+      title: 'Allocated',
+      width: 130,
+      align: 'right',
+      render: (_, r) => (
+        <Text strong style={{ color: r.clamped ? '#fa8c16' : undefined }}>
+          {fmt(r.allocatedBonus)}
+        </Text>
+      ),
+    },
+    {
+      title: '% of base',
+      width: 100,
+      align: 'right',
+      render: (_, r) => <Text>{r.percentOfBase.toFixed(2)}%</Text>,
+    },
+    {
+      title: '',
+      width: 80,
+      align: 'center',
+      render: (_, r) => r.clamped ? <Tag color="orange">clamped</Tag> : null,
+    },
+  ]
+
+  if (loading) return <Spin />
+
+  const weightSum = perfWeight + tenWeight + baseWeight
+  const weightWarning = weightSum === 0
+    ? 'All weights zero — pool will be split evenly.'
+    : weightSum !== 100
+      ? `Weights sum to ${weightSum}% (normalised at run time).`
+      : null
+
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Card size="small">
+        <Row gutter={12} align="middle">
+          <Col span={12}>
+            <Text strong>Cycle:</Text>
+            <Select
+              style={{ width: '100%' }}
+              value={selectedCycleId}
+              onChange={(v) => { setSelectedCycleId(v); setResult(null) }}
+              options={cycles.map((c) => ({
+                value: c.id,
+                label: `${c.name} (${c.status})`,
+              }))}
+              placeholder="Pick a cycle"
+            />
+          </Col>
+          <Col span={8}>
+            <Text strong>Pool override (optional):</Text>
+            <InputNumber
+              style={{ width: '100%' }}
+              value={poolOverride ?? undefined}
+              onChange={(v) => setPoolOverride(typeof v === 'number' ? v : null)}
+              min={0}
+              step={1000}
+              precision={2}
+              placeholder={cycle ? `Cycle default: ${fmt(cycle.poolTotal)} ${cycle.currency}` : ''}
+            />
+          </Col>
+          <Col span={4} style={{ textAlign: 'right' }}>
+            <Button type="primary" onClick={run} loading={running} disabled={!selectedCycleId}>
+              Run simulation
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      <Card title="Weighting & guard-rails" size="small">
+        <Row gutter={16}>
+          <Col span={8}>
+            <Text>Performance weight</Text>
+            <Slider min={0} max={100} value={perfWeight} onChange={setPerfWeight}
+              marks={{ 0: '0%', 50: '50%', 100: '100%' }} />
+          </Col>
+          <Col span={8}>
+            <Text>Tenure weight</Text>
+            <Slider min={0} max={100} value={tenWeight} onChange={setTenWeight}
+              marks={{ 0: '0%', 50: '50%', 100: '100%' }} />
+          </Col>
+          <Col span={8}>
+            <Text>Base-salary weight</Text>
+            <Slider min={0} max={100} value={baseWeight} onChange={setBaseWeight}
+              marks={{ 0: '0%', 50: '50%', 100: '100%' }} />
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={8}>
+            <Text>Floor (% of base)</Text>
+            <Slider min={0} max={20} step={0.5} value={floorPct} onChange={setFloorPct}
+              marks={{ 0: '0%', 5: '5%', 10: '10%', 20: '20%' }} />
+          </Col>
+          <Col span={8}>
+            <Text>Cap (% of base)</Text>
+            <Slider min={0} max={50} step={0.5} value={capPct} onChange={setCapPct}
+              marks={{ 0: 'none', 10: '10%', 25: '25%', 50: '50%' }} />
+          </Col>
+          <Col span={8}>
+            {weightWarning && <Alert type="info" showIcon message={weightWarning} />}
+          </Col>
+        </Row>
+      </Card>
+
+      {result && (
+        <>
+          <Row gutter={16}>
+            <Col span={6}>
+              <Card><Statistic title="Pool" value={result.poolTotal} precision={2} suffix={cycle?.currency} /></Card>
+            </Col>
+            <Col span={6}>
+              <Card><Statistic title="Allocated" value={result.totalAllocated} precision={2}
+                valueStyle={{ color: '#1677ff' }} suffix={cycle?.currency} /></Card>
+            </Col>
+            <Col span={6}>
+              <Card><Statistic title="Residual" value={result.residual} precision={2}
+                valueStyle={{ color: result.residual > 0 ? '#52c41a' : '#ff4d4f' }}
+                suffix={cycle?.currency} /></Card>
+            </Col>
+            <Col span={6}>
+              <Card><Statistic title="Clamped" value={result.clampedCount}
+                suffix={`/ ${result.eligibleCount}`} /></Card>
+            </Col>
+          </Row>
+
+          <Card>
+            <Table
+              rowKey={(r) => r.employeeId}
+              columns={cols}
+              dataSource={result.allocations}
+              size="small"
+              pagination={{ pageSize: 25 }}
+              locale={{ emptyText: <Empty description="No eligible employees for this cycle." /> }}
+              summary={() => (
+                <Table.Summary fixed>
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={6}>
+                      <Text strong>Totals</Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={6} align="right">
+                      <Text strong>{fmt(result.totalAllocated)}</Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={7} colSpan={2} />
+                  </Table.Summary.Row>
+                </Table.Summary>
+              )}
+            />
+          </Card>
+        </>
+      )}
+
+      {!result && (
+        <Card>
+          <Empty description="Tune the knobs above, then press Run simulation." />
+        </Card>
+      )}
+    </Space>
+  )
+}
+
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
 export function CompPlanningPage() {
@@ -721,6 +992,7 @@ export function CompPlanningPage() {
             <CyclesTab onPick={(id) => { setCycleId(id); setTab('workbench') }} />
           ) },
           { key: 'workbench', label: 'Workbench', children: <WorkbenchTab initialCycleId={cycleId} /> },
+          { key: 'simulator', label: 'Simulator', children: <SimulatorTab initialCycleId={cycleId} /> },
         ]}
       />
     </Space>

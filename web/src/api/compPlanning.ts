@@ -119,4 +119,45 @@ export const compPlanningApi = {
     api.post<ProposalResponse>(`/compbenefits/comp-planning/proposals/${id}/submit`, {}).then((r) => r.data),
   decideProposal: (id: string, req: DecisionRequest) =>
     api.post<ProposalResponse>(`/compbenefits/comp-planning/proposals/${id}/decide`, req).then((r) => r.data),
+
+  // ── M129 — Bonus payout simulator ───────────────────────────────────
+  simulate: (cycleId: string, req: SimulationRequest) =>
+    api
+      .post<SimulationResponse>(`/compbenefits/comp-planning/cycles/${cycleId}/simulate`, req)
+      .then((r) => r.data),
+}
+
+// ── M129 — Simulator wire types ────────────────────────────────────────
+
+export interface SimulationRequest {
+  poolTotal?: number | null
+  performanceWeight?: number | null
+  tenureWeight?: number | null
+  baseWeight?: number | null
+  floorPercent?: number | null
+  capPercent?: number | null
+}
+
+export interface AllocationRow {
+  employeeId: string
+  employeeNo?: string | null
+  employeeName?: string | null
+  baseSalary: number
+  performanceRating?: number | null
+  tenureMonths: number
+  score: number
+  weight: number
+  allocatedBonus: number
+  percentOfBase: number
+  clamped: boolean
+}
+
+export interface SimulationResponse {
+  cycleId: string
+  poolTotal: number
+  totalAllocated: number
+  residual: number
+  eligibleCount: number
+  clampedCount: number
+  allocations: AllocationRow[]
 }

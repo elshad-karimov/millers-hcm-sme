@@ -44,9 +44,23 @@ import jakarta.validation.Valid;
 public class CompPlanningController {
 
     private final CompPlanningService service;
+    /** M129 — bonus payout simulator. */
+    private final az.millers.hcm.compbenefits.service.BonusSimulationService simulator;
 
-    public CompPlanningController(CompPlanningService service) {
+    public CompPlanningController(CompPlanningService service,
+                                  az.millers.hcm.compbenefits.service.BonusSimulationService simulator) {
         this.service = service;
+        this.simulator = simulator;
+    }
+
+    // ── M129 — Simulator ──────────────────────────────────────────────
+    @org.springframework.web.bind.annotation.PostMapping("/cycles/{id}/simulate")
+    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
+    public az.millers.hcm.compbenefits.api.dto.SimulationDtos.SimulationResponse simulate(
+            @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestBody(required = false)
+                    az.millers.hcm.compbenefits.api.dto.SimulationDtos.SimulationRequest req) {
+        return simulator.simulate(id, req);
     }
 
     // ── Cycles ──────────────────────────────────────────────────────────
