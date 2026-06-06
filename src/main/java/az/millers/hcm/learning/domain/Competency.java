@@ -40,6 +40,15 @@ public class Competency {
     @Column(nullable = false)
     private boolean active = true;
 
+    /**
+     * M127 — optional parent for the competency hierarchy. Soft tree:
+     * a category like "JVM languages" can group "Java", "Kotlin", etc.
+     * Self-FK on competency.id; ON DELETE SET NULL at the DB level so
+     * removing a parent doesn't cascade-delete its children.
+     */
+    @Column(name = "parent_id")
+    private UUID parentId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
