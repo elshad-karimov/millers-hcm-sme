@@ -12,19 +12,23 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Tooltip,
+  Tree,
   Typography,
   App as AntdApp,
 } from 'antd'
-import { BookOutlined } from '@ant-design/icons'
+import { BookOutlined, BranchesOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import type { DataNode } from 'antd/es/tree'
 import {
   performanceApi,
   type Goal,
   type GoalCategory,
   type GoalRequest,
   type GoalStatus,
+  type GoalTreeNode,
   type ReviewCycle,
 } from '../api/performance'
 import { learningApi, type Course } from '../api/learning'
@@ -97,6 +101,13 @@ export function GoalsPage() {
   const [rateOpen, setRateOpen] = useState<Goal | null>(null)
   const [rateForm] = Form.useForm<RatingForm>()
 
+  // M130 — OKR tree + cascade
+  const [view, setView] = useState<'list' | 'tree'>('list')
+  const [tree, setTree] = useState<GoalTreeNode[]>([])
+  const [treeLoading, setTreeLoading] = useState(false)
+  const [cascadeOpen, setCascadeOpen] = useState<GoalTreeNode | null>(null)
+  const [cascadeForm] = Form.useForm<{ employeeId: string; weightPercent?: number }>()
+
   useEffect(() => {
     Promise.all([
       performanceApi.cycles(),
@@ -129,8 +140,91 @@ export function GoalsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cycleId, employeeId])
 
+  // M130 — load OKR tree whenever cycle changes or the user opens the tab.
+  const loadTree = () => {
+    if (!cycleId) { setTree([]); return }
+    setTreeLoading(true)
+    performanceApi.goalTree(cycleId)
+      .then(setTree)
+      .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load OKR tree'))
+      .finally(() => setTreeLoading(false))
+  }
+  useEffect(() => {
+    if (view === 'tree') loadTree()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cycleId, view])
+
   const empMap    = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees])
   const courseMap = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses])
+
+  // M130 — fold the flat tree into Ant Tree DataNode[]. Roots first.
+  const treeData: DataNode[] = useMemo(() => {
+    if (!tree.length) return []
+    const byId = new Map(tree.map((n) => [n.id, { ...n, children: [] as GoalTreeNode[] }]))
+    const roots: typeof tree = []
+    for (const n of byId.values()) {
+      if (n.parentGoalId && byId.has(n.parentGoalId)) {
+        byId.get(n.parentGoalId)!.children.push(n)
+      } else {
+        roots.push(n)
+      }
+    }
+    const toNode = (n: GoalTreeNode & { children: GoalTreeNode[] }): DataNode => ({
+      key: n.id,
+      title: (
+        <Space size={8}>
+          <Tag color="blue">{n.goalNo}</Tag>
+          <Typography.Text strong>{n.title}</Typography.Text>
+          <Typography.Text type="secondary">{n.employeeName}</Typography.Text>
+          <Progress percent={Number(n.progressPercent)} size="small"
+            style={{ width: 80 }} format={(p) => `${p}%`} />
+          {n.descendantCount > 0 && (
+            <Tooltip title="Alignment: weighted average of descendant progress">
+              <Tag color="purple">align {n.alignmentPercent.toFixed(1)}%</Tag>
+            </Tooltip>
+          )}
+          {n.descendantCount > 0 && (
+            <Tag>{n.descendantCount} below</Tag>
+          )}
+          {canManage && (
+            <Button size="small" type="link" icon={<BranchesOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                setCascadeOpen(n)
+                cascadeForm.setFieldsValue({ weightPercent: Number(n.weightPercent) })
+              }}>
+              Cascade
+            </Button>
+          )}
+        </Space>
+      ),
+      children: n.children.map((c) =>
+        toNode(c as GoalTreeNode & { children: GoalTreeNode[] })),
+    })
+    return roots.map((r) =>
+      toNode(r as GoalTreeNode & { children: GoalTreeNode[] }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tree, canManage])
+
+  const onCascade = async (v: { employeeId: string; weightPercent?: number }) => {
+    if (!cascadeOpen) return
+    try {
+      await performanceApi.cascadeGoal(cascadeOpen.id, {
+        employeeId: v.employeeId,
+        weightPercent: v.weightPercent ?? null,
+      })
+      message.success('Goal cascaded')
+      setCascadeOpen(null)
+      cascadeForm.resetFields()
+      loadTree()
+      load()
+    } catch (err) {
+      message.error(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Cascade failed',
+      )
+    }
+  }
 
   const onCreate = async (v: NewGoalForm) => {
     if (!cycleId) return
@@ -307,7 +401,53 @@ export function GoalsPage() {
           onChange={setEmployeeId}
         />
       </Space>
-      <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={false} />
+      <Tabs
+        activeKey={view}
+        onChange={(k) => setView(k as 'list' | 'tree')}
+        items={[
+          { key: 'list', label: 'List',
+            children: <Table rowKey="id" loading={loading} columns={columns}
+                             dataSource={rows} pagination={false} /> },
+          { key: 'tree', label: 'OKR tree',
+            children: treeData.length === 0
+              ? <Typography.Text type="secondary">
+                  {treeLoading ? 'Loading…' : 'No goals in this cycle yet.'}
+                </Typography.Text>
+              : <Tree treeData={treeData} defaultExpandAll selectable={false} showLine /> },
+        ]}
+      />
+
+      <Modal
+        open={!!cascadeOpen}
+        title={cascadeOpen ? `Cascade — ${cascadeOpen.goalNo} ${cascadeOpen.title}` : ''}
+        onCancel={() => setCascadeOpen(null)}
+        onOk={() => cascadeForm.submit()}
+        okText="Cascade"
+        width={520}
+      >
+        {cascadeOpen && (
+          <Form form={cascadeForm} layout="vertical" onFinish={onCascade}>
+            <Form.Item name="employeeId" label="Cascade to employee"
+              rules={[{ required: true }]}
+              tooltip="Title, description, category, and due date will copy from the parent. Status starts as DRAFT.">
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={employees
+                  .filter((e) => e.id !== cascadeOpen.employeeId)
+                  .map((e) => ({
+                    value: e.id,
+                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
+                  }))}
+              />
+            </Form.Item>
+            <Form.Item name="weightPercent" label="Weight (%)"
+              tooltip="Defaults to the parent goal's weight. Override for a partial share.">
+              <InputNumber min={0} max={100} style={{ width: '100%' }} />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
 
       <Modal
         open={createOpen}

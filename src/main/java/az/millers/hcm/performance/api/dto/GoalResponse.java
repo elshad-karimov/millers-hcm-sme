@@ -27,6 +27,9 @@ public record GoalResponse(
         String ratingNote,
         /** Non-null when the goal is linked to an LMS course for auto-rating (M49). */
         UUID sourceCourseId,
+        /** M130 — set when the goal was created by the cascade action. */
+        String cascadedBy,
+        OffsetDateTime cascadedAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -38,6 +41,7 @@ public record GoalResponse(
                 g.getTitle(), g.getDescription(), g.getCategory(), g.getTargetMetric(),
                 g.getWeightPercent(), g.getProgressPercent(), g.getStatus(), g.getDueDate(),
                 g.getRating(), g.getRatingNote(), g.getSourceCourseId(),
+                g.getCascadedBy(), g.getCascadedAt(),
                 g.getCreatedAt(), g.getUpdatedAt(), g.getCreatedBy(), g.getUpdatedBy());
     }
 }

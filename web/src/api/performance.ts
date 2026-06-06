@@ -108,10 +108,34 @@ export interface Goal {
   ratingNote?: string | null
   /** Non-null when linked to an LMS course for auto-rating (M49). */
   sourceCourseId?: string | null
+  /** M130 — set when the goal was created by the cascade action. */
+  cascadedBy?: string | null
+  cascadedAt?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
   updatedBy?: string | null
+}
+
+/** M130 — flat tree node for the OKR view on GoalsPage. */
+export interface GoalTreeNode {
+  id: string
+  parentGoalId?: string | null
+  employeeId: string
+  employeeName?: string | null
+  goalNo: string
+  title: string
+  weightPercent: number
+  progressPercent: number
+  depth: number
+  descendantCount: number
+  alignmentPercent: number
+}
+
+/** M130 — body for the cascade action. */
+export interface GoalCascadeRequest {
+  employeeId: string
+  weightPercent?: number | null
 }
 
 export interface GoalRequest {
@@ -242,6 +266,12 @@ export const performanceApi = {
     api
       .post<Goal>(`/performance/goals/${id}/rate`, { rating, finalStatus, note })
       .then((r) => r.data),
+
+  // M130 — OKR cascade
+  goalTree: (cycleId: string) =>
+    api.get<GoalTreeNode[]>('/performance/goals/tree', { params: { cycleId } }).then((r) => r.data),
+  cascadeGoal: (parentGoalId: string, payload: GoalCascadeRequest) =>
+    api.post<Goal>(`/performance/goals/${parentGoalId}/cascade`, payload).then((r) => r.data),
 
   reviews: (params: {
     cycleId?: string

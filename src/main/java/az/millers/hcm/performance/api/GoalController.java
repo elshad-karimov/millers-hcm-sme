@@ -17,10 +17,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.performance.api.dto.GoalCascadeRequest;
 import az.millers.hcm.performance.api.dto.GoalProgressRequest;
 import az.millers.hcm.performance.api.dto.GoalRatingRequest;
 import az.millers.hcm.performance.api.dto.GoalRequest;
 import az.millers.hcm.performance.api.dto.GoalResponse;
+import az.millers.hcm.performance.api.dto.GoalTreeNode;
+import az.millers.hcm.performance.service.GoalCascadeService;
 import az.millers.hcm.performance.service.GoalService;
 import jakarta.validation.Valid;
 
@@ -29,9 +32,11 @@ import jakarta.validation.Valid;
 public class GoalController {
 
     private final GoalService service;
+    private final GoalCascadeService cascadeService;
 
-    public GoalController(GoalService service) {
+    public GoalController(GoalService service, GoalCascadeService cascadeService) {
         this.service = service;
+        this.cascadeService = cascadeService;
     }
 
     @GetMapping
@@ -74,5 +79,23 @@ public class GoalController {
     @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public GoalResponse rate(@PathVariable UUID id, @Valid @RequestBody GoalRatingRequest req) {
         return GoalResponse.from(service.rate(id, req));
+    }
+
+    // ── M130 — OKR cascade ───────────────────────────────────────────────
+
+    /** Tree view: every goal in a cycle + parent links, depth, descendant counts, alignment %. */
+    @GetMapping("/tree")
+    @PreAuthorize("isAuthenticated()")
+    public List<GoalTreeNode> tree(@RequestParam UUID cycleId) {
+        return cascadeService.tree(cycleId);
+    }
+
+    /** Copies a parent goal onto a direct report. Title/desc/category/due-date clone. */
+    @PostMapping("/{id}/cascade")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
+    public GoalResponse cascade(@PathVariable UUID id,
+                                  @Valid @RequestBody GoalCascadeRequest req) {
+        return GoalResponse.from(cascadeService.cascade(id, req));
     }
 }

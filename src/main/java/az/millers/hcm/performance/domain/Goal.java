@@ -79,6 +79,18 @@ public class Goal {
     @Column(name = "source_course_id")
     private UUID sourceCourseId;
 
+    /**
+     * M130 — when this goal was created by the cascade action, the
+     * username + timestamp that did it. Plain create() leaves these
+     * null. Lets the SPA show "Cascaded by X on Y" without hitting the
+     * audit log.
+     */
+    @Column(name = "cascaded_by")
+    private String cascadedBy;
+
+    @Column(name = "cascaded_at")
+    private OffsetDateTime cascadedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

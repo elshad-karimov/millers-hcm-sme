@@ -73,8 +73,12 @@ public class GoalService {
         if (!employees.existsById(req.employeeId())) {
             throw new BadRequestException("Employee not found: " + req.employeeId());
         }
-        if (req.parentGoalId() != null && !goals.existsById(req.parentGoalId())) {
-            throw new BadRequestException("Parent goal not found: " + req.parentGoalId());
+        if (req.parentGoalId() != null) {
+            Goal parent = goals.findById(req.parentGoalId()).orElseThrow(
+                    () -> new BadRequestException("Parent goal not found: " + req.parentGoalId()));
+            if (!parent.getCycleId().equals(req.cycleId())) {
+                throw new BadRequestException("Parent goal belongs to a different cycle");
+            }
         }
         validateWeight(req.weightPercent());
         validateProgress(req.progressPercent());
@@ -96,6 +100,22 @@ public class GoalService {
         Goal g = get(id);
         if (g.getStatus() == GoalStatus.ACHIEVED || g.getStatus() == GoalStatus.MISSED) {
             throw new BadRequestException("Cannot edit a finalised goal");
+        }
+        // M130 — reject parent assignments that would close a cycle in
+        // the OKR tree. Cheap walk: load every (id, parent_id) for this
+        // cycle once and consult GoalTreeMath.wouldCreateCycle.
+        if (req.parentGoalId() != null && !req.parentGoalId().equals(g.getParentGoalId())) {
+            var siblings = goals.findByCycleIdOrderByEmployeeIdAscCreatedAtAsc(g.getCycleId());
+            var parentLookup = new java.util.HashMap<UUID, UUID>();
+            for (Goal s : siblings) parentLookup.put(s.getId(), s.getParentGoalId());
+            if (GoalTreeMath.wouldCreateCycle(id, req.parentGoalId(), parentLookup::get)) {
+                throw new BadRequestException("Parent assignment would create a cycle");
+            }
+            Goal parent = goals.findById(req.parentGoalId()).orElseThrow(
+                    () -> new BadRequestException("Parent goal not found: " + req.parentGoalId()));
+            if (!parent.getCycleId().equals(g.getCycleId())) {
+                throw new BadRequestException("Parent goal belongs to a different cycle");
+            }
         }
         validateWeight(req.weightPercent());
         validateProgress(req.progressPercent());
