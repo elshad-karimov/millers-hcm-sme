@@ -17,4 +17,7 @@ public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstan
             WorkflowStatus status, List<String> roles);
 
     List<WorkflowInstance> findByInitiatedByOrderByInitiatedAtDesc(String initiatedBy);
+
+    /** M126 — feed for the SLA breach scheduler. */
+    List<WorkflowInstance> findByStatusOrderByInitiatedAtAsc(WorkflowStatus status);
 }

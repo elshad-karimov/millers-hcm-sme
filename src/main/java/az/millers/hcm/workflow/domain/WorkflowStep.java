@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -46,6 +48,22 @@ public class WorkflowStep {
 
     @Column(name = "sla_hours")
     private Integer slaHours;
+
+    /**
+     * M126 — what the SLA scheduler does on a breach.
+     * Phase 1 implements {@link EscalationAction#NOTIFY}; the others
+     * are reserved.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "escalation_action", nullable = false, length = 32)
+    private EscalationAction escalationAction = EscalationAction.NOTIFY;
+
+    /**
+     * M126 — username or role name to receive the breach notification.
+     * Null falls back to the step's {@link #approverRole}.
+     */
+    @Column(name = "escalation_to", length = 160)
+    private String escalationTo;
 
     @PrePersist
     void onCreate() {

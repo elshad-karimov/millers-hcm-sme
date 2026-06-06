@@ -212,6 +212,7 @@ public class WorkflowService {
         WorkflowStep first = defSteps.get(0);
         i.setCurrentStepIndex(first.getStepOrder());
         i.setCurrentStepRole(first.getApproverRole());
+        i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — SLA timer starts now
         i.setStatus(WorkflowStatus.PENDING);
         WorkflowInstance saved = instances.save(i);
         recordAction(saved, first.getStepOrder(), first.getName(), ActionType.START, null);
@@ -282,6 +283,7 @@ public class WorkflowService {
                 }
                 i.setCurrentStepIndex(next.getStepOrder());
                 i.setCurrentStepRole(next.getApproverRole());
+                i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — restart SLA timer for the new step
                 return instances.save(i);
             }
             case REJECT -> {

@@ -123,6 +123,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/my/team', module: 'my-team', screen: 'my-team' },
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
+  { prefix: '/hr/workflow-sla', module: 'approvals', screen: 'workflow-sla' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
   { prefix: '/admin/backups', module: 'admin', screen: 'admin-backups' },
   { prefix: '/admin/ldap', module: 'admin', screen: 'admin-ldap' },
@@ -692,6 +693,13 @@ export function AppLayout() {
             icon: <InboxOutlined />,
             label: <Link to="/inbox">Approvals</Link>,
           } satisfies ItemType,
+          ...(isHR || isAdminOrAuditor
+            ? [{
+                key: 'workflow-sla',
+                icon: <ClockCircleOutlined />,
+                label: <Link to="/hr/workflow-sla">Workflow SLA</Link>,
+              } satisfies ItemType]
+            : []),
         ]
       : []),
 

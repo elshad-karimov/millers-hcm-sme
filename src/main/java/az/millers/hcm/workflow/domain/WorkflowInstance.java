@@ -61,6 +61,15 @@ public class WorkflowInstance {
     @Column(name = "initiated_at", nullable = false, updatable = false)
     private OffsetDateTime initiatedAt;
 
+    /**
+     * M126 — wall-clock when the instance most recently moved to its
+     * current step. Set at {@code start()}, bumped on every
+     * step-advance. Drives the SLA scheduler's "how long has this been
+     * waiting?" check.
+     */
+    @Column(name = "current_step_entered_at")
+    private OffsetDateTime currentStepEnteredAt;
+
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;
 

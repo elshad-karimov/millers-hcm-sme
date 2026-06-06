@@ -20,6 +20,7 @@ import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
 import { AssetsAdminPage } from './pages/AssetsAdminPage'
 import { PresenceMapPage } from './pages/PresenceMapPage'
+import { WorkflowSlaPage } from './pages/WorkflowSlaPage'
 import { LeaveTypeFormPage } from './pages/LeaveTypeFormPage'
 import { LeaveBalancesPage } from './pages/LeaveBalancesPage'
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage'
@@ -255,6 +256,8 @@ export default function App() {
           <Route path="employees" element={<EmployeesPage />} />
           {/* M122 — pre-boarding invite admin */}
           <Route path="hr/preboarding" element={<PreboardingPage />} />
+          {/* M126 — workflow SLA breaches dashboard */}
+          <Route path="hr/workflow-sla" element={<WorkflowSlaPage />} />
           {/* M124 — asset administration (cross-employee) */}
           <Route path="hr/assets" element={<AssetsAdminPage />} />
           <Route path="employees/new" element={<EmployeeFormPage />} />
