@@ -603,8 +603,14 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Nationality">{employee.nationality ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Date of birth">{employee.birthDate ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="National ID">{employee.nationalId ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Email">{employee.email ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Phone">{employee.phone ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Personal email">{employee.email ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Personal phone">{employee.phone ?? '—'}</Descriptions.Item>
+      {/* M133 — Section 3 contact fields */}
+      <Descriptions.Item label="Alt. phone">{employee.altPhone ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Work email">{employee.workEmail ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Work phone">{employee.workPhone ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Extension">{employee.extension ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Desk / seat">{employee.deskNumber ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Hire date">{employee.hireDate}</Descriptions.Item>
       <Descriptions.Item label="Employment type">{tag(employee.employmentType)}</Descriptions.Item>
       <Descriptions.Item label="FTE %">{employee.ftePercent}</Descriptions.Item>

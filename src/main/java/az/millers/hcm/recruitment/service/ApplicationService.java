@@ -200,6 +200,8 @@ public class ApplicationService {
                 null,                 // matrixManagerId (M75)
                 null,                 // rehireEligible (M78) — null defaults to true
                 // M132 — Section 1 cosmetic fields, not captured at hire.
+                null, null, null, null, null,
+                // M133 — Section 3 contact fields, not captured at hire.
                 null, null, null, null, null);
         Employee created = employeeService.create(empReq);
 

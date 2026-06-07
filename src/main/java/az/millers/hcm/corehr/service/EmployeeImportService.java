@@ -283,7 +283,13 @@ public class EmployeeImportService {
                 trimmedString(row, idx.get("placeOfBirth")),
                 trimmedString(row, idx.get("bloodGroup")),
                 trimmedString(row, idx.get("religion")),
-                trimmedString(row, idx.get("nativeLanguage")));
+                trimmedString(row, idx.get("nativeLanguage")),
+                // M133 — Section 3 contact fields (importable when columns are present)
+                trimmedString(row, idx.get("altPhone")),
+                trimmedString(row, idx.get("workEmail")),
+                trimmedString(row, idx.get("workPhone")),
+                trimmedString(row, idx.get("extension")),
+                trimmedString(row, idx.get("deskNumber")));
     }
 
     // ── Cell reading helpers ──────────────────────────────────────────────────

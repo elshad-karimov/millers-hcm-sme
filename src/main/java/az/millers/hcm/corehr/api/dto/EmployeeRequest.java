@@ -76,5 +76,16 @@ public record EmployeeRequest(
         @Size(max = 60) String religion,
         /** ISO 639-1 alpha-2 lowercase (en/az/ru/tr/…). Drives M77 letter locale. */
         @Pattern(regexp = "^[a-z]{2}$", message = "nativeLanguage must be ISO 639-1 alpha-2 (lowercase)")
-        String nativeLanguage) {
+        String nativeLanguage,
+        // ── M133 — Section 3 contact completion ──────────────────────
+        /** Personal alternative number — distinct from emergency-contact alt. */
+        @Size(max = 32) String altPhone,
+        /** Business email — typically @company.com. */
+        @Email @Size(max = 160) String workEmail,
+        /** Office main line. */
+        @Size(max = 32) String workPhone,
+        /** Internal PBX extension. */
+        @Size(max = 10) String extension,
+        /** Seat / desk identifier (facility + IT teams). */
+        @Size(max = 32) String deskNumber) {
 }

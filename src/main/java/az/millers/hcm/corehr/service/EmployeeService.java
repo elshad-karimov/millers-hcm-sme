@@ -273,6 +273,12 @@ public class EmployeeService {
         employee.setBloodGroup(request.bloodGroup());
         employee.setReligion(request.religion());
         employee.setNativeLanguage(request.nativeLanguage());
+        // M133 — Section 3 contact fields. Same null-means-clear pattern.
+        employee.setAltPhone(request.altPhone());
+        employee.setWorkEmail(request.workEmail());
+        employee.setWorkPhone(request.workPhone());
+        employee.setExtension(request.extension());
+        employee.setDeskNumber(request.deskNumber());
     }
 
     private void validateManager(UUID managerId) {

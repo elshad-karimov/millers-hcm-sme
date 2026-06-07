@@ -80,6 +80,12 @@ export interface Employee {
   religion?: string | null
   /** ISO 639-1 alpha-2 lowercase (en/az/ru/tr/…) */
   nativeLanguage?: string | null
+  // M133 — Section 3 contact fields
+  altPhone?: string | null
+  workEmail?: string | null
+  workPhone?: string | null
+  extension?: string | null
+  deskNumber?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -122,6 +128,12 @@ export interface EmployeeRequest {
   bloodGroup?: string
   religion?: string
   nativeLanguage?: string
+  // M133 — Section 3 contact fields
+  altPhone?: string
+  workEmail?: string
+  workPhone?: string
+  extension?: string
+  deskNumber?: string
 }
 
 export interface PageResponse<T> {

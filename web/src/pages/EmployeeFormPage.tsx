@@ -35,6 +35,12 @@ interface FormValues {
   bloodGroup?: string
   religion?: string
   nativeLanguage?: string
+  // M133 — Section 3 contact fields
+  altPhone?: string
+  workEmail?: string
+  workPhone?: string
+  extension?: string
+  deskNumber?: string
 }
 
 const BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
@@ -83,6 +89,12 @@ export function EmployeeFormPage() {
           bloodGroup: e.bloodGroup ?? undefined,
           religion: e.religion ?? undefined,
           nativeLanguage: e.nativeLanguage ?? undefined,
+          // M133 — Section 3 contact fields
+          altPhone: e.altPhone ?? undefined,
+          workEmail: e.workEmail ?? undefined,
+          workPhone: e.workPhone ?? undefined,
+          extension: e.extension ?? undefined,
+          deskNumber: e.deskNumber ?? undefined,
         })
       })
       .catch((err) =>
@@ -160,18 +172,54 @@ export function EmployeeFormPage() {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 name="email"
-                label="Email"
+                label="Personal email"
                 rules={[{ type: 'email', message: 'Enter a valid email' }, { max: 160 }]}
               >
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item name="phone" label="Phone" rules={[{ max: 32 }]}>
+            <Col span={8}>
+              <Form.Item name="phone" label="Personal phone" rules={[{ max: 32 }]}>
                 <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              {/* M133 — Section 3 spec field */}
+              <Form.Item name="altPhone" label="Alternative phone" rules={[{ max: 32 }]}>
+                <Input placeholder="Optional second personal number" />
+              </Form.Item>
+            </Col>
+          </Row>
+          {/* M133 — Section 3 work-contact row */}
+          <Row gutter={16}>
+            <Col span={9}>
+              <Form.Item
+                name="workEmail"
+                label="Work email"
+                tooltip="Typically @company.com — used for payslip + letter delivery"
+                rules={[{ type: 'email', message: 'Enter a valid email' }, { max: 160 }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={5}>
+              <Form.Item name="workPhone" label="Work phone" rules={[{ max: 32 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="extension" label="Extension" rules={[{ max: 10 }]}>
+                <Input placeholder="e.g. 4012" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="deskNumber" label="Desk / seat"
+                tooltip="Facility + IT teams use this for asset assignment."
+                rules={[{ max: 32 }]}>
+                <Input placeholder="e.g. 4-A-12" />
               </Form.Item>
             </Col>
           </Row>

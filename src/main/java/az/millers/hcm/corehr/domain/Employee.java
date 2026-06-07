@@ -107,6 +107,32 @@ public class Employee {
     @Column(name = "native_language", length = 2)
     private String nativeLanguage;
 
+    // ── M133 — Section 3 contact completion ────────────────────────────
+    //
+    // `email` + `phone` are personal (V1). The five fields below
+    // separate the work side so payslip / letter / directory rendering
+    // can pick the right address for the audience.
+
+    /** Personal alternative number — NOT the emergency contact's alt. */
+    @Column(name = "alt_phone", length = 32)
+    private String altPhone;
+
+    /** Business email — typically @company.com. */
+    @Column(name = "work_email", length = 160)
+    private String workEmail;
+
+    /** Main office line. */
+    @Column(name = "work_phone", length = 32)
+    private String workPhone;
+
+    /** Internal PBX extension, 1–10 chars. */
+    @Column(name = "extension", length = 10)
+    private String extension;
+
+    /** Seat / desk identifier — surfaced to facility + IT teams. */
+    @Column(name = "desk_number", length = 32)
+    private String deskNumber;
+
     /**
      * PII — encrypted at rest with AES-256-GCM via {@link EncryptedStringConverter}
      * (PRD 14.3). Plaintext only ever lives in the JVM heap; the DB column holds
