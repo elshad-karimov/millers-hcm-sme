@@ -6,6 +6,7 @@ import {
   Form,
   Input,
   Row,
+  Select,
   Space,
   Spin,
   App as AntdApp,
@@ -28,7 +29,23 @@ interface FormValues {
   departmentName?: string
   positionTitle?: string
   costCentre?: string
+  // M132 — Section 1 cosmetic fields
+  preferredName?: string
+  placeOfBirth?: string
+  bloodGroup?: string
+  religion?: string
+  nativeLanguage?: string
 }
+
+const BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
+const COMMON_LANGUAGES = [
+  { value: 'az', label: 'Azerbaijani (az)' },
+  { value: 'en', label: 'English (en)' },
+  { value: 'ru', label: 'Russian (ru)' },
+  { value: 'tr', label: 'Turkish (tr)' },
+  { value: 'fa', label: 'Persian (fa)' },
+  { value: 'ar', label: 'Arabic (ar)' },
+]
 
 const LIST_PATH = '/employees'
 
@@ -60,6 +77,12 @@ export function EmployeeFormPage() {
           departmentName: e.departmentName ?? undefined,
           positionTitle: e.positionTitle ?? undefined,
           costCentre: e.costCentre ?? undefined,
+          // M132 — Section 1 cosmetic fields
+          preferredName: e.preferredName ?? undefined,
+          placeOfBirth: e.placeOfBirth ?? undefined,
+          bloodGroup: e.bloodGroup ?? undefined,
+          religion: e.religion ?? undefined,
+          nativeLanguage: e.nativeLanguage ?? undefined,
         })
       })
       .catch((err) =>
@@ -122,9 +145,20 @@ export function EmployeeFormPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="middleName" label="Middle name" rules={[{ max: 100 }]}>
-            <Input />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="middleName" label="Middle name" rules={[{ max: 100 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              {/* M132 — Section 1 spec field */}
+              <Form.Item name="preferredName" label="Preferred name (nickname)"
+                rules={[{ max: 120 }]}>
+                <Input placeholder="Used on the directory + printable badge" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -182,6 +216,38 @@ export function EmployeeFormPage() {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* M132 — remaining Section 1 cosmetic fields */}
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="placeOfBirth" label="Place of birth"
+                rules={[{ max: 160 }]}>
+                <Input placeholder="City, Country" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="bloodGroup" label="Blood group">
+                <Select allowClear placeholder="—"
+                  options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="nativeLanguage" label="Native language"
+                tooltip="ISO 639-1 alpha-2 (lowercase). Drives letter-engine locale.">
+                <Select allowClear showSearch placeholder="—"
+                  optionFilterProp="label"
+                  options={COMMON_LANGUAGES} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="religion" label="Religion (optional)"
+                tooltip="Collection legally restricted in some jurisdictions."
+                rules={[{ max: 60 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+
           <Form.Item>
             <Space>
               <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>

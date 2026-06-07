@@ -629,6 +629,23 @@ export function EmployeeDetailPage() {
           ? <Link to={`/employees/${employee.previousEmployeeId}`}>{employee.previousEmployeeId}</Link>
           : '—'}
       </Descriptions.Item>
+      {/* M132 — Section 1 cosmetic fields */}
+      <Descriptions.Item label="Preferred name">{employee.preferredName ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Place of birth">{employee.placeOfBirth ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Blood group">
+        {employee.bloodGroup ? <Tag color="red">{employee.bloodGroup}</Tag> : '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Native language">{employee.nativeLanguage ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Religion">{employee.religion ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Badge QR">
+        <img
+          src={`/api/employees/${employee.id}/qr?size=120`}
+          alt={`QR code for ${employee.employeeNo}`}
+          width={120}
+          height={120}
+          style={{ display: 'block', border: '1px solid #f0f0f0' }}
+        />
+      </Descriptions.Item>
       <Descriptions.Item label="Created">
         {new Date(employee.createdAt).toLocaleString()} by {employee.createdBy ?? '—'}
       </Descriptions.Item>

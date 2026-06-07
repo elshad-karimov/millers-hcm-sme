@@ -69,6 +69,44 @@ public class Employee {
     @Column(name = "nationality", length = 2)
     private String nationality;
 
+    // ── M132 — Section 1 cosmetic completion ────────────────────────────
+    //
+    // Five identity fields the Employee Management spec §1 lists that
+    // never made it into the codebase. Each is plain VARCHAR — they're
+    // PII but not "special category" GDPR data (religion possibly is,
+    // depending on jurisdiction; collection should be gated by config).
+
+    /** Nickname used in directory + printable badges. */
+    @Column(name = "preferred_name", length = 120)
+    private String preferredName;
+
+    /** City + country pair on HR cards; free text. */
+    @Column(name = "place_of_birth", length = 160)
+    private String placeOfBirth;
+
+    /**
+     * One of {@code O+/O-/A+/A-/B+/B-/AB+/AB-} or null. CHECK constraint
+     * in V90 keeps it from drifting into "A pos" / "A+ve" variants that
+     * would break emergency-card lookup.
+     */
+    @Column(name = "blood_group", length = 8)
+    private String bloodGroup;
+
+    /**
+     * Optional. Stored only when the deployment configuration says so;
+     * legally restricted in some jurisdictions.
+     */
+    @Column(name = "religion", length = 60)
+    private String religion;
+
+    /**
+     * ISO 639-1 alpha-2 (en / az / ru / tr / …). Same convention as the
+     * M77 letter-engine locale resolver — when present, letter renders
+     * pick the matching template variant first.
+     */
+    @Column(name = "native_language", length = 2)
+    private String nativeLanguage;
+
     /**
      * PII — encrypted at rest with AES-256-GCM via {@link EncryptedStringConverter}
      * (PRD 14.3). Plaintext only ever lives in the JVM heap; the DB column holds

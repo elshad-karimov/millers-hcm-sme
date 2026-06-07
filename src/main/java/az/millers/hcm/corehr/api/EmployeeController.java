@@ -42,10 +42,15 @@ public class EmployeeController {
 
     private final EmployeeService employeeService;
     private final AuditService auditService;
+    /** M132 — QR code generator for badge / verification scans. */
+    private final az.millers.hcm.corehr.service.EmployeeQrCodeService qrCodeService;
 
-    public EmployeeController(EmployeeService employeeService, AuditService auditService) {
+    public EmployeeController(EmployeeService employeeService,
+                              AuditService auditService,
+                              az.millers.hcm.corehr.service.EmployeeQrCodeService qrCodeService) {
         this.employeeService = employeeService;
         this.auditService = auditService;
+        this.qrCodeService = qrCodeService;
     }
 
     /**
@@ -120,5 +125,22 @@ public class EmployeeController {
         return auditService.history("Employee", id.toString()).stream()
                 .map(AuditEntryResponse::from)
                 .toList();
+    }
+
+    /**
+     * M132 — PNG badge QR code. {@code size} is clamped to
+     * {@code [50, 1024]}; default 300. Open to any authenticated user so
+     * the directory can show the badge inline; payload encodes only
+     * employee id + employee number — no PII.
+     */
+    @GetMapping(value = "/{id}/qr", produces = org.springframework.http.MediaType.IMAGE_PNG_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public org.springframework.http.ResponseEntity<byte[]> qr(
+            @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "300") int size) {
+        byte[] png = qrCodeService.renderPng(id, size);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Cache-Control", "private, max-age=300")
+                .body(png);
     }
 }

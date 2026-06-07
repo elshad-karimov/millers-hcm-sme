@@ -198,7 +198,9 @@ public class ApplicationService {
                 null,                 // leaveGroupId   (M66) — defaults to system default group
                 null,                 // payrollGroupId (M75) — defaults to system default group
                 null,                 // matrixManagerId (M75)
-                null);                // rehireEligible (M78) — null defaults to true
+                null,                 // rehireEligible (M78) — null defaults to true
+                // M132 — Section 1 cosmetic fields, not captured at hire.
+                null, null, null, null, null);
         Employee created = employeeService.create(empReq);
 
         a.setCurrentStage(ApplicationStage.HIRED);

@@ -62,5 +62,19 @@ public record EmployeeRequest(
         /** M75 / P2-21. Dotted-line manager — informational, not consumed by workflow engine. */
         UUID matrixManagerId,
         /** M78 / P2-15. Null defaults to true on create / preserves existing on update. */
-        Boolean rehireEligible) {
+        Boolean rehireEligible,
+        // ── M132 — Section 1 cosmetic completion ────────────────────────
+        /** Nickname used in directory + printable badge. */
+        @Size(max = 120) String preferredName,
+        /** City + country pair on HR cards. */
+        @Size(max = 160) String placeOfBirth,
+        /** One of O+/O-/A+/A-/B+/B-/AB+/AB-; null otherwise. */
+        @Pattern(regexp = "^(O|A|B|AB)[+\\-]$",
+                message = "bloodGroup must be one of O+/O-/A+/A-/B+/B-/AB+/AB-")
+        String bloodGroup,
+        /** Optional; collection legally restricted in some jurisdictions. */
+        @Size(max = 60) String religion,
+        /** ISO 639-1 alpha-2 lowercase (en/az/ru/tr/…). Drives M77 letter locale. */
+        @Pattern(regexp = "^[a-z]{2}$", message = "nativeLanguage must be ISO 639-1 alpha-2 (lowercase)")
+        String nativeLanguage) {
 }

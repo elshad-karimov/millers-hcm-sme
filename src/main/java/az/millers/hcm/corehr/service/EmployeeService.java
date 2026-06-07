@@ -265,6 +265,14 @@ public class EmployeeService {
         if (request.rehireEligible() != null) {
             employee.setRehireEligible(request.rehireEligible());
         }
+        // M132 — Section 1 cosmetic fields. All five are nullable;
+        // passing null clears the field (consistent with how
+        // middleName / nationality / etc. behave).
+        employee.setPreferredName(request.preferredName());
+        employee.setPlaceOfBirth(request.placeOfBirth());
+        employee.setBloodGroup(request.bloodGroup());
+        employee.setReligion(request.religion());
+        employee.setNativeLanguage(request.nativeLanguage());
     }
 
     private void validateManager(UUID managerId) {

@@ -72,6 +72,14 @@ export interface Employee {
   previousEmployeeId?: string | null
   /** M78 / P2-15 — captured at rehire time, audited */
   rehireReason?: string | null
+  // M132 — Section 1 cosmetic fields
+  preferredName?: string | null
+  placeOfBirth?: string | null
+  /** O+/O-/A+/A-/B+/B-/AB+/AB- */
+  bloodGroup?: string | null
+  religion?: string | null
+  /** ISO 639-1 alpha-2 lowercase (en/az/ru/tr/…) */
+  nativeLanguage?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -108,6 +116,12 @@ export interface EmployeeRequest {
   matrixManagerId?: string
   /** M78 / P2-15 — null = leave the existing flag untouched */
   rehireEligible?: boolean
+  // M132 — Section 1 cosmetic fields
+  preferredName?: string
+  placeOfBirth?: string
+  bloodGroup?: string
+  religion?: string
+  nativeLanguage?: string
 }
 
 export interface PageResponse<T> {
