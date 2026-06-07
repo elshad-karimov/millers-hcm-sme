@@ -331,6 +331,9 @@ public class PreboardingInviteService {
                     asBoolean(row.get("insuranceEligible"), false),
                     asBoolean(row.get("benefitEligible"), false),
                     Boolean.TRUE,
+                    // M135 — new hires arrive eligible; pre-boarding doesn't
+                    // capture eligibility-end metadata.
+                    null, null,
                     stringOrNull(row.get("notes")));
             dependents.create(employeeId, dto);
             n++;

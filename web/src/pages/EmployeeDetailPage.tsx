@@ -291,9 +291,24 @@ export function EmployeeDetailPage() {
       render: (v: boolean) => (v ? <Tag color="blue">ELIGIBLE</Tag> : '—'),
     },
     {
-      title: 'Active',
-      dataIndex: 'active',
-      render: (v: boolean) => (v ? <Tag color="green">YES</Tag> : <Tag>INACTIVE</Tag>),
+      // M135 — derived eligibility state replaces the bare active flag
+      // here. Inactive OR end-date-passed renders the same "no longer"
+      // chip so HR can scan at a glance.
+      title: 'Currently eligible',
+      dataIndex: 'currentlyEligible',
+      render: (v: boolean, r) =>
+        v
+          ? <Tag color="green">YES</Tag>
+          : (
+            <Tag color="orange">
+              NO{r.eligibilityEndReason ? ` · ${r.eligibilityEndReason}` : ''}
+            </Tag>
+          ),
+    },
+    {
+      title: 'End date',
+      dataIndex: 'eligibilityEndDate',
+      render: (v?: string | null) => v ?? '—',
     },
   ], [])
 

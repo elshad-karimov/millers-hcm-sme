@@ -108,6 +108,15 @@ public class EmployeeDependentService {
         d.setInsuranceEligible(Boolean.TRUE.equals(req.insuranceEligible()));
         d.setBenefitEligible(Boolean.TRUE.equals(req.benefitEligible()));
         d.setActive(req.active() == null || req.active());
+        // M135 — paired eligibility-end fields. Reject half-pairs at the
+        // service layer so the caller sees a clean BadRequestException
+        // instead of a raw CHECK violation from the DB.
+        if ((req.eligibilityEndDate() == null) != (req.eligibilityEndReason() == null)) {
+            throw new az.millers.hcm.common.BadRequestException(
+                    "eligibilityEndDate and eligibilityEndReason must be set together");
+        }
+        d.setEligibilityEndDate(req.eligibilityEndDate());
+        d.setEligibilityEndReason(req.eligibilityEndReason());
         d.setNotes(req.notes());
     }
 

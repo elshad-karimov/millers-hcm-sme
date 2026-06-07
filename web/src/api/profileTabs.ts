@@ -13,6 +13,16 @@ export type DependentRelationship =
   | 'GUARDIAN'
   | 'OTHER'
 
+/** M135 — whitelist mirrored in the backend enum + V93 CHECK. */
+export type DependentEligibilityEndReason =
+  | 'AGED_OUT'
+  | 'DIVORCE'
+  | 'DEATH'
+  | 'MARRIED'
+  | 'EMPLOYED'
+  | 'STUDENT_STATUS_LOST'
+  | 'OTHER'
+
 export interface Dependent {
   id: string
   employeeId: string
@@ -29,6 +39,11 @@ export interface Dependent {
   insuranceEligible: boolean
   benefitEligible: boolean
   active: boolean
+  // M135 — eligibility termination
+  eligibilityEndDate?: string | null
+  eligibilityEndReason?: DependentEligibilityEndReason | null
+  /** Derived server-side: active AND (no end date OR end date in future). */
+  currentlyEligible: boolean
   notes?: string | null
   createdAt: string
   createdBy?: string | null
@@ -49,6 +64,9 @@ export interface DependentRequest {
   insuranceEligible?: boolean
   benefitEligible?: boolean
   active?: boolean
+  // M135 — must be set together or both null
+  eligibilityEndDate?: string
+  eligibilityEndReason?: DependentEligibilityEndReason
   notes?: string
 }
 

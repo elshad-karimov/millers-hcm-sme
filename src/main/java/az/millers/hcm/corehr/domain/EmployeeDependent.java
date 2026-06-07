@@ -77,6 +77,25 @@ public class EmployeeDependent {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    // ── M135 — Section 13 eligibility termination ───────────────────────
+
+    /**
+     * Date eligibility ended. When set and ≤ today, downstream
+     * benefit-eligibility queries treat this dependent as ineligible.
+     * V93 CHECK enforces a {@code (date, reason)} pair — either both or
+     * neither.
+     */
+    @Column(name = "eligibility_end_date")
+    private LocalDate eligibilityEndDate;
+
+    /**
+     * Why eligibility ended. One of {@link DependentEligibilityEndReason}.
+     * Required when {@link #eligibilityEndDate} is set.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "eligibility_end_reason", length = 60)
+    private DependentEligibilityEndReason eligibilityEndReason;
+
     @Column(columnDefinition = "text")
     private String notes;
 

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import az.millers.hcm.corehr.domain.DependentEligibilityEndReason;
 import az.millers.hcm.corehr.domain.DependentRelationship;
 import az.millers.hcm.corehr.domain.EmployeeDependent;
 
@@ -25,6 +26,15 @@ public record DependentResponse(
         boolean insuranceEligible,
         boolean benefitEligible,
         boolean active,
+        /** M135 — when eligibility ended (null = still eligible). */
+        LocalDate eligibilityEndDate,
+        DependentEligibilityEndReason eligibilityEndReason,
+        /**
+         * Derived helper — {@code true} iff eligibility termination is
+         * recorded AND it's ≤ today. Lets the SPA print "no longer
+         * eligible" badges without re-running date math.
+         */
+        boolean currentlyEligible,
         String notes,
         OffsetDateTime createdAt,
         String createdBy,
@@ -36,6 +46,9 @@ public record DependentResponse(
         String masked = (n == null || n.isBlank())
                 ? null
                 : (n.length() <= 4 ? "…" + n : "…" + n.substring(n.length() - 4));
+        LocalDate end = d.getEligibilityEndDate();
+        boolean stillEligible = d.isActive()
+                && (end == null || end.isAfter(LocalDate.now()));
         return new DependentResponse(
                 d.getId(),
                 d.getEmployeeId(),
@@ -52,6 +65,9 @@ public record DependentResponse(
                 d.isInsuranceEligible(),
                 d.isBenefitEligible(),
                 d.isActive(),
+                end,
+                d.getEligibilityEndReason(),
+                stillEligible,
                 d.getNotes(),
                 d.getCreatedAt(),
                 d.getCreatedBy(),

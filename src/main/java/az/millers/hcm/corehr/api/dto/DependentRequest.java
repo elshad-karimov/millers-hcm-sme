@@ -2,6 +2,7 @@ package az.millers.hcm.corehr.api.dto;
 
 import java.time.LocalDate;
 
+import az.millers.hcm.corehr.domain.DependentEligibilityEndReason;
 import az.millers.hcm.corehr.domain.DependentRelationship;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -22,5 +23,9 @@ public record DependentRequest(
         Boolean insuranceEligible,
         Boolean benefitEligible,
         Boolean active,
+        // ── M135 — Section 13 eligibility termination ────────────────
+        /** Both eligibility fields must be set together — or neither. */
+        LocalDate eligibilityEndDate,
+        DependentEligibilityEndReason eligibilityEndReason,
         @Size(max = 4000) String notes) {
 }
