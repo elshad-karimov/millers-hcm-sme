@@ -80,6 +80,8 @@ import { ReportsPage } from './pages/ReportsPage'
 import { CustomReportBuilderPage } from './pages/CustomReportBuilderPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
+import { MyPoliciesPage } from './pages/MyPoliciesPage'
+import { PoliciesAdminPage } from './pages/PoliciesAdminPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { MySurveysPage } from './pages/MySurveysPage'
 import { SurveysAdminPage } from './pages/SurveysAdminPage'
@@ -164,6 +166,9 @@ export default function App() {
         <Route path="my/notifications" element={<NotificationPreferencesPage />} />
         {/* M116 — employee survey self-service */}
         <Route path="my/surveys" element={<MySurveysPage />} />
+        {/* M138 — company policy library */}
+        <Route path="self/policies" element={<MyPoliciesPage />} />
+        <Route path="policies" element={<PoliciesAdminPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />

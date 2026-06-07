@@ -121,6 +121,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/reports', module: 'reports', screen: 'reports' },
   { prefix: '/engagement/surveys', module: 'engagement', screen: 'engagement-surveys' },
   { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
+  { prefix: '/self/policies', module: 'my', screen: 'self-policies' },
+  { prefix: '/policies', module: 'people', screen: 'policies-admin' },
   { prefix: '/my/team', module: 'my-team', screen: 'my-team' },
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
@@ -178,6 +180,12 @@ export function AppLayout() {
       icon: <UserOutlined />,
       label: <Link to="/my">My Workspace</Link>,
     },
+    // M138 — company policies (everyone)
+    {
+      key: 'self-policies',
+      icon: <FileTextOutlined />,
+      label: <Link to="/self/policies">Policies</Link>,
+    },
 
     // ── My team (managers + HR) — M76 ───────────────────────────────────────
     ...(isManager || isHR
@@ -202,6 +210,12 @@ export function AppLayout() {
                 key: 'employees',
                 icon: <IdcardOutlined />,
                 label: <Link to="/employees">Employees</Link>,
+              },
+              {
+                // M138 — HR policy admin
+                key: 'policies-admin',
+                icon: <FileTextOutlined />,
+                label: <Link to="/policies">Policies admin</Link>,
               },
               {
                 key: 'hr-preboarding',
