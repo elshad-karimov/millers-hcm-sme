@@ -133,6 +133,28 @@ public class Employee {
     @Column(name = "desk_number", length = 32)
     private String deskNumber;
 
+    // ── M134 — Section 4 employment completion ─────────────────────────
+
+    /**
+     * Configurable bucket distinct from {@link #employmentType}. Real
+     * HCMs use this for white-collar / blue-collar, salaried / hourly,
+     * executive / manager / IC, or local / expat — each deployment
+     * picks its taxonomy. Free-form VARCHAR per the spec wording
+     * ("configurable").
+     */
+    @Column(name = "employee_category", length = 60)
+    private String employeeCategory;
+
+    /**
+     * Tenure anchor distinct from {@link #hireDate}. When set, leave
+     * accrual + benefits eligibility consult this instead. Lets a
+     * rehire carry their original tenure forward; a group-company
+     * transferee can keep accumulated years too. CHECK ensures this is
+     * never in the future.
+     */
+    @Column(name = "seniority_date")
+    private java.time.LocalDate seniorityDate;
+
     /**
      * PII — encrypted at rest with AES-256-GCM via {@link EncryptedStringConverter}
      * (PRD 14.3). Plaintext only ever lives in the JVM heap; the DB column holds

@@ -612,6 +612,13 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Extension">{employee.extension ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Desk / seat">{employee.deskNumber ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Hire date">{employee.hireDate}</Descriptions.Item>
+      {/* M134 — Section 4 employment fields */}
+      <Descriptions.Item label="Seniority date">
+        {employee.seniorityDate ?? <span style={{ opacity: 0.5 }}>= hire date</span>}
+      </Descriptions.Item>
+      <Descriptions.Item label="Employee category">
+        {employee.employeeCategory ?? '—'}
+      </Descriptions.Item>
       <Descriptions.Item label="Employment type">{tag(employee.employmentType)}</Descriptions.Item>
       <Descriptions.Item label="FTE %">{employee.ftePercent}</Descriptions.Item>
       <Descriptions.Item label="Department">{employee.departmentName ?? '—'}</Descriptions.Item>

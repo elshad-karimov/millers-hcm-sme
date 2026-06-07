@@ -289,7 +289,10 @@ public class EmployeeImportService {
                 trimmedString(row, idx.get("workEmail")),
                 trimmedString(row, idx.get("workPhone")),
                 trimmedString(row, idx.get("extension")),
-                trimmedString(row, idx.get("deskNumber")));
+                trimmedString(row, idx.get("deskNumber")),
+                // M134 — Section 4 employment fields
+                trimmedString(row, idx.get("employeeCategory")),
+                dateValue(row, idx.get("seniorityDate")));
     }
 
     // ── Cell reading helpers ──────────────────────────────────────────────────

@@ -202,7 +202,10 @@ public class ApplicationService {
                 // M132 — Section 1 cosmetic fields, not captured at hire.
                 null, null, null, null, null,
                 // M133 — Section 3 contact fields, not captured at hire.
-                null, null, null, null, null);
+                null, null, null, null, null,
+                // M134 — Section 4 employment fields. Seniority date defaults
+                // to hire_date downstream; category not captured at hire.
+                null, null);
         Employee created = employeeService.create(empReq);
 
         a.setCurrentStage(ApplicationStage.HIRED);

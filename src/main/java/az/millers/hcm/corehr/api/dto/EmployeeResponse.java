@@ -61,6 +61,9 @@ public record EmployeeResponse(
         String workPhone,
         String extension,
         String deskNumber,
+        /** M134 — Section 4 employment fields. */
+        String employeeCategory,
+        LocalDate seniorityDate,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -109,6 +112,8 @@ public record EmployeeResponse(
                 e.getWorkPhone(),
                 e.getExtension(),
                 e.getDeskNumber(),
+                e.getEmployeeCategory(),
+                e.getSeniorityDate(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getCreatedBy(),

@@ -87,5 +87,10 @@ public record EmployeeRequest(
         /** Internal PBX extension. */
         @Size(max = 10) String extension,
         /** Seat / desk identifier (facility + IT teams). */
-        @Size(max = 32) String deskNumber) {
+        @Size(max = 32) String deskNumber,
+        // ── M134 — Section 4 employment completion ──────────────────
+        /** Configurable category (white/blue-collar, exec/mgr/IC, local/expat, …). */
+        @Size(max = 60) String employeeCategory,
+        /** Tenure anchor when set; otherwise {@code hireDate} is used. Cannot be in the future. */
+        LocalDate seniorityDate) {
 }

@@ -279,6 +279,16 @@ public class EmployeeService {
         employee.setWorkPhone(request.workPhone());
         employee.setExtension(request.extension());
         employee.setDeskNumber(request.deskNumber());
+        // M134 — Section 4 employment fields. Seniority date is bounded
+        // by the DB CHECK (cannot be in the future); reject early so
+        // the caller gets a clean BadRequestException rather than a
+        // generic constraint violation.
+        if (request.seniorityDate() != null
+                && request.seniorityDate().isAfter(java.time.LocalDate.now())) {
+            throw new BadRequestException("seniorityDate cannot be in the future");
+        }
+        employee.setEmployeeCategory(request.employeeCategory());
+        employee.setSeniorityDate(request.seniorityDate());
     }
 
     private void validateManager(UUID managerId) {

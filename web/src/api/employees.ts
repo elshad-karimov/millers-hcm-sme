@@ -86,6 +86,10 @@ export interface Employee {
   workPhone?: string | null
   extension?: string | null
   deskNumber?: string | null
+  // M134 — Section 4 employment fields
+  employeeCategory?: string | null
+  /** Tenure anchor when set; otherwise hireDate is used downstream. */
+  seniorityDate?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -134,6 +138,9 @@ export interface EmployeeRequest {
   workPhone?: string
   extension?: string
   deskNumber?: string
+  // M134 — Section 4 employment fields
+  employeeCategory?: string
+  seniorityDate?: string
 }
 
 export interface PageResponse<T> {

@@ -41,6 +41,9 @@ interface FormValues {
   workPhone?: string
   extension?: string
   deskNumber?: string
+  // M134 — Section 4 employment fields
+  employeeCategory?: string
+  seniorityDate?: dayjs.Dayjs
 }
 
 const BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
@@ -95,6 +98,9 @@ export function EmployeeFormPage() {
           workPhone: e.workPhone ?? undefined,
           extension: e.extension ?? undefined,
           deskNumber: e.deskNumber ?? undefined,
+          // M134 — Section 4 employment fields
+          employeeCategory: e.employeeCategory ?? undefined,
+          seniorityDate: e.seniorityDate ? dayjs(e.seniorityDate) : undefined,
         })
       })
       .catch((err) =>
@@ -109,6 +115,8 @@ export function EmployeeFormPage() {
       ...v,
       birthDate: v.birthDate?.format('YYYY-MM-DD'),
       hireDate: v.hireDate.format('YYYY-MM-DD'),
+      // M134 — seniority date, optional
+      seniorityDate: v.seniorityDate?.format('YYYY-MM-DD'),
     }
     try {
       if (editing) {
@@ -240,13 +248,43 @@ export function EmployeeFormPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item
-            name="hireDate"
-            label="Hire date"
-            rules={[{ required: true, message: 'Hire date is required' }]}
-          >
-            <DatePicker style={{ width: '100%', maxWidth: 240 }} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="hireDate"
+                label="Hire date"
+                rules={[{ required: true, message: 'Hire date is required' }]}
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            {/* M134 — Section 4 spec fields */}
+            <Col span={8}>
+              <Form.Item
+                name="seniorityDate"
+                label="Seniority date"
+                tooltip="Tenure anchor for benefits + leave. Leave blank to use hire date. Rehires can carry forward their original date here."
+                rules={[{
+                  validator: (_, v: dayjs.Dayjs | undefined) =>
+                    !v || !v.isAfter(dayjs(), 'day')
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('Seniority date cannot be in the future')),
+                }]}
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="employeeCategory"
+                label="Employee category"
+                tooltip="Configurable bucket — e.g. white-collar / blue-collar, salaried / hourly, executive / IC."
+                rules={[{ max: 60 }]}
+              >
+                <Input placeholder="Free text" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="departmentName" label="Department" rules={[{ max: 160 }]}>
