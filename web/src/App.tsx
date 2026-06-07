@@ -18,6 +18,7 @@ import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
 import { AttendanceSummaryPage } from './pages/AttendanceSummaryPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
+import { TeamLeaveCalendarPage } from './pages/TeamLeaveCalendarPage'
 import { AssetsAdminPage } from './pages/AssetsAdminPage'
 import { PresenceMapPage } from './pages/PresenceMapPage'
 import { WorkflowSlaPage } from './pages/WorkflowSlaPage'
@@ -286,6 +287,8 @@ export default function App() {
           <Route path="leave/types" element={<LeaveTypesPage />} />
           {/* M123 — leave blackout windows admin */}
           <Route path="leave/blackouts" element={<LeaveBlackoutsPage />} />
+          {/* M131 — team time-off calendar */}
+          <Route path="leave/team-calendar" element={<TeamLeaveCalendarPage />} />
           <Route path="leave/types/new" element={<LeaveTypeFormPage />} />
           <Route path="leave/types/:id/edit" element={<LeaveTypeFormPage />} />
           <Route path="permission/types" element={<PermissionTypesPage />} />

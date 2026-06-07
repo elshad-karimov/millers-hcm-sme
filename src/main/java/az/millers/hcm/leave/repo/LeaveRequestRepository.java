@@ -65,4 +65,22 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID
               and r.status = az.millers.hcm.leave.domain.LeaveRequestStatus.PENDING
             """)
     long countPendingForEmployees(Collection<UUID> employeeIds);
+
+    /**
+     * M131 — every APPROVED or PENDING leave touching the window for the
+     * given team, used by the team time-off calendar. CANCELLED /
+     * REJECTED rows skipped — the calendar shows the live picture.
+     */
+    @Query("""
+            select r from LeaveRequest r
+            where r.employeeId in :employeeIds
+              and r.status in (
+                  az.millers.hcm.leave.domain.LeaveRequestStatus.APPROVED,
+                  az.millers.hcm.leave.domain.LeaveRequestStatus.PENDING)
+              and r.startDate <= :rangeEnd
+              and r.endDate >= :rangeStart
+            order by r.startDate asc
+            """)
+    List<LeaveRequest> findActiveForTeamInRange(
+            Collection<UUID> employeeIds, LocalDate rangeStart, LocalDate rangeEnd);
 }

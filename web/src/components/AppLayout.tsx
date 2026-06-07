@@ -70,6 +70,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/attendance/summary', module: 'time', screen: 'attendance-summary' },
   { prefix: '/leave/types', module: 'absence', screen: 'leave-types' },
   { prefix: '/leave/blackouts', module: 'absence', screen: 'leave-blackouts' },
+  { prefix: '/leave/team-calendar', module: 'absence', screen: 'leave-team-calendar' },
   { prefix: '/leave/balances', module: 'absence', screen: 'leave-balances' },
   { prefix: '/leave/requests', module: 'absence', screen: 'leave-requests' },
   { prefix: '/permission/types', module: 'absence', screen: 'permission-types' },
@@ -297,6 +298,11 @@ export function AppLayout() {
                 key: 'leave-requests',
                 icon: <FileDoneOutlined />,
                 label: <Link to="/leave/requests">Leave requests</Link>,
+              },
+              {
+                key: 'leave-team-calendar',
+                icon: <CoffeeOutlined />,
+                label: <Link to="/leave/team-calendar">Team calendar</Link>,
               },
               {
                 key: 'leave-balances',

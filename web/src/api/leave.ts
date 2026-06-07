@@ -140,4 +140,47 @@ export const leaveApi = {
     api.get<LeaveRequest>(`/leave/requests/${id}`).then((r) => r.data),
   submit: (payload: LeaveSubmitRequest) =>
     api.post<LeaveRequest>('/leave/requests/submit', payload).then((r) => r.data),
+
+  // M131 — team time-off calendar
+  teamCalendar: (params: {
+    orgUnitId?: string
+    windowStart: string
+    windowEnd: string
+    thresholdPercent?: number
+  }) =>
+    api.get<TeamCalendarResponse>('/leave/team-calendar', { params }).then((r) => r.data),
+}
+
+// ── M131 — Team time-off calendar wire types ───────────────────────────
+
+export interface TeamLeaveEntry {
+  requestId: string
+  employeeId: string
+  employeeNo?: string | null
+  employeeName?: string | null
+  leaveTypeId: string
+  leaveTypeName?: string | null
+  leaveTypeColor?: string | null
+  startDate: string
+  endDate: string
+  totalDays: number
+  halfDay: boolean
+  status: LeaveRequestStatus
+}
+
+export interface DailyRollup {
+  date: string
+  outCount: number
+  percentOff: number
+  flagged: boolean
+}
+
+export interface TeamCalendarResponse {
+  windowStart: string
+  windowEnd: string
+  orgUnitId?: string | null
+  teamSize: number
+  thresholdPercent: number
+  entries: TeamLeaveEntry[]
+  days: DailyRollup[]
 }
