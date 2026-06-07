@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import az.millers.hcm.learning.api.dto.CompetencyRequest;
 import az.millers.hcm.learning.api.dto.CompetencyResponse;
 import az.millers.hcm.learning.api.dto.EmployeeCompetencyResponse;
+import az.millers.hcm.learning.api.dto.EndorsementRequest;
 import az.millers.hcm.learning.service.CompetencyService;
 import jakarta.validation.Valid;
 
@@ -62,5 +63,37 @@ public class CompetencyController {
     @PreAuthorize("isAuthenticated()")
     public List<EmployeeCompetencyResponse> forEmployee(@PathVariable UUID employeeId) {
         return service.forEmployee(employeeId).stream().map(EmployeeCompetencyResponse::from).toList();
+    }
+
+    // ── M136 — years of experience + endorsement ─────────────────────────
+
+    /**
+     * Set / clear the years-of-experience on an employee_competency.
+     * Body: {@code {"years": 8.5}} or {@code {"years": null}} to clear.
+     */
+    @PutMapping("/employees/{employeeCompetencyId}/years")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
+    public EmployeeCompetencyResponse setYears(
+            @PathVariable UUID employeeCompetencyId,
+            @RequestBody YearsRequest body) {
+        return EmployeeCompetencyResponse.from(
+                service.setYearsOfExperience(employeeCompetencyId, body.years()));
+    }
+
+    public record YearsRequest(java.math.BigDecimal years) {}
+
+    /**
+     * Manager / mentor endorsement. The endorser identity comes from the
+     * auth context — never from the body — so a user can't endorse on
+     * behalf of someone else. Endorsement updates the canonical
+     * {@code proficiency} to match {@code endorsedLevel}.
+     */
+    @PostMapping("/employees/{employeeCompetencyId}/endorse")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
+    public EmployeeCompetencyResponse endorse(
+            @PathVariable UUID employeeCompetencyId,
+            @Valid @RequestBody EndorsementRequest req) {
+        return EmployeeCompetencyResponse.from(
+                service.endorse(employeeCompetencyId, req));
     }
 }

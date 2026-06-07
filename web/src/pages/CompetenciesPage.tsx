@@ -140,6 +140,47 @@ function CatalogueTab({
     { title: 'Description', dataIndex: 'description', ellipsis: true },
   ]
 
+  // M136 — endorse / years modal state
+  const [actOpen, setActOpen] = useState<EmployeeCompetency | null>(null)
+  const [actForm] = Form.useForm<{ endorsedLevel: number; note?: string; years?: number }>()
+
+  const reloadAwards = () => {
+    if (!employeeId) return
+    learningApi.employeeCompetencies(employeeId).then(setAwards)
+  }
+  const onEndorse = async (v: { endorsedLevel: number; note?: string }) => {
+    if (!actOpen) return
+    try {
+      await learningApi.endorseCompetency(actOpen.id, {
+        endorsedLevel: v.endorsedLevel,
+        note: v.note,
+      })
+      message.success('Endorsed')
+      setActOpen(null); actForm.resetFields(); reloadAwards()
+    } catch (err) {
+      message.error(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Endorse failed',
+      )
+    }
+  }
+  const onSaveYears = async (v: { years?: number }) => {
+    if (!actOpen) return
+    try {
+      await learningApi.setCompetencyYears(
+        actOpen.id,
+        v.years == null || Number.isNaN(v.years) ? null : v.years,
+      )
+      message.success('Years updated')
+      reloadAwards()
+    } catch (err) {
+      message.error(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Save failed',
+      )
+    }
+  }
+
   const awardColumns: ColumnsType<EmployeeCompetency> = [
     {
       title: 'Competency', dataIndex: 'competencyId',
@@ -151,9 +192,40 @@ function CatalogueTab({
         <Tag color="cyan">Level {p} — {LEVEL_LABELS[p] ?? ''}</Tag>
       ),
     },
-    { title: 'Source', dataIndex: 'source', width: 110 },
-    { title: 'Awarded', dataIndex: 'awardedAt', width: 130, render: (s: string) => s.slice(0, 10) },
-    { title: 'Valid until', dataIndex: 'validUntil', width: 130 },
+    {
+      // M136 — Section 16 spec field
+      title: 'Years', dataIndex: 'yearsOfExperience', width: 80, align: 'right',
+      render: (v?: number | null) => (v == null ? '—' : `${v}y`),
+    },
+    {
+      // M136 — endorsement chip
+      title: 'Endorsement', width: 200,
+      render: (_, r) => r.endorsed
+        ? (
+          <Space size={4}>
+            <Tag color="green">Endorsed L{r.endorsedLevel}</Tag>
+            {r.endorsedAt && (
+              <Tag>{r.endorsedAt.slice(0, 10)}</Tag>
+            )}
+          </Space>
+        )
+        : <Tag>Self / source</Tag>,
+    },
+    { title: 'Source', dataIndex: 'source', width: 100 },
+    { title: 'Awarded', dataIndex: 'awardedAt', width: 110, render: (s: string) => s.slice(0, 10) },
+    {
+      title: '', width: 130, align: 'right',
+      render: (_, r) => canManage
+        ? <Button size="small" onClick={() => {
+            setActOpen(r)
+            actForm.setFieldsValue({
+              endorsedLevel: r.endorsedLevel ?? r.proficiency,
+              note: r.endorsementNote ?? undefined,
+              years: r.yearsOfExperience ?? undefined,
+            })
+          }}>Manage</Button>
+        : null,
+    },
   ]
 
   return (
@@ -221,6 +293,55 @@ function CatalogueTab({
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* M136 — endorsement + years modal */}
+      <Modal
+        open={!!actOpen}
+        title={actOpen ? `Manage award — ${(compMap.get(actOpen.competencyId)?.code ?? '')}` : ''}
+        onCancel={() => setActOpen(null)}
+        footer={null}
+        width={520}
+      >
+        {actOpen && (
+          <Form
+            form={actForm}
+            layout="vertical"
+            onFinish={onEndorse}
+          >
+            <Form.Item name="years"
+              label="Years of experience"
+              tooltip="Recorded separately from the proficiency level. Save with the button on the right.">
+              <InputNumber min={0} max={99.9} step={0.5} style={{ width: '100%' }}
+                addonAfter={
+                  <Button size="small"
+                    onClick={() => onSaveYears({ years: actForm.getFieldValue('years') })}>
+                    Save years
+                  </Button>
+                } />
+            </Form.Item>
+
+            <Form.Item
+              name="endorsedLevel"
+              label="Endorsed level (overrides current proficiency)"
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[1, 2, 3, 4, 5].map((n) => ({
+                  value: n,
+                  label: `Level ${n}${LEVEL_LABELS[n] ? ` — ${LEVEL_LABELS[n]}` : ''}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="note" label="Note (optional)">
+              <Input.TextArea rows={3} placeholder="Why you're endorsing at this level…" />
+            </Form.Item>
+            <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button onClick={() => setActOpen(null)}>Close</Button>
+              <Button type="primary" htmlType="submit">Endorse</Button>
+            </Space>
+          </Form>
+        )}
       </Modal>
     </>
   )

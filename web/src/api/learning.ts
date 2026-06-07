@@ -191,6 +191,19 @@ export interface EmployeeCompetency {
   sourceRef?: string | null
   awardedAt: string
   validUntil?: string | null
+  // M136 — Section 16 closure
+  yearsOfExperience?: number | null
+  endorsedByEmployeeId?: string | null
+  endorsedAt?: string | null
+  endorsedLevel?: number | null
+  endorsementNote?: string | null
+  /** Derived: endorsedByEmployeeId != null. */
+  endorsed: boolean
+}
+
+export interface EndorsementRequest {
+  endorsedLevel: number
+  note?: string
 }
 
 export interface CourseCompetencyMapping {
@@ -296,6 +309,21 @@ export const learningApi = {
   employeeCompetencies: (employeeId: string) =>
     api
       .get<EmployeeCompetency[]>(`/learning/competencies/employee/${employeeId}`)
+      .then((r) => r.data),
+  // M136 — years of experience + manager endorsement
+  setCompetencyYears: (employeeCompetencyId: string, years: number | null) =>
+    api
+      .put<EmployeeCompetency>(
+        `/learning/competencies/employees/${employeeCompetencyId}/years`,
+        { years },
+      )
+      .then((r) => r.data),
+  endorseCompetency: (employeeCompetencyId: string, payload: EndorsementRequest) =>
+    api
+      .post<EmployeeCompetency>(
+        `/learning/competencies/employees/${employeeCompetencyId}/endorse`,
+        payload,
+      )
       .then((r) => r.data),
 
   // M60: Gap analysis — position requirements + per-employee report

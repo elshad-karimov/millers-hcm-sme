@@ -44,6 +44,31 @@ public class EmployeeCompetency {
     @Column(name = "valid_until")
     private LocalDate validUntil;
 
+    // ── M136 — Section 16 years + manager endorsement ───────────────────
+
+    /** Years of experience on this competency. NUMERIC(4,1); 0..99.9. */
+    @Column(name = "years_of_experience")
+    private java.math.BigDecimal yearsOfExperience;
+
+    /**
+     * Employee id of the manager / mentor who endorsed this record.
+     * Paired with {@link #endorsedAt} and {@link #endorsedLevel} via a
+     * DB CHECK — all three are set together or none at all. Note is
+     * optional even when endorsed.
+     */
+    @Column(name = "endorsed_by_employee_id")
+    private UUID endorsedByEmployeeId;
+
+    @Column(name = "endorsed_at")
+    private OffsetDateTime endorsedAt;
+
+    /** What level the endorser confirmed (1..5). Usually equals {@link #proficiency}. */
+    @Column(name = "endorsed_level")
+    private Integer endorsedLevel;
+
+    @Column(name = "endorsement_note", columnDefinition = "text")
+    private String endorsementNote;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
