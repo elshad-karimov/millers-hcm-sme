@@ -58,6 +58,11 @@ public class SecurityConfig {
                         // need to know more. The controller maps unknown /
                         // expired tokens to 404.
                         .requestMatchers("/api/public/preboarding/**").permitAll()
+                        // M139 — public letter verification endpoint. The
+                        // 32-char token IS the credential; the controller
+                        // returns only non-PII fields (status, request_no,
+                        // issued date) so it's safe for third parties.
+                        .requestMatchers("/api/public/letters/verify/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 // M120 — recognise X-API-Key BEFORE the bearer-token filter. A

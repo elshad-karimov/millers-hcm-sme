@@ -91,4 +91,20 @@ public class LetterRequestController {
                 .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
                 .body(r.getRenderedBody() == null ? "" : r.getRenderedBody());
     }
+
+    /**
+     * M139 — PDF download. Renders on demand with locale-resolved
+     * template, signature line, and QR verification code.
+     */
+    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> pdf(@PathVariable UUID id) {
+        var r = service.get(id);
+        byte[] pdf = service.renderPdf(id);
+        String filename = (r.getRequestNo() == null ? "letter" : r.getRequestNo()) + ".pdf";
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header("Content-Disposition", "inline; filename=\"" + filename + "\"")
+                .body(pdf);
+    }
 }

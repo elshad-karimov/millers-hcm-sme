@@ -15,5 +15,8 @@ public record LetterTemplateRequest(
         Object placeholdersJson,
         LetterOutputFormat outputFormat,
         Boolean requiresApproval,
-        Boolean active) {
+        Boolean active,
+        /** M139 — ISO 639-1 lowercase; defaults to {@code en} when null. */
+        @Pattern(regexp = "^[a-z]{2}$", message = "language must be ISO 639-1 alpha-2 lowercase")
+        String language) {
 }

@@ -79,18 +79,30 @@ export function LetterRequestsPage() {
     },
     {
       title: '',
-      width: 160,
+      width: 260,
       render: (_, r) =>
         r.status === 'ISSUED' ? (
-          <Button
-            size="small"
-            type="link"
-            href={letterRequestsApi.bodyUrl(r.id)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Download
-          </Button>
+          <Space size={4}>
+            <Button
+              size="small"
+              type="link"
+              href={letterRequestsApi.bodyUrl(r.id)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Download text
+            </Button>
+            {/* M139 — PDF with signature + QR */}
+            <Button
+              size="small"
+              type="link"
+              href={letterRequestsApi.pdfUrl(r.id)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              PDF
+            </Button>
+          </Space>
         ) : null,
     },
   ]

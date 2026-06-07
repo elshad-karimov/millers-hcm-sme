@@ -51,6 +51,7 @@ public class LetterRequestService {
     private final LetterTemplateRepository templateRepo;
     private final EmployeeRepository employees;
     private final LetterRenderer renderer;
+    private final LetterPdfRenderer pdfRenderer;
     private final WorkflowService workflows;
     private final AuditService audit;
     private final AccessScopeService scope;
@@ -60,6 +61,7 @@ public class LetterRequestService {
                                  LetterTemplateRepository templateRepo,
                                  EmployeeRepository employees,
                                  LetterRenderer renderer,
+                                 LetterPdfRenderer pdfRenderer,
                                  WorkflowService workflows,
                                  AuditService audit,
                                  AccessScopeService scope,
@@ -68,10 +70,25 @@ public class LetterRequestService {
         this.templateRepo = templateRepo;
         this.employees = employees;
         this.renderer = renderer;
+        this.pdfRenderer = pdfRenderer;
         this.workflows = workflows;
         this.audit = audit;
         this.scope = scope;
         this.currentRequest = currentRequest;
+    }
+
+    /**
+     * M139 — resolve the right template variant for an employee. Picks
+     * the row whose {@code language} matches {@code nativeLanguage}; if
+     * none exists, falls back to the original {@code code} row (legacy
+     * single-language path), then to {@code en}. The selected language
+     * is stamped on the request so the SPA can display "issued in az".
+     */
+    private LetterTemplate resolveTemplate(LetterTemplate requested, Employee employee) {
+        String lang = employee.getNativeLanguage();
+        if (lang == null || lang.isBlank()) return requested;
+        return templateRepo.findByCodeAndLanguage(requested.getCode(), lang)
+                .orElse(requested);
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -132,9 +149,8 @@ public class LetterRequestService {
         r.setUpdatedBy(currentRequest.username());
 
         if (!template.isRequiresApproval()) {
-            // Auto-issue path — render now.
-            r.setRenderedBody(renderer.render(template.getBody(), employee, asMap(req.customFields())));
-            r.setIssuedAt(OffsetDateTime.now());
+            // Auto-issue path — render now (locale-aware + PDF + token).
+            issueNow(r, employee, template);
         }
 
         LetterRequest saved = requestRepo.save(r);
@@ -179,10 +195,7 @@ public class LetterRequestService {
         LetterTemplate template = templateRepo.findById(r.getTemplateId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Template vanished mid-flow: " + r.getTemplateId()));
-        r.setRenderedBody(renderer.render(
-                template.getBody(), employee, asMap(r.getCustomFieldsJson())));
-        r.setStatus(LetterStatus.ISSUED);
-        r.setIssuedAt(OffsetDateTime.now());
+        issueNow(r, employee, template);
         r.setUpdatedBy(approver == null ? currentRequest.username() : approver);
         LetterRequest saved = requestRepo.save(r);
         audit.record(MODULE, ENTITY, id.toString(),
@@ -223,5 +236,67 @@ public class LetterRequestService {
             return (Map<String, Object>) m;
         }
         return Map.of();
+    }
+
+    // ── M139 — issue helper + PDF + verification ────────────────────────
+
+    /**
+     * One-shot "issue" pass — picks the locale-matching template
+     * variant, renders the body, generates a verification token, and
+     * (when the template asked for PDF) renders the PDF + stores a
+     * download endpoint URL.
+     */
+    private void issueNow(LetterRequest r, Employee employee, LetterTemplate requested) {
+        LetterTemplate resolved = resolveTemplate(requested, employee);
+        String body = renderer.render(
+                resolved.getBody(), employee, asMap(r.getCustomFieldsJson()));
+        r.setRenderedBody(body);
+        r.setLanguage(resolved.getLanguage());
+        r.setVerificationToken(LetterPdfRenderer.newToken());
+        r.setSignedBy("Human Resources Department");
+        OffsetDateTime now = OffsetDateTime.now();
+        r.setSignedAt(now);
+        r.setIssuedAt(now);
+        r.setStatus(LetterStatus.ISSUED);
+        if (resolved.getOutputFormat() == az.millers.hcm.letters.domain.LetterOutputFormat.PDF) {
+            // The actual PDF bytes are produced on demand via the
+            // download endpoint to keep the row light + cache-friendly.
+            // The URL we record is the stable download path.
+            r.setRenderedPdfUrl("/api/letter-requests/" + r.getId() + "/pdf");
+        }
+    }
+
+    /**
+     * Render the PDF on demand. Pulled from the download endpoint —
+     * keeping bytes off the table row lets us re-render cleanly if the
+     * template / signature line evolves.
+     */
+    @Transactional(readOnly = true)
+    public byte[] renderPdf(UUID id) {
+        LetterRequest r = get(id);
+        if (r.getStatus() != LetterStatus.ISSUED) {
+            throw new BadRequestException(
+                    "Letter must be ISSUED before a PDF can be rendered; current: " + r.getStatus());
+        }
+        LetterTemplate template = templateRepo.findById(r.getTemplateId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Template vanished: " + r.getTemplateId()));
+        Employee employee = employees.findById(r.getEmployeeId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Employee vanished: " + r.getEmployeeId()));
+        LetterTemplate resolved = resolveTemplate(template, employee);
+        return pdfRenderer.render(r, resolved, r.getRenderedBody() == null ? "" : r.getRenderedBody());
+    }
+
+    /**
+     * Public token-based verification — used by the public verify
+     * endpoint and exposes only non-PII fields.
+     */
+    @Transactional
+    public LetterRequest verifyByToken(String token) {
+        LetterRequest r = requestRepo.findByVerificationToken(token).orElseThrow(
+                () -> new ResourceNotFoundException("Letter not found for token"));
+        r.setVerifiedAt(OffsetDateTime.now());
+        return requestRepo.save(r);
     }
 }

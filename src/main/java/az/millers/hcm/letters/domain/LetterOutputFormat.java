@@ -7,5 +7,7 @@ package az.millers.hcm.letters.domain;
  */
 public enum LetterOutputFormat {
     TEXT,
-    HTML
+    HTML,
+    /** M139 — renders via OpenPDF with QR verification + signature line. */
+    PDF
 }

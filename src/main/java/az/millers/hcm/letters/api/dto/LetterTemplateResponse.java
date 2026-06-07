@@ -11,6 +11,8 @@ public record LetterTemplateResponse(
         String body, Object placeholdersJson,
         LetterOutputFormat outputFormat,
         boolean requiresApproval, boolean active,
+        /** M139 — ISO 639-1 alpha-2 lowercase. */
+        String language,
         OffsetDateTime createdAt, String createdBy,
         OffsetDateTime updatedAt, String updatedBy) {
 
@@ -20,6 +22,7 @@ public record LetterTemplateResponse(
                 t.getBody(), t.getPlaceholdersJson(),
                 t.getOutputFormat(),
                 t.isRequiresApproval(), t.isActive(),
+                t.getLanguage(),
                 t.getCreatedAt(), t.getCreatedBy(),
                 t.getUpdatedAt(), t.getUpdatedBy());
     }

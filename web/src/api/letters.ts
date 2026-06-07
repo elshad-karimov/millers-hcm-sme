@@ -10,7 +10,7 @@ export type LetterStatus =
   | 'REJECTED'
   | 'CANCELLED'
 
-export type LetterOutputFormat = 'TEXT' | 'HTML'
+export type LetterOutputFormat = 'TEXT' | 'HTML' | 'PDF'
 
 export interface LetterTemplate {
   id: string
@@ -22,6 +22,8 @@ export interface LetterTemplate {
   outputFormat: LetterOutputFormat
   requiresApproval: boolean
   active: boolean
+  /** M139 — ISO 639-1 alpha-2 lowercase. */
+  language?: string | null
   createdAt: string
   createdBy?: string | null
   updatedAt: string
@@ -37,6 +39,7 @@ export interface LetterTemplateRequest {
   outputFormat?: LetterOutputFormat
   requiresApproval?: boolean
   active?: boolean
+  language?: string
 }
 
 export interface LetterRequest {
@@ -54,6 +57,13 @@ export interface LetterRequest {
   issuedAt?: string | null
   decidedBy?: string | null
   decisionComment?: string | null
+  // M139 — Phase 2
+  renderedPdfUrl?: string | null
+  verificationToken?: string | null
+  verifiedAt?: string | null
+  signedBy?: string | null
+  signedAt?: string | null
+  language?: string | null
   createdAt: string
   createdBy?: string | null
   updatedAt: string
@@ -101,6 +111,23 @@ export const letterRequestsApi = {
 
   /** Returns the rendered body as text/plain or text/html — caller decides what to do. */
   bodyUrl: (id: string) => `/api/letter-requests/${id}/body`,
+  /** M139 — PDF with signature line + QR verification code. */
+  pdfUrl: (id: string) => `/api/letter-requests/${id}/pdf`,
+}
+
+// M139 — public, anonymous-accessible verify endpoint
+export interface LetterVerifyResponse {
+  requestNo: string
+  status: string
+  issuedDate?: string | null
+  signedBy?: string | null
+  language?: string | null
+}
+export const publicLetterApi = {
+  verify: (token: string) =>
+    api
+      .get<LetterVerifyResponse>(`/public/letters/verify/${token}`)
+      .then((r) => r.data),
 }
 
 export const selfLettersApi = {

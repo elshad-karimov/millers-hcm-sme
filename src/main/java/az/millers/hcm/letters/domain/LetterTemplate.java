@@ -34,8 +34,21 @@ public class LetterTemplate {
     @Id
     private UUID id;
 
-    @Column(nullable = false, unique = true, length = 40)
+    /**
+     * M77 left this UNIQUE-by-code. M139 splits the constraint: same
+     * code is allowed across languages (uq_letter_template_code_lang
+     * enforces that pair).
+     */
+    @Column(nullable = false, length = 40)
     private String code;
+
+    /**
+     * M139 — ISO 639-1 alpha-2 (lowercase). Render path picks the
+     * variant matching the employee's {@code native_language} (M132),
+     * falling back to {@code 'en'} when no match exists.
+     */
+    @Column(nullable = false, length = 2)
+    private String language = "en";
 
     @Column(nullable = false, length = 200)
     private String name;

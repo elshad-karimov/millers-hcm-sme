@@ -35,4 +35,7 @@ public interface LetterRequestRepository extends JpaRepository<LetterRequest, UU
 
     /** Full list for HR — unscoped. */
     Page<LetterRequest> findAllByOrderByRequestedAtDesc(Pageable pageable);
+
+    /** M139 — public verification endpoint resolves the letter by token. */
+    java.util.Optional<LetterRequest> findByVerificationToken(String token);
 }

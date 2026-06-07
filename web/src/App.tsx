@@ -106,6 +106,7 @@ import { UserManagementPage } from './pages/UserManagementPage'
 import { ApiKeysPage } from './pages/ApiKeysPage'
 import { PreboardingPage } from './pages/PreboardingPage'
 import { PublicPreboardingPage } from './pages/PublicPreboardingPage'
+import { PublicLetterVerifyPage } from './pages/PublicLetterVerifyPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { BiExportPage } from './pages/admin/BiExportPage'
@@ -146,6 +147,8 @@ export default function App() {
           RequireAuth wrapper because the candidate has no Keycloak
           account; the magic-link token IS the credential. */}
       <Route path="/preboarding/:token" element={<PublicPreboardingPage />} />
+      {/* M139 — public letter verify (QR target). No auth. */}
+      <Route path="/verify/letter/:token" element={<PublicLetterVerifyPage />} />
 
       {/* No /login route — RequireAuth hands off to Keycloak. */}
       <Route

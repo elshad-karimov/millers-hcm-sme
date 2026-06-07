@@ -55,11 +55,16 @@ public class LetterTemplateService {
     @Transactional
     public LetterTemplate create(LetterTemplateRequest req) {
         String code = normaliseCode(req.code());
-        if (repo.findByCode(code).isPresent()) {
-            throw new BadRequestException("LetterTemplate code already exists: " + code);
+        String language = req.language() == null ? "en" : req.language();
+        // M139 — uniqueness changed from (code) to (code, language); the
+        // service rejects duplicates of the same locale variant.
+        if (repo.findByCodeAndLanguage(code, language).isPresent()) {
+            throw new BadRequestException(
+                    "LetterTemplate already exists for code " + code + " language " + language);
         }
         LetterTemplate t = new LetterTemplate();
         t.setCode(code);
+        t.setLanguage(language);
         applyRequest(t, req);
         t.setCreatedBy(currentRequest.username());
         t.setUpdatedBy(currentRequest.username());

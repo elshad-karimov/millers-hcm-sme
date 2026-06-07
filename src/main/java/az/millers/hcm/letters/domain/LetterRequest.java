@@ -69,6 +69,35 @@ public class LetterRequest {
     @Column(name = "issued_at")
     private OffsetDateTime issuedAt;
 
+    // ── M139 — Phase 2 fields ───────────────────────────────────────────
+
+    /** MinIO URL of the rendered PDF. Null until the renderer produces one. */
+    @Column(name = "rendered_pdf_url", length = 500)
+    private String renderedPdfUrl;
+
+    /**
+     * Opaque 32-char random token. Printed as a QR code on the PDF and
+     * passed back via {@code /api/public/letters/verify/{token}} to
+     * confirm authenticity without exposing PII. Set at render time.
+     */
+    @Column(name = "verification_token", length = 64)
+    private String verificationToken;
+
+    /** Last time someone hit the public verify endpoint with this token. */
+    @Column(name = "verified_at")
+    private OffsetDateTime verifiedAt;
+
+    /** Name of the signing officer (printed on the PDF signature line). */
+    @Column(name = "signed_by", length = 160)
+    private String signedBy;
+
+    @Column(name = "signed_at")
+    private OffsetDateTime signedAt;
+
+    /** ISO 639-1 lowercase — the variant the renderer actually used. */
+    @Column(name = "language", length = 2)
+    private String language;
+
     @Column(name = "decided_by", length = 80)
     private String decidedBy;
 
