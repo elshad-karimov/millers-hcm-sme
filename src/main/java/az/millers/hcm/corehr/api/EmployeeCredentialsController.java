@@ -22,9 +22,12 @@ import az.millers.hcm.corehr.api.dto.CertificationRequest;
 import az.millers.hcm.corehr.api.dto.CertificationResponse;
 import az.millers.hcm.corehr.api.dto.HealthRequest;
 import az.millers.hcm.corehr.api.dto.HealthResponse;
+import az.millers.hcm.corehr.api.dto.VaccinationRequest;
+import az.millers.hcm.corehr.api.dto.VaccinationResponse;
 import az.millers.hcm.corehr.domain.VerificationStatus;
 import az.millers.hcm.corehr.service.EmployeeCertificationService;
 import az.millers.hcm.corehr.service.EmployeeHealthService;
+import az.millers.hcm.corehr.service.EmployeeVaccinationService;
 
 /**
  * REST surface for external certifications + medical/health records (M65).
@@ -56,11 +59,15 @@ public class EmployeeCredentialsController {
 
     private final EmployeeCertificationService certifications;
     private final EmployeeHealthService health;
+    /** M137 — per-dose vaccination records. */
+    private final EmployeeVaccinationService vaccinations;
 
     public EmployeeCredentialsController(EmployeeCertificationService certifications,
-                                          EmployeeHealthService health) {
+                                          EmployeeHealthService health,
+                                          EmployeeVaccinationService vaccinations) {
         this.certifications = certifications;
         this.health = health;
+        this.vaccinations = vaccinations;
     }
 
     // ── Certifications ────────────────────────────────────────────────────────
@@ -124,5 +131,39 @@ public class EmployeeCredentialsController {
     @PreAuthorize(HEALTH_ROLES)
     public void deleteHealth(@PathVariable UUID employeeId) {
         health.delete(employeeId);
+    }
+
+    // ── M137 — Vaccinations (same role gate as health) ────────────────────
+
+    @GetMapping("/api/employees/{employeeId}/vaccinations")
+    @PreAuthorize(HEALTH_ROLES)
+    public List<VaccinationResponse> listVaccinations(@PathVariable UUID employeeId) {
+        return vaccinations.listFor(employeeId).stream()
+                .map(VaccinationResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/api/employees/{employeeId}/vaccinations")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(HEALTH_ROLES)
+    public VaccinationResponse createVaccination(@PathVariable UUID employeeId,
+                                                   @RequestBody @Valid VaccinationRequest req) {
+        return VaccinationResponse.from(vaccinations.create(employeeId, req));
+    }
+
+    @PutMapping("/api/employees/{employeeId}/vaccinations/{vaccinationId}")
+    @PreAuthorize(HEALTH_ROLES)
+    public VaccinationResponse updateVaccination(@PathVariable UUID employeeId,
+                                                  @PathVariable UUID vaccinationId,
+                                                  @RequestBody @Valid VaccinationRequest req) {
+        return VaccinationResponse.from(vaccinations.update(vaccinationId, req));
+    }
+
+    @DeleteMapping("/api/employees/{employeeId}/vaccinations/{vaccinationId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize(HEALTH_ROLES)
+    public void deleteVaccination(@PathVariable UUID employeeId,
+                                    @PathVariable UUID vaccinationId) {
+        vaccinations.delete(vaccinationId);
     }
 }

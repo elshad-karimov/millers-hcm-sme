@@ -34,6 +34,7 @@ import {
   credentialsApi,
   type Certification,
   type Health,
+  type Vaccination,
 } from '../api/credentials'
 import { disciplinaryApi, type DisciplinaryAction } from '../api/disciplinary'
 import {
@@ -134,6 +135,8 @@ export function EmployeeDetailPage() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [certifications, setCertifications] = useState<Certification[]>([])
   const [health, setHealth] = useState<Health | null>(null)
+  // M137 — vaccinations (same role gate as health)
+  const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [disciplinary, setDisciplinary] = useState<DisciplinaryAction[]>([])
   const [dependents, setDependents] = useState<Dependent[]>([])
   const [educations, setEducations] = useState<Education[]>([])
@@ -170,6 +173,8 @@ export function EmployeeDetailPage() {
       contractsApi.listForEmployee(id).catch(() => []),
       credentialsApi.listCertifications(id).catch(() => []),
       canSeeHealth ? credentialsApi.getHealth(id).catch(() => null) : Promise.resolve(null),
+      // M137 — vaccinations: same role gate as health
+      canSeeHealth ? credentialsApi.listVaccinations(id).catch(() => []) : Promise.resolve([] as Vaccination[]),
       canSeeDisciplinary ? disciplinaryApi.listForEmployee(id).catch(() => []) : Promise.resolve([]),
       profileTabsApi.listDependents(id).catch(() => []),
       profileTabsApi.listEducation(id).catch(() => []),
@@ -184,7 +189,7 @@ export function EmployeeDetailPage() {
       timelineApi.forEmployee(id).catch(() => []),
       statusOverlayApi.list(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -193,6 +198,7 @@ export function EmployeeDetailPage() {
         setContracts(cs)
         setCertifications(certs)
         setHealth(hth)
+        setVaccinations(vacs)
         setDisciplinary(da)
         setDependents(deps)
         setEducations(eds)
@@ -929,9 +935,47 @@ export function EmployeeDetailPage() {
           <Descriptions.Item label="Confidential">
             {health.confidential ? 'Yes' : 'No'}
           </Descriptions.Item>
+          {/* M137 — Section 18 disability */}
+          <Descriptions.Item label="Disability status">
+            {health.disabilityStatus
+              ? <Tag color="purple">{health.disabilityStatus}</Tag>
+              : '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Disability %">
+            {health.disabilityPercent != null
+              ? `${health.disabilityPercent}%`
+              : '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Disability note" span={2}>
+            {health.disabilityNote ?? '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Workplace accommodations" span={2}>
+            {health.accommodationsNote ?? '—'}
+          </Descriptions.Item>
         </Descriptions>
       ) : (
         <Empty description="No health record on file" />
+      ),
+    })
+
+    // M137 — Vaccinations tab, same role gate
+    tabItems.push({
+      key: 'vaccinations',
+      label: `Vaccinations (${vaccinations.length})`,
+      children: (
+        <Table
+          rowKey="id"
+          size="small"
+          dataSource={vaccinations}
+          columns={[
+            { title: 'Vaccine', render: (_, r) => `${r.vaccineCode} — ${r.vaccineName}` },
+            { title: 'Administered', dataIndex: 'administeredDate', width: 120 },
+            { title: 'By', dataIndex: 'administeredBy', width: 160, render: (v?: string | null) => v ?? '—' },
+            { title: 'Lot', dataIndex: 'lotNumber', width: 120, render: (v?: string | null) => v ?? '—' },
+            { title: 'Next dose', dataIndex: 'nextDoseDate', width: 120, render: (v?: string | null) => v ?? '—' },
+          ]}
+          locale={{ emptyText: <Empty description="No vaccinations on file" /> }}
+        />
       ),
     })
   }

@@ -47,6 +47,11 @@ export interface Health {
   occupationalHealthNotes?: string | null
   restrictions?: string | null
   confidential: boolean
+  // M137 — Section 18 disability fields
+  disabilityStatus?: string | null
+  disabilityPercent?: number | null
+  disabilityNote?: string | null
+  accommodationsNote?: string | null
   createdAt: string
   createdBy?: string | null
   updatedAt: string
@@ -59,6 +64,41 @@ export interface HealthRequest {
   occupationalHealthNotes?: string
   restrictions?: string
   confidential?: boolean
+  // M137 — Section 18 disability
+  disabilityStatus?: string
+  disabilityPercent?: number
+  disabilityNote?: string
+  accommodationsNote?: string
+}
+
+// ── M137 — Vaccinations (one row per dose, same role gate as Health) ──────
+
+export interface Vaccination {
+  id: string
+  employeeId: string
+  vaccineCode: string
+  vaccineName: string
+  administeredDate: string
+  administeredBy?: string | null
+  lotNumber?: string | null
+  nextDoseDate?: string | null
+  attachmentUrl?: string | null
+  notes?: string | null
+  createdAt: string
+  createdBy?: string | null
+  updatedAt: string
+  updatedBy?: string | null
+}
+
+export interface VaccinationRequest {
+  vaccineCode: string
+  vaccineName: string
+  administeredDate: string
+  administeredBy?: string
+  lotNumber?: string
+  nextDoseDate?: string
+  attachmentUrl?: string
+  notes?: string
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
@@ -111,4 +151,20 @@ export const credentialsApi = {
 
   deleteHealth: (employeeId: string) =>
     api.delete(`/employees/${employeeId}/health`),
+
+  // M137 — vaccinations
+  listVaccinations: (employeeId: string) =>
+    api
+      .get<Vaccination[]>(`/employees/${employeeId}/vaccinations`)
+      .then((r) => r.data),
+  createVaccination: (employeeId: string, payload: VaccinationRequest) =>
+    api
+      .post<Vaccination>(`/employees/${employeeId}/vaccinations`, payload)
+      .then((r) => r.data),
+  updateVaccination: (employeeId: string, vaccinationId: string, payload: VaccinationRequest) =>
+    api
+      .put<Vaccination>(`/employees/${employeeId}/vaccinations/${vaccinationId}`, payload)
+      .then((r) => r.data),
+  deleteVaccination: (employeeId: string, vaccinationId: string) =>
+    api.delete(`/employees/${employeeId}/vaccinations/${vaccinationId}`),
 }

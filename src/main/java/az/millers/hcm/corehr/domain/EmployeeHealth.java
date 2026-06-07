@@ -62,6 +62,39 @@ public class EmployeeHealth implements ExpiryTrackable {
     @Column(name = "is_confidential", nullable = false)
     private boolean confidential = true;
 
+    // ── M137 — Section 18 disability ────────────────────────────────────
+
+    /**
+     * Free-form configurable status — NONE / DECLARED / REGISTERED /
+     * NOT_DISCLOSED — taxonomy chosen per deployment. Spec wording is
+     * "if legally allowed and needed".
+     */
+    @Column(name = "disability_status", length = 40)
+    private String disabilityStatus;
+
+    /**
+     * Statutory severity 0..100 (AZ + other jurisdictions). Drives
+     * accommodation + tax-benefit eligibility math when present.
+     */
+    @Column(name = "disability_percent")
+    private Integer disabilityPercent;
+
+    /**
+     * Free-form details. Encrypted at rest via the same AES-256-GCM
+     * converter as {@link #occupationalHealthNotes}; same role gate
+     * still applies at the controller layer.
+     */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "disability_note", length = 4000)
+    private String disabilityNote;
+
+    /**
+     * Workplace accommodations the employee needs. Encrypted at rest.
+     */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "accommodations_note", length = 4000)
+    private String accommodationsNote;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

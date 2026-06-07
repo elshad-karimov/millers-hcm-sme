@@ -75,6 +75,12 @@ public class EmployeeHealthService {
         h.setOccupationalHealthNotes(req.occupationalHealthNotes());
         h.setRestrictions(req.restrictions());
         h.setConfidential(req.confidential() == null || req.confidential());
+        // M137 — Section 18 disability. All four fields are nullable;
+        // null clears (matches the rest of the apply() shape).
+        h.setDisabilityStatus(req.disabilityStatus());
+        h.setDisabilityPercent(req.disabilityPercent());
+        h.setDisabilityNote(req.disabilityNote());
+        h.setAccommodationsNote(req.accommodationsNote());
         h.setUpdatedBy(currentRequest.username());
         EmployeeHealth saved = repository.save(h);
 
