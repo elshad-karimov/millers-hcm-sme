@@ -189,6 +189,14 @@ public class TerminationService {
         return saved;
     }
 
+    @Transactional(readOnly = true)
+    public ExitInterview getExitInterview(UUID terminationId) {
+        get(terminationId); // verify termination exists
+        return exitInterviews.findByTerminationId(terminationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No exit interview found for termination: " + terminationId));
+    }
+
     @Transactional
     public ExitInterview recordExitInterview(UUID id, ExitInterviewRequest req) {
         TerminationRequest t = get(id);

@@ -69,6 +69,12 @@ public class TerminationController {
         return TerminationResponse.from(service.updateClearance(id, req));
     }
 
+    @GetMapping("/{id}/exit-interview")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST')")
+    public ExitInterviewResponse getExitInterview(@PathVariable UUID id) {
+        return ExitInterviewResponse.from(service.getExitInterview(id));
+    }
+
     @PostMapping("/{id}/exit-interview")
     @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST')")
     public ExitInterviewResponse recordExitInterview(@PathVariable UUID id,
