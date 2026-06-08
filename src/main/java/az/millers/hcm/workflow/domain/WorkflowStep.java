@@ -46,6 +46,16 @@ public class WorkflowStep {
     @Column(name = "resolves_to_manager", nullable = false)
     private boolean resolvesToManager;
 
+    /**
+     * M142 — when {@code true}, the approver is the subject employee's
+     * HRBP (resolved via {@code org_unit.hrbp_id}, walking up the tree
+     * when null). {@link #approverRole} is still required but not
+     * sufficient — {@code WorkflowService} additionally checks the
+     * caller IS the resolved HRBP.
+     */
+    @Column(name = "resolves_to_hrbp", nullable = false)
+    private boolean resolvesToHrbp;
+
     @Column(name = "sla_hours")
     private Integer slaHours;
 

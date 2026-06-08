@@ -66,6 +66,15 @@ public class OrgUnit {
     @Column(name = "location_id")
     private UUID locationId;
 
+    /**
+     * M142 — soft FK to {@code core_hr.employee} — the primary HRBP for
+     * this unit. Used by the workflow engine for fast single-lookup HRBP
+     * routing ({@code resolvesToHrbp} step flag). The full multi-HRBP /
+     * backup registry is in {@code organization.hr_partner}.
+     */
+    @Column(name = "hrbp_id")
+    private UUID hrbpId;
+
     /** M81 — finance / facilities attributes. All optional. */
     @Column(name = "cost_centre_code", length = 64)
     private String costCentreCode;

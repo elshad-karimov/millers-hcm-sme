@@ -84,6 +84,7 @@ import { MyPoliciesPage } from './pages/MyPoliciesPage'
 import { PoliciesAdminPage } from './pages/PoliciesAdminPage'
 import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { LocationsPage } from './pages/LocationsPage'
+import { HrPartnersPage } from './pages/HrPartnersPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { MySurveysPage } from './pages/MySurveysPage'
 import { SurveysAdminPage } from './pages/SurveysAdminPage'
@@ -178,6 +179,8 @@ export default function App() {
         <Route path="organization/legal-entities" element={<LegalEntitiesPage />} />
         {/* M141 — location master */}
         <Route path="organization/locations" element={<LocationsPage />} />
+        {/* M142 — HRBP assignments */}
+        <Route path="organization/hr-partners" element={<HrPartnersPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />

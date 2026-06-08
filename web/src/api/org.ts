@@ -43,6 +43,8 @@ export interface OrgUnitResponse {
   sortOrder: number
   // M141 — structured location FK
   locationId?: string | null
+  // M142 — primary HRBP employee id
+  hrbpId?: string | null
   // M81 — finance / facilities attributes
   costCentreCode?: string | null
   location?: string | null
@@ -61,6 +63,8 @@ export interface OrgUnitRequest {
   sortOrder?: number
   // M141 — structured location FK
   locationId?: string | null
+  // M142 — primary HRBP employee id
+  hrbpId?: string | null
   // M81 — extended attributes; all optional
   costCentreCode?: string
   location?: string

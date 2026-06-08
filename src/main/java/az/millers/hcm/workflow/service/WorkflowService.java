@@ -22,6 +22,8 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.organization.domain.OrgUnit;
+import az.millers.hcm.organization.repo.OrgUnitRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.security.scope.WorkflowSubjectResolver;
@@ -61,6 +63,7 @@ public class WorkflowService {
     private final AccessScopeService accessScope;
     private final WorkflowSubjectResolver subjectResolver;
     private final EmployeeRepository employees;
+    private final OrgUnitRepository orgUnits;
 
     public WorkflowService(WorkflowDefinitionRepository definitions,
                            WorkflowStepRepository steps,
@@ -71,7 +74,8 @@ public class WorkflowService {
                            CurrentRequest currentRequest,
                            AccessScopeService accessScope,
                            WorkflowSubjectResolver subjectResolver,
-                           EmployeeRepository employees) {
+                           EmployeeRepository employees,
+                           OrgUnitRepository orgUnits) {
         this.definitions = definitions;
         this.steps = steps;
         this.instances = instances;
@@ -82,6 +86,7 @@ public class WorkflowService {
         this.accessScope = accessScope;
         this.subjectResolver = subjectResolver;
         this.employees = employees;
+        this.orgUnits = orgUnits;
     }
 
     // ---------- Definitions ----------
@@ -445,43 +450,89 @@ public class WorkflowService {
     }
 
     /**
-     * Inbox filter for manager-resolved steps. Returns true iff
+     * M142 — resolves the HRBP employee id for a workflow instance.
+     *
+     * <p>Resolution chain:
+     * <ol>
+     *   <li>Subject → employee id (via {@link WorkflowSubjectResolver}).</li>
+     *   <li>Employee → {@code org_unit_id}.</li>
+     *   <li>Walk up the org tree (max 20 hops) looking for the first unit
+     *       with {@code hrbp_id} set.</li>
+     * </ol>
+     *
+     * <p>Returns {@code null} when the subject can't be resolved, has no
+     * org unit, or no ancestor carries an HRBP assignment.
+     */
+    private UUID resolveSubjectHrbpId(WorkflowInstance i) {
+        Optional<UUID> subjectEmpId = subjectResolver
+                .resolveEmployeeId(i.getSubjectEntity(), i.getSubjectId());
+        if (subjectEmpId.isEmpty()) return null;
+        Optional<Employee> emp = employees.findById(subjectEmpId.get());
+        if (emp.isEmpty() || emp.get().getOrgUnitId() == null) return null;
+        UUID unitId = emp.get().getOrgUnitId();
+        int depth = 0;
+        while (unitId != null && depth < 20) {
+            Optional<OrgUnit> unit = orgUnits.findById(unitId);
+            if (unit.isEmpty()) break;
+            if (unit.get().getHrbpId() != null) return unit.get().getHrbpId();
+            unitId = unit.get().getParentId();
+            depth++;
+        }
+        return null;
+    }
+
+    /**
+     * Inbox filter for manager- or HRBP-resolved steps. Returns true iff
      * the row should show up for the caller. Behaviour:
      * <ul>
-     *   <li>Step doesn't resolve to manager → keep (role gate is enough).</li>
-     *   <li>Caller isn't mapped to an Employee → drop (we can't tell who
-     *       they are — safer to hide than to leak).</li>
-     *   <li>Subject has no manager_id → drop (mis-seeded data — would
-     *       otherwise pool back to "anyone with the role").</li>
-     *   <li>Otherwise → keep only if caller's empId equals manager_id.</li>
+     *   <li>Step doesn't resolve to manager or HRBP → keep (role gate is
+     *       enough).</li>
+     *   <li>Caller isn't mapped to an Employee → drop.</li>
+     *   <li>Subject has no manager/HRBP → drop.</li>
+     *   <li>Otherwise → keep only if caller's empId equals the resolved id.</li>
      * </ul>
      */
     private boolean matchesResolvedApprover(WorkflowInstance i, UUID callerEmpId) {
         WorkflowStep step = currentStepFor(i);
-        if (step == null || !step.isResolvesToManager()) return true;
-        if (callerEmpId == null) return false;
-        UUID expectedMgr = resolveSubjectManagerId(i);
-        return expectedMgr != null && expectedMgr.equals(callerEmpId);
+        if (step == null) return true;
+        if (step.isResolvesToManager()) {
+            if (callerEmpId == null) return false;
+            UUID expectedMgr = resolveSubjectManagerId(i);
+            return expectedMgr != null && expectedMgr.equals(callerEmpId);
+        }
+        if (step.isResolvesToHrbp()) {
+            if (callerEmpId == null) return false;
+            UUID expectedHrbp = resolveSubjectHrbpId(i);
+            return expectedHrbp != null && expectedHrbp.equals(callerEmpId);
+        }
+        return true;
     }
 
     /**
-     * Throws on a manager-resolved step when the caller isn't the
-     * subject's actual manager. SYSTEM_ADMIN ({@code isAdmin}) bypasses
-     * because the role already bypasses {@link #requireRole}.
+     * Throws on a manager- or HRBP-resolved step when the caller isn't the
+     * expected approver. SYSTEM_ADMIN ({@code isAdmin}) bypasses.
      */
     private void requireResolvedApprover(WorkflowInstance i, WorkflowStep step,
                                           boolean isAdmin, String message) {
-        if (!step.isResolvesToManager() || isAdmin) return;
-        UUID expectedMgr = resolveSubjectManagerId(i);
-        if (expectedMgr == null) {
-            // No manager set on the subject — refusing prevents the
-            // pooled-inbox regression. Operators should set manager_id
-            // before submitting requests that route through this step.
-            throw new BadRequestException(
-                    "This step requires a direct manager but the subject has none assigned");
-        }
-        if (!expectedMgr.equals(currentEmployeeIdOrNull())) {
-            throw new BadRequestException(message);
+        if (isAdmin) return;
+        if (step.isResolvesToManager()) {
+            UUID expectedMgr = resolveSubjectManagerId(i);
+            if (expectedMgr == null) {
+                throw new BadRequestException(
+                        "This step requires a direct manager but the subject has none assigned");
+            }
+            if (!expectedMgr.equals(currentEmployeeIdOrNull())) {
+                throw new BadRequestException(message);
+            }
+        } else if (step.isResolvesToHrbp()) {
+            UUID expectedHrbp = resolveSubjectHrbpId(i);
+            if (expectedHrbp == null) {
+                throw new BadRequestException(
+                        "This step requires an HRBP but none is assigned to the subject's org unit");
+            }
+            if (!expectedHrbp.equals(currentEmployeeIdOrNull())) {
+                throw new BadRequestException(message);
+            }
         }
     }
 

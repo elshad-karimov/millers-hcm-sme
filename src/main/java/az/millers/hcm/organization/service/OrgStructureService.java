@@ -367,6 +367,7 @@ public class OrgStructureService {
             clone.setHeadEmployeeId(src.getHeadEmployeeId());
             clone.setSortOrder(src.getSortOrder());
             clone.setLocationId(src.getLocationId());
+            clone.setHrbpId(src.getHrbpId());
             clone.setCostCentreCode(src.getCostCentreCode());
             clone.setLocation(src.getLocation());
             clone.setContactEmail(src.getContactEmail());
@@ -403,6 +404,8 @@ public class OrgStructureService {
         u.setSortOrder(req.sortOrder() == null ? 0 : req.sortOrder());
         // M141 — structured location FK.
         u.setLocationId(req.locationId());
+        // M142 — primary HRBP.
+        u.setHrbpId(req.hrbpId());
         // M81 — extended attributes. Null = clear / not set.
         u.setCostCentreCode(req.costCentreCode());
         u.setLocation(req.location());

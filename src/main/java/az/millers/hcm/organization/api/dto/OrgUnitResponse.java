@@ -16,6 +16,8 @@ public record OrgUnitResponse(
         int sortOrder,
         /** M141 — structured location FK. */
         UUID locationId,
+        /** M142 — primary HRBP employee id. */
+        UUID hrbpId,
         /** M81 — finance / facilities attributes. */
         String costCentreCode,
         String location,
@@ -35,6 +37,7 @@ public record OrgUnitResponse(
                 u.getHeadEmployeeId(),
                 u.getSortOrder(),
                 u.getLocationId(),
+                u.getHrbpId(),
                 u.getCostCentreCode(),
                 u.getLocation(),
                 u.getContactEmail(),

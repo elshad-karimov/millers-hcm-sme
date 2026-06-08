@@ -18,6 +18,8 @@ public record OrgUnitRequest(
         Integer sortOrder,
         /** M141 — structured location FK; supersedes the free-text location field. */
         UUID locationId,
+        /** M142 — primary HRBP for this unit (soft FK to core_hr.employee). */
+        UUID hrbpId,
         /** M81 — finance / facilities attributes. All optional. */
         @Size(max = 64) String costCentreCode,
         @Size(max = 200) String location,

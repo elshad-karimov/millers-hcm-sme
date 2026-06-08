@@ -154,6 +154,7 @@ public class BulkReorgService {
                                 op.headEmployeeId(),
                                 op.sortOrder(),
                                 null,
+                                null,
                                 op.costCentreCode(), op.location(),
                                 op.contactEmail(), op.glAccount(),
                                 op.headcountBudget(), op.active());
@@ -171,6 +172,7 @@ public class BulkReorgService {
                                 op.headEmployeeId() != null ? op.headEmployeeId() : existing.getHeadEmployeeId(),
                                 op.sortOrder() != null ? op.sortOrder() : existing.getSortOrder(),
                                 existing.getLocationId(),
+                                existing.getHrbpId(),
                                 pickStr(op.costCentreCode(), existing.getCostCentreCode()),
                                 pickStr(op.location(), existing.getLocation()),
                                 pickStr(op.contactEmail(), existing.getContactEmail()),
@@ -192,6 +194,7 @@ public class BulkReorgService {
                                 existing.getHeadEmployeeId(),
                                 existing.getSortOrder(),
                                 existing.getLocationId(),
+                                existing.getHrbpId(),
                                 existing.getCostCentreCode(),
                                 existing.getLocation(),
                                 existing.getContactEmail(),

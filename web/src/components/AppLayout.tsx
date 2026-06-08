@@ -60,6 +60,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/organization/bulk-reorg', module: 'people', screen: 'organization-bulk-reorg' },
   { prefix: '/organization/legal-entities', module: 'people', screen: 'legal-entities' },
   { prefix: '/organization/locations', module: 'people', screen: 'locations' },
+  { prefix: '/organization/hr-partners', module: 'people', screen: 'hr-partners' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
   { prefix: '/positions', module: 'people', screen: 'positions' },
@@ -245,6 +246,12 @@ export function AppLayout() {
                 key: 'locations',
                 icon: <GlobalOutlined />,
                 label: <Link to="/organization/locations">Locations</Link>,
+              },
+              {
+                // M142 — HRBP assignments
+                key: 'hr-partners',
+                icon: <TeamOutlined />,
+                label: <Link to="/organization/hr-partners">HR partners</Link>,
               },
               {
                 key: 'positions',

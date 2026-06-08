@@ -19,6 +19,7 @@ import {
   type OrgUnitType,
 } from '../api/org'
 import { locationApi, type LocationResponse } from '../api/location'
+import { employeesApi, type Employee } from '../api/employees'
 import { FormPageShell } from '../components/FormPageShell'
 
 const UNIT_TYPES: OrgUnitType[] = [
@@ -43,6 +44,7 @@ export function OrgUnitFormPage() {
   const [saving, setSaving] = useState(false)
   const [parentOptions, setParentOptions] = useState<{ value: string; label: string }[]>([])
   const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([])
+  const [hrbpOptions, setHrbpOptions] = useState<{ value: string; label: string }[]>([])
 
   const backPath = versionId ? `/organization?versionId=${versionId}` : '/organization'
 
@@ -50,6 +52,15 @@ export function OrgUnitFormPage() {
     locationApi.list(true)
       .then((locs: LocationResponse[]) =>
         setLocationOptions(locs.map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` }))))
+      .catch(() => {/* non-critical */})
+    employeesApi.list({ size: 500 })
+      .then((page) =>
+        setHrbpOptions(
+          page.content.map((e: Employee) => ({
+            value: e.id,
+            label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
+          })),
+        ))
       .catch(() => {/* non-critical */})
   }, [])
 
@@ -86,8 +97,9 @@ export function OrgUnitFormPage() {
             unitType: owning.unitType,
             parentId: owning.parentId ?? undefined,
             sortOrder: owning.sortOrder,
-            // M141 + M81 — extended attributes
+            // M141 + M142 + M81 — extended attributes
             locationId: owning.locationId ?? undefined,
+            hrbpId: owning.hrbpId ?? undefined,
             costCentreCode: owning.costCentreCode ?? undefined,
             location: owning.location ?? undefined,
             contactEmail: owning.contactEmail ?? undefined,
@@ -197,6 +209,22 @@ export function OrgUnitFormPage() {
               placeholder="— none —"
               optionFilterProp="label"
               options={locationOptions}
+              style={{ maxWidth: 360 }}
+            />
+          </Form.Item>
+
+          {/* M142 — primary HRBP */}
+          <Form.Item
+            name="hrbpId"
+            label="Primary HRBP"
+            tooltip="The HR Business Partner responsible for this unit. Used for workflow routing."
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="— none —"
+              optionFilterProp="label"
+              options={hrbpOptions}
               style={{ maxWidth: 360 }}
             />
           </Form.Item>
