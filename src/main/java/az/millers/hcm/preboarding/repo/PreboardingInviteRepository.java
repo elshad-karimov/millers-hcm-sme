@@ -19,4 +19,8 @@ public interface PreboardingInviteRepository extends JpaRepository<PreboardingIn
     List<PreboardingInvite> findByEmployeeIdOrderByCreatedAtDesc(UUID employeeId);
 
     List<PreboardingInvite> findByStatusInOrderByExpiresAtAsc(List<PreboardingStatus> statuses);
+
+    /** Used by the expiry scheduler (M190): SENT/OPENED invites past their expiry timestamp. */
+    List<PreboardingInvite> findByStatusInAndExpiresAtBefore(
+            List<PreboardingStatus> statuses, java.time.OffsetDateTime cutoff);
 }

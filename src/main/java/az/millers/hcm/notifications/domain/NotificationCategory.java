@@ -45,6 +45,12 @@ public enum NotificationCategory {
     /** Termination processed — notifies the line manager, IT, and Finance. */
     TERMINATION_NOTICE("Termination notices",
             "Notifications when an employee termination is processed — sent to the manager, IT, and Finance."),
+    /** Pre-boarding invite lifecycle events — sent to the HR issuer when an invite expires. */
+    PREBOARDING("Pre-boarding updates",
+            "Notifications about pre-boarding invites — expiry without submission, etc."),
+    /** Benefit enrollment auto-termination due to plan expiry. */
+    BENEFIT_ENROLLMENT("Benefit enrollment updates",
+            "Notifications when a benefit enrollment is automatically terminated because the plan has expired."),
     /** Recruiter reminders about candidates that have gone cold. */
     STALE_POOL_REMINDER("Stale candidate reminders",
             "Daily digest of candidates in your pipeline that haven't been contacted recently."),
