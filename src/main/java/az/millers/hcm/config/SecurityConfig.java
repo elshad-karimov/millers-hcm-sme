@@ -52,7 +52,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // M160 — prometheus scrape endpoint; secured by network/firewall in prod
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         // M122 — public pre-boarding portal. The magic-link
                         // token IS the credential; SecurityConfig doesn't
                         // need to know more. The controller maps unknown /

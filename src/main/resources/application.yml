@@ -196,7 +196,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # M160: expose prometheus + standard ops endpoints (§18.3)
+        include: health,info,prometheus,metrics,loggers,env
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true   # /actuator/health/liveness + /actuator/health/readiness
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: millers-hcm
+      environment: ${SPRING_PROFILES_ACTIVE:local}
 
 logging:
   level:

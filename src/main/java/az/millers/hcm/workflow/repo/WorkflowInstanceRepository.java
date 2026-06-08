@@ -20,4 +20,7 @@ public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstan
 
     /** M126 — feed for the SLA breach scheduler. */
     List<WorkflowInstance> findByStatusOrderByInitiatedAtAsc(WorkflowStatus status);
+
+    /** M160 — Prometheus gauge: pending approval count. */
+    long countByStatus(String status);
 }

@@ -48,6 +48,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
 
     Page<Employee> findByEmploymentStatus(EmploymentStatus status, Pageable pageable);
 
+    long countByEmploymentStatus(EmploymentStatus status);
+
     Page<Employee> findByLastNameContainingIgnoreCaseOrFirstNameContainingIgnoreCase(
             String lastName, String firstName, Pageable pageable);
 
