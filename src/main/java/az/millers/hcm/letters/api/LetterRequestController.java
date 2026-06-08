@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.security.CurrentRequest;
+
 import java.util.List;
 
 import az.millers.hcm.common.PageResponse;
@@ -37,13 +39,16 @@ public class LetterRequestController {
     private final LetterRequestService service;
     private final LetterTemplateRepository templateRepo;
     private final EmployeeContextService context;
+    private final CurrentRequest currentRequest;
 
     public LetterRequestController(LetterRequestService service,
                                     LetterTemplateRepository templateRepo,
-                                    EmployeeContextService context) {
+                                    EmployeeContextService context,
+                                    CurrentRequest currentRequest) {
         this.service = service;
         this.templateRepo = templateRepo;
         this.context = context;
+        this.currentRequest = currentRequest;
     }
 
     /**
@@ -120,6 +125,18 @@ public class LetterRequestController {
                 .contentType(mime)
                 .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
                 .body(r.getRenderedBody() == null ? "" : r.getRenderedBody());
+    }
+
+    /**
+     * M213 — HR / admin can cancel a PENDING or APPROVED letter request.
+     * Reuses the same transition used by the workflow cancel callback.
+     */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public LetterRequestResponse cancel(@PathVariable UUID id,
+                                         @RequestParam(required = false) String reason) {
+        return LetterRequestResponse.from(
+                service.onCancelled(id, currentRequest.username(), reason));
     }
 
     /**
