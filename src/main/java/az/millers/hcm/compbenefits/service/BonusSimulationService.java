@@ -71,8 +71,6 @@ public class BonusSimulationService {
         List<EmployeeContext> contexts = new ArrayList<>(cycleProposals.size());
         for (CompProposal p : cycleProposals) {
             EmpData e = empData.get(p.getEmployeeId());
-            String empNo = e == null ? null : e.employeeNo;
-            String name = e == null ? null : e.firstName + " " + e.lastName;
             int tenure = e == null || e.hireDate == null
                     ? 0
                     : (int) ChronoUnit.MONTHS.between(e.hireDate, today);
@@ -80,8 +78,6 @@ public class BonusSimulationService {
             BigDecimal base = p.getCurrentSalary() == null
                     ? BigDecimal.ZERO : p.getCurrentSalary();
             contexts.add(new EmployeeContext(p.getEmployeeId(), base, rating, tenure));
-            // Stash the meta for the response row.
-            empNo(p.getEmployeeId(), empNo, name);
         }
 
         SimulationConfig config = new SimulationConfig(
@@ -179,8 +175,4 @@ public class BonusSimulationService {
         return out;
     }
 
-    // Tiny no-op so the per-employee identity is loaded once per row even
-    // when no rating row exists. Kept as a method for clarity.
-    @SuppressWarnings("unused")
-    private static void empNo(UUID id, String empNo, String name) { /* noop */ }
 }

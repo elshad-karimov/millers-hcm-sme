@@ -24,8 +24,9 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
  * M132 — generates a QR code PNG for an employee badge.
  *
  * <p>Payload encodes a stable identifier and the employee's number,
- * not PII: a scanner can hit a public verify endpoint (later milestone)
- * without ever decoding personal data from the QR. Format:
+ * not PII: a scanner hits the public verify endpoint at
+ * {@code /api/public/employees/verify} (M209) without ever decoding
+ * personal data from the QR. Format:
  * <pre>MILLERS-HCM|{employeeId}|{employeeNo}</pre>
  *
  * <p>The image is generated on the fly — no storage. Each call costs
