@@ -93,17 +93,21 @@ public class WorkflowOutcomeNotificationListener {
     private static String friendlyName(String code) {
         if (code == null) return "workflow";
         return switch (code) {
-            case "LEAVE_APPROVAL"              -> "leave";
-            case "BUSINESS_TRIP_APPROVAL"      -> "business trip";
-            case "TERMINATION_APPROVAL"        -> "termination";
-            case "CONTRACT_CHANGE_APPROVAL"    -> "contract change";
-            case "PERFORMANCE_REVIEW_APPROVAL" -> "performance review";
-            case "PERMISSION_REQUEST_APPROVAL" -> "special permission";
-            case "TIMESHEET_APPROVAL"          -> "timesheet";
-            case "LETTER_REQUEST_APPROVAL"     -> "letter";
-            case "ORG_CHANGE_APPROVAL"         -> "org structure change";
-            case "DISCIPLINARY_APPROVAL"       -> "disciplinary action";
-            default                            -> code.toLowerCase().replace('_', ' ');
+            case "LEAVE_REQUEST_APPROVAL"        -> "leave";
+            case "BUSINESS_TRIP_APPROVAL"        -> "business trip";
+            case "TERMINATION_APPROVAL"          -> "termination";
+            case "CONTRACT_CHANGE_APPROVAL"      -> "contract change";
+            case "PERFORMANCE_REVIEW_APPROVAL"   -> "performance review";
+            case "PERMISSION_APPROVAL"           -> "special permission";
+            case "TIMESHEET_APPROVAL"            -> "timesheet";
+            case "LETTER_REQUEST_APPROVAL"       -> "letter";
+            case "ORG_STRUCTURE_APPROVAL"        -> "org structure change";
+            case "DISCIPLINARY_ACTION_APPROVAL"  -> "disciplinary action";
+            case "HEADCOUNT_CHANGE_REQUEST"      -> "headcount change";
+            case "PERSONAL_INFO_CHANGE_APPROVAL" -> "personal info change";
+            case "PAYROLL_APPROVAL"              -> "payroll run";
+            case "BONUS_RUN_APPROVAL"            -> "bonus run";
+            default                              -> code.toLowerCase().replace('_', ' ');
         };
     }
 

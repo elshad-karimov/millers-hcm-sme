@@ -53,9 +53,10 @@ public class BonusAutoGenerationListener {
     @EventListener
     public void onCycleCompleted(ReviewCycleCompletedEvent event) {
         try {
-            // Guard: don't create a duplicate if one already exists.
+            // Guard: don't create a duplicate if one already exists (any live status).
             if (bonusRuns.existsByCycleIdAndStatusIn(event.cycleId(),
-                    List.of(BonusRunStatus.GENERATED, BonusRunStatus.PUSHED))) {
+                    List.of(BonusRunStatus.GENERATED, BonusRunStatus.PENDING_APPROVAL,
+                            BonusRunStatus.APPROVED, BonusRunStatus.PUSHED))) {
                 log.info("BonusAutoGenerationListener: bonus run already exists for cycle {} — skipping",
                         event.cycleCode());
                 return;

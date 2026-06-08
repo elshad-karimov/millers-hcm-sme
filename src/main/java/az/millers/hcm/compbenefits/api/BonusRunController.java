@@ -68,6 +68,12 @@ public class BonusRunController {
         return BonusRunResponse.from(service.generate(req));
     }
 
+    @PostMapping("/{id}/submit")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
+    public BonusRunResponse submit(@PathVariable UUID id) {
+        return BonusRunResponse.from(service.submit(id));
+    }
+
     @PostMapping("/{id}/push")
     @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public BonusRunResponse push(@PathVariable UUID id, @Valid @RequestBody BonusRunPushRequest req) {
