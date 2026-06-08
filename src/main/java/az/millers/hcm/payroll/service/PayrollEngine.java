@@ -225,6 +225,8 @@ public class PayrollEngine {
             List<PayrollAllowance> snapshots = new ArrayList<>();
             BigDecimal taxableAllowance = BigDecimal.ZERO;
             BigDecimal nonTaxableAllowance = BigDecimal.ZERO;
+            LocalDate lastDayOfPeriod =
+                    YearMonth.of(run.getPeriodYear(), run.getPeriodMonth()).atEndOfMonth();
             for (EmployeeAllowance ea : activeAllowances) {
                 AllowanceType type = typesById.get(ea.getAllowanceTypeId());
                 boolean taxable = type == null || type.isTaxable();
@@ -242,6 +244,13 @@ public class PayrollEngine {
                 snapshots.add(allowanceSnapshots.save(snap));
                 if (taxable) taxableAllowance = taxableAllowance.add(ea.getAmount());
                 else nonTaxableAllowance = nonTaxableAllowance.add(ea.getAmount());
+                // M220: close one-off (non-recurring) allowances after first payroll inclusion.
+                if (type != null && !type.isRecurring()) {
+                    ea.setStatus(AllowanceStatus.ENDED);
+                    ea.setEffectiveTo(lastDayOfPeriod);
+                    ea.setUpdatedBy("PAYROLL_ENGINE");
+                    employeeAllowances.save(ea);
+                }
             }
             taxableAllowance = taxableAllowance.setScale(2, RoundingMode.HALF_UP);
             nonTaxableAllowance = nonTaxableAllowance.setScale(2, RoundingMode.HALF_UP);
