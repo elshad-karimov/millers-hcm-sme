@@ -81,4 +81,12 @@ public class TerminationController {
     public TerminationResponse process(@PathVariable UUID id) {
         return TerminationResponse.from(service.process(id));
     }
+
+    /** M216 — HR_ADMIN can cancel a pending termination request. */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
+    public TerminationResponse cancel(@PathVariable UUID id,
+                                       @RequestParam(required = false) String reason) {
+        return TerminationResponse.from(service.onCancelled(id, reason));
+    }
 }
