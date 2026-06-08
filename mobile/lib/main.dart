@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'auth/auth_service.dart';
 import 'config/app_config.dart';
+import 'notifications/push_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 
-void main() {
+/// Background FCM handler — must be a top-level function.
+// ignore: unused_element
+Future<void> _fcmBackgroundHandler(dynamic message) async {
+  // Handled by the OS notification tray; no in-app action needed here.
+}
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Firebase init is optional — if google-services.json / GoogleService-Info.plist
+  // is not present (dev / CI without FCM) the app still runs without push.
+  try {
+    await Firebase.initializeApp();
+    await PushService.instance.init();
+  } catch (_) {
+    // FCM unavailable in this build/environment — silently continue.
+  }
   runApp(
     const ProviderScope(
       child: MillersHcmApp(),

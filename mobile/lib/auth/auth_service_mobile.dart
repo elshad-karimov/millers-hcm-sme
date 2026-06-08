@@ -1,6 +1,7 @@
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
+import '../notifications/push_service.dart';
 import 'biometric_service.dart';
 
 /// Handles Keycloak OIDC login / logout / token refresh via
@@ -47,6 +48,8 @@ class AuthService {
       ),
     );
     await _save(result.accessToken, result.refreshToken, result.idToken);
+    // M154: register FCM token with the backend after successful login.
+    PushService.instance.registerToken().catchError((_) {});
   }
 
   // --- M59: Biometric helpers ------------------------------------------------
@@ -101,6 +104,8 @@ class AuthService {
     } catch (_) {
       // Swallow — even if the OIDC end-session fails, clear local tokens.
     }
+    // M154: deregister FCM token before clearing local credentials.
+    await PushService.instance.deregisterToken().catchError((_) {});
     await _clear();
   }
 
