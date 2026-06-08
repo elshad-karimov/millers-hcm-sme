@@ -56,6 +56,16 @@ public class OrgUnit {
     @Column(name = "legal_entity_id")
     private UUID legalEntityId;
 
+    /**
+     * M141 — structured FK to {@code organization.location}. Nullable;
+     * when set, this unit's physical site is the referenced location
+     * (time-zone, GPS, holiday calendar, shift defaults all come from there).
+     * Supersedes the legacy free-text {@link #location} column which is
+     * kept for backward compatibility but should not be used for new units.
+     */
+    @Column(name = "location_id")
+    private UUID locationId;
+
     /** M81 — finance / facilities attributes. All optional. */
     @Column(name = "cost_centre_code", length = 64)
     private String costCentreCode;

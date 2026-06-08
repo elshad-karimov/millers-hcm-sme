@@ -41,6 +41,8 @@ export interface OrgUnitResponse {
   parentId?: string | null
   headEmployeeId?: string | null
   sortOrder: number
+  // M141 — structured location FK
+  locationId?: string | null
   // M81 — finance / facilities attributes
   costCentreCode?: string | null
   location?: string | null
@@ -57,6 +59,8 @@ export interface OrgUnitRequest {
   parentId?: string | null
   headEmployeeId?: string | null
   sortOrder?: number
+  // M141 — structured location FK
+  locationId?: string | null
   // M81 — extended attributes; all optional
   costCentreCode?: string
   location?: string
@@ -113,6 +117,7 @@ export interface BulkReorgOperation {
   parentCode?: string
   headEmployeeId?: string
   sortOrder?: number
+  locationId?: string
   costCentreCode?: string
   location?: string
   contactEmail?: string

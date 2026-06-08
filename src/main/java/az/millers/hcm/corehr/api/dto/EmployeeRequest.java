@@ -45,6 +45,8 @@ public record EmployeeRequest(
         UUID orgUnitId,
         UUID positionId,
         UUID managerId,
+        /** M141 — primary work location. */
+        UUID workLocationId,
         /** M37 acting / delegate manager (PRD 9 / 14.9). Optional. */
         UUID delegateManagerId,
         LocalDate delegateFrom,

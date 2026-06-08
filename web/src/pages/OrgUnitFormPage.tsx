@@ -18,6 +18,7 @@ import {
   type OrgUnitResponse,
   type OrgUnitType,
 } from '../api/org'
+import { locationApi, type LocationResponse } from '../api/location'
 import { FormPageShell } from '../components/FormPageShell'
 
 const UNIT_TYPES: OrgUnitType[] = [
@@ -41,8 +42,16 @@ export function OrgUnitFormPage() {
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
   const [parentOptions, setParentOptions] = useState<{ value: string; label: string }[]>([])
+  const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([])
 
   const backPath = versionId ? `/organization?versionId=${versionId}` : '/organization'
+
+  useEffect(() => {
+    locationApi.list(true)
+      .then((locs: LocationResponse[]) =>
+        setLocationOptions(locs.map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` }))))
+      .catch(() => {/* non-critical */})
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -77,7 +86,8 @@ export function OrgUnitFormPage() {
             unitType: owning.unitType,
             parentId: owning.parentId ?? undefined,
             sortOrder: owning.sortOrder,
-            // M81 — extended attributes
+            // M141 + M81 — extended attributes
+            locationId: owning.locationId ?? undefined,
             costCentreCode: owning.costCentreCode ?? undefined,
             location: owning.location ?? undefined,
             contactEmail: owning.contactEmail ?? undefined,
@@ -175,6 +185,22 @@ export function OrgUnitFormPage() {
             <InputNumber min={0} style={{ width: 160 }} />
           </Form.Item>
 
+          {/* M141 — structured location (replaces free-text) */}
+          <Form.Item
+            name="locationId"
+            label="Location"
+            tooltip="Select from the Location master. Provides time-zone, GPS, holiday calendar, and shift defaults."
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="— none —"
+              optionFilterProp="label"
+              options={locationOptions}
+              style={{ maxWidth: 360 }}
+            />
+          </Form.Item>
+
           {/* M81 — finance / facilities attributes */}
           <Form.Item
             name="costCentreCode"
@@ -182,9 +208,6 @@ export function OrgUnitFormPage() {
             tooltip="Free-text code; surfaces in payroll bank-file exports + GL postings."
           >
             <Input maxLength={64} style={{ maxWidth: 280 }} />
-          </Form.Item>
-          <Form.Item name="location" label="Location">
-            <Input maxLength={200} style={{ maxWidth: 280 }} />
           </Form.Item>
           <Form.Item
             name="contactEmail"

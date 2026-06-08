@@ -33,6 +33,8 @@ public record EmployeeResponse(
         UUID orgUnitId,
         UUID positionId,
         UUID managerId,
+        /** M141 — primary work location. */
+        UUID workLocationId,
         /** M37 acting / delegate manager (PRD 9 / 14.9). */
         UUID delegateManagerId,
         LocalDate delegateFrom,
@@ -93,6 +95,7 @@ public record EmployeeResponse(
                 e.getOrgUnitId(),
                 e.getPositionId(),
                 e.getManagerId(),
+                e.getWorkLocationId(),
                 e.getDelegateManagerId(),
                 e.getDelegateFrom(),
                 e.getDelegateTo(),

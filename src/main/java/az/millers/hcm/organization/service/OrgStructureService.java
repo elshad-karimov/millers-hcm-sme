@@ -366,6 +366,14 @@ public class OrgStructureService {
             clone.setUnitType(src.getUnitType());
             clone.setHeadEmployeeId(src.getHeadEmployeeId());
             clone.setSortOrder(src.getSortOrder());
+            clone.setLocationId(src.getLocationId());
+            clone.setCostCentreCode(src.getCostCentreCode());
+            clone.setLocation(src.getLocation());
+            clone.setContactEmail(src.getContactEmail());
+            clone.setGlAccount(src.getGlAccount());
+            clone.setHeadcountBudget(src.getHeadcountBudget());
+            clone.setActive(src.isActive());
+            clone.setLegalEntityId(src.getLegalEntityId());
             // Parent set in second pass once we know mappings.
             OrgUnit saved = units.save(clone);
             idMap.put(src.getId(), saved.getId());
@@ -393,6 +401,8 @@ public class OrgStructureService {
         u.setParentId(req.parentId());
         u.setHeadEmployeeId(req.headEmployeeId());
         u.setSortOrder(req.sortOrder() == null ? 0 : req.sortOrder());
+        // M141 — structured location FK.
+        u.setLocationId(req.locationId());
         // M81 — extended attributes. Null = clear / not set.
         u.setCostCentreCode(req.costCentreCode());
         u.setLocation(req.location());

@@ -58,6 +58,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/hr/preboarding', module: 'people', screen: 'hr-preboarding' },
   { prefix: '/hr/assets', module: 'people', screen: 'hr-assets' },
   { prefix: '/organization/bulk-reorg', module: 'people', screen: 'organization-bulk-reorg' },
+  { prefix: '/organization/legal-entities', module: 'people', screen: 'legal-entities' },
+  { prefix: '/organization/locations', module: 'people', screen: 'locations' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
   { prefix: '/positions', module: 'people', screen: 'positions' },
@@ -123,7 +125,6 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
   { prefix: '/self/policies', module: 'my', screen: 'self-policies' },
   { prefix: '/policies', module: 'people', screen: 'policies-admin' },
-  { prefix: '/organization/legal-entities', module: 'people', screen: 'legal-entities' },
   { prefix: '/my/team', module: 'my-team', screen: 'my-team' },
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
@@ -238,6 +239,12 @@ export function AppLayout() {
                 key: 'legal-entities',
                 icon: <BankOutlined />,
                 label: <Link to="/organization/legal-entities">Legal entities</Link>,
+              },
+              {
+                // M141 — Location master
+                key: 'locations',
+                icon: <GlobalOutlined />,
+                label: <Link to="/organization/locations">Locations</Link>,
               },
               {
                 key: 'positions',

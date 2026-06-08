@@ -217,6 +217,14 @@ public class Employee {
     private UUID managerId;
 
     /**
+     * M141 — FK to {@code organization.location}. The physical site
+     * where this employee primarily works. Drives geofencing, shift
+     * defaults, payroll location allowances, and on-site attendance rules.
+     */
+    @Column(name = "work_location_id")
+    private UUID workLocationId;
+
+    /**
      * Logical leave-policy group (M66 / P1-08). Resolved by
      * {@code LeaveAccrualService} to look up per-group entitlement overrides
      * before falling back to the {@code LeaveType} defaults. {@code NULL}

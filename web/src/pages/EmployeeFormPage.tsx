@@ -14,6 +14,7 @@ import {
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { employeesApi, type Employee } from '../api/employees'
+import { locationApi, type LocationResponse } from '../api/location'
 import { FormPageShell } from '../components/FormPageShell'
 
 interface FormValues {
@@ -29,6 +30,8 @@ interface FormValues {
   departmentName?: string
   positionTitle?: string
   costCentre?: string
+  // M141 — work location
+  workLocationId?: string
   // M132 — Section 1 cosmetic fields
   preferredName?: string
   placeOfBirth?: string
@@ -66,6 +69,14 @@ export function EmployeeFormPage() {
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState<boolean>(editing)
   const [saving, setSaving] = useState(false)
+  const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([])
+
+  useEffect(() => {
+    locationApi.list(true)
+      .then((locs: LocationResponse[]) =>
+        setLocationOptions(locs.map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` }))))
+      .catch(() => {/* non-critical */})
+  }, [])
 
   useEffect(() => {
     if (!editing) return
@@ -86,6 +97,7 @@ export function EmployeeFormPage() {
           departmentName: e.departmentName ?? undefined,
           positionTitle: e.positionTitle ?? undefined,
           costCentre: e.costCentre ?? undefined,
+          workLocationId: e.workLocationId ?? undefined,
           // M132 — Section 1 cosmetic fields
           preferredName: e.preferredName ?? undefined,
           placeOfBirth: e.placeOfBirth ?? undefined,
@@ -302,6 +314,21 @@ export function EmployeeFormPage() {
               </Form.Item>
             </Col>
           </Row>
+          {/* M141 — work location */}
+          <Form.Item
+            name="workLocationId"
+            label="Work location"
+            tooltip="Primary physical site — drives geofencing, shift defaults, and location allowances."
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="— none —"
+              optionFilterProp="label"
+              options={locationOptions}
+              style={{ maxWidth: 360 }}
+            />
+          </Form.Item>
 
           {/* M132 — remaining Section 1 cosmetic fields */}
           <Row gutter={16}>

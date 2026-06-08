@@ -272,6 +272,7 @@ public class EmployeeImportService {
                 trimmedString(row, idx.get("positionTitle")),
                 trimmedString(row, idx.get("costCentre")),
                 null, null, null, // orgUnitId, positionId, managerId — not in bulk import scope
+                null,             // M141: workLocationId — not in bulk import scope
                 null, null, null, // delegate fields
                 empType,
                 decimalValue(row, idx.get("ftePercent")),

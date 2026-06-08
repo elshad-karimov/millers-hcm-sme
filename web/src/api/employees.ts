@@ -60,6 +60,8 @@ export interface Employee {
   positionTitle?: string | null
   costCentre?: string | null
   managerId?: string | null
+  /** M141 — primary work location */
+  workLocationId?: string | null
   /** M66 / P1-08 — null = use the default leave group */
   leaveGroupId?: string | null
   /** M75 / P2-19 — null = use the default payroll group */
@@ -114,6 +116,8 @@ export interface EmployeeRequest {
   positionTitle?: string
   costCentre?: string
   managerId?: string
+  /** M141 — primary work location */
+  workLocationId?: string
   /** M61 / P1-09 — defaults to PERMANENT */
   employmentType?: EmploymentType
   /** M61 / P1-09 — defaults to 100 */

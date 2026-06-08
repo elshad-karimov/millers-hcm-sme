@@ -190,6 +190,7 @@ public class ApplicationService {
                 null,                 // orgUnitId
                 v.getPositionId(),
                 null,                 // managerId
+                null,                 // M141: workLocationId — not captured at hire
                 null,                 // delegateManagerId (M37)
                 null,                 // delegateFrom
                 null,                 // delegateTo

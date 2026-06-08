@@ -240,6 +240,7 @@ public class EmployeeService {
         employee.setOrgUnitId(request.orgUnitId());
         employee.setPositionId(request.positionId());
         employee.setManagerId(request.managerId());
+        employee.setWorkLocationId(request.workLocationId());
         employee.setDelegateManagerId(request.delegateManagerId());
         employee.setDelegateFrom(request.delegateFrom());
         employee.setDelegateTo(request.delegateTo());

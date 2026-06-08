@@ -153,6 +153,7 @@ public class BulkReorgService {
                                 parent == null ? null : parent.getId(),
                                 op.headEmployeeId(),
                                 op.sortOrder(),
+                                null,
                                 op.costCentreCode(), op.location(),
                                 op.contactEmail(), op.glAccount(),
                                 op.headcountBudget(), op.active());
@@ -169,6 +170,7 @@ public class BulkReorgService {
                                 resolveParent(op.parentCode(), existing.getParentId(), byCode),
                                 op.headEmployeeId() != null ? op.headEmployeeId() : existing.getHeadEmployeeId(),
                                 op.sortOrder() != null ? op.sortOrder() : existing.getSortOrder(),
+                                existing.getLocationId(),
                                 pickStr(op.costCentreCode(), existing.getCostCentreCode()),
                                 pickStr(op.location(), existing.getLocation()),
                                 pickStr(op.contactEmail(), existing.getContactEmail()),
@@ -189,6 +191,7 @@ public class BulkReorgService {
                                 newParent.getId(),
                                 existing.getHeadEmployeeId(),
                                 existing.getSortOrder(),
+                                existing.getLocationId(),
                                 existing.getCostCentreCode(),
                                 existing.getLocation(),
                                 existing.getContactEmail(),
