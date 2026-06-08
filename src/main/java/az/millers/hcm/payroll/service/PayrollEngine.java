@@ -35,9 +35,11 @@ import az.millers.hcm.payroll.domain.PayrollAllowance;
 import az.millers.hcm.payroll.domain.PayrollBonus;
 import az.millers.hcm.payroll.domain.PayrollResult;
 import az.millers.hcm.payroll.domain.PayrollRun;
+import az.millers.hcm.payroll.domain.PayrollDeduction;
 import az.millers.hcm.payroll.repo.EmployeeCompensationRepository;
 import az.millers.hcm.payroll.repo.PayrollAllowanceRepository;
 import az.millers.hcm.payroll.repo.PayrollBonusRepository;
+import az.millers.hcm.payroll.repo.PayrollDeductionRepository;
 import az.millers.hcm.payroll.repo.PayrollResultRepository;
 import az.millers.hcm.payroll.repo.PayrollRunRepository;
 import az.millers.hcm.payroll.service.StatutoryCalculator.ContributionPair;
@@ -83,6 +85,7 @@ public class PayrollEngine {
     private final EmployeeAllowanceRepository employeeAllowances;
     private final AllowanceTypeRepository allowanceTypes;
     private final EmployeeRepository employees;
+    private final PayrollDeductionRepository deductions;
     private final StatutoryCalculator calculator;
     private final ObjectMapper objectMapper;
 
@@ -96,6 +99,7 @@ public class PayrollEngine {
                           EmployeeAllowanceRepository employeeAllowances,
                           AllowanceTypeRepository allowanceTypes,
                           EmployeeRepository employees,
+                          PayrollDeductionRepository deductions,
                           StatutoryCalculator calculator,
                           ObjectMapper objectMapper) {
         this.runs = runs;
@@ -108,6 +112,7 @@ public class PayrollEngine {
         this.employeeAllowances = employeeAllowances;
         this.allowanceTypes = allowanceTypes;
         this.employees = employees;
+        this.deductions = deductions;
         this.calculator = calculator;
         this.objectMapper = objectMapper;
     }
@@ -242,12 +247,28 @@ public class PayrollEngine {
             nonTaxableAllowance = nonTaxableAllowance.setScale(2, RoundingMode.HALF_UP);
             BigDecimal allowance = taxableAllowance.add(nonTaxableAllowance);
 
+            // ---- Payroll deductions (one-off, recurring, garnishment, advance recovery) ----
+            List<PayrollDeduction> activeDeductions = deductions.findActiveForPeriod(
+                    employeeId, run.getPeriodYear(), run.getPeriodMonth());
             BigDecimal deduction = BigDecimal.ZERO;
+            for (PayrollDeduction d : activeDeductions) {
+                // For ADVANCE_RECOVERY: cap the installment at the remaining balance.
+                BigDecimal thisAmount = d.getAmountPerPeriod();
+                if ("ADVANCE_RECOVERY".equals(d.getDeductionType()) && d.getTotalAmount() != null) {
+                    BigDecimal remaining = d.getTotalAmount().subtract(d.getRecoveredAmount());
+                    if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+                    thisAmount = thisAmount.min(remaining);
+                }
+                deduction = deduction.add(thisAmount);
+            }
+            deduction = deduction.setScale(2, RoundingMode.HALF_UP);
+
             BigDecimal gross = baseSalary
                     .add(ot.totalPay())
                     .add(bonusAmount)
                     .add(taxableAllowance)
                     .subtract(deduction)
+                    .max(BigDecimal.ZERO)
                     .setScale(2, RoundingMode.HALF_UP);
 
             IncomeTaxResult tax = calculator.incomeTax(gross, run.getJurisdiction(), ruleDate);
@@ -290,6 +311,24 @@ public class PayrollEngine {
                     snapshots, taxableAllowance, nonTaxableAllowance,
                     gross, tax, dsmf, mmi, unempl, net));
             results.save(r);
+
+            // ---- Update deduction state-machine after applying ----
+            for (PayrollDeduction d : activeDeductions) {
+                BigDecimal thisAmount = d.getAmountPerPeriod();
+                if ("ADVANCE_RECOVERY".equals(d.getDeductionType()) && d.getTotalAmount() != null) {
+                    BigDecimal remaining = d.getTotalAmount().subtract(d.getRecoveredAmount());
+                    if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+                    thisAmount = thisAmount.min(remaining);
+                    d.setRecoveredAmount(d.getRecoveredAmount().add(thisAmount)
+                            .setScale(2, RoundingMode.HALF_UP));
+                    if (d.getRecoveredAmount().compareTo(d.getTotalAmount()) >= 0) {
+                        d.setStatus("COMPLETED");
+                    }
+                } else if ("ONE_OFF".equals(d.getDeductionType())) {
+                    d.setStatus("COMPLETED");
+                }
+                deductions.save(d);
+            }
 
             totalGross = totalGross.add(gross);
             totalIncomeTax = totalIncomeTax.add(tax.tax());
