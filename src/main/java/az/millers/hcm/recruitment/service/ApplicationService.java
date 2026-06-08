@@ -210,6 +210,8 @@ public class ApplicationService {
                 null,                 // maritalStatus (M61)
                 null,                 // nationality   (M61)
                 null,                 // nationalId
+                null,                 // taxId — not captured at hire
+                null,                 // socialInsuranceId — not captured at hire
                 c.getEmail(),
                 c.getPhone(),
                 hireDate,

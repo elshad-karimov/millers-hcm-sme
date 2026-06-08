@@ -168,6 +168,23 @@ public class Employee {
     @Column(name = "national_id", length = 500)
     private String nationalId;
 
+    /**
+     * VÖEN — Azerbaijan individual taxpayer identification number (PRD §8.1.1).
+     * Used in the ABB corporate salary-disbursement bank file (§8.9.6).
+     * Stored encrypted at rest; same AES-256-GCM scheme as {@link #nationalId}.
+     */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "tax_id", length = 500)
+    private String taxId;
+
+    /**
+     * DSMF social-insurance ID (PRD §8.1.1).
+     * Stored encrypted at rest; same AES-256-GCM scheme as {@link #nationalId}.
+     */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "social_insurance_id", length = 500)
+    private String socialInsuranceId;
+
     private String email;
 
     private String phone;

@@ -36,6 +36,10 @@ public record EmployeeRequest(
         @Pattern(regexp = "^[A-Z]{2}$", message = "nationality must be an ISO 3166-1 alpha-2 code")
         String nationality,
         @Size(max = 64) String nationalId,
+        /** VÖEN — individual taxpayer number (PRD §8.1.1). Encrypted at rest. */
+        @Size(max = 64) String taxId,
+        /** DSMF social-insurance ID (PRD §8.1.1). Encrypted at rest. */
+        @Size(max = 64) String socialInsuranceId,
         @Email @Size(max = 160) String email,
         @Size(max = 32) String phone,
         @NotNull LocalDate hireDate,

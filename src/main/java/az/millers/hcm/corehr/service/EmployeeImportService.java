@@ -265,6 +265,8 @@ public class EmployeeImportService {
                 mStatus,
                 upperOrNull(trimmedString(row, idx.get("nationality"))),
                 trimmedString(row, idx.get("nationalId")),
+                trimmedString(row, idx.get("taxId")),
+                trimmedString(row, idx.get("socialInsuranceId")),
                 trimmedString(row, idx.get("email")),
                 trimmedString(row, idx.get("phone")),
                 hireDate,

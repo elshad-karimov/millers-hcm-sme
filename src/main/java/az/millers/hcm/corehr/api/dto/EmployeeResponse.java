@@ -21,6 +21,10 @@ public record EmployeeResponse(
         MaritalStatus maritalStatus,
         String nationality,
         String nationalId,
+        /** VÖEN — individual taxpayer number (PRD §8.1.1). */
+        String taxId,
+        /** DSMF social-insurance ID (PRD §8.1.1). */
+        String socialInsuranceId,
         String email,
         String phone,
         LocalDate hireDate,
@@ -85,6 +89,8 @@ public record EmployeeResponse(
                 e.getMaritalStatus(),
                 e.getNationality(),
                 e.getNationalId(),
+                e.getTaxId(),
+                e.getSocialInsuranceId(),
                 e.getEmail(),
                 e.getPhone(),
                 e.getHireDate(),

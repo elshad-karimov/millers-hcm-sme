@@ -231,6 +231,8 @@ public class EmployeeService {
         employee.setMaritalStatus(request.maritalStatus());
         employee.setNationality(request.nationality());
         employee.setNationalId(request.nationalId());
+        employee.setTaxId(request.taxId());
+        employee.setSocialInsuranceId(request.socialInsuranceId());
         employee.setEmail(request.email());
         employee.setPhone(request.phone());
         employee.setHireDate(request.hireDate());

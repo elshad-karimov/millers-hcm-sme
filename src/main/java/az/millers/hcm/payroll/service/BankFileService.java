@@ -212,7 +212,7 @@ public class BankFileService {
                     ba == null ? "" : ns(ba.getIban()),
                     ba == null ? "" : ns(ba.getAccountNumber()),
                     ba == null ? "" : ns(ba.getBankCode()),
-                    emp == null ? "" : "",   // taxId — stored on employee in a later milestone
+                    emp == null ? "" : ns(emp.getTaxId()),
                     r.getNetAmount()
             ));
         }
