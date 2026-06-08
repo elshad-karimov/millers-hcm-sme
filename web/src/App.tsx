@@ -82,6 +82,7 @@ import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { MyPoliciesPage } from './pages/MyPoliciesPage'
 import { PoliciesAdminPage } from './pages/PoliciesAdminPage'
+import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { MySurveysPage } from './pages/MySurveysPage'
 import { SurveysAdminPage } from './pages/SurveysAdminPage'
@@ -172,6 +173,8 @@ export default function App() {
         {/* M138 — company policy library */}
         <Route path="self/policies" element={<MyPoliciesPage />} />
         <Route path="policies" element={<PoliciesAdminPage />} />
+        {/* M140 — legal entities admin */}
+        <Route path="organization/legal-entities" element={<LegalEntitiesPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />

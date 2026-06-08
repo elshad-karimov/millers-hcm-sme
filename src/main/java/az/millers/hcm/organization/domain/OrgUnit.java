@@ -47,6 +47,15 @@ public class OrgUnit {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /**
+     * M140 — soft FK to {@code organization.legal_entity}. Nullable;
+     * when set, this org_unit (typically a COMPANY-type root) is the
+     * anchor for that legal entity's sub-tree. Descendants inherit by
+     * an upward walk in the service layer when the field is null.
+     */
+    @Column(name = "legal_entity_id")
+    private UUID legalEntityId;
+
     /** M81 — finance / facilities attributes. All optional. */
     @Column(name = "cost_centre_code", length = 64)
     private String costCentreCode;

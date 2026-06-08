@@ -123,6 +123,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
   { prefix: '/self/policies', module: 'my', screen: 'self-policies' },
   { prefix: '/policies', module: 'people', screen: 'policies-admin' },
+  { prefix: '/organization/legal-entities', module: 'people', screen: 'legal-entities' },
   { prefix: '/my/team', module: 'my-team', screen: 'my-team' },
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
@@ -231,6 +232,12 @@ export function AppLayout() {
                 key: 'organization',
                 icon: <ApartmentOutlined />,
                 label: <Link to="/organization">Organization</Link>,
+              },
+              {
+                // M140 — Legal entities master
+                key: 'legal-entities',
+                icon: <BankOutlined />,
+                label: <Link to="/organization/legal-entities">Legal entities</Link>,
               },
               {
                 key: 'positions',
