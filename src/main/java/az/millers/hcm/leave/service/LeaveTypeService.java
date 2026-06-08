@@ -3,8 +3,12 @@ package az.millers.hcm.leave.service;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import az.millers.hcm.config.CacheConfig;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -36,11 +40,13 @@ public class LeaveTypeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(CacheConfig.LEAVE_TYPES)
     public List<LeaveType> list() {
         return repository.findAllByOrderByNameAsc();
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.LEAVE_TYPES, key = "'active'")
     public List<LeaveType> listActive() {
         return repository.findByActiveTrueOrderByNameAsc();
     }
@@ -52,6 +58,7 @@ public class LeaveTypeService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.LEAVE_TYPES, allEntries = true)
     public LeaveType create(LeaveTypeRequest req) {
         if (repository.existsByCode(req.code())) {
             throw new BadRequestException("Leave type code already exists: " + req.code());
@@ -67,6 +74,7 @@ public class LeaveTypeService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.LEAVE_TYPES, allEntries = true)
     public LeaveType update(UUID id, LeaveTypeRequest req) {
         LeaveType t = get(id);
         if (!t.getCode().equals(req.code()) && repository.existsByCode(req.code())) {

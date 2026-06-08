@@ -60,6 +60,16 @@
             <version>1.5.1</version>
         </dependency>
 
+        <!-- M168: Redis caching for static reference data (§15.2) ─────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
         <!-- M167: OpenTelemetry distributed tracing (§18.3) ─────────────── -->
         <!-- Bridges Micrometer Observation API to OpenTelemetry SDK -->
         <dependency>

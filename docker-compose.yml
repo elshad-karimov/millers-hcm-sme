@@ -16,6 +16,24 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: hcm-redis
+    # M168 (PRD §15.2): Redis for Spring Cache. Used by @Cacheable caches on
+    # high-read, low-change reference data: leave types, org units, workflow
+    # definitions, positions. AOF persistence (appendonly yes) ensures the warm
+    # cache survives a container restart without a cold-start latency spike.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - hcm-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   minio:
     image: minio/minio:latest
     container_name: hcm-minio
@@ -369,6 +387,7 @@ services:
       start_period: 15s
 
 volumes:
+  hcm-redisdata:
   hcm-clickhousedata:
   hcm-prometheusdata:
   hcm-grafanadata:

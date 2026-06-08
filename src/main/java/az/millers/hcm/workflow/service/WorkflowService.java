@@ -7,7 +7,11 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+
+import az.millers.hcm.config.CacheConfig;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -92,6 +96,7 @@ public class WorkflowService {
     // ---------- Definitions ----------
 
     @Transactional(readOnly = true)
+    @Cacheable(CacheConfig.WORKFLOW_DEFS)
     public List<WorkflowDefinition> listDefinitions() {
         return definitions.findByActiveTrueOrderByCodeAsc();
     }

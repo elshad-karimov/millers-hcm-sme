@@ -60,6 +60,23 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
+  # M168: Redis cache (PRD §15.2)
+  data:
+    redis:
+      host: ${HCM_REDIS_HOST:localhost}
+      port: ${HCM_REDIS_PORT:6379}
+      # No password in dev; production: set HCM_REDIS_PASSWORD
+      password: ${HCM_REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 5 minutes default TTL (ms)
+      cache-null-values: false
   mail:
     # MailHog by default (dev). Production swap: point at the real SMTP relay
     # via HCM_MAIL_HOST / HCM_MAIL_PORT / HCM_MAIL_USERNAME / HCM_MAIL_PASSWORD.
