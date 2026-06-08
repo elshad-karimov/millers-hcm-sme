@@ -18,6 +18,7 @@ export type WorkflowActionType =
   | 'AUTO_APPROVE'
   | 'DELEGATE'
   | 'ATTACH_DOCUMENT'
+  | 'RESUBMIT'
 
 export interface WorkflowInstance {
   id: string
@@ -35,6 +36,8 @@ export interface WorkflowInstance {
   completedAt?: string | null
   payload?: string | null
   delegatedTo?: string | null
+  /** M174 — how many times this instance has been returned and re-submitted */
+  resubmitCount?: number
 }
 
 export interface WorkflowAction {
@@ -86,5 +89,12 @@ export const workflowApi = {
   act: (id: string, action: WorkflowActionType, comment?: string, delegateTo?: string, documentRef?: string) =>
     api
       .post<WorkflowInstance>(`/workflow/instances/${id}/actions`, { action, comment, delegateTo, documentRef })
+      .then((r) => r.data),
+  /** M174 — re-submit a RETURNED instance after corrections */
+  resubmit: (id: string, comment?: string) =>
+    api
+      .post<WorkflowInstance>(`/workflow/instances/${id}/resubmit`, null, {
+        params: comment ? { comment } : {},
+      })
       .then((r) => r.data),
 }

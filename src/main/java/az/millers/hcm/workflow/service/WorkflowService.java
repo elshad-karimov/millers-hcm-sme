@@ -406,6 +406,55 @@ public class WorkflowService {
         }
     }
 
+    // ---------- Revision loop ----------
+
+    /**
+     * M174 — Re-submits a {@link WorkflowStatus#RETURNED} instance after the
+     * initiator has made corrections. Resets the instance to PENDING at step 1
+     * so the full approval chain runs from scratch.
+     *
+     * <p>An advisory limit of 10 re-submissions prevents runaway loops; in
+     * practice HR will reject or escalate a chronically-returned request rather
+     * than allow unlimited cycles.
+     */
+    @Transactional
+    public WorkflowInstance resubmit(UUID instanceId, String comment) {
+        WorkflowInstance i = get(instanceId);
+        if (i.getStatus() != WorkflowStatus.RETURNED) {
+            throw new BadRequestException("Only a RETURNED instance can be re-submitted (current: " + i.getStatus() + ")");
+        }
+        String actor = currentRequest.username();
+        if (!actor.equals(i.getInitiatedBy())) {
+            throw new BadRequestException("Only the original initiator can re-submit a returned request");
+        }
+        if (i.getResubmitCount() >= 10) {
+            throw new BadRequestException("Maximum re-submission limit (10) reached; please contact HR to handle this request manually");
+        }
+
+        List<WorkflowStep> defSteps = stepsFor(i.getDefinitionId());
+        if (defSteps.isEmpty()) {
+            throw new BadRequestException("Workflow definition has no steps");
+        }
+        WorkflowStep first = defSteps.stream()
+                .min(java.util.Comparator.comparingInt(WorkflowStep::getStepOrder))
+                .orElseThrow();
+
+        i.setStatus(WorkflowStatus.PENDING);
+        i.setCompletedAt(null);
+        i.setCurrentStepIndex(first.getStepOrder());
+        i.setCurrentStepEnteredAt(OffsetDateTime.now());
+        i.setDelegatedTo(null);
+        i.setCurrentStepRoles(null);
+        i.setResubmitCount(i.getResubmitCount() + 1);
+        applyStepEntry(i, first.getStepOrder(), defSteps);
+
+        WorkflowInstance saved = instances.save(i);
+        recordAction(saved, first.getStepOrder(), first.getName(), ActionType.RESUBMIT, comment);
+        log.info("Workflow {} re-submitted by {} (resubmit_count={})",
+                instanceId, actor, saved.getResubmitCount());
+        return saved;
+    }
+
     // ---------- Internals ----------
 
     private WorkflowStep nextStep(List<WorkflowStep> all, int currentOrder) {

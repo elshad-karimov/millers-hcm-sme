@@ -93,6 +93,14 @@ public class WorkflowInstance {
     @Column(name = "current_step_roles", columnDefinition = "text[]")
     private String[] currentStepRoles;
 
+    /**
+     * M174 — counts how many times this instance has been returned to the
+     * initiator and re-submitted. No hard cap at the DB level; the service
+     * applies an advisory limit of 10 re-submissions.
+     */
+    @Column(name = "resubmit_count", nullable = false)
+    private int resubmitCount;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column
     private String payload;

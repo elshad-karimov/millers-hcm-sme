@@ -37,8 +37,11 @@ const ACTION_COLOR: Record<WorkflowActionType, string> = {
   AUTO_APPROVE: 'green',
   REJECT: 'red',
   RETURN: 'orange',
+  RESUBMIT: 'blue',
   COMMENT: 'default',
   CANCEL: 'default',
+  DELEGATE: 'purple',
+  ATTACH_DOCUMENT: 'cyan',
 }
 
 interface Props {
@@ -59,6 +62,8 @@ export function WorkflowPanel({ module, entity, subjectId, onChanged }: Props) {
     instance: WorkflowInstance
     action: WorkflowActionType
   } | null>(null)
+  const [resubmitModal, setResubmitModal] = useState<WorkflowInstance | null>(null)
+  const [resubmitComment, setResubmitComment] = useState('')
   const [comment, setComment] = useState('')
 
   const load = () => {
@@ -130,6 +135,7 @@ export function WorkflowPanel({ module, entity, subjectId, onChanged }: Props) {
           user?.username !== i.initiatedBy
         const canCancel = i.status === 'PENDING' && (user?.username === i.initiatedBy || hasRole(...RoleSets.SYS_ADMIN_ONLY))
         const canComment = i.status === 'PENDING'
+        const canResubmit = i.status === 'RETURNED' && user?.username === i.initiatedBy && (i.resubmitCount ?? 0) < 10
         const items = (history[i.id] ?? []).map((a) => ({
           color: ACTION_COLOR[a.action],
           children: (
@@ -189,6 +195,11 @@ export function WorkflowPanel({ module, entity, subjectId, onChanged }: Props) {
                     Cancel
                   </Button>
                 )}
+                {canResubmit && (
+                  <Button type="primary" onClick={() => setResubmitModal(i)}>
+                    Resubmit
+                  </Button>
+                )}
               </Space>
             }
           >
@@ -230,6 +241,46 @@ export function WorkflowPanel({ module, entity, subjectId, onChanged }: Props) {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Add your comment"
+          />
+        </Space>
+      </Modal>
+
+      <Modal
+        open={!!resubmitModal}
+        title="Resubmit for approval"
+        onCancel={() => {
+          setResubmitModal(null)
+          setResubmitComment('')
+        }}
+        onOk={async () => {
+          if (!resubmitModal) return
+          try {
+            await workflowApi.resubmit(resubmitModal.id, resubmitComment || undefined)
+            message.success('Request re-submitted')
+            setResubmitModal(null)
+            setResubmitComment('')
+            load()
+            onChanged?.()
+          } catch (err) {
+            message.error(
+              (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                'Resubmit failed',
+            )
+          }
+        }}
+        okText="Resubmit"
+        okButtonProps={{ type: 'primary' }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            The request will restart from step 1 of the approval chain. Add an optional note
+            explaining what was corrected.
+          </Typography.Text>
+          <Input.TextArea
+            rows={3}
+            value={resubmitComment}
+            onChange={(e) => setResubmitComment(e.target.value)}
+            placeholder="What was corrected? (optional)"
           />
         </Space>
       </Modal>

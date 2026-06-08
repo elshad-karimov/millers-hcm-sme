@@ -22,7 +22,9 @@ public record WorkflowInstanceResponse(
         OffsetDateTime completedAt,
         String payload,
         /** M162 — username this step has been manually delegated to, or null. */
-        String delegatedTo) {
+        String delegatedTo,
+        /** M174 — how many times this instance has been returned and re-submitted. */
+        int resubmitCount) {
 
     public static WorkflowInstanceResponse from(WorkflowInstance i) {
         return new WorkflowInstanceResponse(
@@ -40,6 +42,7 @@ public record WorkflowInstanceResponse(
                 i.getInitiatedAt(),
                 i.getCompletedAt(),
                 i.getPayload(),
-                i.getDelegatedTo());
+                i.getDelegatedTo(),
+                i.getResubmitCount());
     }
 }

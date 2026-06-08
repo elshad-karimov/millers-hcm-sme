@@ -12,5 +12,7 @@ public enum ActionType {
     /** M162: explicit hand-off of the current step to a named user. */
     DELEGATE,
     /** M166: attach a supporting document to the current step (PRD §9.3). */
-    ATTACH_DOCUMENT
+    ATTACH_DOCUMENT,
+    /** M174: initiator re-submits a RETURNED instance after making corrections. */
+    RESUBMIT
 }

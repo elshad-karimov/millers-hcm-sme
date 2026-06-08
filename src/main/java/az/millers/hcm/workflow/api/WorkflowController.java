@@ -75,4 +75,14 @@ public class WorkflowController {
                                          @Valid @RequestBody ActionRequest req) {
         return WorkflowInstanceResponse.from(service.act(id, req));
     }
+
+    /**
+     * M174 — Re-submit a RETURNED instance after corrections.
+     * Only the original initiator may call this endpoint.
+     */
+    @PostMapping("/instances/{id}/resubmit")
+    public WorkflowInstanceResponse resubmit(@PathVariable UUID id,
+                                              @RequestParam(required = false) String comment) {
+        return WorkflowInstanceResponse.from(service.resubmit(id, comment));
+    }
 }
