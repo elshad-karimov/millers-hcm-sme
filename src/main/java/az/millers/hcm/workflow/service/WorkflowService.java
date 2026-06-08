@@ -1,6 +1,7 @@
 package az.millers.hcm.workflow.service;
 
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -10,6 +11,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 
 import az.millers.hcm.config.CacheConfig;
 import org.springframework.security.core.Authentication;
@@ -20,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import az.millers.hcm.common.BadRequestException;
@@ -37,12 +43,14 @@ import az.millers.hcm.workflow.domain.ActionType;
 import az.millers.hcm.workflow.domain.WorkflowAction;
 import az.millers.hcm.workflow.domain.WorkflowDefinition;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
+import az.millers.hcm.workflow.domain.WorkflowParallelVote;
 import az.millers.hcm.workflow.domain.WorkflowStatus;
 import az.millers.hcm.workflow.domain.WorkflowStep;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.repo.WorkflowActionRepository;
 import az.millers.hcm.workflow.repo.WorkflowDefinitionRepository;
 import az.millers.hcm.workflow.repo.WorkflowInstanceRepository;
+import az.millers.hcm.workflow.repo.WorkflowParallelVoteRepository;
 import az.millers.hcm.workflow.repo.WorkflowStepRepository;
 
 /**
@@ -61,6 +69,7 @@ public class WorkflowService {
     private final WorkflowStepRepository steps;
     private final WorkflowInstanceRepository instances;
     private final WorkflowActionRepository actions;
+    private final WorkflowParallelVoteRepository votes;
     private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper;
     private final CurrentRequest currentRequest;
@@ -73,6 +82,7 @@ public class WorkflowService {
                            WorkflowStepRepository steps,
                            WorkflowInstanceRepository instances,
                            WorkflowActionRepository actions,
+                           WorkflowParallelVoteRepository votes,
                            ApplicationEventPublisher events,
                            ObjectMapper objectMapper,
                            CurrentRequest currentRequest,
@@ -84,6 +94,7 @@ public class WorkflowService {
         this.steps = steps;
         this.instances = instances;
         this.actions = actions;
+        this.votes = votes;
         this.events = events;
         this.objectMapper = objectMapper;
         this.currentRequest = currentRequest;
@@ -173,6 +184,14 @@ public class WorkflowService {
                 })
                 .forEach(i -> merged.putIfAbsent(i.getId(), i));
 
+        // M172 — also include parallel-gate instances where the user's role is still outstanding.
+        String[] rolesArray = roles.toArray(String[]::new);
+        instances.findPendingParallelForRoles(rolesArray)
+                .stream()
+                .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
+                        || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
+                .forEach(i -> merged.putIfAbsent(i.getId(), i));
+
         return List.copyOf(merged.values());
     }
 
@@ -223,9 +242,9 @@ public class WorkflowService {
 
         WorkflowStep first = defSteps.get(0);
         i.setCurrentStepIndex(first.getStepOrder());
-        i.setCurrentStepRole(first.getApproverRole());
         i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — SLA timer starts now
         i.setStatus(WorkflowStatus.PENDING);
+        applyStepEntry(i, first.getStepOrder(), defSteps); // M172 — sets role(s) correctly
         WorkflowInstance saved = instances.save(i);
         recordAction(saved, first.getStepOrder(), first.getName(), ActionType.START, null);
         return saved;
@@ -282,21 +301,29 @@ public class WorkflowService {
                 requireResolvedApprover(i, currentStep, isAdmin,
                         "Only the subject's direct manager can approve this step");
                 require(!isInitiator, "The initiator cannot approve their own request (segregation of duties)");
+
+                // M172 — parallel gate: record a per-step vote; advance only when all pass.
+                if (currentStep.isParallel()) {
+                    return handleParallelApprove(i, currentStep, defSteps, req.comment(), actor);
+                }
+
+                // Sequential (existing path).
                 recordAction(i, currentStep.getStepOrder(), currentStep.getName(),
                         ActionType.APPROVE, req.comment());
-                WorkflowStep next = nextStep(defSteps, currentStep.getStepOrder());
+                WorkflowStep next = nextStepSkippingConditional(defSteps, currentStep.getStepOrder(), i);
                 if (next == null) {
                     i.setStatus(WorkflowStatus.APPROVED);
                     i.setCompletedAt(OffsetDateTime.now());
                     i.setCurrentStepRole(null);
+                    i.setCurrentStepRoles(null);
                     WorkflowInstance saved = instances.save(i);
                     publishCompleted(saved, req.comment());
                     return saved;
                 }
                 i.setCurrentStepIndex(next.getStepOrder());
-                i.setCurrentStepRole(next.getApproverRole());
-                i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — restart SLA timer for the new step
+                i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — restart SLA timer
                 i.setDelegatedTo(null); // M162 — clear delegation when step advances
+                applyStepEntry(i, next.getStepOrder(), defSteps); // M172 — roles for next step
                 return instances.save(i);
             }
             case REJECT -> {
@@ -386,6 +413,135 @@ public class WorkflowService {
                 .filter(s -> s.getStepOrder() > currentOrder)
                 .findFirst()
                 .orElse(null);
+    }
+
+    // ── M172: parallel + conditional helpers ──────────────────────────────────
+
+    /**
+     * Handles an APPROVE vote on a parallel-gate step. Records the vote; if
+     * all steps in the gate are now approved, advances the instance.
+     */
+    private WorkflowInstance handleParallelApprove(WorkflowInstance i, WorkflowStep step,
+                                                    List<WorkflowStep> defSteps, String comment, String actor) {
+        if (votes.findByInstanceIdAndStepId(i.getId(), step.getId()).isPresent()) {
+            throw new BadRequestException("You have already voted on this step");
+        }
+        WorkflowParallelVote vote = new WorkflowParallelVote();
+        vote.setInstanceId(i.getId());
+        vote.setStepId(step.getId());
+        vote.setStepOrder(step.getStepOrder());
+        vote.setVoter(actor);
+        vote.setApproved(true);
+        vote.setComment(comment);
+        votes.save(vote);
+        recordAction(i, step.getStepOrder(), step.getName(), ActionType.APPROVE, comment);
+
+        List<WorkflowStep> parallelGroup = defSteps.stream()
+                .filter(s -> s.getStepOrder() == step.getStepOrder() && s.isParallel())
+                .toList();
+        List<WorkflowParallelVote> existingVotes = votes.findByInstanceIdAndStepOrder(i.getId(), step.getStepOrder());
+        boolean allApproved = parallelGroup.stream()
+                .allMatch(ps -> existingVotes.stream()
+                        .anyMatch(v -> v.getStepId().equals(ps.getId()) && v.isApproved()));
+
+        if (!allApproved) {
+            // Remove the voted role from the outstanding-roles array.
+            String[] remaining = i.getCurrentStepRoles() == null ? new String[0]
+                    : Arrays.stream(i.getCurrentStepRoles())
+                            .filter(r -> !r.equals(step.getApproverRole()))
+                            .toArray(String[]::new);
+            i.setCurrentStepRoles(remaining.length > 0 ? remaining : null);
+            return instances.save(i);
+        }
+
+        // Gate passed — advance.
+        i.setCurrentStepRoles(null);
+        i.setDelegatedTo(null);
+        WorkflowStep next = nextStepSkippingConditional(defSteps, step.getStepOrder(), i);
+        if (next == null) {
+            i.setStatus(WorkflowStatus.APPROVED);
+            i.setCompletedAt(OffsetDateTime.now());
+            i.setCurrentStepRole(null);
+            WorkflowInstance saved = instances.save(i);
+            publishCompleted(saved, comment);
+            return saved;
+        }
+        i.setCurrentStepIndex(next.getStepOrder());
+        i.setCurrentStepEnteredAt(OffsetDateTime.now());
+        applyStepEntry(i, next.getStepOrder(), defSteps);
+        return instances.save(i);
+    }
+
+    /**
+     * Sets {@code currentStepRole} and {@code currentStepRoles} on the instance
+     * for the given step_order. For a sequential step: sets only {@code currentStepRole}.
+     * For a parallel gate: sets {@code currentStepRoles} to all outstanding roles
+     * AND sets {@code currentStepRole} to the first for SLA-timer compatibility.
+     */
+    private void applyStepEntry(WorkflowInstance i, int stepOrder, List<WorkflowStep> defSteps) {
+        List<WorkflowStep> atOrder = defSteps.stream()
+                .filter(s -> s.getStepOrder() == stepOrder)
+                .toList();
+        if (atOrder.isEmpty()) return;
+
+        boolean hasParallel = atOrder.stream().anyMatch(WorkflowStep::isParallel);
+        if (hasParallel) {
+            String[] roles = atOrder.stream()
+                    .filter(WorkflowStep::isParallel)
+                    .map(WorkflowStep::getApproverRole)
+                    .distinct()
+                    .toArray(String[]::new);
+            i.setCurrentStepRoles(roles);
+            i.setCurrentStepRole(roles.length > 0 ? roles[0] : null);
+        } else {
+            i.setCurrentStepRole(atOrder.get(0).getApproverRole());
+            i.setCurrentStepRoles(null);
+        }
+    }
+
+    /**
+     * Finds the next step after {@code currentOrder}, skipping any step whose
+     * {@code condition_spel} evaluates to {@code false} against the instance's
+     * payload JSON (M172 conditional routing).
+     */
+    private WorkflowStep nextStepSkippingConditional(List<WorkflowStep> all, int currentOrder,
+                                                      WorkflowInstance i) {
+        List<WorkflowStep> candidates = all.stream()
+                .filter(s -> s.getStepOrder() > currentOrder)
+                .sorted(java.util.Comparator.comparingInt(WorkflowStep::getStepOrder))
+                .toList();
+        // Deduplicate by step_order (take the first representative of each group)
+        java.util.Set<Integer> seen = new java.util.LinkedHashSet<>();
+        for (WorkflowStep c : candidates) {
+            if (seen.add(c.getStepOrder())) {
+                if (c.getConditionSpel() == null || evaluateCondition(c.getConditionSpel(), i.getPayload())) {
+                    return c;
+                }
+                log.debug("Skipping step {} (order {}) — condition false: {}", c.getName(), c.getStepOrder(), c.getConditionSpel());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Evaluates a SpEL expression against the instance's payload JSON map.
+     * Returns {@code true} (step included) when the expression cannot be parsed
+     * or throws — fail-open to prevent mis-configured conditions blocking approvals.
+     */
+    private boolean evaluateCondition(String spel, String payloadJson) {
+        try {
+            java.util.Map<String, Object> ctx = payloadJson != null
+                    ? objectMapper.readValue(payloadJson, new TypeReference<>() {})
+                    : java.util.Map.of();
+            ExpressionParser parser = new SpelExpressionParser();
+            EvaluationContext evalCtx = SimpleEvaluationContext
+                    .forReadOnlyDataBinding().withRootObject(ctx).build();
+            Object result = parser.parseExpression(spel).getValue(evalCtx);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            log.warn("Condition SpEL evaluation failed for '{}': {} — step included by default", spel, e.getMessage());
+            return true;
+        }
     }
 
     private void recordAction(WorkflowInstance i, int stepIndex, String stepName,

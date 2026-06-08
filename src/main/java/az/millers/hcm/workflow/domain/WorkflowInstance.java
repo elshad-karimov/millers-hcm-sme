@@ -3,6 +3,7 @@ package az.millers.hcm.workflow.domain;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.Array;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -80,6 +81,17 @@ public class WorkflowInstance {
      */
     @Column(name = "delegated_to")
     private String delegatedTo;
+
+    /**
+     * M172 — non-null only during a parallel gate. Contains the
+     * {@code approverRole} values of parallel steps at the current
+     * {@link #currentStepIndex} that have NOT yet received an APPROVE vote.
+     * Cleared (set to null) when the gate passes and the instance advances.
+     */
+    @Array(length = 32)
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "current_step_roles", columnDefinition = "text[]")
+    private String[] currentStepRoles;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column

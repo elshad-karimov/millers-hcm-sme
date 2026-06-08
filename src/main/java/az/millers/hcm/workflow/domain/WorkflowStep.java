@@ -75,6 +75,25 @@ public class WorkflowStep {
     @Column(name = "escalation_to", length = 160)
     private String escalationTo;
 
+    /**
+     * M172 — when {@code true} this step is part of a <em>parallel gate</em>
+     * at this {@link #stepOrder}. All {@code workflow_step} rows with the same
+     * {@code step_order} and {@code parallel=true} must each receive an APPROVE
+     * vote before the instance advances. Sequential steps (default) are
+     * unaffected.
+     */
+    @Column(nullable = false)
+    private boolean parallel;
+
+    /**
+     * M172 — optional Spring SpEL expression evaluated against the
+     * {@code workflow_instance.payload} JSON map. When the expression returns
+     * {@code false} (or cannot be resolved), the step is skipped automatically.
+     * Null means the step is always active.
+     */
+    @Column(name = "condition_spel", length = 500)
+    private String conditionSpel;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
