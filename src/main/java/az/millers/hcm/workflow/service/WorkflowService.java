@@ -640,7 +640,8 @@ public class WorkflowService {
         events.publishEvent(new WorkflowCompletedEvent(
                 i.getId(), i.getDefinitionCode(), i.getSubjectModule(),
                 i.getSubjectEntity(), i.getSubjectId(), i.getStatus(), comment,
-                currentRequest.username()));
+                currentRequest.username(),
+                i.getInitiatedBy()));
     }
 
     private String toJson(Object payload) {
