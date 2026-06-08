@@ -3,6 +3,7 @@ package az.millers.hcm.performance.service;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ import az.millers.hcm.performance.api.dto.ReviewCycleRequest;
 import az.millers.hcm.performance.api.dto.ReviewCycleResponse;
 import az.millers.hcm.performance.domain.CycleStatus;
 import az.millers.hcm.performance.domain.ReviewCycle;
+import az.millers.hcm.performance.event.ReviewCycleCompletedEvent;
 import az.millers.hcm.performance.repo.ReviewCycleRepository;
 import az.millers.hcm.security.CurrentRequest;
 
@@ -25,13 +27,16 @@ public class ReviewCycleService {
     private final ReviewCycleRepository cycles;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ReviewCycleService(ReviewCycleRepository cycles,
                               AuditService audit,
-                              CurrentRequest currentRequest) {
+                              CurrentRequest currentRequest,
+                              ApplicationEventPublisher eventPublisher) {
         this.cycles = cycles;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +100,18 @@ public class ReviewCycleService {
                 "STATUS_CHANGE",
                 java.util.Map.of("from", old.name()),
                 java.util.Map.of("to", next.name(), "reason", reason == null ? "" : reason));
+
+        // When a cycle completes, publish an event so the bonus engine can
+        // auto-generate a BonusRun (PRD §8.13 AC / M184).
+        if (next == CycleStatus.COMPLETED) {
+            eventPublisher.publishEvent(new ReviewCycleCompletedEvent(
+                    saved.getId(),
+                    saved.getCode(),
+                    saved.getName(),
+                    saved.getCycleType(),
+                    saved.getPeriodEnd()));
+        }
+
         return saved;
     }
 

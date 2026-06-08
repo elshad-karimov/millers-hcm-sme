@@ -1,5 +1,6 @@
 package az.millers.hcm.compbenefits.repo;
 
+import java.util.Collection;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -20,4 +21,7 @@ public interface BonusRunRepository extends JpaRepository<BonusRun, UUID> {
     Page<BonusRun> findByStatusOrderByCreatedAtDesc(BonusRunStatus status, Pageable pageable);
 
     Page<BonusRun> findByCycleIdOrderByCreatedAtDesc(UUID cycleId, Pageable pageable);
+
+    /** Used to prevent duplicate auto-generation on cycle completion. */
+    boolean existsByCycleIdAndStatusIn(UUID cycleId, Collection<BonusRunStatus> statuses);
 }
