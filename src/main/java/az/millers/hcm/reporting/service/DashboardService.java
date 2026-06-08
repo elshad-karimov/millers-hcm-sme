@@ -75,8 +75,6 @@ public class DashboardService {
             return new HeadcountTrend(List.of(), List.of(), List.of(), List.of(), List.of());
         }
 
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("YYYY-MM");
-
         // Build monthly active-headcount series by counting employees whose
         // hire_date <= last day of the month and (no processed termination with
         // effective_date in that month or earlier).
@@ -290,7 +288,7 @@ public class DashboardService {
                 "SELECT count(*) FROM workflow.workflow_instance"
                         + " WHERE status = 'PENDING'"
                         + "   AND current_step_role = 'DEPARTMENT_MANAGER'",
-                new MapSqlParameterSource("mgr", managerId),
+                new MapSqlParameterSource(),
                 Long.class);
 
         // Upcoming leave in team (next 30 days)
