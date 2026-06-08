@@ -1,5 +1,6 @@
 package az.millers.hcm.organization.api.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -32,7 +33,13 @@ public record OrgUnitResponse(
         LocalDate closureAnnouncedDate,
         String closureReason,
         LocalDate closedDate,
-        String closedBy) {
+        String closedBy,
+        // ── M148 / §28 — Branch/Store enrichment ─────────────────────────
+        BigDecimal gpsLat,
+        BigDecimal gpsLng,
+        String operatingHours,
+        String attendanceDeviceId,
+        String posSystemRef) {
 
     public static OrgUnitResponse from(OrgUnit u) {
         return new OrgUnitResponse(
@@ -57,6 +64,11 @@ public record OrgUnitResponse(
                 u.getClosureAnnouncedDate(),
                 u.getClosureReason(),
                 u.getClosedDate(),
-                u.getClosedBy());
+                u.getClosedBy(),
+                u.getGpsLat(),
+                u.getGpsLng(),
+                u.getOperatingHours(),
+                u.getAttendanceDeviceId(),
+                u.getPosSystemRef());
     }
 }

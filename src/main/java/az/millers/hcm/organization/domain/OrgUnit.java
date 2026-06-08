@@ -120,6 +120,28 @@ public class OrgUnit {
     @Column(name = "closed_by", length = 80)
     private String closedBy;
 
+    // ── M148 / §28 — Branch/Store enrichment ─────────────────────────────
+
+    /** GPS latitude; null for non-physical units. */
+    @Column(name = "gps_lat", precision = 9, scale = 6)
+    private java.math.BigDecimal gpsLat;
+
+    /** GPS longitude; null for non-physical units. */
+    @Column(name = "gps_lng", precision = 9, scale = 6)
+    private java.math.BigDecimal gpsLng;
+
+    /** Human-readable operating hours, e.g. "Mon-Fri 09:00-18:00, Sat 10:00-16:00". */
+    @Column(name = "operating_hours", length = 500)
+    private String operatingHours;
+
+    /** Attendance device (door reader / biometric terminal) ID. */
+    @Column(name = "attendance_device_id", length = 64)
+    private String attendanceDeviceId;
+
+    /** POS terminal or system reference for retail branches. */
+    @Column(name = "pos_system_ref", length = 120)
+    private String posSystemRef;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

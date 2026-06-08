@@ -156,7 +156,8 @@ public class BulkReorgService {
                                 null,
                                 op.costCentreCode(), op.location(),
                                 op.contactEmail(), op.glAccount(),
-                                op.headcountBudget(), op.active(), null);
+                                op.headcountBudget(), op.active(), null,
+                                null, null, null, null, null); // M148 branch enrichment
                         OrgUnit saved = orgService.addUnit(versionId, req);
                         byCode.put(saved.getCode(), saved);
                         rows.add(new RowResult(i, OperationKind.ADD, op.code(), true, "added"));
@@ -179,7 +180,11 @@ public class BulkReorgService {
                                 op.headcountBudget() != null ? op.headcountBudget() : existing.getHeadcountBudget(),
                                 op.active(),
                                 existing.getLifecycleState() != null
-                                        ? existing.getLifecycleState().name() : null);
+                                        ? existing.getLifecycleState().name() : null,
+                                // M148 branch enrichment — preserve existing values.
+                                existing.getGpsLat(), existing.getGpsLng(),
+                                existing.getOperatingHours(), existing.getAttendanceDeviceId(),
+                                existing.getPosSystemRef());
                         OrgUnit saved = orgService.updateUnit(existing.getId(), req);
                         byCode.put(saved.getCode(), saved);
                         rows.add(new RowResult(i, OperationKind.UPDATE, op.code(), true, "updated"));
@@ -203,7 +208,11 @@ public class BulkReorgService {
                                 existing.getHeadcountBudget(),
                                 existing.isActive(),
                                 existing.getLifecycleState() != null
-                                        ? existing.getLifecycleState().name() : null);
+                                        ? existing.getLifecycleState().name() : null,
+                                // M148 branch enrichment — preserve existing values.
+                                existing.getGpsLat(), existing.getGpsLng(),
+                                existing.getOperatingHours(), existing.getAttendanceDeviceId(),
+                                existing.getPosSystemRef());
                         OrgUnit saved = orgService.updateUnit(existing.getId(), req);
                         byCode.put(saved.getCode(), saved);
                         rows.add(new RowResult(i, OperationKind.MOVE, op.code(),

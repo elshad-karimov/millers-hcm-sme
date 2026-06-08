@@ -1,7 +1,10 @@
 package az.millers.hcm.organization.api.dto;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -27,5 +30,15 @@ public record OrgUnitRequest(
         /** M81 — defaults to true; null on update keeps existing value. */
         Boolean active,
         /** M144 — lifecycle state; null on create defaults to ACTIVE. */
-        String lifecycleState) {
+        String lifecycleState,
+        // ── M148 / §28 — Branch/Store enrichment ─────────────────────────
+        @DecimalMin(value = "-90.0", message = "gpsLat must be ≥ -90")
+        @DecimalMax(value = "90.0",  message = "gpsLat must be ≤ 90")
+        BigDecimal gpsLat,
+        @DecimalMin(value = "-180.0", message = "gpsLng must be ≥ -180")
+        @DecimalMax(value = "180.0",  message = "gpsLng must be ≤ 180")
+        BigDecimal gpsLng,
+        @Size(max = 500) String operatingHours,
+        @Size(max = 64)  String attendanceDeviceId,
+        @Size(max = 120) String posSystemRef) {
 }

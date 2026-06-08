@@ -399,6 +399,12 @@ public class OrgStructureService {
             clone.setClosedDate(src.getClosedDate());
             clone.setClosedBy(src.getClosedBy());
             clone.setLegalEntityId(src.getLegalEntityId());
+            // M148 — Branch/Store enrichment fields.
+            clone.setGpsLat(src.getGpsLat());
+            clone.setGpsLng(src.getGpsLng());
+            clone.setOperatingHours(src.getOperatingHours());
+            clone.setAttendanceDeviceId(src.getAttendanceDeviceId());
+            clone.setPosSystemRef(src.getPosSystemRef());
             // Parent set in second pass once we know mappings.
             OrgUnit saved = units.save(clone);
             idMap.put(src.getId(), saved.getId());
@@ -445,6 +451,12 @@ public class OrgStructureService {
         } else if (u.getLifecycleState() == null) {
             u.setLifecycleState(az.millers.hcm.organization.domain.OrgUnitLifecycleState.ACTIVE);
         }
+        // M148 / §28 — Branch/Store enrichment.
+        u.setGpsLat(req.gpsLat());
+        u.setGpsLng(req.gpsLng());
+        u.setOperatingHours(req.operatingHours());
+        u.setAttendanceDeviceId(req.attendanceDeviceId());
+        u.setPosSystemRef(req.posSystemRef());
     }
 
     private void requireDraft(StructureVersion v) {

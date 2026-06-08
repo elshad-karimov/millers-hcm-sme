@@ -53,6 +53,12 @@ export interface OrgUnitResponse {
   glAccount?: string | null
   headcountBudget?: number | null
   active: boolean
+  // M148 — Branch/Store enrichment
+  gpsLat?: number | null
+  gpsLng?: number | null
+  operatingHours?: string | null
+  attendanceDeviceId?: string | null
+  posSystemRef?: string | null
 }
 
 export interface OrgUnitRequest {
@@ -73,6 +79,12 @@ export interface OrgUnitRequest {
   glAccount?: string
   headcountBudget?: number
   active?: boolean
+  // M148 — Branch/Store enrichment
+  gpsLat?: number
+  gpsLng?: number
+  operatingHours?: string
+  attendanceDeviceId?: string
+  posSystemRef?: string
 }
 
 // M81 — per-unit policy override

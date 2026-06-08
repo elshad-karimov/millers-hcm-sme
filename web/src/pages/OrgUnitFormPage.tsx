@@ -100,6 +100,12 @@ export function OrgUnitFormPage() {
             contactEmail: owning.contactEmail ?? undefined,
             glAccount: owning.glAccount ?? undefined,
             headcountBudget: owning.headcountBudget ?? undefined,
+            // M148 — Branch/Store enrichment
+            gpsLat: owning.gpsLat ?? undefined,
+            gpsLng: owning.gpsLng ?? undefined,
+            operatingHours: owning.operatingHours ?? undefined,
+            attendanceDeviceId: owning.attendanceDeviceId ?? undefined,
+            posSystemRef: owning.posSystemRef ?? undefined,
           })
         } else {
           if (!versionId) {
@@ -245,6 +251,43 @@ export function OrgUnitFormPage() {
           <Form.Item name="headcountBudget" label="Headcount budget">
             <InputNumber min={0} style={{ width: 160 }} />
           </Form.Item>
+
+          {/* M148 — Branch/Store enrichment */}
+          <Form.Item name="operatingHours" label="Operating hours">
+            <Input maxLength={500} placeholder="e.g. Mon-Fri 09:00-18:00, Sat 10:00-16:00" />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="gpsLat"
+                label="GPS latitude"
+                rules={[{ type: 'number', min: -90, max: 90, message: 'Must be between -90 and 90' }]}
+              >
+                <InputNumber style={{ width: '100%' }} placeholder="40.409264" step={0.000001} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="gpsLng"
+                label="GPS longitude"
+                rules={[{ type: 'number', min: -180, max: 180, message: 'Must be between -180 and 180' }]}
+              >
+                <InputNumber style={{ width: '100%' }} placeholder="49.867092" step={0.000001} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="attendanceDeviceId" label="Attendance device ID">
+                <Input maxLength={64} placeholder="Device or terminal ID" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="posSystemRef" label="POS system reference">
+                <Input maxLength={120} placeholder="POS terminal or system ID" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item>
             <Space>
