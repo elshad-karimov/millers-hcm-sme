@@ -65,6 +65,12 @@ import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 // M117 — per-employee field-change history (employment slices + status slices + audit diff)
 import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
+// M169 — employee document management
+import {
+  employeeDocumentsApi,
+  DOCUMENT_TYPE_LABELS,
+  type EmployeeDocument,
+} from '../api/employeeDocuments'
 
 const STATUS_OPTIONS: EmploymentStatus[] = [
   'ACTIVE',
@@ -150,6 +156,7 @@ export function EmployeeDetailPage() {
   const [assignments, setAssignments] = useState<EmployeeAssignment[]>([])
   const [timeline, setTimeline] = useState<TimelineEvent[]>([])
   const [overlays, setOverlays] = useState<StatusOverlay[]>([])
+  const [empDocuments, setEmpDocuments] = useState<EmployeeDocument[]>([])
   const [loading, setLoading] = useState(true)
 
   const [statusModal, setStatusModal] = useState(false)
@@ -188,8 +195,9 @@ export function EmployeeDetailPage() {
       assignmentApi.list(id).catch(() => []),
       timelineApi.forEmployee(id).catch(() => []),
       statusOverlayApi.list(id).catch(() => []),
+      employeeDocumentsApi.list(id).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -212,6 +220,7 @@ export function EmployeeDetailPage() {
         setAssignments(asgs)
         setTimeline(tline)
         setOverlays(ovls)
+        setEmpDocuments(docs as EmployeeDocument[])
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -692,6 +701,29 @@ export function EmployeeDetailPage() {
     </Descriptions>
   )
 
+  // ── M169: documents columns ──────────────────────────────────────────────
+  const docColumns: ColumnsType<EmployeeDocument> = [
+    {
+      title: 'Type',
+      dataIndex: 'documentType',
+      render: (v: string) => DOCUMENT_TYPE_LABELS[v as keyof typeof DOCUMENT_TYPE_LABELS] ?? v,
+    },
+    { title: 'Title', dataIndex: 'title', render: (v?: string | null) => v ?? '—' },
+    { title: 'Expiry', dataIndex: 'expiryDate', render: (v?: string | null) => v ?? '—' },
+    {
+      title: 'Restricted',
+      dataIndex: 'restricted',
+      render: (v: boolean) => v ? <Tag color="red">Restricted</Tag> : '—',
+    },
+    {
+      title: 'Attachment',
+      dataIndex: 'attachmentId',
+      render: (v?: string | null) => v ? <Tag color="blue">Attached</Tag> : '—',
+    },
+    { title: 'Added by', dataIndex: 'createdBy', render: (v?: string | null) => v ?? '—' },
+    { title: 'Added', dataIndex: 'createdAt', render: (v: string) => new Date(v).toLocaleDateString() },
+  ]
+
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
     {
@@ -982,6 +1014,21 @@ export function EmployeeDetailPage() {
       ),
     })
   }
+
+  // M169 — employee document management (all HR readers).
+  tabItems.push({
+    key: 'documents',
+    label: `Documents (${empDocuments.length})`,
+    children: (
+      <Table
+        rowKey="id"
+        columns={docColumns}
+        dataSource={empDocuments}
+        pagination={false}
+        locale={{ emptyText: <Empty description="No documents on file" /> }}
+      />
+    ),
+  })
 
   // Disciplinary — HR-mediated, restricted.
   if (canSeeDisciplinary) {
