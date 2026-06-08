@@ -208,7 +208,7 @@ public class ContractChangeService {
                 employee.setManagerId(managerId);
             }
             case GRADE      -> { /* grade lives on the Position; nothing to do on Employee */ }
-            case LOCATION   -> { /* tracked at position/site; placeholder */ }
+            case LOCATION   -> employee.setWorkLocationId(uuidOrNull(v.get("workLocationId")));
             case JOB_TITLE  -> employee.setPositionTitle(strOrNull(v.get("positionTitle")));
             case EMPLOYMENT_TYPE -> { /* lives on the Position */ }
             case COST_CENTRE -> employee.setCostCentre(strOrNull(v.get("costCentre")));
@@ -222,9 +222,9 @@ public class ContractChangeService {
         // M62 / P1-10: record a new employment-history slice for every change
         // type that mutates the employment aggregate. SALARY is already
         // effective-dated in payroll.employee_compensation, so we skip it here;
-        // GRADE / EMPLOYMENT_TYPE / LOCATION currently no-op on the Employee
-        // entity (see switch above) but the slice still captures the audit
-        // intent in the history table.
+        // GRADE / EMPLOYMENT_TYPE currently no-op on the Employee entity (see
+        // switch above) but the slice still captures the audit intent in the
+        // history table.
         if (writesEmploymentSlice(c.getChangeType())) {
             historyService.recordEmploymentSlice(
                     employee,
@@ -344,7 +344,12 @@ public class ContractChangeService {
                     throw new BadRequestException("COST_CENTRE change requires costCentre");
                 }
             }
-            default -> { /* GRADE, LOCATION, EMPLOYMENT_TYPE — free-form payload */ }
+            case LOCATION -> {
+                if (v.get("workLocationId") == null) {
+                    throw new BadRequestException("LOCATION change requires workLocationId");
+                }
+            }
+            default -> { /* GRADE, EMPLOYMENT_TYPE — free-form payload */ }
         }
     }
 
@@ -371,7 +376,7 @@ public class ContractChangeService {
             }
             case MANAGER     -> m.put("managerId", str(e.getManagerId()));
             case GRADE       -> { /* lives on the position, intentionally blank */ }
-            case LOCATION    -> { /* not yet on Employee */ }
+            case LOCATION    -> m.put("workLocationId", str(e.getWorkLocationId()));
             case JOB_TITLE   -> m.put("positionTitle", e.getPositionTitle());
             case EMPLOYMENT_TYPE -> { /* lives on the position */ }
             case COST_CENTRE -> m.put("costCentre", e.getCostCentre());
