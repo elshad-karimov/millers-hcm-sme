@@ -60,6 +60,10 @@ public class SecurityConfig {
                         // need to know more. The controller maps unknown /
                         // expired tokens to 404.
                         .requestMatchers("/api/public/preboarding/**").permitAll()
+                        // M209 — public employee badge / QR verify endpoint.
+                        // Returns only non-sensitive fields (name, position,
+                        // department, status) — safe for third-party scanners.
+                        .requestMatchers("/api/public/employees/**").permitAll()
                         // M139 — public letter verification endpoint. The
                         // 32-char token IS the credential; the controller
                         // returns only non-PII fields (status, request_no,
