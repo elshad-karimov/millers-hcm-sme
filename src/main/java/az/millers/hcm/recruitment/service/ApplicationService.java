@@ -8,12 +8,19 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.api.dto.EmployeeRequest;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.service.EmployeeService;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.StartAssignmentRequest;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateResponse;
+import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
+import az.millers.hcm.lifecycle.service.ChecklistService;
 import az.millers.hcm.recruitment.api.dto.ApplicationResponse;
 import az.millers.hcm.recruitment.api.dto.StageTransitionRequest;
 import az.millers.hcm.recruitment.domain.Application;
@@ -45,6 +52,8 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class ApplicationService {
 
+    private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
+
     private static final String MODULE = "RECRUITMENT";
     private static final String ENTITY = "Application";
 
@@ -54,6 +63,7 @@ public class ApplicationService {
     private final CandidateRepository candidates;
     private final OfferRepository offers;
     private final EmployeeService employeeService;
+    private final ChecklistService checklistService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -63,6 +73,7 @@ public class ApplicationService {
                                CandidateRepository candidates,
                                OfferRepository offers,
                                EmployeeService employeeService,
+                               ChecklistService checklistService,
                                AuditService audit,
                                CurrentRequest currentRequest) {
         this.applications = applications;
@@ -71,6 +82,7 @@ public class ApplicationService {
         this.candidates = candidates;
         this.offers = offers;
         this.employeeService = employeeService;
+        this.checklistService = checklistService;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -237,6 +249,24 @@ public class ApplicationService {
                 Map.of("employeeId", created.getId().toString(),
                         "employeeNo", created.getEmployeeNo(),
                         "hireDate", hireDate.toString()));
+
+        // M159 — auto-start ONBOARDING checklist(s) for the new hire (§8.10.6).
+        // Non-fatal: if no active ONBOARDING template is configured the hire still
+        // succeeds; an error is logged and the HR team can start the checklist manually.
+        try {
+            List<TemplateResponse> onboardingTemplates =
+                    checklistService.templatesByFlow(ChecklistFlowType.ONBOARDING);
+            for (TemplateResponse tpl : onboardingTemplates) {
+                checklistService.start(new StartAssignmentRequest(
+                        tpl.id(), created.getId(), hireDate, "Auto-started on hire"));
+                log.info("Onboarding checklist '{}' started for employee {}",
+                        tpl.name(), created.getEmployeeNo());
+            }
+        } catch (Exception ex) {
+            log.error("Failed to auto-start onboarding checklist for employee {}: {}",
+                    created.getEmployeeNo(), ex.getMessage(), ex);
+        }
+
         return saved;
     }
 
