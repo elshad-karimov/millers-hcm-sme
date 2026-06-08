@@ -8,5 +8,7 @@ public enum ActionType {
     RETURN,
     COMMENT,
     CANCEL,
-    AUTO_APPROVE
+    AUTO_APPROVE,
+    /** M162: explicit hand-off of the current step to a named user. */
+    DELEGATE
 }

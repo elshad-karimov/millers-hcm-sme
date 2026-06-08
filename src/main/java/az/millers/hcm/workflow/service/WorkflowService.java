@@ -139,34 +139,36 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public List<WorkflowInstance> inboxFor(List<String> roles) {
         if (roles.isEmpty()) return List.of();
+
+        // M35: role-based candidates
         List<WorkflowInstance> candidates = instances.findByStatusAndCurrentStepRoleInOrderByInitiatedAtDesc(
                 WorkflowStatus.PENDING, roles);
 
-        // M35: for manager-resolved steps, ONLY the subject's direct
-        // manager sees the row in their inbox — not every user with
-        // ROLE_DEPARTMENT_MANAGER in the org. SYSTEM_ADMIN keeps its
-        // bypass (unrestricted callers skip the filter entirely below).
-        // The resolver runs even for unrestricted callers because the
-        // approver-narrowing is a semantic filter, not an ABAC one —
-        // an HR_ADMIN looking at the inbox doesn't want every team's
-        // pending leave to show up under their name either.
+        // M162: also include instances explicitly delegated to this user by username.
+        String myUsername = currentRequest.username();
+        List<WorkflowInstance> delegated = instances.findByStatusAndDelegatedToOrderByInitiatedAtDesc(
+                WorkflowStatus.PENDING, myUsername);
+
+        // Merge: delegated items take precedence; avoid duplicates.
+        java.util.Map<UUID, WorkflowInstance> merged = new java.util.LinkedHashMap<>();
+        for (WorkflowInstance d : delegated) merged.put(d.getId(), d);
+
         UUID myEmpId = currentEmployeeIdOrNull();
         boolean isSystemAdmin = roles.contains("ROLE_SYSTEM_ADMIN");
 
-        return candidates.stream()
+        candidates.stream()
                 .filter(i -> {
-                    // ABAC layer (M24/M26/M30): scope-bound subjects only.
                     if (!accessScope.isUnrestricted()
                             && !accessScope.isWorkflowSubjectAccessible(
                                     i.getSubjectEntity(), i.getSubjectId())) {
                         return false;
                     }
-                    // M35 layer: manager-resolved step narrows to the
-                    // subject's actual manager. SYSTEM_ADMIN bypasses.
                     if (isSystemAdmin) return true;
                     return matchesResolvedApprover(i, myEmpId);
                 })
-                .toList();
+                .forEach(i -> merged.putIfAbsent(i.getId(), i));
+
+        return List.copyOf(merged.values());
     }
 
     @Transactional(readOnly = true)
@@ -289,6 +291,7 @@ public class WorkflowService {
                 i.setCurrentStepIndex(next.getStepOrder());
                 i.setCurrentStepRole(next.getApproverRole());
                 i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — restart SLA timer for the new step
+                i.setDelegatedTo(null); // M162 — clear delegation when step advances
                 return instances.save(i);
             }
             case REJECT -> {
@@ -323,6 +326,30 @@ public class WorkflowService {
                 recordAction(saved, currentStep.getStepOrder(), currentStep.getName(),
                         ActionType.RETURN, req.comment());
                 publishCompleted(saved, req.comment());
+                return saved;
+            }
+            case DELEGATE -> {
+                // M162: explicit hand-off to a named user (PRD §9.3).
+                requireRole(myRoles, currentStep.getApproverRole(),
+                        "You don't have the role required to delegate this step");
+                requireResolvedApprover(i, currentStep, isAdmin,
+                        "Only the current approver can delegate this step");
+                if (!StringUtils.hasText(req.delegateTo())) {
+                    throw new BadRequestException("delegateTo is required for DELEGATE action");
+                }
+                String delegateTo = req.delegateTo().trim();
+                if (delegateTo.equals(actor)) {
+                    throw new BadRequestException("Cannot delegate to yourself");
+                }
+                i.setDelegatedTo(delegateTo);
+                WorkflowInstance saved = instances.save(i);
+                String note = StringUtils.hasText(req.comment())
+                        ? req.comment()
+                        : "Delegated to " + delegateTo;
+                recordAction(saved, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.DELEGATE, note);
+                log.info("Workflow {} step {} delegated by {} to {}",
+                        instanceId, currentStep.getName(), actor, delegateTo);
                 return saved;
             }
             default -> throw new BadRequestException(

@@ -16,6 +16,7 @@ export type WorkflowActionType =
   | 'COMMENT'
   | 'CANCEL'
   | 'AUTO_APPROVE'
+  | 'DELEGATE'
 
 export interface WorkflowInstance {
   id: string
@@ -32,6 +33,7 @@ export interface WorkflowInstance {
   initiatedAt: string
   completedAt?: string | null
   payload?: string | null
+  delegatedTo?: string | null
 }
 
 export interface WorkflowAction {
@@ -78,8 +80,8 @@ export const workflowApi = {
         params: { module, entity, id },
       })
       .then((r) => r.data),
-  act: (id: string, action: WorkflowActionType, comment?: string) =>
+  act: (id: string, action: WorkflowActionType, comment?: string, delegateTo?: string) =>
     api
-      .post<WorkflowInstance>(`/workflow/instances/${id}/actions`, { action, comment })
+      .post<WorkflowInstance>(`/workflow/instances/${id}/actions`, { action, comment, delegateTo })
       .then((r) => r.data),
 }

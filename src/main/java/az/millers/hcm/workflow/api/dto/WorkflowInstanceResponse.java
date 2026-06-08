@@ -20,7 +20,9 @@ public record WorkflowInstanceResponse(
         String initiatedBy,
         OffsetDateTime initiatedAt,
         OffsetDateTime completedAt,
-        String payload) {
+        String payload,
+        /** M162 — username this step has been manually delegated to, or null. */
+        String delegatedTo) {
 
     public static WorkflowInstanceResponse from(WorkflowInstance i) {
         return new WorkflowInstanceResponse(
@@ -37,6 +39,7 @@ public record WorkflowInstanceResponse(
                 i.getInitiatedBy(),
                 i.getInitiatedAt(),
                 i.getCompletedAt(),
-                i.getPayload());
+                i.getPayload(),
+                i.getDelegatedTo());
     }
 }

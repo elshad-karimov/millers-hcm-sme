@@ -73,6 +73,14 @@ public class WorkflowInstance {
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;
 
+    /**
+     * M162 — set when a DELEGATE action is taken; stores the username of the
+     * person this step has been explicitly handed off to.  Cleared when the
+     * step advances or the instance reaches a terminal state.
+     */
+    @Column(name = "delegated_to")
+    private String delegatedTo;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column
     private String payload;
