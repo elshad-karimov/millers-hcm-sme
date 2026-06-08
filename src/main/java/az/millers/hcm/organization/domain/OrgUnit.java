@@ -1,10 +1,13 @@
 package az.millers.hcm.organization.domain;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -93,6 +96,29 @@ public class OrgUnit {
     /** M81 — defaults to true; flips to false on logical decommissioning. */
     @Column(nullable = false)
     private boolean active = true;
+
+    /**
+     * M144 — fine-grained lifecycle state (§26). Derived {@link #active}
+     * is kept in sync: {@code false} only for {@code CLOSED}.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lifecycle_state", nullable = false, length = 20)
+    private OrgUnitLifecycleState lifecycleState = OrgUnitLifecycleState.ACTIVE;
+
+    @Column(name = "planned_open_date")
+    private LocalDate plannedOpenDate;
+
+    @Column(name = "closure_announced_date")
+    private LocalDate closureAnnouncedDate;
+
+    @Column(name = "closure_reason", columnDefinition = "text")
+    private String closureReason;
+
+    @Column(name = "closed_date")
+    private LocalDate closedDate;
+
+    @Column(name = "closed_by", length = 80)
+    private String closedBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

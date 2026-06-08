@@ -25,5 +25,7 @@ public record OrgUnitRequest(
         @Size(max = 64) String glAccount,
         @Min(value = 0, message = "headcountBudget must be ≥ 0") Integer headcountBudget,
         /** M81 — defaults to true; null on update keeps existing value. */
-        Boolean active) {
+        Boolean active,
+        /** M144 — lifecycle state; null on create defaults to ACTIVE. */
+        String lifecycleState) {
 }

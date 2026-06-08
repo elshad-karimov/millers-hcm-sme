@@ -392,6 +392,12 @@ public class OrgStructureService {
             clone.setGlAccount(src.getGlAccount());
             clone.setHeadcountBudget(src.getHeadcountBudget());
             clone.setActive(src.isActive());
+            clone.setLifecycleState(src.getLifecycleState());
+            clone.setPlannedOpenDate(src.getPlannedOpenDate());
+            clone.setClosureAnnouncedDate(src.getClosureAnnouncedDate());
+            clone.setClosureReason(src.getClosureReason());
+            clone.setClosedDate(src.getClosedDate());
+            clone.setClosedBy(src.getClosedBy());
             clone.setLegalEntityId(src.getLegalEntityId());
             // Parent set in second pass once we know mappings.
             OrgUnit saved = units.save(clone);
@@ -432,6 +438,13 @@ public class OrgStructureService {
         u.setHeadcountBudget(req.headcountBudget());
         // Boolean wrapper so null on update keeps existing value.
         if (req.active() != null) u.setActive(req.active());
+        // M144 — lifecycle state; null on create defaults to ACTIVE.
+        if (req.lifecycleState() != null) {
+            u.setLifecycleState(az.millers.hcm.organization.domain.OrgUnitLifecycleState
+                    .valueOf(req.lifecycleState()));
+        } else if (u.getLifecycleState() == null) {
+            u.setLifecycleState(az.millers.hcm.organization.domain.OrgUnitLifecycleState.ACTIVE);
+        }
     }
 
     private void requireDraft(StructureVersion v) {

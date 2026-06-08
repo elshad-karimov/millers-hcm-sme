@@ -41,6 +41,13 @@ export interface OrgUnitResponse {
   hrbpId?: string | null
   // M81 — finance / facilities attributes
   costCentreCode?: string | null
+  // M144 — lifecycle state
+  lifecycleState?: string | null
+  plannedOpenDate?: string | null
+  closureAnnouncedDate?: string | null
+  closureReason?: string | null
+  closedDate?: string | null
+  closedBy?: string | null
   location?: string | null
   contactEmail?: string | null
   glAccount?: string | null

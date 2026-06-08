@@ -24,6 +24,11 @@ import {
   type StructureVersion,
   type VersionStatus,
 } from '../api/org'
+import {
+  orgUnitLifecycleApi,
+  LIFECYCLE_COLOR,
+  type OrgUnitLifecycleState,
+} from '../api/orgUnitLifecycle'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
 import { brand } from '../theme'
@@ -349,6 +354,60 @@ export function OrgStructurePage() {
                       <Tag color={TYPE_COLOR[unit.unitType]}>{unit.unitType}</Tag>
                       <span style={{ fontWeight: 600 }}>{unit.name}</span>
                       <Typography.Text type="secondary">{unit.code}</Typography.Text>
+                      {unit.lifecycleState && unit.lifecycleState !== 'ACTIVE' && (
+                        <Tag color={LIFECYCLE_COLOR[unit.lifecycleState as OrgUnitLifecycleState]}>
+                          {unit.lifecycleState}
+                        </Tag>
+                      )}
+                      {selected?.status === 'ACTIVE' && (
+                        <Space size="small" style={{ marginLeft: 8 }}>
+                          {unit.lifecycleState === 'PLANNED' && (
+                            <Button size="small" onClick={async (e) => {
+                              e.stopPropagation()
+                              try {
+                                await orgUnitLifecycleApi.open(unit.id)
+                                if (selectedId) await loadVersionDetail(selectedId)
+                              } catch { message.error('Failed') }
+                            }}>Open</Button>
+                          )}
+                          {unit.lifecycleState === 'ACTIVE' && (
+                            <Button size="small" onClick={async (e) => {
+                              e.stopPropagation()
+                              try {
+                                await orgUnitLifecycleApi.announceClosure(unit.id, {})
+                                if (selectedId) await loadVersionDetail(selectedId)
+                              } catch { message.error('Failed') }
+                            }}>Announce closure</Button>
+                          )}
+                          {unit.lifecycleState === 'CLOSING' && (
+                            <>
+                              <Button size="small" onClick={async (e) => {
+                                e.stopPropagation()
+                                try {
+                                  await orgUnitLifecycleApi.cancelClosure(unit.id)
+                                  if (selectedId) await loadVersionDetail(selectedId)
+                                } catch { message.error('Failed') }
+                              }}>Cancel closure</Button>
+                              <Button size="small" danger onClick={async (e) => {
+                                e.stopPropagation()
+                                try {
+                                  await orgUnitLifecycleApi.close(unit.id, {})
+                                  if (selectedId) await loadVersionDetail(selectedId)
+                                } catch { message.error('Failed') }
+                              }}>Close</Button>
+                            </>
+                          )}
+                          {unit.lifecycleState === 'CLOSED' && (
+                            <Button size="small" onClick={async (e) => {
+                              e.stopPropagation()
+                              try {
+                                await orgUnitLifecycleApi.reopen(unit.id, {})
+                                if (selectedId) await loadVersionDetail(selectedId)
+                              } catch { message.error('Failed') }
+                            }}>Reopen</Button>
+                          )}
+                        </Space>
+                      )}
                       {treeIsEditable && (
                         <Space size="small" style={{ marginLeft: 8 }}>
                           <Button

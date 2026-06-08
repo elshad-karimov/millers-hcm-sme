@@ -72,6 +72,8 @@ public class OrgUnitHistory {
         MOVE,
         RENAME,
         HEAD_CHANGE,
-        POLICY_CHANGE
+        POLICY_CHANGE,
+        /** M144 — lifecycle state transition (§26). */
+        LIFECYCLE_CHANGE
     }
 }

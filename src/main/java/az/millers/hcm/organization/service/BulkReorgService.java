@@ -156,7 +156,7 @@ public class BulkReorgService {
                                 null,
                                 op.costCentreCode(), op.location(),
                                 op.contactEmail(), op.glAccount(),
-                                op.headcountBudget(), op.active());
+                                op.headcountBudget(), op.active(), null);
                         OrgUnit saved = orgService.addUnit(versionId, req);
                         byCode.put(saved.getCode(), saved);
                         rows.add(new RowResult(i, OperationKind.ADD, op.code(), true, "added"));
@@ -177,7 +177,9 @@ public class BulkReorgService {
                                 pickStr(op.contactEmail(), existing.getContactEmail()),
                                 pickStr(op.glAccount(), existing.getGlAccount()),
                                 op.headcountBudget() != null ? op.headcountBudget() : existing.getHeadcountBudget(),
-                                op.active());
+                                op.active(),
+                                existing.getLifecycleState() != null
+                                        ? existing.getLifecycleState().name() : null);
                         OrgUnit saved = orgService.updateUnit(existing.getId(), req);
                         byCode.put(saved.getCode(), saved);
                         rows.add(new RowResult(i, OperationKind.UPDATE, op.code(), true, "updated"));
@@ -199,7 +201,9 @@ public class BulkReorgService {
                                 existing.getContactEmail(),
                                 existing.getGlAccount(),
                                 existing.getHeadcountBudget(),
-                                existing.isActive());
+                                existing.isActive(),
+                                existing.getLifecycleState() != null
+                                        ? existing.getLifecycleState().name() : null);
                         OrgUnit saved = orgService.updateUnit(existing.getId(), req);
                         byCode.put(saved.getCode(), saved);
                         rows.add(new RowResult(i, OperationKind.MOVE, op.code(),

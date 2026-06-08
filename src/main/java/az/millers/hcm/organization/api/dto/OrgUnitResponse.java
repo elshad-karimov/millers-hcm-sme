@@ -1,8 +1,10 @@
 package az.millers.hcm.organization.api.dto;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import az.millers.hcm.organization.domain.OrgUnit;
+import az.millers.hcm.organization.domain.OrgUnitLifecycleState;
 
 public record OrgUnitResponse(
         UUID id,
@@ -23,7 +25,14 @@ public record OrgUnitResponse(
         String contactEmail,
         String glAccount,
         Integer headcountBudget,
-        boolean active) {
+        boolean active,
+        /** M144 — lifecycle state (§26). */
+        OrgUnitLifecycleState lifecycleState,
+        LocalDate plannedOpenDate,
+        LocalDate closureAnnouncedDate,
+        String closureReason,
+        LocalDate closedDate,
+        String closedBy) {
 
     public static OrgUnitResponse from(OrgUnit u) {
         return new OrgUnitResponse(
@@ -42,6 +51,12 @@ public record OrgUnitResponse(
                 u.getContactEmail(),
                 u.getGlAccount(),
                 u.getHeadcountBudget(),
-                u.isActive());
+                u.isActive(),
+                u.getLifecycleState(),
+                u.getPlannedOpenDate(),
+                u.getClosureAnnouncedDate(),
+                u.getClosureReason(),
+                u.getClosedDate(),
+                u.getClosedBy());
     }
 }
