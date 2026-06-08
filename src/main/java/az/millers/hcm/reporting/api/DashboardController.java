@@ -7,10 +7,12 @@ import java.util.UUID;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.reporting.DashboardMvRefreshJob;
 import az.millers.hcm.reporting.api.dto.DashboardDtos.ExecutiveDashboard;
 import az.millers.hcm.reporting.api.dto.DashboardDtos.HeadcountTrend;
 import az.millers.hcm.reporting.api.dto.DashboardDtos.ManagerTeamDashboard;
@@ -36,10 +38,13 @@ public class DashboardController {
 
     private final DashboardService svc;
     private final EmployeeContextService ctx;
+    private final DashboardMvRefreshJob refreshJob;
 
-    public DashboardController(DashboardService svc, EmployeeContextService ctx) {
+    public DashboardController(DashboardService svc, EmployeeContextService ctx,
+                                DashboardMvRefreshJob refreshJob) {
         this.svc = svc;
         this.ctx = ctx;
+        this.refreshJob = refreshJob;
     }
 
     // ------------------------------------------------------------------ //
@@ -96,5 +101,21 @@ public class DashboardController {
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','FINANCE_USER','AUDITOR')")
     public ExecutiveDashboard executive() {
         return svc.executive();
+    }
+
+    // ------------------------------------------------------------------ //
+    //  M177 — On-demand materialized-view refresh                        //
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Forces an immediate non-concurrent refresh of all dashboard MVs.
+     * Useful after a large batch operation (payroll run, bulk import) so
+     * dashboards reflect the new data without waiting for the nightly job.
+     * Restricted to System Admin and HR Admin.
+     */
+    @PostMapping("/refresh-mvs")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN')")
+    public void refreshMvs() {
+        refreshJob.refreshAll();
     }
 }
