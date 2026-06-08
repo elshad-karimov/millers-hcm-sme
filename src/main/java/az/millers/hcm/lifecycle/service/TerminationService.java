@@ -38,6 +38,7 @@ import az.millers.hcm.lifecycle.repo.ExitInterviewRepository;
 import az.millers.hcm.lifecycle.repo.TerminationRequestRepository;
 import az.millers.hcm.payroll.domain.EmployeeCompensation;
 import az.millers.hcm.payroll.repo.EmployeeCompensationRepository;
+import az.millers.hcm.payroll.service.FinalSettlementService;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.service.StaffingService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
@@ -69,6 +70,7 @@ public class TerminationService {
     private final LeaveTypeRepository leaveTypes;
     private final LeaveBalanceRepository leaveBalances;
     private final EmployeeCompensationRepository compensations;
+    private final FinalSettlementService finalSettlement;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final EmployeeHistoryService historyService;
@@ -81,6 +83,7 @@ public class TerminationService {
                               LeaveTypeRepository leaveTypes,
                               LeaveBalanceRepository leaveBalances,
                               EmployeeCompensationRepository compensations,
+                              FinalSettlementService finalSettlement,
                               AuditService audit,
                               CurrentRequest currentRequest,
                               EmployeeHistoryService historyService) {
@@ -92,6 +95,7 @@ public class TerminationService {
         this.leaveTypes = leaveTypes;
         this.leaveBalances = leaveBalances;
         this.compensations = compensations;
+        this.finalSettlement = finalSettlement;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.historyService = historyService;
@@ -256,6 +260,26 @@ public class TerminationService {
         t.setFinalSettlementAmount(finalSettlement);
         t.setCurrency(currency);
         t.setPayoutCalcDetails(calcDetails);
+
+        // ---- Payroll integration: create FINAL_SETTLEMENT run (PRD §8.11.4) ----
+        try {
+            this.finalSettlement.createRun(
+                    t.getId(),
+                    employee.getId(),
+                    t.getEffectiveDate(),
+                    finalSettlement,
+                    unusedLeavePayout,
+                    severance,
+                    currency,
+                    "AZ",
+                    t.getTerminationNo());
+        } catch (Exception ex) {
+            // Payroll run creation must not block the termination processing.
+            log.warn("Failed to create final-settlement payroll run for {}: {}",
+                    t.getTerminationNo(), ex.getMessage());
+            calcDetails.put("payrollRunError", ex.getMessage());
+            t.setPayoutCalcDetails(calcDetails);
+        }
 
         // ---- Employee status flip ----
         EmploymentStatus oldStatus = employee.getEmploymentStatus();

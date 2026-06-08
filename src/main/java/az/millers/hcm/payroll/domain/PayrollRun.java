@@ -12,14 +12,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "payroll_run", schema = "payroll",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"period_year", "period_month", "jurisdiction"}))
+@Table(name = "payroll_run", schema = "payroll")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,6 +28,14 @@ public class PayrollRun {
 
     @Column(name = "run_no", nullable = false, unique = true)
     private String runNo;
+
+    /** REGULAR (default) or FINAL_SETTLEMENT (one per terminated employee). */
+    @Column(name = "run_type", nullable = false, length = 30)
+    private String runType = "REGULAR";
+
+    /** Set for FINAL_SETTLEMENT runs; links back to the originating termination. */
+    @Column(name = "termination_id")
+    private UUID terminationId;
 
     @Column(name = "period_year", nullable = false)
     private int periodYear;

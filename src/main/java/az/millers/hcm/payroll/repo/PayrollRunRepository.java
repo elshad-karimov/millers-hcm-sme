@@ -17,5 +17,7 @@ public interface PayrollRunRepository extends JpaRepository<PayrollRun, UUID> {
     Optional<PayrollRun> findByPeriodYearAndPeriodMonthAndJurisdiction(
             int year, int month, String jurisdiction);
 
+    Optional<PayrollRun> findByTerminationId(UUID terminationId);
+
     List<PayrollRun> findAllByOrderByPeriodYearDescPeriodMonthDesc();
 }
