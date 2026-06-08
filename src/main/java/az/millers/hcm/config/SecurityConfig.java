@@ -65,6 +65,14 @@ public class SecurityConfig {
                         // returns only non-PII fields (status, request_no,
                         // issued date) so it's safe for third parties.
                         .requestMatchers("/api/public/letters/verify/**").permitAll()
+                        // M170 — Swagger UI + OpenAPI JSON; unauthenticated access is
+                        // acceptable because the spec reveals no sensitive data and the
+                        // Authorize button in the UI accepts a Keycloak Bearer token.
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 // M120 — recognise X-API-Key BEFORE the bearer-token filter. A

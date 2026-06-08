@@ -250,3 +250,14 @@ otel:
 logging:
   level:
     az.millers.hcm: DEBUG
+
+# M170 (PRD §13): OpenAPI / Swagger UI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: alpha
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  show-actuator: false
