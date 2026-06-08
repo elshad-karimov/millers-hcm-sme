@@ -336,3 +336,85 @@ export const learningApi = {
   gapAnalysis: (employeeId: string) =>
     api.get<GapItem[]>(`/learning/employees/${employeeId}/gap-analysis`).then((r) => r.data),
 }
+
+// ── M157: Training Plans (§8.14.2) ───────────────────────────────────────────
+
+export type TrainingPlanType = 'DEPARTMENT' | 'ANNUAL' | 'COMPLIANCE' | 'CAREER_PATH'
+export type TrainingPlanStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
+
+export interface TrainingPlanItemResponse {
+  id: string
+  courseId: string
+  courseTitle?: string | null
+  courseCode?: string | null
+  dueDate?: string | null
+  positionId?: string | null
+  notes?: string | null
+  sortOrder: number
+}
+
+export interface TrainingPlanResponse {
+  id: string
+  planNo: string
+  name: string
+  description?: string | null
+  planType: TrainingPlanType
+  status: TrainingPlanStatus
+  orgUnitId?: string | null
+  fiscalYear?: number | null
+  deadline?: string | null
+  ownerId?: string | null
+  createdBy?: string | null
+  createdAt: string
+  activatedAt?: string | null
+  completedAt?: string | null
+  enrolledCount: number
+  completedCount: number
+  items: TrainingPlanItemResponse[]
+}
+
+export interface TrainingPlanRequest {
+  name: string
+  description?: string
+  planType: TrainingPlanType
+  orgUnitId?: string
+  fiscalYear?: number
+  deadline?: string
+  ownerId?: string
+}
+
+export interface TrainingPlanItemRequest {
+  courseId: string
+  dueDate?: string
+  positionId?: string
+  notes?: string
+  sortOrder?: number
+}
+
+export interface EnrollAllResult {
+  enrolled: number
+  skipped: number
+}
+
+export const trainingPlanApi = {
+  list: (status?: string) =>
+    api.get<TrainingPlanResponse[]>('/learning/training-plans', { params: status ? { status } : {} }).then((r) => r.data),
+  get: (id: string) =>
+    api.get<TrainingPlanResponse>(`/learning/training-plans/${id}`).then((r) => r.data),
+  create: (body: TrainingPlanRequest) =>
+    api.post<TrainingPlanResponse>('/learning/training-plans', body).then((r) => r.data),
+  update: (id: string, body: TrainingPlanRequest) =>
+    api.put<TrainingPlanResponse>(`/learning/training-plans/${id}`, body).then((r) => r.data),
+  addItem: (planId: string, body: TrainingPlanItemRequest) =>
+    api.post<TrainingPlanResponse>(`/learning/training-plans/${planId}/items`, body).then((r) => r.data),
+  removeItem: (planId: string, itemId: string) =>
+    api.delete(`/learning/training-plans/${planId}/items/${itemId}`),
+  activate: (id: string) =>
+    api.post<TrainingPlanResponse>(`/learning/training-plans/${id}/activate`).then((r) => r.data),
+  complete: (id: string) =>
+    api.post<TrainingPlanResponse>(`/learning/training-plans/${id}/complete`).then((r) => r.data),
+  archive: (id: string) =>
+    api.post<TrainingPlanResponse>(`/learning/training-plans/${id}/archive`).then((r) => r.data),
+  enrollAll: (id: string) =>
+    api.post<EnrollAllResult>(`/learning/training-plans/${id}/enroll-all`).then((r) => r.data),
+}

@@ -68,6 +68,7 @@ import { CourseFormPage } from './pages/CourseFormPage'
 import { CourseDetailPage } from './pages/CourseDetailPage'
 import { MyLearningPage } from './pages/MyLearningPage'
 import { LearningPathsPage } from './pages/LearningPathsPage'
+import { TrainingPlansPage } from './pages/TrainingPlansPage'
 import { CertificatesPage } from './pages/CertificatesPage'
 import { CompetenciesPage } from './pages/CompetenciesPage'
 import { BonusMatrixPage } from './pages/BonusMatrixPage'
@@ -270,6 +271,8 @@ export default function App() {
           <Route path="learning/paths" element={<LearningPathsPage />} />
           <Route path="learning/certificates" element={<CertificatesPage />} />
           <Route path="learning/competencies" element={<CompetenciesPage />} />
+          {/* M157 — Training plans */}
+          <Route path="learning/training-plans" element={<TrainingPlansPage />} />
 
           {/* Approvals inbox */}
           <Route path="inbox" element={<InboxPage />} />
