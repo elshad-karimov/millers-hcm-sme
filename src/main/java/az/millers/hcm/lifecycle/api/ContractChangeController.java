@@ -60,4 +60,12 @@ public class ContractChangeController {
     public ContractChangeResponse submit(@Valid @RequestBody ContractChangeSubmitRequest req) {
         return ContractChangeResponse.from(service.submit(req));
     }
+
+    /** M215 — HR can cancel a pending contract change directly. */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    public ContractChangeResponse cancel(@PathVariable UUID id,
+                                          @RequestParam(required = false) String reason) {
+        return ContractChangeResponse.from(service.onCancelled(id, reason));
+    }
 }
