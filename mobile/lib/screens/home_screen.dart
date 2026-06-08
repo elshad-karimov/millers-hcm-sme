@@ -6,6 +6,11 @@ import 'leave_screen.dart';
 import 'payslip_screen.dart';
 import 'approvals_screen.dart';
 import 'profile_screen.dart';
+import 'timesheet_screen.dart';
+import 'training_screen.dart';
+import 'requests_screen.dart';
+import 'goals_screen.dart';
+import 'team_screen.dart';
 
 const Color brandColor = Color(0xFF5B3FE5);
 
@@ -39,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> get _pages => [
         _HomeTab(onReload: _loadApprovalCount),
         const LeaveScreen(),
+        const TimesheetScreen(),
         const PayslipScreen(),
         ApprovalsScreen(onCountChanged: (c) {
           if (mounted) setState(() => _approvalCount = c);
@@ -67,6 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedIcon:
                 Icon(Icons.event_available_rounded, color: brandColor),
             label: 'Leave',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded, color: brandColor),
+            label: 'Timesheet',
           ),
           const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
@@ -246,12 +257,70 @@ class _HomeTabContent extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _QuickActionCard(
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Timesheet',
+                  color: Colors.indigo.shade600,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TimesheetScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
                   icon: Icons.receipt_long_rounded,
                   label: 'My Payslips',
                   color: Colors.teal.shade700,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const PayslipScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.school_rounded,
+                  label: 'Training',
+                  color: Colors.purple.shade600,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TrainingScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.flight_takeoff_rounded,
+                  label: 'Requests',
+                  color: Colors.cyan.shade700,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const RequestsScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.track_changes_rounded,
+                  label: 'Goals',
+                  color: Colors.green.shade700,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const GoalsScreen()),
                   ),
                 ),
               ),
