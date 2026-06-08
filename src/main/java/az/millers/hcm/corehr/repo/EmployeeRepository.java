@@ -216,4 +216,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
             """,
             nativeQuery = true)
     java.util.List<UUID> descendantsIncluding(java.util.UUID root);
+
+    /**
+     * M145 — headcount per org unit for active employees.
+     * Returns {@code Object[2]} rows: {@code [0] = orgUnitId (UUID)},
+     * {@code [1] = count (Long)}.
+     */
+    @Query("SELECT e.orgUnitId, COUNT(e) FROM Employee e WHERE e.employmentStatus = :status AND e.orgUnitId IS NOT NULL GROUP BY e.orgUnitId")
+    java.util.List<Object[]> countByOrgUnitIdAndEmploymentStatus(EmploymentStatus status);
 }

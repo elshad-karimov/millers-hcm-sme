@@ -90,6 +90,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/personal-info-changes', module: 'personal-info', screen: 'personal-info-queue' },
   { prefix: '/reports/emp-mgmt', module: 'reports', screen: 'reports-emp-mgmt' },
   { prefix: '/reports/span-of-control', module: 'reports', screen: 'reports-span' },
+  { prefix: '/reports/org', module: 'reports', screen: 'reports-org' },
   { prefix: '/activity', module: 'reports', screen: 'activity-feed' },
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
@@ -719,6 +720,12 @@ export function AppLayout() {
                 key: 'reports-span',
                 icon: <ApartmentOutlined />,
                 label: <Link to="/reports/span-of-control">Span of control</Link>,
+              },
+              // M145 org-native reports.
+              {
+                key: 'reports-org',
+                icon: <ApartmentOutlined />,
+                label: <Link to="/reports/org">Org reports</Link>,
               },
               ...(isHR || isAdminOrAuditor
                 ? [

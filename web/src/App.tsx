@@ -86,6 +86,7 @@ import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { HrPartnersPage } from './pages/HrPartnersPage'
 import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
+import { OrgNativeReportsPage } from './pages/OrgNativeReportsPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { MySurveysPage } from './pages/MySurveysPage'
 import { SurveysAdminPage } from './pages/SurveysAdminPage'
@@ -207,6 +208,8 @@ export default function App() {
           {/* Employee-Management reports (M80) — scope-restricted in service */}
           <Route path="reports/emp-mgmt" element={<EmployeeManagementReportsPage />} />
           <Route path="reports/span-of-control" element={<SpanOfControlPage />} />
+          {/* M145 — org-native reports */}
+          <Route path="reports/org" element={<OrgNativeReportsPage />} />
 
           {/* Time & Attendance */}
           <Route path="attendance/schedules" element={<AttendanceSchedulesPage />} />
