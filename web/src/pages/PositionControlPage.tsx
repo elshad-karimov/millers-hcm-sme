@@ -1,15 +1,21 @@
 // M109 — Position control dashboard.
 // Shows per-position approved/occupied/open-vacancy counts, with over-budget
 // and drift flags. HR_ADMIN can trigger an immediate reconciliation pass.
+// M156 — Headcount change request workflow tab added.
 
 import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   App as AntdApp,
+  Badge,
   Button,
   Card,
   Col,
   Empty,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
   Popconfirm,
   Progress,
   Row,
@@ -25,7 +31,10 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   headcountApi,
+  hcrApi,
+  type HeadcountChangeResponse,
   type HeadcountSummary,
+  type HcrStatus,
   type OrgUnitRoll,
   type PositionHeadcountRow,
   type VacancyState,
@@ -34,6 +43,13 @@ import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
 const { Title, Text } = Typography
+
+const HCR_STATUS_COLOR: Record<HcrStatus, string> = {
+  PENDING: 'gold',
+  APPROVED: 'green',
+  REJECTED: 'red',
+  WITHDRAWN: 'default',
+}
 
 const STATE_COLOR: Record<VacancyState, string> = {
   PLANNED: 'default',
@@ -53,11 +69,21 @@ export function PositionControlPage() {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
   const canReconcile = hasRole(...RoleSets.HR_ADMIN_WRITE)
+  const canSubmitHcr = hasRole(...RoleSets.HR_PLUS_MANAGERS_WRITE)
 
   const [data, setData] = useState<HeadcountSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [reconciling, setReconciling] = useState(false)
   const [filterOverBudget, setFilterOverBudget] = useState(false)
+
+  // HCR state
+  const [pendingHcrs, setPendingHcrs] = useState<HeadcountChangeResponse[]>([])
+  const [hcrLoading, setHcrLoading] = useState(false)
+  const [submitModalOpen, setSubmitModalOpen] = useState(false)
+  const [submitTargetId, setSubmitTargetId] = useState<string | null>(null)
+  const [submitTargetLabel, setSubmitTargetLabel] = useState('')
+  const [submitLoading, setSubmitLoading] = useState(false)
+  const [hcrForm] = Form.useForm<{ requestedDelta: number; reason?: string }>()
 
   const load = () => {
     setLoading(true)
@@ -68,7 +94,40 @@ export function PositionControlPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() /* eslint-disable-next-line */ }, [])
+  const loadPendingHcrs = () => {
+    setHcrLoading(true)
+    hcrApi.listPending()
+      .then(setPendingHcrs)
+      .catch(() => {/* non-fatal */})
+      .finally(() => setHcrLoading(false))
+  }
+
+  useEffect(() => { load(); loadPendingHcrs() /* eslint-disable-next-line */ }, [])
+
+  const openSubmitModal = (row: PositionHeadcountRow) => {
+    setSubmitTargetId(row.positionId)
+    setSubmitTargetLabel(`${row.code} — ${row.title}`)
+    hcrForm.resetFields()
+    setSubmitModalOpen(true)
+  }
+
+  const handleSubmitHcr = async () => {
+    const values = await hcrForm.validateFields()
+    if (!submitTargetId) return
+    setSubmitLoading(true)
+    try {
+      await hcrApi.submit(submitTargetId, values)
+      message.success('Headcount change request submitted.')
+      setSubmitModalOpen(false)
+      loadPendingHcrs()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Submit failed',
+      )
+    } finally {
+      setSubmitLoading(false)
+    }
+  }
 
   const runReconcile = async () => {
     setReconciling(true)
@@ -174,6 +233,54 @@ export function PositionControlPage() {
           {r.driftDetected && <Tag color="orange">drift</Tag>}
         </Space>
       ),
+    },
+    ...(canSubmitHcr
+      ? [
+          {
+            title: '',
+            width: 80,
+            render: (_: unknown, r: PositionHeadcountRow) => (
+              <Button size="small" onClick={() => openSubmitModal(r)}>
+                Request
+              </Button>
+            ),
+          } as ColumnsType<PositionHeadcountRow>[number],
+        ]
+      : []),
+  ]
+
+  const pendingHcrCols: ColumnsType<HeadcountChangeResponse> = [
+    {
+      title: 'Position',
+      dataIndex: 'positionId',
+      render: (v: string) => {
+        const row = data?.rows.find((r) => r.positionId === v)
+        return row ? `${row.code} — ${row.title}` : v
+      },
+    },
+    {
+      title: 'Delta',
+      dataIndex: 'requestedDelta',
+      width: 80,
+      render: (v: number) => (
+        <Text type={v > 0 ? 'success' : 'danger'} strong>
+          {v > 0 ? `+${v}` : v}
+        </Text>
+      ),
+    },
+    { title: 'Reason', dataIndex: 'reason', render: (v) => v ?? <Text type="secondary">—</Text> },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: HcrStatus) => <Tag color={HCR_STATUS_COLOR[v]}>{v}</Tag>,
+    },
+    { title: 'Requested by', dataIndex: 'requestedBy', width: 140 },
+    {
+      title: 'Requested at',
+      dataIndex: 'requestedAt',
+      width: 160,
+      render: (v: string) => v ? new Date(v).toLocaleString() : '—',
     },
   ]
 
@@ -320,8 +427,61 @@ export function PositionControlPage() {
               </Card>
             ),
           },
+          {
+            key: 'change-requests',
+            label: (
+              <Badge count={pendingHcrs.length} size="small" offset={[6, -2]}>
+                Change requests
+              </Badge>
+            ),
+            children: (
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+                  <Button size="small" onClick={loadPendingHcrs}>Refresh</Button>
+                </Space>
+                <Card>
+                  <Table
+                    rowKey="id"
+                    columns={pendingHcrCols}
+                    dataSource={pendingHcrs}
+                    loading={hcrLoading}
+                    size="small"
+                    pagination={{ pageSize: 20 }}
+                    locale={{ emptyText: 'No pending headcount change requests.' }}
+                  />
+                </Card>
+              </Space>
+            ),
+          },
         ]}
       />
+
+      <Modal
+        title={`Request headcount change — ${submitTargetLabel}`}
+        open={submitModalOpen}
+        onCancel={() => setSubmitModalOpen(false)}
+        onOk={handleSubmitHcr}
+        confirmLoading={submitLoading}
+        okText="Submit request"
+        destroyOnClose
+      >
+        <Form form={hcrForm} layout="vertical">
+          <Form.Item
+            name="requestedDelta"
+            label="Delta (positive = increase, negative = decrease)"
+            rules={[
+              { required: true, message: 'Delta is required' },
+              { type: 'integer', message: 'Must be a whole number' },
+              { validator: (_, v) => v !== 0 ? Promise.resolve() : Promise.reject('Delta must not be zero') },
+            ]}
+          >
+            <InputNumber style={{ width: '100%' }} min={-500} max={500} />
+          </Form.Item>
+          <Form.Item name="reason" label="Reason / justification">
+            <Input.TextArea rows={3} maxLength={2000} showCount placeholder="Business justification (optional)" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   )
 }
