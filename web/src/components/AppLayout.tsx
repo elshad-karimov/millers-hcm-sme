@@ -63,6 +63,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/organization/locations', module: 'people', screen: 'locations' },
   { prefix: '/organization/hr-partners', module: 'people', screen: 'hr-partners' },
   { prefix: '/organization/unit-types', module: 'people', screen: 'unit-types' },
+  { prefix: '/organization/documents', module: 'people', screen: 'org-documents' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
   { prefix: '/positions', module: 'people', screen: 'positions' },
@@ -261,6 +262,12 @@ export function AppLayout() {
                 key: 'unit-types',
                 icon: <AppstoreOutlined />,
                 label: <Link to="/organization/unit-types">Unit types</Link>,
+              },
+              {
+                // M147 — org unit documents + expiry
+                key: 'org-documents',
+                icon: <FileTextOutlined />,
+                label: <Link to="/organization/documents">Unit documents</Link>,
               },
               {
                 key: 'positions',

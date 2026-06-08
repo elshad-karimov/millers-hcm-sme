@@ -87,6 +87,7 @@ import { LocationsPage } from './pages/LocationsPage'
 import { HrPartnersPage } from './pages/HrPartnersPage'
 import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
 import { OrgNativeReportsPage } from './pages/OrgNativeReportsPage'
+import { OrgUnitDocumentsPage } from './pages/OrgUnitDocumentsPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { MySurveysPage } from './pages/MySurveysPage'
 import { SurveysAdminPage } from './pages/SurveysAdminPage'
@@ -185,6 +186,8 @@ export default function App() {
         <Route path="organization/hr-partners" element={<HrPartnersPage />} />
         {/* M143 — configurable org unit types */}
         <Route path="organization/unit-types" element={<OrgUnitTypesPage />} />
+        {/* M147 — org unit documents + expiry */}
+        <Route path="organization/documents" element={<OrgUnitDocumentsPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />
