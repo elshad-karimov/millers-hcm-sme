@@ -6,6 +6,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import az.millers.hcm.common.expiry.ExpiryTrackable;
+
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -19,7 +21,7 @@ import java.util.UUID;
 @Entity
 @Table(schema = "learning", name = "idp")
 @Getter @Setter
-public class Idp {
+public class Idp implements ExpiryTrackable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -56,4 +58,17 @@ public class Idp {
 
     @OneToMany(mappedBy = "idp", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<IdpActivity> activities = new ArrayList<>();
+
+    // ── ExpiryTrackable ──────────────────────────────────────────────────────
+
+    @Override
+    public LocalDate getExpiryDate() { return targetDate; }
+
+    @Override
+    public String getEntityLabel() { return "IDP Deadline"; }
+
+    @Override
+    public String getDisplayName() {
+        return targetRole == null ? "(no target role)" : targetRole;
+    }
 }
