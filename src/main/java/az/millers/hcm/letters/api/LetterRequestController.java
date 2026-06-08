@@ -19,12 +19,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import az.millers.hcm.common.PageResponse;
 import az.millers.hcm.letters.api.dto.LetterRequestResponse;
 import az.millers.hcm.letters.api.dto.LetterSubmitRequest;
 import az.millers.hcm.letters.domain.LetterStatus;
 import az.millers.hcm.letters.repo.LetterTemplateRepository;
 import az.millers.hcm.letters.service.LetterRequestService;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
 import jakarta.validation.Valid;
 
 @RestController
@@ -33,11 +36,14 @@ public class LetterRequestController {
 
     private final LetterRequestService service;
     private final LetterTemplateRepository templateRepo;
+    private final EmployeeContextService context;
 
     public LetterRequestController(LetterRequestService service,
-                                    LetterTemplateRepository templateRepo) {
+                                    LetterTemplateRepository templateRepo,
+                                    EmployeeContextService context) {
         this.service = service;
         this.templateRepo = templateRepo;
+        this.context = context;
     }
 
     /**
@@ -65,6 +71,30 @@ public class LetterRequestController {
     @PreAuthorize(SecurityRoles.WRITE_HR)
     public LetterRequestResponse create(@Valid @RequestBody LetterSubmitRequest req) {
         return LetterRequestResponse.from(service.submit(req));
+    }
+
+    /**
+     * Self-service: employee requests a letter for themselves.
+     * {@code employeeId} in the body is ignored and replaced with the
+     * caller's own employee ID (M77 — PRD §8.10 self-service shortcut).
+     */
+    @PostMapping("/my-request")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public LetterRequestResponse myRequest(
+            @Valid @RequestBody LetterSubmitRequest req) {
+        UUID selfId = context.currentEmployee().getId();
+        LetterSubmitRequest selfReq = new LetterSubmitRequest(
+                selfId, req.templateId(), req.purpose(), req.customFields());
+        return LetterRequestResponse.from(service.submit(selfReq));
+    }
+
+    /** Self-service: employee's own letter history. */
+    @GetMapping("/mine")
+    @PreAuthorize("isAuthenticated()")
+    public List<LetterRequestResponse> mine() {
+        UUID selfId = context.currentEmployee().getId();
+        return service.mine(selfId).stream().map(LetterRequestResponse::from).toList();
     }
 
     /**
