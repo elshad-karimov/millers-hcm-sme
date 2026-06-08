@@ -12,6 +12,8 @@ import az.millers.hcm.attendance.domain.AttendanceEvent;
 
 public interface AttendanceEventRepository extends JpaRepository<AttendanceEvent, UUID> {
 
+    boolean existsByEmployeeIdAndEventTime(UUID employeeId, OffsetDateTime eventTime);
+
     List<AttendanceEvent> findByEmployeeIdAndEventTimeBetweenOrderByEventTimeAsc(
             UUID employeeId, OffsetDateTime from, OffsetDateTime to);
 
