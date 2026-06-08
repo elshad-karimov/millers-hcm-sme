@@ -11,6 +11,8 @@ import jakarta.validation.constraints.Size;
 
 public record PositionRequest(
         @NotBlank @Size(max = 200) String title,
+        /** M146 / §8 — optional parent in the position hierarchy. */
+        UUID parentPositionId,
         UUID orgUnitId,
         @Size(max = 200) String orgUnitLabel,
         @Size(max = 32) String grade,

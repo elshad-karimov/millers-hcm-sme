@@ -33,6 +33,13 @@ public class Position {
     @Column(nullable = false)
     private String title;
 
+    /**
+     * M146 / §8 — optional parent position forming a position hierarchy.
+     * Self-FK; null for root-level positions.
+     */
+    @Column(name = "parent_position_id")
+    private UUID parentPositionId;
+
     /** Soft reference into {@code organization.org_unit}. Not a hard FK because
      *  org units are version-scoped while positions live across versions. */
     @Column(name = "org_unit_id")

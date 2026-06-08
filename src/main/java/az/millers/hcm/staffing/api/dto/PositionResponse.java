@@ -13,6 +13,8 @@ public record PositionResponse(
         UUID id,
         String code,
         String title,
+        /** M146 / §8 — parent position in the hierarchy; null for root. */
+        UUID parentPositionId,
         UUID orgUnitId,
         String orgUnitLabel,
         String grade,
@@ -42,6 +44,7 @@ public record PositionResponse(
                 p.getId(),
                 p.getCode(),
                 p.getTitle(),
+                p.getParentPositionId(),
                 p.getOrgUnitId(),
                 p.getOrgUnitLabel(),
                 p.getGrade(),

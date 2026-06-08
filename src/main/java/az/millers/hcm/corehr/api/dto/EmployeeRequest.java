@@ -63,6 +63,8 @@ public record EmployeeRequest(
         UUID payrollGroupId,
         /** M75 / P2-21. Dotted-line manager — informational, not consumed by workflow engine. */
         UUID matrixManagerId,
+        /** M146 / §9. Functional manager — informational, not consumed by workflow engine. */
+        UUID functionalManagerId,
         /** M78 / P2-15. Null defaults to true on create / preserves existing on update. */
         Boolean rehireEligible,
         // ── M132 — Section 1 cosmetic completion ────────────────────────

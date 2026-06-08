@@ -253,6 +253,16 @@ public class Employee {
     private UUID matrixManagerId;
 
     /**
+     * M146 / §9 — functional manager: the manager in a functional or project
+     * line of authority. Distinct from {@link #managerId} (line manager driving
+     * approval workflows), {@link #matrixManagerId} (dotted-line, informational)
+     * and {@link #delegateManagerId} (temporary stand-in). Informational only —
+     * not consumed by the workflow engine.
+     */
+    @Column(name = "functional_manager_id")
+    private UUID functionalManagerId;
+
+    /**
      * Acting / delegate manager (PRD 9 / 14.9 — M37). When non-null
      * AND today() ∈ [delegateFrom, delegateTo], the workflow engine
      * routes approval tasks normally bound for THIS employee to the

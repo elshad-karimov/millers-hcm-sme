@@ -261,6 +261,12 @@ public class EmployeeService {
             throw new BadRequestException("An employee cannot be their own matrix manager");
         }
         employee.setMatrixManagerId(matrixMgr);
+        // M146 / §9 — functional manager (informational, no workflow effect).
+        UUID funcMgr = request.functionalManagerId();
+        if (funcMgr != null && funcMgr.equals(employee.getId())) {
+            throw new BadRequestException("An employee cannot be their own functional manager");
+        }
+        employee.setFunctionalManagerId(funcMgr);
         // M78 / P2-15 — keep the existing value on update when the caller
         // doesn't supply one (Boolean object so null = "don't touch").
         if (request.rehireEligible() != null) {

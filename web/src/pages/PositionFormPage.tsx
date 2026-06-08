@@ -7,6 +7,7 @@ import {
   Input,
   InputNumber,
   Row,
+  Select,
   Space,
   Spin,
   App as AntdApp,
@@ -18,6 +19,7 @@ import { FormPageShell } from '../components/FormPageShell'
 
 interface FormValues {
   title: string
+  parentPositionId?: string
   orgUnitLabel?: string
   grade?: string
   jobFamily?: string
@@ -44,6 +46,13 @@ export function PositionFormPage() {
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
+  const [positionOptions, setPositionOptions] = useState<{ value: string; label: string }[]>([])
+
+  useEffect(() => {
+    positionsApi.list({ size: 500 }).then((r) => {
+      setPositionOptions(r.content.map((p) => ({ value: p.id, label: `${p.code} — ${p.title}` })))
+    })
+  }, [])
 
   useEffect(() => {
     if (!editing) {
@@ -56,6 +65,7 @@ export function PositionFormPage() {
       .then((p: Position) => {
         form.setFieldsValue({
           title: p.title,
+          parentPositionId: p.parentPositionId ?? undefined,
           orgUnitLabel: p.orgUnitLabel ?? undefined,
           grade: p.grade ?? undefined,
           jobFamily: p.jobFamily ?? undefined,
@@ -114,6 +124,15 @@ export function PositionFormPage() {
         <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
           <Form.Item name="title" label="Title" rules={[{ required: true, max: 200 }]}>
             <Input />
+          </Form.Item>
+          <Form.Item name="parentPositionId" label="Parent position">
+            <Select
+              allowClear
+              showSearch
+              placeholder="None (root position)"
+              optionFilterProp="label"
+              options={positionOptions.filter((o) => o.value !== id)}
+            />
           </Form.Item>
           <Form.Item name="orgUnitLabel" label="Department / Unit" rules={[{ max: 200 }]}>
             <Input placeholder="e.g. Engineering · Platform" />

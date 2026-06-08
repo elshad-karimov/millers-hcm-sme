@@ -166,6 +166,11 @@ public class StaffingService {
 
     private void applyRequest(Position p, PositionRequest req) {
         p.setTitle(req.title());
+        // M146 / §8 — position hierarchy; guard against self-reference.
+        if (req.parentPositionId() != null && req.parentPositionId().equals(p.getId())) {
+            throw new BadRequestException("A position cannot be its own parent");
+        }
+        p.setParentPositionId(req.parentPositionId());
         p.setOrgUnitId(req.orgUnitId());
         p.setOrgUnitLabel(req.orgUnitLabel());
         p.setGrade(req.grade());

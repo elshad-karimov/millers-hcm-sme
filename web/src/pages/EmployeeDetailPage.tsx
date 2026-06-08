@@ -653,6 +653,9 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Matrix manager">
         {employee.matrixManagerId ?? '—'}
       </Descriptions.Item>
+      <Descriptions.Item label="Functional manager">
+        {employee.functionalManagerId ?? '—'}
+      </Descriptions.Item>
       <Descriptions.Item label="Rehire eligible">
         {employee.rehireEligible === false
           ? <Tag color="red">NO</Tag>

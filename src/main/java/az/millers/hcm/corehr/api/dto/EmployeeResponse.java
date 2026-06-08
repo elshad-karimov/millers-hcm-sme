@@ -45,6 +45,8 @@ public record EmployeeResponse(
         UUID payrollGroupId,
         /** M75 / P2-21. Dotted-line manager. */
         UUID matrixManagerId,
+        /** M146 / §9. Functional manager. */
+        UUID functionalManagerId,
         /** M78 / P2-15. Rehire-eligible flag — defaults to true. */
         boolean rehireEligible,
         /** M78 / P2-15. Soft self-FK when this row was created via the rehire flow. */
@@ -102,6 +104,7 @@ public record EmployeeResponse(
                 e.getLeaveGroupId(),
                 e.getPayrollGroupId(),
                 e.getMatrixManagerId(),
+                e.getFunctionalManagerId(),
                 e.isRehireEligible(),
                 e.getPreviousEmployeeId(),
                 e.getRehireReason(),

@@ -68,6 +68,8 @@ export interface Employee {
   payrollGroupId?: string | null
   /** M75 / P2-21 — dotted-line manager (informational) */
   matrixManagerId?: string | null
+  /** M146 / §9 — functional manager (informational) */
+  functionalManagerId?: string | null
   /** M78 / P2-15 — rehire-eligible flag, default true */
   rehireEligible?: boolean
   /** M78 / P2-15 — soft self-FK populated by the rehire flow */
@@ -128,6 +130,8 @@ export interface EmployeeRequest {
   payrollGroupId?: string
   /** M75 / P2-21 — dotted-line manager (informational) */
   matrixManagerId?: string
+  /** M146 / §9 — functional manager (informational) */
+  functionalManagerId?: string
   /** M78 / P2-15 — null = leave the existing flag untouched */
   rehireEligible?: boolean
   // M132 — Section 1 cosmetic fields

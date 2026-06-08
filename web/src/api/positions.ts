@@ -15,6 +15,8 @@ export interface Position {
   id: string
   code: string
   title: string
+  /** M146 / §8 — parent position; null for root-level positions */
+  parentPositionId?: string | null
   orgUnitId?: string | null
   orgUnitLabel?: string | null
   grade?: string | null
@@ -42,6 +44,8 @@ export interface Position {
 
 export interface PositionRequest {
   title: string
+  /** M146 / §8 — optional parent position */
+  parentPositionId?: string
   orgUnitId?: string
   orgUnitLabel?: string
   grade?: string

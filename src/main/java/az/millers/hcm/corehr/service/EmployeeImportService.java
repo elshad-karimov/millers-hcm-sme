@@ -278,6 +278,7 @@ public class EmployeeImportService {
                 decimalValue(row, idx.get("ftePercent")),
                 null,             // leaveGroupId — not in bulk import scope
                 null, null,       // M75: payrollGroupId, matrixManagerId — not in bulk import scope
+                null,             // M146: functionalManagerId — not in bulk import scope
                 null,             // M78: rehireEligible — null defaults to true
                 // M132 — Section 1 cosmetic fields (not in bulk import scope yet)
                 trimmedString(row, idx.get("preferredName")),
