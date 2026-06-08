@@ -24,4 +24,8 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, UUID> {
     /** Scope-bounded equivalent for ABAC-filtered period view (PRD 14.9). */
     List<Timesheet> findByPeriodYearAndPeriodMonthAndEmployeeIdInOrderByEmployeeIdAsc(
             int year, int month, Collection<UUID> employeeIds);
+
+    /** Used by the auto-submit scheduler (M189): find DRAFT or REOPENED timesheets for a period. */
+    List<Timesheet> findByPeriodYearAndPeriodMonthAndStatusIn(
+            int year, int month, Collection<TimesheetStatus> statuses);
 }
