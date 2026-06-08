@@ -24,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +42,7 @@ import az.millers.hcm.security.scope.WorkflowSubjectResolver;
 import az.millers.hcm.workflow.api.dto.ActionRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.ActionType;
+import az.millers.hcm.workflow.domain.SubstituteApprover;
 import az.millers.hcm.workflow.domain.WorkflowAction;
 import az.millers.hcm.workflow.domain.WorkflowDefinition;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
@@ -47,6 +50,7 @@ import az.millers.hcm.workflow.domain.WorkflowParallelVote;
 import az.millers.hcm.workflow.domain.WorkflowStatus;
 import az.millers.hcm.workflow.domain.WorkflowStep;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
+import az.millers.hcm.workflow.repo.SubstituteApproverRepository;
 import az.millers.hcm.workflow.repo.WorkflowActionRepository;
 import az.millers.hcm.workflow.repo.WorkflowDefinitionRepository;
 import az.millers.hcm.workflow.repo.WorkflowInstanceRepository;
@@ -70,6 +74,7 @@ public class WorkflowService {
     private final WorkflowInstanceRepository instances;
     private final WorkflowActionRepository actions;
     private final WorkflowParallelVoteRepository votes;
+    private final SubstituteApproverRepository substitutes;
     private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper;
     private final CurrentRequest currentRequest;
@@ -83,6 +88,7 @@ public class WorkflowService {
                            WorkflowInstanceRepository instances,
                            WorkflowActionRepository actions,
                            WorkflowParallelVoteRepository votes,
+                           SubstituteApproverRepository substitutes,
                            ApplicationEventPublisher events,
                            ObjectMapper objectMapper,
                            CurrentRequest currentRequest,
@@ -95,6 +101,7 @@ public class WorkflowService {
         this.instances = instances;
         this.actions = actions;
         this.votes = votes;
+        this.substitutes = substitutes;
         this.events = events;
         this.objectMapper = objectMapper;
         this.currentRequest = currentRequest;
@@ -191,6 +198,23 @@ public class WorkflowService {
                 .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
                         || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
                 .forEach(i -> merged.putIfAbsent(i.getId(), i));
+
+        // M176 — include instances where the user holds a role that actively
+        // substitutes the step's required role (role-level absence cover).
+        LocalDate today = LocalDate.now();
+        List<String> coveredPrincipalRoles = roles.stream()
+                .flatMap(role -> substitutes.findActiveBySubstituteRole(role, today)
+                        .stream().map(SubstituteApprover::getPrincipalRole))
+                .distinct()
+                .toList();
+        if (!coveredPrincipalRoles.isEmpty()) {
+            instances.findByStatusAndCurrentStepRoleInOrderByInitiatedAtDesc(
+                    WorkflowStatus.PENDING, coveredPrincipalRoles)
+                    .stream()
+                    .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
+                            || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
+                    .forEach(i -> merged.putIfAbsent(i.getId(), i));
+        }
 
         return List.copyOf(merged.values());
     }
@@ -630,7 +654,13 @@ public class WorkflowService {
 
     private void requireRole(List<String> myRoles, String required, String message) {
         if (myRoles.contains("ROLE_SYSTEM_ADMIN")) return;
-        if (!myRoles.contains(required)) {
+        if (myRoles.contains(required)) return;
+        // M176 — also allow a user whose role is an active substitute for the required role.
+        LocalDate today = LocalDate.now();
+        boolean coveredBySubstitute = myRoles.stream()
+                .anyMatch(role -> substitutes.findActiveBySubstituteRole(role, today)
+                        .stream().anyMatch(s -> s.getPrincipalRole().equals(required)));
+        if (!coveredBySubstitute) {
             throw new BadRequestException(message);
         }
     }
