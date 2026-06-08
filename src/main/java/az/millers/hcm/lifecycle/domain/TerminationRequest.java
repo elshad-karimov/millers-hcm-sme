@@ -112,6 +112,10 @@ public class TerminationRequest {
     @Column(name = "processed_by")
     private String processedBy;
 
+    /** Set by the EOD scheduler when the employee's Keycloak account is disabled. */
+    @Column(name = "system_access_revoked_at")
+    private OffsetDateTime systemAccessRevokedAt;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

@@ -138,6 +138,52 @@ public class KeycloakAdminService {
     }
 
     /**
+     * Disables a Keycloak user by username (sets {@code enabled: false}).
+     *
+     * <p>Used by the termination access-revocation scheduler to block login
+     * at EOD of the employee's effective termination date (PRD §8.11.6).
+     *
+     * <p>If the user is not found in Keycloak (e.g. external SSO-only account)
+     * the method logs a warning and returns without error.
+     *
+     * @param username the Keycloak username to disable
+     * @throws RuntimeException if the Keycloak Admin API call fails
+     */
+    public void disableUser(String username) {
+        String token = adminToken();
+
+        // Locate the user by exact username match.
+        JsonNode users = restClient.get()
+                .uri(realmUrl("/users?username=" + username + "&exact=true"))
+                .header("Authorization", "Bearer " + token)
+                .retrieve()
+                .body(JsonNode.class);
+
+        if (users == null || !users.isArray() || users.isEmpty()) {
+            log.warn("disableUser: Keycloak user '{}' not found — skipping access revocation", username);
+            return;
+        }
+
+        String userId = users.get(0).path("id").asText();
+        boolean alreadyDisabled = !users.get(0).path("enabled").asBoolean(true);
+        if (alreadyDisabled) {
+            log.debug("disableUser: Keycloak user '{}' is already disabled", username);
+            return;
+        }
+
+        // PATCH the user representation with enabled=false.
+        restClient.method(HttpMethod.PUT)
+                .uri(realmUrl("/users/" + userId))
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("enabled", false))
+                .retrieve()
+                .toBodilessEntity();
+
+        log.info("disableUser: Keycloak account disabled for user '{}'", username);
+    }
+
+    /**
      * Replaces a user's realm role assignments atomically.
      *
      * <ol>
