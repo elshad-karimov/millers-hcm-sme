@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+
+
 import az.millers.hcm.common.PageResponse;
 import az.millers.hcm.leave.api.dto.LeaveRequestResponse;
 import az.millers.hcm.leave.api.dto.LeaveSubmitRequest;
@@ -59,5 +61,14 @@ public class LeaveRequestController {
     @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST')")
     public LeaveRequestResponse submit(@Valid @RequestBody LeaveSubmitRequest req) {
         return LeaveRequestResponse.from(service.submit(req));
+    }
+
+    /** M214 — HR/manager can cancel a pending leave request directly. */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public LeaveRequestResponse cancel(@PathVariable UUID id,
+                                        @RequestParam(required = false) String reason) {
+        return LeaveRequestResponse.from(
+                service.onCancelled(id, reason));
     }
 }

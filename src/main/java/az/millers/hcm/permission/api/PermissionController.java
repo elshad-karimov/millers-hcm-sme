@@ -126,4 +126,12 @@ public class PermissionController {
     public PermissionRequestResponse submit(@Valid @RequestBody PermissionSubmitRequest req) {
         return PermissionRequestResponse.from(requestService.submit(req));
     }
+
+    /** M214 — HR can cancel a pending permission request directly. */
+    @PostMapping("/requests/{id}/cancel")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    public PermissionRequestResponse cancel(@PathVariable UUID id,
+                                             @RequestParam(required = false) String reason) {
+        return PermissionRequestResponse.from(requestService.onCancelled(id, reason));
+    }
 }

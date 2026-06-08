@@ -66,4 +66,12 @@ public class BusinessTripController {
                                            @Valid @RequestBody ExpenseReconcileRequest req) {
         return BusinessTripResponse.from(service.reconcile(id, req));
     }
+
+    /** M214 — HR can cancel a pending business-trip request directly. */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+    public BusinessTripResponse cancel(@PathVariable UUID id,
+                                        @RequestParam(required = false) String reason) {
+        return BusinessTripResponse.from(service.onCancelled(id, reason));
+    }
 }
