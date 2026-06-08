@@ -24,9 +24,12 @@
 <configuration>
 
   <!-- ── Console appender (human-readable) ───────────────────────────────── -->
+  <!-- M167: %X{traceId} and %X{spanId} are set by micrometer-tracing-bridge-otel
+       so every log line carries the OTEL trace/span context — paste the traceId
+       into Grafana → Explore → Jaeger to jump straight to the distributed trace. -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%-40.40logger{40}) : %msg%n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%X{traceId}] %cyan(%-40.40logger{40}) : %msg%n</pattern>
     </encoder>
   </appender>
 
@@ -50,7 +53,8 @@
         <readMarkers>true</readMarkers>
       </label>
       <message>
-        <pattern>l=%level t=%thread logger=%logger{36} %msg%n</pattern>
+        <!-- Include traceId/spanId in the Loki log body for trace correlation -->
+        <pattern>l=%level t=%thread traceId=%X{traceId} spanId=%X{spanId} logger=%logger{36} %msg%n</pattern>
       </message>
     </format>
   </appender>

@@ -301,6 +301,26 @@ services:
     # lives inside the VM); Promtail still works through the sock-based
     # service discovery path even when the log file path is inaccessible.
 
+  # M167 — Jaeger distributed tracing backend (PRD §18.3)
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: hcm-jaeger
+    # all-in-one bundles collector, query, and UI.
+    # OTLP receiver on 4317 (gRPC) / 4318 (HTTP) receives spans from Spring Boot.
+    # Jaeger UI on 16686 for trace browsing.
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "4317:4317"    # OTLP gRPC — Spring Boot exporter endpoint
+      - "4318:4318"    # OTLP HTTP — alternative exporter
+      - "16686:16686"  # Jaeger UI
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:16686/ | grep -q 'Jaeger' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   # M161 — Prometheus + Grafana monitoring stack (PRD §18.3)
   prometheus:
     image: prom/prometheus:v2.52.0

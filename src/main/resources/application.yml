@@ -213,6 +213,22 @@ management:
     tags:
       application: millers-hcm
       environment: ${SPRING_PROFILES_ACTIVE:local}
+  # M167: OpenTelemetry distributed tracing (PRD §18.3)
+  tracing:
+    sampling:
+      # 1.0 = 100% in dev; set to 0.1 (10%) in production via env override
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    enabled: true
+
+# M167: OTLP exporter endpoint — points at the Jaeger all-in-one container
+# which accepts OTLP gRPC on port 4317.  Override with OTEL_EXPORTER_OTLP_ENDPOINT
+# env var in production when using a dedicated OTEL Collector.
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  service:
+    name: millers-hcm
 
 logging:
   level:
