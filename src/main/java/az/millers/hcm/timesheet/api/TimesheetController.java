@@ -75,4 +75,19 @@ public class TimesheetController {
                                             @Valid @RequestBody DayCorrectionRequest req) {
         return TimesheetDayResponse.from(service.correctDay(id, dayId, req));
     }
+
+    /**
+     * M217 — HR can recall a submitted timesheet back to DRAFT so the employee
+     * can re-edit it before re-submitting. Delegates to onCancelled() which
+     * performs the SUBMITTED → DRAFT transition.
+     */
+    @PostMapping("/{id}/recall")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST')")
+    public TimesheetResponse recall(@PathVariable UUID id,
+                                     @RequestParam(required = false) String reason) {
+        Timesheet ts = service.onCancelled(id, reason);
+        List<TimesheetDayResponse> dayList = service.daysOf(id).stream()
+                .map(TimesheetDayResponse::from).toList();
+        return TimesheetResponse.from(ts, dayList);
+    }
 }
