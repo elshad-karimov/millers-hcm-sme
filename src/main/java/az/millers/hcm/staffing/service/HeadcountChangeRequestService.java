@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.api.dto.HeadcountChangeDtos.HeadcountChangeSubmitRequest;
 import az.millers.hcm.staffing.domain.HeadcountChangeRequest;
 import az.millers.hcm.staffing.domain.Position;
+import az.millers.hcm.staffing.event.HeadcountIncreasedEvent;
 import az.millers.hcm.staffing.repo.HeadcountChangeRequestRepository;
 import az.millers.hcm.staffing.repo.PositionRepository;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
@@ -52,19 +54,22 @@ public class HeadcountChangeRequestService {
     private final PositionHeadcountService headcountService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher eventPublisher;
 
     public HeadcountChangeRequestService(HeadcountChangeRequestRepository repo,
                                           PositionRepository positions,
                                           WorkflowService workflowService,
                                           PositionHeadcountService headcountService,
                                           AuditService audit,
-                                          CurrentRequest currentRequest) {
+                                          CurrentRequest currentRequest,
+                                          ApplicationEventPublisher eventPublisher) {
         this.repo             = repo;
         this.positions        = positions;
         this.workflowService  = workflowService;
         this.headcountService = headcountService;
         this.audit            = audit;
         this.currentRequest   = currentRequest;
+        this.eventPublisher   = eventPublisher;
     }
 
     // ── Public API ─────────────────────────────────────────────────────────
@@ -193,6 +198,23 @@ public class HeadcountChangeRequestService {
         log.info("HeadcountChangeRequest {} approved by {}; position {} "
                 + "approved headcount {} → {}",
                 hcr.getId(), actor, p.getCode(), oldApproved, newApproved);
+
+        // Post new openings to Recruitment (PRD §8.3.7 AC).
+        // @Async listener runs after this transaction commits so assertCanPostVacancy
+        // sees the updated approvedHeadcount.
+        if (hcr.getRequestedDelta() > 0) {
+            eventPublisher.publishEvent(new HeadcountIncreasedEvent(
+                    p.getId(),
+                    hcr.getRequestedDelta(),
+                    p.getCode(),
+                    p.getTitle(),
+                    p.getOrgUnitLabel(),
+                    p.getLocation(),
+                    p.getSalaryMin(),
+                    p.getSalaryMax(),
+                    p.getCurrency(),
+                    actor));
+        }
     }
 
     private void onRejected(HeadcountChangeRequest hcr, String actor, String reason) {

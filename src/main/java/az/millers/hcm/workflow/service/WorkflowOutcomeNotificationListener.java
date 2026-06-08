@@ -100,7 +100,7 @@ public class WorkflowOutcomeNotificationListener {
             case "PERFORMANCE_REVIEW_APPROVAL" -> "performance review";
             case "PERMISSION_REQUEST_APPROVAL" -> "special permission";
             case "TIMESHEET_APPROVAL"          -> "timesheet";
-            case "LETTER_APPROVAL"             -> "letter";
+            case "LETTER_REQUEST_APPROVAL"     -> "letter";
             case "ORG_CHANGE_APPROVAL"         -> "org structure change";
             case "DISCIPLINARY_APPROVAL"       -> "disciplinary action";
             default                            -> code.toLowerCase().replace('_', ' ');

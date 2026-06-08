@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import az.millers.hcm.businesstrip.api.dto.BusinessTripSubmitRequest;
 import az.millers.hcm.businesstrip.api.dto.ExpenseReconcileRequest;
 import az.millers.hcm.businesstrip.domain.BusinessTripRequest;
 import az.millers.hcm.businesstrip.domain.TripStatus;
+import az.millers.hcm.businesstrip.event.BusinessTripApprovedEvent;
 import az.millers.hcm.businesstrip.repo.BusinessTripRequestRepository;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
@@ -41,19 +43,22 @@ public class BusinessTripService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final AccessScopeService accessScope;
+    private final ApplicationEventPublisher eventPublisher;
 
     public BusinessTripService(BusinessTripRequestRepository trips,
                                 EmployeeRepository employees,
                                 WorkflowService workflowService,
                                 AuditService audit,
                                 CurrentRequest currentRequest,
-                                AccessScopeService accessScope) {
+                                AccessScopeService accessScope,
+                                ApplicationEventPublisher eventPublisher) {
         this.trips = trips;
         this.employees = employees;
         this.workflowService = workflowService;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +186,18 @@ public class BusinessTripService {
                         saved.getApprovedAdvance() == null ? "0"
                                 : saved.getApprovedAdvance().toPlainString(),
                         "comment", comment == null ? "" : comment));
+        // Notify Finance for advance disbursement (PRD §8.6.7 AC).
+        eventPublisher.publishEvent(new BusinessTripApprovedEvent(
+                saved.getId(),
+                saved.getTripNo(),
+                saved.getEmployeeId(),
+                saved.getDestinationCity(),
+                saved.getDestinationCountry(),
+                saved.getStartDate(),
+                saved.getEndDate(),
+                saved.getTotalDays(),
+                saved.getApprovedAdvance(),
+                saved.getCurrency()));
         return saved;
     }
 

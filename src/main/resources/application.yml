@@ -155,6 +155,14 @@ hcm:
     # Leave empty to disable FCM — the app continues to work with
     # EMAIL + IN_APP channels only.
     credentials-json: ${HCM_FCM_CREDENTIALS_JSON:}
+  notifications:
+    termination:
+      # Comma-separated Keycloak usernames for termination IT / Finance notifications (M196).
+      it-recipients: ${HCM_NOTIFY_TERMINATION_IT:}
+      finance-recipients: ${HCM_NOTIFY_TERMINATION_FINANCE:}
+    businesstrip:
+      # Comma-separated Keycloak usernames notified when a trip advance is approved (M199).
+      finance-recipients: ${HCM_NOTIFY_BT_FINANCE:}
   preboarding:
     # Public-facing base URL for the pre-boarding portal (M193).
     # The hire flow appends ?token=<plaintext> and emails the link to the candidate.
