@@ -3,6 +3,7 @@ package az.millers.hcm.lifecycle.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -144,9 +145,16 @@ public class ContractChangeService {
         ContractChange saved = changes.save(c);
         audit.record(MODULE, ENTITY, id.toString(), "APPROVED", null,
                 Map.of("comment", comment == null ? "" : comment));
-        // Auto-apply on approval keeps the engine simple; if HR needs to stage
-        // applications later this can split into a separate /apply endpoint.
-        return apply(saved.getId());
+        // If the effective date has already arrived, apply immediately.
+        // Future-dated changes remain APPROVED; the daily
+        // ContractChangeActivationScheduler will apply them on the effective date
+        // (PRD §8.12.6 AC: "When the effective date arrives, the system activates
+        // the new salary / change").
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        if (saved.getEffectiveDate() == null || !saved.getEffectiveDate().isAfter(today)) {
+            return apply(saved.getId());
+        }
+        return saved;
     }
 
     @Transactional

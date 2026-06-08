@@ -42,6 +42,9 @@ public enum NotificationCategory {
     /** Course completion, failure, and certificate notifications. */
     LEARNING_COMPLETION("Course completions & certificates",
             "Notifications when you pass or fail a course, or when a certificate is issued."),
+    /** Termination processed — notifies the line manager, IT, and Finance. */
+    TERMINATION_NOTICE("Termination notices",
+            "Notifications when an employee termination is processed — sent to the manager, IT, and Finance."),
     /** Recruiter reminders about candidates that have gone cold. */
     STALE_POOL_REMINDER("Stale candidate reminders",
             "Daily digest of candidates in your pipeline that haven't been contacted recently."),

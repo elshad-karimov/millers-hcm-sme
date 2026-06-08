@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import az.millers.hcm.leave.domain.LeaveType;
 import az.millers.hcm.leave.repo.LeaveBalanceRepository;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
 import az.millers.hcm.lifecycle.api.dto.ClearanceUpdateRequest;
+import az.millers.hcm.lifecycle.event.TerminationProcessedEvent;
 import az.millers.hcm.lifecycle.api.dto.ExitInterviewRequest;
 import az.millers.hcm.lifecycle.api.dto.ExitInterviewResponse;
 import az.millers.hcm.lifecycle.api.dto.TerminationResponse;
@@ -74,6 +76,7 @@ public class TerminationService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final EmployeeHistoryService historyService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public TerminationService(TerminationRequestRepository terminations,
                               ExitInterviewRepository exitInterviews,
@@ -86,7 +89,8 @@ public class TerminationService {
                               FinalSettlementService finalSettlement,
                               AuditService audit,
                               CurrentRequest currentRequest,
-                              EmployeeHistoryService historyService) {
+                              EmployeeHistoryService historyService,
+                              ApplicationEventPublisher eventPublisher) {
         this.terminations = terminations;
         this.exitInterviews = exitInterviews;
         this.employees = employees;
@@ -99,6 +103,7 @@ public class TerminationService {
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.historyService = historyService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -323,6 +328,19 @@ public class TerminationService {
                 Map.of("newStatus", "TERMINATED",
                         "terminationNo", saved.getTerminationNo(),
                         "effectiveDate", saved.getEffectiveDate().toString()));
+
+        // Notify the manager, IT, and Finance (PRD §8.11.6 AC) — async so
+        // a notification failure can never roll back this transaction.
+        eventPublisher.publishEvent(new TerminationProcessedEvent(
+                saved.getId(),
+                saved.getTerminationNo(),
+                employee.getId(),
+                employee.getEmployeeNo(),
+                employee.getFirstName() + " " + employee.getLastName(),
+                employee.getManagerId(),
+                saved.getReasonCode(),
+                saved.getEffectiveDate()));
+
         return saved;
     }
 
