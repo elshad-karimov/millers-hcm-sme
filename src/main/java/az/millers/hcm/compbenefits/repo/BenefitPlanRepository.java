@@ -17,4 +17,7 @@ public interface BenefitPlanRepository extends JpaRepository<BenefitPlan, UUID> 
     List<BenefitPlan> findByActiveTrueOrderByBenefitTypeAscNameAsc();
 
     List<BenefitPlan> findByBenefitTypeOrderByNameAsc(BenefitType benefitType);
+
+    /** Used by the enrollment expiry scheduler (M191): plans with a non-null effectiveTo before today. */
+    List<BenefitPlan> findByEffectiveToIsNotNullAndEffectiveToBefore(java.time.LocalDate today);
 }

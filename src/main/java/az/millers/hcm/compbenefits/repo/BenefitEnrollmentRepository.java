@@ -19,4 +19,7 @@ public interface BenefitEnrollmentRepository extends JpaRepository<BenefitEnroll
     long countByPlanIdAndStatus(UUID planId, EnrollmentStatus status);
 
     boolean existsByEmployeeIdAndPlanIdAndStatus(UUID employeeId, UUID planId, EnrollmentStatus status);
+
+    /** Used by the enrollment expiry scheduler (M191): active enrollments for a given plan. */
+    List<BenefitEnrollment> findByPlanIdAndStatus(UUID planId, EnrollmentStatus status);
 }
