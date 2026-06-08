@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  M164 (PRD §18.3): Structured logging configuration.
+
+  In dev / local:
+    - Console appender in human-readable pattern (coloured via Spring Boot default).
+    - Loki appender ships JSON log lines to http://localhost:3100 (Loki container).
+      If Loki is unreachable the appender buffers briefly then drops silently —
+      the JVM startup is never blocked.
+
+  In production:
+    - Set LOKI_URL env var to the real Loki push endpoint.
+    - Set LOG_LEVEL_ROOT to WARN or ERROR to reduce volume.
+
+  Labels sent to Loki:
+    app = millers-hcm
+    env = ${spring.profiles.active}  (defaults to "local")
+    host = hostname
+
+  To query in Grafana:
+    {app="millers-hcm"} |= "ERROR"
+    {app="millers-hcm", env="local"} | json | line_format "{{.message}}"
+-->
+<configuration>
+
+  <!-- ── Console appender (human-readable) ───────────────────────────────── -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%-40.40logger{40}) : %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- ── Loki appender ────────────────────────────────────────────────────── -->
+  <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+    <!-- Batch: send every 1 s or when 1 000 lines accumulate, whichever first -->
+    <batchMaxItems>1000</batchMaxItems>
+    <batchTimeoutMs>1000</batchTimeoutMs>
+    <!-- Drop silently if Loki is unreachable rather than logging endlessly -->
+    <dropRatioOnFull>0.1</dropRatioOnFull>
+
+    <http>
+      <url>${LOKI_URL:-http://localhost:3100}/loki/api/v1/push</url>
+      <connectionTimeoutMs>5000</connectionTimeoutMs>
+      <requestTimeoutMs>5000</requestTimeoutMs>
+    </http>
+
+    <format>
+      <label>
+        <pattern>app=millers-hcm,env=${spring.profiles.active:-local},host=${HOSTNAME:-localhost},level=%level</pattern>
+        <readMarkers>true</readMarkers>
+      </label>
+      <message>
+        <pattern>l=%level t=%thread logger=%logger{36} %msg%n</pattern>
+      </message>
+    </format>
+  </appender>
+
+  <!-- ── Async wrapper for Loki (non-blocking) ────────────────────────────── -->
+  <appender name="LOKI_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="LOKI" />
+    <neverBlock>true</neverBlock>
+    <queueSize>512</queueSize>
+  </appender>
+
+  <!-- ── Reduce noise from chatty libraries ───────────────────────────────── -->
+  <logger name="org.hibernate.SQL" level="WARN" />
+  <logger name="org.hibernate.type.descriptor.sql" level="WARN" />
+  <logger name="org.springframework.web.servlet.mvc.method.annotation" level="WARN" />
+  <logger name="com.zaxxer.hikari" level="WARN" />
+  <logger name="io.undertow" level="WARN" />
+  <logger name="com.github.loki4j" level="WARN" />
+
+  <!-- ── Root logger ──────────────────────────────────────────────────────── -->
+  <root level="${LOG_LEVEL_ROOT:-INFO}">
+    <appender-ref ref="CONSOLE" />
+    <appender-ref ref="LOKI_ASYNC" />
+  </root>
+
+</configuration>

@@ -109,6 +109,44 @@
           "legendFormat": "p99 ms"
         }
       ]
+    },
+    {
+      "id": 9,
+      "type": "logs",
+      "title": "Application Logs — ERROR / WARN",
+      "description": "Live log stream from Loki (M164). Filtered to WARN+ to surface issues without noise.",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableLogDetails": true
+      },
+      "targets": [
+        {
+          "datasource": "Loki",
+          "expr": "{app=\"millers-hcm\"} |= \"\" | logfmt | level =~ \"WARN|ERROR\"",
+          "legendFormat": "",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Log Rate by Level (lines/min)",
+      "description": "Count of log lines per minute grouped by level — spike indicates an incident.",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 6 },
+      "targets": [
+        {
+          "datasource": "Loki",
+          "expr": "sum by (level) (rate({app=\"millers-hcm\"}[1m]))",
+          "legendFormat": "{{level}}"
+        }
+      ]
     }
   ]
 }
