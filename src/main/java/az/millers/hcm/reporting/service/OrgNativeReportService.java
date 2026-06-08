@@ -17,6 +17,8 @@ import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.organization.domain.OrgUnit;
 import az.millers.hcm.organization.domain.VersionStatus;
+import az.millers.hcm.organization.repo.LegalEntityRepository;
+import az.millers.hcm.organization.repo.LocationRepository;
 import az.millers.hcm.organization.repo.OrgUnitRepository;
 import az.millers.hcm.organization.repo.StructureVersionRepository;
 import az.millers.hcm.reporting.api.dto.OrgReportDtos.HeadcountReport;
@@ -40,13 +42,19 @@ public class OrgNativeReportService {
     private final StructureVersionRepository versions;
     private final OrgUnitRepository orgUnits;
     private final EmployeeRepository employees;
+    private final LegalEntityRepository legalEntities;
+    private final LocationRepository locations;
 
     public OrgNativeReportService(StructureVersionRepository versions,
                                    OrgUnitRepository orgUnits,
-                                   EmployeeRepository employees) {
+                                   EmployeeRepository employees,
+                                   LegalEntityRepository legalEntities,
+                                   LocationRepository locations) {
         this.versions = versions;
         this.orgUnits = orgUnits;
         this.employees = employees;
+        this.legalEntities = legalEntities;
+        this.locations = locations;
     }
 
     // ── Headcount vs budget ───────────────────────────────────────────────────
@@ -139,6 +147,19 @@ public class OrgNativeReportService {
                 .forEach(id -> employees.findById(id)
                         .ifPresent(e -> hrbpNos.put(id, e.getEmployeeNo())));
 
+        // M222 — resolve legal entity + location codes in bulk.
+        Map<UUID, String> legalEntityCodes = new HashMap<>();
+        units.stream().map(OrgUnit::getLegalEntityId)
+                .filter(id -> id != null && !legalEntityCodes.containsKey(id))
+                .forEach(id -> legalEntities.findById(id)
+                        .ifPresent(le -> legalEntityCodes.put(id, le.getCode())));
+
+        Map<UUID, String> locationCodes = new HashMap<>();
+        units.stream().map(OrgUnit::getLocationId)
+                .filter(id -> id != null && !locationCodes.containsKey(id))
+                .forEach(id -> locations.findById(id)
+                        .ifPresent(loc -> locationCodes.put(id, loc.getCode())));
+
         List<OrgUnitFlatRow> rows = new ArrayList<>(units.size());
         for (OrgUnit u : units) {
             OrgUnit parent = u.getParentId() != null ? byId.get(u.getParentId()) : null;
@@ -147,8 +168,8 @@ public class OrgNativeReportService {
                     u.getId(), u.getCode(), u.getName(), u.getUnitType(),
                     parent != null ? parent.getCode() : null,
                     u.getLifecycleState() != null ? u.getLifecycleState().name() : "ACTIVE",
-                    null, // legalEntityCode — would require legal entity lookup; out of scope here
-                    null, // locationCode — would require location lookup; out of scope here
+                    u.getLegalEntityId() != null ? legalEntityCodes.get(u.getLegalEntityId()) : null,
+                    u.getLocationId() != null ? locationCodes.get(u.getLocationId()) : null,
                     u.getHrbpId() != null ? hrbpNos.get(u.getHrbpId()) : null,
                     u.getCostCentreCode(), u.getContactEmail(),
                     u.getHeadcountBudget(), actual,
