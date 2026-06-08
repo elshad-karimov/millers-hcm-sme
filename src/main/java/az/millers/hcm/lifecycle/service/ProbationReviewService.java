@@ -30,6 +30,8 @@ import az.millers.hcm.lifecycle.domain.ProbationOutcome;
 import az.millers.hcm.lifecycle.domain.ProbationReview;
 import az.millers.hcm.lifecycle.domain.ProbationReviewStatus;
 import az.millers.hcm.lifecycle.domain.ProbationReviewType;
+import az.millers.hcm.lifecycle.api.dto.TerminationSubmitRequest;
+import az.millers.hcm.lifecycle.domain.TerminationReason;
 import az.millers.hcm.lifecycle.repo.EmploymentContractRepository;
 import az.millers.hcm.lifecycle.repo.ProbationReviewRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -50,9 +52,9 @@ import az.millers.hcm.security.scope.AccessScopeService;
  *       to CANCELLED so the scheduler stops alerting on them.</li>
  *   <li>{@link #complete(UUID, CompleteProbationReviewRequest)} — records
  *       the manager + HR feedback, marks COMPLETED with an outcome. A
- *       follow-up workflow (PROBATION_PASS → confirm employment, FAIL →
- *       termination, EXTENDED → contract.probation_end_date push) is a
- *       Phase-2 follow-on; M73 captures the decision itself.</li>
+ *       follow-up workflow: PASSED → confirm employment (M194), FAILED →
+ *       auto-submit termination with PROBATION_FAIL reason (M212),
+ *       EXTENDED → push contract.probation_end_date + reschedule FINAL (M212).</li>
  * </ul>
  */
 @Service
@@ -66,6 +68,7 @@ public class ProbationReviewService {
     private final ProbationReviewRepository repository;
     private final EmploymentContractRepository contracts;
     private final EmployeeRepository employees;
+    private final TerminationService termination;
     private final NotificationService notifications;
     private final AuditService audit;
     private final AccessScopeService accessScope;
@@ -74,6 +77,7 @@ public class ProbationReviewService {
     public ProbationReviewService(ProbationReviewRepository repository,
                                    EmploymentContractRepository contracts,
                                    EmployeeRepository employees,
+                                   TerminationService termination,
                                    NotificationService notifications,
                                    AuditService audit,
                                    AccessScopeService accessScope,
@@ -81,6 +85,7 @@ public class ProbationReviewService {
         this.repository = repository;
         this.contracts = contracts;
         this.employees = employees;
+        this.termination = termination;
         this.notifications = notifications;
         this.audit = audit;
         this.accessScope = accessScope;
@@ -226,6 +231,17 @@ public class ProbationReviewService {
                 && saved.getOutcome() == ProbationOutcome.PASSED) {
             confirmEmployment(saved);
         }
+        // M212 — FINAL FAILED review: auto-submit a termination request.
+        if (saved.getReviewType() == ProbationReviewType.FINAL
+                && saved.getOutcome() == ProbationOutcome.FAILED) {
+            autoTerminateOnProbationFail(saved);
+        }
+        // M212 — EXTENDED outcome: push probation_end_date forward and
+        // re-schedule a new FINAL review.
+        if (saved.getOutcome() == ProbationOutcome.EXTENDED
+                && req.newProbationEndDate() != null) {
+            extendProbation(saved, req.newProbationEndDate());
+        }
         return ProbationReviewResponse.from(saved);
     }
 
@@ -267,6 +283,72 @@ public class ProbationReviewService {
             }
         }, () -> log.warn("ProbationReviewService: employee {} not found for confirmation",
                 review.getEmployeeId()));
+    }
+
+    /**
+     * M212 — FINAL FAILED review: auto-submit a termination with reason
+     * PROBATION_FAIL (PRD §8.7). Uses today as noticeDate and the review's
+     * effectiveDate (or today + 1 day) as lastWorkingDate / effectiveDate.
+     * Non-fatal: a warning is logged if submission fails so the review
+     * result is still persisted.
+     */
+    private void autoTerminateOnProbationFail(ProbationReview review) {
+        try {
+            LocalDate today = LocalDate.now();
+            LocalDate effective = review.getEffectiveDate() != null
+                    ? review.getEffectiveDate() : today.plusDays(1);
+            TerminationSubmitRequest req = new TerminationSubmitRequest(
+                    review.getEmployeeId(),
+                    TerminationReason.PROBATION_FAIL,
+                    "Auto-submitted on failed probation review " + review.getId(),
+                    today,
+                    effective,
+                    effective,
+                    null,
+                    null);
+            termination.submit(req);
+            log.info("ProbationReviewService: auto-submitted termination for employee {} on FAILED probation",
+                    review.getEmployeeId());
+        } catch (Exception ex) {
+            log.error("ProbationReviewService: failed to auto-submit termination for employee {} (review {}): {}",
+                    review.getEmployeeId(), review.getId(), ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * M212 — EXTENDED outcome: push the contract's probation_end_date to
+     * {@code newEndDate} and auto-schedule a new FINAL review 5 days before
+     * the new deadline (PRD §8.7 EXTENDED AC). Non-fatal — logs on error.
+     */
+    private void extendProbation(ProbationReview review, LocalDate newEndDate) {
+        try {
+            Employee emp = employees.findById(review.getEmployeeId()).orElse(null);
+            if (emp == null) {
+                log.warn("ProbationReviewService: employee {} not found; cannot extend probation",
+                        review.getEmployeeId());
+                return;
+            }
+            contracts.findByEmployeeIdOrderByStartDateDesc(review.getEmployeeId())
+                    .stream().findFirst().ifPresent(c -> {
+                        LocalDate oldEnd = c.getProbationEndDate();
+                        c.setProbationEndDate(newEndDate);
+                        contracts.save(c);
+                        audit.record(MODULE, "EmploymentContract", c.getId().toString(),
+                                "PROBATION_EXTENDED",
+                                Map.of("probationEndDate", oldEnd == null ? "" : oldEnd.toString()),
+                                Map.of("probationEndDate", newEndDate.toString(),
+                                        "reviewId", review.getId().toString()));
+                        // Schedule a fresh FINAL review before the new deadline.
+                        LocalDate finalDate = newEndDate.minusDays(5);
+                        if (!finalDate.isAfter(LocalDate.now())) finalDate = newEndDate.minusDays(1);
+                        scheduleIfMissing(c, emp, ProbationReviewType.FINAL, finalDate);
+                        log.info("ProbationReviewService: extended probation for employee {} to {}",
+                                review.getEmployeeId(), newEndDate);
+                    });
+        } catch (Exception ex) {
+            log.error("ProbationReviewService: failed to extend probation for employee {} (review {}): {}",
+                    review.getEmployeeId(), review.getId(), ex.getMessage(), ex);
+        }
     }
 
     /**

@@ -20,5 +20,7 @@ public record CompleteProbationReviewRequest(
         @Min(1) @Max(5) Integer managerRating,
         @Size(max = 4000) String hrFeedback,
         @Min(1) @Max(5) Integer hrRating,
-        @Size(max = 4000) String notes) {
+        @Size(max = 4000) String notes,
+        /** Required when outcome == EXTENDED — the new probation end date. */
+        LocalDate newProbationEndDate) {
 }
