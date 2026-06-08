@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.learning.domain.Competency;
 import az.millers.hcm.learning.domain.EmployeeCompetency;
@@ -110,12 +111,7 @@ public class SkillGapService {
         }
         List<PositionRequirement> requirements = mapRequirements(reqs);
         LocalDate today = LocalDate.now();
-        // Pull every active employee. For organisations beyond 500 active
-        // employees this needs the Phase 2 paged variant.
-        List<Employee> active = employees.findAll().stream()
-                .filter(e -> e.getEmploymentStatus() != null
-                        && "ACTIVE".equalsIgnoreCase(e.getEmploymentStatus().name()))
-                .toList();
+        List<Employee> active = employees.findAllByEmploymentStatus(EmploymentStatus.ACTIVE);
         int total = active.size();
         if (active.size() > FIT_RANK_CAP) active = active.subList(0, FIT_RANK_CAP);
 
