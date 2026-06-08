@@ -266,6 +266,7 @@ public class PayrollEngine {
             PayrollResult r = new PayrollResult();
             r.setRunId(run.getId());
             r.setEmployeeId(employeeId);
+            r.setPeriodStart(LocalDate.of(run.getPeriodYear(), run.getPeriodMonth(), 1));
             r.setPayslipNo(String.format("PS-%06d", results.nextPayslipNoSequence()));
             r.setTimesheetId(ts.getId());
             r.setBaseSalary(baseSalary);

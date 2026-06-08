@@ -1,6 +1,7 @@
 package az.millers.hcm.payroll.domain;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -13,14 +14,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "payroll_result", schema = "payroll",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"run_id", "employee_id"}))
+@Table(name = "payroll_result", schema = "payroll")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -35,8 +34,16 @@ public class PayrollResult {
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;
 
-    @Column(name = "payslip_no", nullable = false, unique = true)
+    @Column(name = "payslip_no", nullable = false)
     private String payslipNo;
+
+    /**
+     * M175 — first day of the payroll period (denormalised from the parent
+     * {@code payroll_run.period_year} + {@code period_month}). Drives the
+     * declarative RANGE partition route.
+     */
+    @Column(name = "period_start", nullable = false)
+    private LocalDate periodStart;
 
     @Column(name = "timesheet_id")
     private UUID timesheetId;
