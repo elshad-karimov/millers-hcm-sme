@@ -6,26 +6,38 @@ import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 import az.millers.hcm.common.PageResponse;
 import az.millers.hcm.corehr.api.dto.PersonalInfoChangeResponse;
+import az.millers.hcm.corehr.api.dto.PersonalInfoChangeSubmitRequest;
 import az.millers.hcm.corehr.domain.PersonalInfoChangeStatus;
 import az.millers.hcm.corehr.service.PersonalInfoChangeService;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/personal-info-changes")
 public class PersonalInfoChangeController {
 
     private final PersonalInfoChangeService service;
+    private final EmployeeContextService context;
 
-    public PersonalInfoChangeController(PersonalInfoChangeService service) {
+    public PersonalInfoChangeController(PersonalInfoChangeService service,
+                                         EmployeeContextService context) {
         this.service = service;
+        this.context = context;
     }
 
     /** HR / scoped-manager queue. Scope filter is applied inside the service. */
@@ -43,5 +55,21 @@ public class PersonalInfoChangeController {
     @PreAuthorize("isAuthenticated()")
     public PersonalInfoChangeResponse get(@PathVariable UUID id) {
         return PersonalInfoChangeResponse.from(service.get(id));
+    }
+
+    /** Employee submits a personal-info change request for HR approval. */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public PersonalInfoChangeResponse submit(@Valid @RequestBody PersonalInfoChangeSubmitRequest req) {
+        return PersonalInfoChangeResponse.from(service.submit(req));
+    }
+
+    /** Employee's own requests (self-service view). */
+    @GetMapping("/mine")
+    @PreAuthorize("isAuthenticated()")
+    public List<PersonalInfoChangeResponse> mine() {
+        UUID empId = context.currentEmployee().getId();
+        return service.mine(empId).stream().map(PersonalInfoChangeResponse::from).toList();
     }
 }
