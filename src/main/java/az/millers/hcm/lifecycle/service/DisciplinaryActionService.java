@@ -276,10 +276,11 @@ public class DisciplinaryActionService {
                             + d.getStatus());
         }
         DisciplinaryActionResponse before = DisciplinaryActionResponse.from(d);
+        boolean wasAppealed = d.getStatus() == DisciplinaryStatus.APPEALED;
 
         d.setStatus(DisciplinaryStatus.CLOSED);
         d.setClosedAt(OffsetDateTime.now());
-        if (d.getStatus() == DisciplinaryStatus.APPEALED && appealOutcome != null) {
+        if (wasAppealed && appealOutcome != null) {
             d.setAppealOutcome(appealOutcome);
         }
         d.setUpdatedBy(currentRequest.username());
