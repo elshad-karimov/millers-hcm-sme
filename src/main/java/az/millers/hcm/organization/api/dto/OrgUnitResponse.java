@@ -3,14 +3,13 @@ package az.millers.hcm.organization.api.dto;
 import java.util.UUID;
 
 import az.millers.hcm.organization.domain.OrgUnit;
-import az.millers.hcm.organization.domain.OrgUnitType;
 
 public record OrgUnitResponse(
         UUID id,
         UUID versionId,
         String code,
         String name,
-        OrgUnitType unitType,
+        String unitType,
         UUID parentId,
         UUID headEmployeeId,
         int sortOrder,

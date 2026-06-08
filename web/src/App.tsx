@@ -85,6 +85,7 @@ import { PoliciesAdminPage } from './pages/PoliciesAdminPage'
 import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { HrPartnersPage } from './pages/HrPartnersPage'
+import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
 import { MySurveysPage } from './pages/MySurveysPage'
 import { SurveysAdminPage } from './pages/SurveysAdminPage'
@@ -181,6 +182,8 @@ export default function App() {
         <Route path="organization/locations" element={<LocationsPage />} />
         {/* M142 — HRBP assignments */}
         <Route path="organization/hr-partners" element={<HrPartnersPage />} />
+        {/* M143 — configurable org unit types */}
+        <Route path="organization/unit-types" element={<OrgUnitTypesPage />} />
 
         {/* ── Self-service request forms — any authenticated user ── */}
         <Route path="leave/requests/new" element={<LeaveRequestFormPage />} />

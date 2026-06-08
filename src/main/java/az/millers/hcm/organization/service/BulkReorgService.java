@@ -20,7 +20,6 @@ import az.millers.hcm.organization.api.dto.BulkReorgResult.RowResult;
 import az.millers.hcm.organization.api.dto.OrgUnitRequest;
 import az.millers.hcm.organization.api.dto.OrgUnitResponse;
 import az.millers.hcm.organization.domain.OrgUnit;
-import az.millers.hcm.organization.domain.OrgUnitType;
 import az.millers.hcm.organization.repo.OrgUnitRepository;
 
 /**
@@ -239,7 +238,7 @@ public class BulkReorgService {
         return incoming != null ? incoming : existing;
     }
 
-    private static OrgUnitType pickType(OrgUnitType incoming, OrgUnitType existing) {
+    private static String pickType(String incoming, String existing) {
         return incoming != null ? incoming : existing;
     }
 

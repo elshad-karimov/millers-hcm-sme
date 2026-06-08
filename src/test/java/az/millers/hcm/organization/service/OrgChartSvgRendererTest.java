@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import az.millers.hcm.organization.api.dto.OrgTreeNode;
 import az.millers.hcm.organization.domain.OrgUnitType;
-
 /**
  * Unit tests for {@link OrgChartSvgRenderer}. No Spring context — the
  * renderer is a pure function on the tree.
@@ -19,7 +18,7 @@ class OrgChartSvgRendererTest {
 
     private final OrgChartSvgRenderer renderer = new OrgChartSvgRenderer();
 
-    private static OrgTreeNode node(String code, String name, OrgUnitType type,
+    private static OrgTreeNode node(String code, String name, String type,
                                      OrgTreeNode... kids) {
         List<OrgTreeNode> list = new ArrayList<>();
         for (OrgTreeNode k : kids) list.add(k);

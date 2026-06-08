@@ -3,7 +3,6 @@ package az.millers.hcm.organization.api.dto;
 import java.util.List;
 import java.util.UUID;
 
-import az.millers.hcm.organization.domain.OrgUnitType;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -33,7 +32,7 @@ public record BulkReorgManifest(
 
             // ── ADD-only / UPDATE-friendly fields ────────────────────────
             String name,
-            OrgUnitType unitType,
+            String unitType,
             String parentCode,
             UUID headEmployeeId,
             Integer sortOrder,

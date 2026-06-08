@@ -8,14 +8,8 @@ export type VersionStatus =
   | 'REJECTED'
   | 'ARCHIVED'
 
-export type OrgUnitType =
-  | 'COMPANY'
-  | 'BRANCH'
-  | 'DIVISION'
-  | 'DEPARTMENT'
-  | 'SECTION'
-  | 'UNIT'
-  | 'TEAM'
+/** M143 — org unit types are now DB-driven; this alias keeps existing code compiling. */
+export type OrgUnitType = string
 
 export interface StructureVersion {
   id: string

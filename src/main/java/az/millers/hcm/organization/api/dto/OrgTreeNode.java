@@ -4,13 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import az.millers.hcm.organization.domain.OrgUnitType;
-
 public record OrgTreeNode(
         UUID id,
         String code,
         String name,
-        OrgUnitType unitType,
+        String unitType,
         UUID parentId,
         UUID headEmployeeId,
         int sortOrder,

@@ -16,21 +16,11 @@ import {
   orgApi,
   type OrgUnitRequest,
   type OrgUnitResponse,
-  type OrgUnitType,
 } from '../api/org'
 import { locationApi, type LocationResponse } from '../api/location'
 import { employeesApi, type Employee } from '../api/employees'
+import { orgUnitTypeApi, type OrgUnitTypeConfigResponse } from '../api/orgUnitType'
 import { FormPageShell } from '../components/FormPageShell'
-
-const UNIT_TYPES: OrgUnitType[] = [
-  'COMPANY',
-  'BRANCH',
-  'DIVISION',
-  'DEPARTMENT',
-  'SECTION',
-  'UNIT',
-  'TEAM',
-]
 
 export function OrgUnitFormPage() {
   const { unitId } = useParams()
@@ -45,6 +35,7 @@ export function OrgUnitFormPage() {
   const [parentOptions, setParentOptions] = useState<{ value: string; label: string }[]>([])
   const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([])
   const [hrbpOptions, setHrbpOptions] = useState<{ value: string; label: string }[]>([])
+  const [typeOptions, setTypeOptions] = useState<{ value: string; label: string }[]>([])
 
   const backPath = versionId ? `/organization?versionId=${versionId}` : '/organization'
 
@@ -61,6 +52,10 @@ export function OrgUnitFormPage() {
             label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
           })),
         ))
+      .catch(() => {/* non-critical */})
+    orgUnitTypeApi.list(true)
+      .then((ts: OrgUnitTypeConfigResponse[]) =>
+        setTypeOptions(ts.map((t) => ({ value: t.code, label: t.label }))))
       .catch(() => {/* non-critical */})
   }, [])
 
@@ -177,7 +172,7 @@ export function OrgUnitFormPage() {
             </Col>
             <Col span={12}>
               <Form.Item name="unitType" label="Type" rules={[{ required: true }]}>
-                <Select options={UNIT_TYPES.map((t) => ({ value: t, label: t }))} />
+                <Select options={typeOptions} showSearch optionFilterProp="label" />
               </Form.Item>
             </Col>
           </Row>

@@ -5,8 +5,6 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -34,9 +32,9 @@ public class OrgUnit {
     @Column(nullable = false)
     private String name;
 
-    @Enumerated(EnumType.STRING)
+    /** M143 — validated at runtime against {@code organization.org_unit_type}. */
     @Column(name = "unit_type", nullable = false)
-    private OrgUnitType unitType;
+    private String unitType;
 
     @Column(name = "parent_id")
     private UUID parentId;

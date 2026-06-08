@@ -147,7 +147,7 @@ public class OrgChartSvgRenderer {
     private void drawNodes(OrgTreeNode n, Map<Object, Box> placed, StringBuilder sb) {
         Box b = placed.get(n.id());
         if (b == null) return;
-        String rectClass = n.unitType() == OrgUnitType.TEAM ? "node-rect node-rect-team" : "node-rect";
+        String rectClass = OrgUnitType.TEAM.equals(n.unitType()) ? "node-rect node-rect-team" : "node-rect";
         sb.append("<g class=\"unit\">");
         sb.append("<rect class=\"").append(rectClass).append("\" x=\"").append(b.x())
                 .append("\" y=\"").append(b.y())

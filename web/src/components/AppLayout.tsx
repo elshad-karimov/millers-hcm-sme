@@ -35,6 +35,7 @@ import {
   DatabaseOutlined,
   FileSearchOutlined,
   KeyOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -61,6 +62,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/organization/legal-entities', module: 'people', screen: 'legal-entities' },
   { prefix: '/organization/locations', module: 'people', screen: 'locations' },
   { prefix: '/organization/hr-partners', module: 'people', screen: 'hr-partners' },
+  { prefix: '/organization/unit-types', module: 'people', screen: 'unit-types' },
   { prefix: '/organization', module: 'people', screen: 'organization' },
   { prefix: '/positions/control', module: 'people', screen: 'position-control' },
   { prefix: '/positions', module: 'people', screen: 'positions' },
@@ -252,6 +254,12 @@ export function AppLayout() {
                 key: 'hr-partners',
                 icon: <TeamOutlined />,
                 label: <Link to="/organization/hr-partners">HR partners</Link>,
+              },
+              {
+                // M143 — configurable org unit types
+                key: 'unit-types',
+                icon: <AppstoreOutlined />,
+                label: <Link to="/organization/unit-types">Unit types</Link>,
               },
               {
                 key: 'positions',

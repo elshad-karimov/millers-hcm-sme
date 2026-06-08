@@ -15,6 +15,7 @@ import org.springframework.util.StringUtils;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
+import az.millers.hcm.organization.domain.OrgUnitTypeConfig;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.organization.api.dto.OrgTreeNode;
 import az.millers.hcm.organization.api.dto.OrgUnitRequest;
@@ -50,19 +51,22 @@ public class OrgStructureService {
     private final CurrentRequest currentRequest;
     private final WorkflowService workflowService;
     private final OrgUnitHistoryService history;
+    private final OrgUnitTypeConfigService typeConfigs;
 
     public OrgStructureService(StructureVersionRepository versions,
                                OrgUnitRepository units,
                                AuditService audit,
                                CurrentRequest currentRequest,
                                WorkflowService workflowService,
-                               OrgUnitHistoryService history) {
+                               OrgUnitHistoryService history,
+                               OrgUnitTypeConfigService typeConfigs) {
         this.versions = versions;
         this.units = units;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.workflowService = workflowService;
         this.history = history;
+        this.typeConfigs = typeConfigs;
     }
 
     // ---------- Version queries ----------
@@ -247,10 +251,22 @@ public class OrgStructureService {
         if (units.existsByVersionIdAndCode(versionId, req.code())) {
             throw new BadRequestException("Unit code already used in this version: " + req.code());
         }
+        OrgUnitTypeConfig typeCfg = typeConfigs.validate(req.unitType());
         if (req.parentId() != null) {
             OrgUnit parent = findUnit(req.parentId());
             require(parent.getVersionId().equals(versionId),
                     "Parent must belong to the same version");
+            // M143 — enforce canHaveChildren on the parent type.
+            if (!typeConfigs.validate(parent.getUnitType()).isCanHaveChildren()) {
+                throw new BadRequestException(
+                        "Parent unit type '" + parent.getUnitType() + "' does not allow child units");
+            }
+        } else {
+            // root unit — type must allow it
+            if (!typeCfg.isRootLevel()) {
+                throw new BadRequestException(
+                        "Unit type '" + req.unitType() + "' is not allowed at the root level (no parent)");
+            }
         }
         OrgUnit u = new OrgUnit();
         u.setVersionId(versionId);
@@ -273,6 +289,8 @@ public class OrgStructureService {
                 && units.existsByVersionIdAndCode(u.getVersionId(), req.code())) {
             throw new BadRequestException("Unit code already used in this version: " + req.code());
         }
+        // M143 — validate the requested type.
+        typeConfigs.validate(req.unitType());
         if (req.parentId() != null) {
             if (req.parentId().equals(unitId)) {
                 throw new BadRequestException("A unit cannot be its own parent");
