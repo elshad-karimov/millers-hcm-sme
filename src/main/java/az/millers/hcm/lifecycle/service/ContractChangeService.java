@@ -17,6 +17,7 @@ import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.corehr.service.EmployeeHistoryService;
 import az.millers.hcm.lifecycle.api.dto.ContractChangeResponse;
@@ -210,7 +211,12 @@ public class ContractChangeService {
             case GRADE      -> { /* grade lives on the Position; nothing to do on Employee */ }
             case LOCATION   -> employee.setWorkLocationId(uuidOrNull(v.get("workLocationId")));
             case JOB_TITLE  -> employee.setPositionTitle(strOrNull(v.get("positionTitle")));
-            case EMPLOYMENT_TYPE -> { /* lives on the Position */ }
+            case EMPLOYMENT_TYPE -> {
+                String et = strOrNull(v.get("employmentType"));
+                if (et != null) {
+                    employee.setEmploymentType(EmploymentType.valueOf(et));
+                }
+            }
             case COST_CENTRE -> employee.setCostCentre(strOrNull(v.get("costCentre")));
         }
 
@@ -349,7 +355,18 @@ public class ContractChangeService {
                     throw new BadRequestException("LOCATION change requires workLocationId");
                 }
             }
-            default -> { /* GRADE, EMPLOYMENT_TYPE — free-form payload */ }
+            case EMPLOYMENT_TYPE -> {
+                String et = strOrNull(v.get("employmentType"));
+                if (et == null) {
+                    throw new BadRequestException("EMPLOYMENT_TYPE change requires employmentType");
+                }
+                try { EmploymentType.valueOf(et); }
+                catch (IllegalArgumentException ex) {
+                    throw new BadRequestException("employmentType must be one of "
+                            + java.util.Arrays.toString(EmploymentType.values()));
+                }
+            }
+            default -> { /* GRADE — free-form payload */ }
         }
     }
 
@@ -378,7 +395,10 @@ public class ContractChangeService {
             case GRADE       -> { /* lives on the position, intentionally blank */ }
             case LOCATION    -> m.put("workLocationId", str(e.getWorkLocationId()));
             case JOB_TITLE   -> m.put("positionTitle", e.getPositionTitle());
-            case EMPLOYMENT_TYPE -> { /* lives on the position */ }
+            case EMPLOYMENT_TYPE -> {
+                m.put("employmentType",
+                        e.getEmploymentType() == null ? null : e.getEmploymentType().name());
+            }
             case COST_CENTRE -> m.put("costCentre", e.getCostCentre());
         }
         return m;
