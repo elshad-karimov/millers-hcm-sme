@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
+import az.millers.hcm.workflow.domain.WorkflowInstance;
+import az.millers.hcm.workflow.service.WorkflowService;
 import az.millers.hcm.compbenefits.api.dto.BonusRunGenerateRequest;
 import az.millers.hcm.compbenefits.api.dto.BonusRunResponse;
 import az.millers.hcm.compbenefits.domain.BonusItemSource;
@@ -44,14 +47,19 @@ import az.millers.hcm.performance.domain.ReviewStatus;
 import az.millers.hcm.performance.repo.PerformanceReviewRepository;
 import az.millers.hcm.performance.repo.ReviewCycleRepository;
 import az.millers.hcm.security.CurrentRequest;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
- * Bonus Run service (PRD 8.15.2 + 8.15.3).
+ * Bonus Run service (PRD 8.15.2 + 8.15.3 / M200).
  *
- * <p>Lifecycle: DRAFT → GENERATED (items derived from a Performance cycle
- * via the matrix) → PUSHED (rows inserted into {@code payroll.payroll_bonus}
- * against a target payroll run). Once pushed, individual items keep a back
- * reference to the {@code payroll_bonus.id} they created.
+ * <p>Lifecycle:
+ * <pre>
+ *   DRAFT → GENERATED → PENDING_APPROVAL → APPROVED → PUSHED
+ *   Any non-PUSHED state → CANCELLED
+ * </pre>
+ * GENERATED items are derived from a Performance cycle via the bonus matrix.
+ * On submit(), the run is routed through BONUS_RUN_APPROVAL workflow.
+ * On APPROVED, push() can be called to write rows into {@code payroll.payroll_bonus}.
  *
  * <p>Per-item amount derivation, in priority order:
  * <ol>
@@ -69,6 +77,9 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class BonusRunService {
 
+    public static final String WORKFLOW_DEFINITION = "BONUS_RUN_APPROVAL";
+    public static final String WORKFLOW_ENTITY = "BonusRun";
+
     private static final Logger log = LoggerFactory.getLogger(BonusRunService.class);
     private static final String MODULE = "COMP_BENEFITS";
 
@@ -80,6 +91,7 @@ public class BonusRunService {
     private final PayrollRunRepository payrollRuns;
     private final PayrollBonusRepository payrollBonuses;
     private final BonusMatrixService matrix;
+    private final WorkflowService workflowService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -91,6 +103,7 @@ public class BonusRunService {
                            PayrollRunRepository payrollRuns,
                            PayrollBonusRepository payrollBonuses,
                            BonusMatrixService matrix,
+                           WorkflowService workflowService,
                            AuditService audit,
                            CurrentRequest currentRequest) {
         this.runs = runs;
@@ -101,6 +114,7 @@ public class BonusRunService {
         this.payrollRuns = payrollRuns;
         this.payrollBonuses = payrollBonuses;
         this.matrix = matrix;
+        this.workflowService = workflowService;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -263,7 +277,65 @@ public class BonusRunService {
     }
 
     /**
-     * Push the generated run's items into {@code payroll.payroll_bonus} against
+     * Submit a GENERATED run for approval (M200 / PRD §8.13.12 AC).
+     * Transitions the run to PENDING_APPROVAL and starts the
+     * BONUS_RUN_APPROVAL workflow.
+     */
+    @Transactional
+    public BonusRun submit(UUID runId) {
+        BonusRun run = get(runId);
+        if (run.getStatus() != BonusRunStatus.GENERATED) {
+            throw new BadRequestException(
+                    "Only GENERATED bonus runs can be submitted for approval (was " + run.getStatus() + ")");
+        }
+        BonusRunResponse before = BonusRunResponse.from(run);
+        run.setStatus(BonusRunStatus.PENDING_APPROVAL);
+        WorkflowInstance wf = workflowService.start(new StartWorkflowRequest(
+                WORKFLOW_DEFINITION,
+                MODULE,
+                WORKFLOW_ENTITY,
+                run.getId().toString(),
+                run.getRunNo() + " — " + run.getPeriodYear() + "/" + run.getPeriodMonth()
+                        + " — total " + run.getTotalAmount() + " " + run.getCurrency()
+                        + " (" + run.getEmployeeCount() + " employees)",
+                Map.of(
+                        "runNo", run.getRunNo(),
+                        "periodYear", run.getPeriodYear(),
+                        "periodMonth", run.getPeriodMonth(),
+                        "totalAmount", run.getTotalAmount() == null ? "0" : run.getTotalAmount().toPlainString(),
+                        "currency", run.getCurrency())));
+        run.setWorkflowInstanceId(wf.getId());
+        BonusRun saved = runs.save(run);
+        audit.record(MODULE, WORKFLOW_ENTITY, runId.toString(),
+                "SUBMIT_FOR_APPROVAL", before, BonusRunResponse.from(saved));
+        return saved;
+    }
+
+    @Transactional
+    public BonusRun onApproved(UUID runId, String comment) {
+        BonusRun run = get(runId);
+        if (run.getStatus() != BonusRunStatus.PENDING_APPROVAL) return run;
+        run.setStatus(BonusRunStatus.APPROVED);
+        BonusRun saved = runs.save(run);
+        audit.record(MODULE, WORKFLOW_ENTITY, runId.toString(), "APPROVED", null,
+                Map.of("comment", comment == null ? "" : comment));
+        return saved;
+    }
+
+    @Transactional
+    public BonusRun onRejected(UUID runId, String comment) {
+        BonusRun run = get(runId);
+        if (run.getStatus() != BonusRunStatus.PENDING_APPROVAL) return run;
+        run.setStatus(BonusRunStatus.GENERATED);    // revert to editable
+        run.setWorkflowInstanceId(null);
+        BonusRun saved = runs.save(run);
+        audit.record(MODULE, WORKFLOW_ENTITY, runId.toString(), "REJECTED", null,
+                Map.of("comment", comment == null ? "" : comment));
+        return saved;
+    }
+
+    /**
+     * Push an APPROVED run's items into {@code payroll.payroll_bonus} against
      * a target payroll run (must exist + be in a writable state). Items with
      * zero amount are skipped silently. Skips items that have already been
      * pushed (idempotent if called twice).
@@ -271,9 +343,9 @@ public class BonusRunService {
     @Transactional
     public BonusRun push(UUID runId, UUID targetPayrollRunId) {
         BonusRun run = get(runId);
-        if (run.getStatus() != BonusRunStatus.GENERATED) {
+        if (run.getStatus() != BonusRunStatus.APPROVED) {
             throw new BadRequestException(
-                    "Only GENERATED bonus runs can be pushed (was " + run.getStatus() + ")");
+                    "Only APPROVED bonus runs can be pushed (was " + run.getStatus() + ")");
         }
         PayrollRun payrollRun = payrollRuns.findById(targetPayrollRunId)
                 .orElseThrow(() -> new BadRequestException(
@@ -325,8 +397,8 @@ public class BonusRunService {
     @Transactional
     public BonusRun cancel(UUID runId, String reason) {
         BonusRun run = get(runId);
-        if (run.getStatus() == BonusRunStatus.PUSHED) {
-            throw new BadRequestException("Cannot cancel a PUSHED run (revoke from payroll first)");
+        if (run.getStatus() == BonusRunStatus.PUSHED || run.getStatus() == BonusRunStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Cannot cancel a " + run.getStatus() + " run");
         }
         BonusRunResponse before = BonusRunResponse.from(run);
         run.setStatus(BonusRunStatus.CANCELLED);

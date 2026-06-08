@@ -81,6 +81,10 @@ public class BonusRun {
     @Column(name = "created_by")
     private String createdBy;
 
+    /** Set when the run is submitted for approval (M200). */
+    @Column(name = "workflow_instance_id")
+    private UUID workflowInstanceId;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
