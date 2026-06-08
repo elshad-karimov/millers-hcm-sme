@@ -16,6 +16,7 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewDetail;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewFinalize;
+import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewReschedule;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewResponse;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewSchedule;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.KitResponse;
@@ -231,6 +232,38 @@ public class InterviewService {
         Interview saved = interviews.save(iv);
         audit.record(MODULE, ENTITY, interviewId.toString(),
                 "FINALIZE", before, InterviewResponse.from(saved));
+        return saved;
+    }
+
+    /**
+     * M219 — Reschedule a SCHEDULED or IN_PROGRESS interview. Updates
+     * {@code scheduledAt}, and optionally {@code interviewerEmployeeId} and
+     * {@code kitId} when supplied. Terminal-state interviews are rejected.
+     */
+    @Transactional
+    public Interview reschedule(UUID interviewId, InterviewReschedule req) {
+        Interview iv = get(interviewId);
+        if (iv.getStatus() == InterviewStatus.COMPLETED
+                || iv.getStatus() == InterviewStatus.CANCELLED
+                || iv.getStatus() == InterviewStatus.NO_SHOW) {
+            throw new BadRequestException(
+                    "Cannot reschedule a " + iv.getStatus() + " interview");
+        }
+        if (req.kitId() != null && !kits.existsById(req.kitId())) {
+            throw new BadRequestException("Kit not found: " + req.kitId());
+        }
+        InterviewResponse before = InterviewResponse.from(iv);
+        iv.setScheduledAt(req.scheduledAt());
+        if (req.interviewerEmployeeId() != null) {
+            iv.setInterviewerEmployeeId(req.interviewerEmployeeId());
+        }
+        if (req.kitId() != null) {
+            iv.setKitId(req.kitId());
+        }
+        iv.setUpdatedBy(currentRequest.username());
+        Interview saved = interviews.save(iv);
+        audit.record(MODULE, ENTITY, interviewId.toString(),
+                "RESCHEDULE", before, InterviewResponse.from(saved));
         return saved;
     }
 

@@ -80,6 +80,11 @@ public final class InterviewDtos {
             @NotNull UUID interviewerEmployeeId,
             @NotNull OffsetDateTime scheduledAt) {}
 
+    public record InterviewReschedule(
+            @NotNull OffsetDateTime scheduledAt,
+            UUID interviewerEmployeeId,
+            UUID kitId) {}
+
     public record InterviewFinalize(
             @NotNull InterviewRecommendation recommendation,
             @Size(max = 4000) String overallComment) {}

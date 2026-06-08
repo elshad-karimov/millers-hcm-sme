@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewDetail;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewFinalize;
+import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewReschedule;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewResponse;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.InterviewSchedule;
 import az.millers.hcm.recruitment.api.dto.InterviewDtos.ScoreResponse;
@@ -98,15 +99,11 @@ public class InterviewController {
         return InterviewResponse.from(service.markNoShow(id, reason));
     }
 
-    /**
-     * Convenience PUT to update an existing score by id is not needed —
-     * the upsert path covers create + edit symmetrically.
-     */
+    /** M219 — Update scheduledAt (and optionally interviewer/kit) on a non-terminal interview. */
     @PutMapping("/{id}")
     @PreAuthorize(WRITE_ROLES)
-    public InterviewResponse rescheduleStub(@PathVariable UUID id) {
-        // Reserved for a future reschedule endpoint. Returning current state
-        // keeps the API surface non-empty without semantic change.
-        return InterviewResponse.from(service.get(id));
+    public InterviewResponse reschedule(@PathVariable UUID id,
+                                         @Valid @RequestBody InterviewReschedule req) {
+        return InterviewResponse.from(service.reschedule(id, req));
     }
 }
