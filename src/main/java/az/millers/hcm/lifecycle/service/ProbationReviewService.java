@@ -11,11 +11,17 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.notifications.NotificationService;
+import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.lifecycle.api.dto.CompleteProbationReviewRequest;
 import az.millers.hcm.lifecycle.api.dto.ProbationReviewResponse;
 import az.millers.hcm.lifecycle.api.dto.ScheduleProbationReviewRequest;
@@ -52,12 +58,15 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class ProbationReviewService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProbationReviewService.class);
+
     private static final String MODULE = "LIFECYCLE";
     private static final String ENTITY = "ProbationReview";
 
     private final ProbationReviewRepository repository;
     private final EmploymentContractRepository contracts;
     private final EmployeeRepository employees;
+    private final NotificationService notifications;
     private final AuditService audit;
     private final AccessScopeService accessScope;
     private final CurrentRequest currentRequest;
@@ -65,12 +74,14 @@ public class ProbationReviewService {
     public ProbationReviewService(ProbationReviewRepository repository,
                                    EmploymentContractRepository contracts,
                                    EmployeeRepository employees,
+                                   NotificationService notifications,
                                    AuditService audit,
                                    AccessScopeService accessScope,
                                    CurrentRequest currentRequest) {
         this.repository = repository;
         this.contracts = contracts;
         this.employees = employees;
+        this.notifications = notifications;
         this.audit = audit;
         this.accessScope = accessScope;
         this.currentRequest = currentRequest;
@@ -209,7 +220,53 @@ public class ProbationReviewService {
         audit.record(MODULE, ENTITY, id.toString(),
                 "COMPLETE_" + req.outcome(), before,
                 ProbationReviewResponse.from(saved));
+
+        // M194 — FINAL PASSED review: promote employee from ON_PROBATION to ACTIVE.
+        if (saved.getReviewType() == ProbationReviewType.FINAL
+                && saved.getOutcome() == ProbationOutcome.PASSED) {
+            confirmEmployment(saved);
+        }
         return ProbationReviewResponse.from(saved);
+    }
+
+    /**
+     * Promotes an ON_PROBATION employee to ACTIVE after a FINAL PASSED review
+     * (M194 / PRD §8.7 probation confirmation).
+     */
+    private void confirmEmployment(ProbationReview review) {
+        employees.findById(review.getEmployeeId()).ifPresentOrElse(emp -> {
+            if (emp.getEmploymentStatus() != EmploymentStatus.ON_PROBATION) {
+                log.info("ProbationReviewService: employee {} is already in status {}; "
+                        + "skipping confirmation", emp.getEmployeeNo(), emp.getEmploymentStatus());
+                return;
+            }
+            emp.setEmploymentStatus(EmploymentStatus.ACTIVE);
+            employees.save(emp);
+            audit.record(MODULE, "Employee", emp.getId().toString(),
+                    "PROBATION_CONFIRMED", Map.of("status", EmploymentStatus.ON_PROBATION),
+                    Map.of("status", EmploymentStatus.ACTIVE,
+                            "reviewId", review.getId().toString()));
+            log.info("ProbationReviewService: employee {} confirmed — status ON_PROBATION → ACTIVE",
+                    emp.getEmployeeNo());
+
+            // Notify the employee of their confirmation.
+            String username = emp.getUsername();
+            if (username != null && !username.isBlank()) {
+                String title = "Congratulations — your probation is complete";
+                String body  = "Your probation period has been successfully completed and your "
+                        + "employment has been confirmed. Welcome to the team!";
+                try {
+                    notifications.notifyAll(
+                            NotificationCategory.TRANSACTIONAL,
+                            username, title, body,
+                            "LIFECYCLE", "ProbationReview", review.getId().toString());
+                } catch (Exception ex) {
+                    log.warn("ProbationReviewService: failed to notify {} of confirmation: {}",
+                            username, ex.getMessage());
+                }
+            }
+        }, () -> log.warn("ProbationReviewService: employee {} not found for confirmation",
+                review.getEmployeeId()));
     }
 
     /**
