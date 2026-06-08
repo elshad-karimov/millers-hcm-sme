@@ -17,6 +17,7 @@ export type WorkflowActionType =
   | 'CANCEL'
   | 'AUTO_APPROVE'
   | 'DELEGATE'
+  | 'ATTACH_DOCUMENT'
 
 export interface WorkflowInstance {
   id: string
@@ -45,6 +46,8 @@ export interface WorkflowAction {
   actor: string
   comment?: string | null
   ipAddress?: string | null
+  /** M166 — non-null for ATTACH_DOCUMENT actions */
+  documentRef?: string | null
   createdAt: string
 }
 
@@ -80,8 +83,8 @@ export const workflowApi = {
         params: { module, entity, id },
       })
       .then((r) => r.data),
-  act: (id: string, action: WorkflowActionType, comment?: string, delegateTo?: string) =>
+  act: (id: string, action: WorkflowActionType, comment?: string, delegateTo?: string, documentRef?: string) =>
     api
-      .post<WorkflowInstance>(`/workflow/instances/${id}/actions`, { action, comment, delegateTo })
+      .post<WorkflowInstance>(`/workflow/instances/${id}/actions`, { action, comment, delegateTo, documentRef })
       .then((r) => r.data),
 }

@@ -7,5 +7,7 @@ public record ActionRequest(
         @NotNull ActionType action,
         String comment,
         /** M162 — required when action == DELEGATE; username of the recipient. */
-        String delegateTo) {
+        String delegateTo,
+        /** M166 — required when action == ATTACH_DOCUMENT; MinIO object key or URL. */
+        String documentRef) {
 }

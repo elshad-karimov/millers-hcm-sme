@@ -14,7 +14,7 @@ import {
   Typography,
   App as AntdApp,
 } from 'antd'
-import { ShareAltOutlined } from '@ant-design/icons'
+import { PaperClipOutlined, ShareAltOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { workflowApi, type WorkflowInstance, type WorkflowStatus } from '../api/workflow'
@@ -41,6 +41,11 @@ interface DelegateForm {
   comment?: string
 }
 
+interface AttachDocForm {
+  documentRef: string
+  comment?: string
+}
+
 export function InboxPage() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
@@ -53,6 +58,11 @@ export function InboxPage() {
   const [delegateTarget, setDelegateTarget] = useState<WorkflowInstance | null>(null)
   const [delegating, setDelegating] = useState(false)
   const [delegateForm] = Form.useForm<DelegateForm>()
+
+  // Attach document modal state
+  const [attachTarget, setAttachTarget] = useState<WorkflowInstance | null>(null)
+  const [attaching, setAttaching] = useState(false)
+  const [attachForm] = Form.useForm<AttachDocForm>()
 
   function reload() {
     setLoading(true)
@@ -86,6 +96,26 @@ export function InboxPage() {
       }
     } finally {
       setDelegating(false)
+    }
+  }
+
+  async function handleAttach() {
+    if (!attachTarget) return
+    try {
+      const vals = await attachForm.validateFields()
+      setAttaching(true)
+      await workflowApi.act(attachTarget.id, 'ATTACH_DOCUMENT', vals.comment, undefined, vals.documentRef)
+      message.success('Document attached')
+      setAttachTarget(null)
+      attachForm.resetFields()
+      reload()
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } }
+      if (axiosErr?.response?.data?.message) {
+        message.error(axiosErr.response.data.message)
+      }
+    } finally {
+      setAttaching(false)
     }
   }
 
@@ -130,18 +160,31 @@ export function InboxPage() {
         if (r.status !== 'PENDING') return null
         // Only show Delegate if it's not already delegated to someone else
         const alreadyDelegated = r.delegatedTo && r.delegatedTo !== user?.username
-        if (alreadyDelegated) return null
         return (
-          <Button
-            size="small"
-            icon={<ShareAltOutlined />}
-            onClick={(e) => {
-              e.stopPropagation()
-              setDelegateTarget(r)
-            }}
-          >
-            Delegate
-          </Button>
+          <Space size={4}>
+            {!alreadyDelegated && (
+              <Button
+                size="small"
+                icon={<ShareAltOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDelegateTarget(r)
+                }}
+              >
+                Delegate
+              </Button>
+            )}
+            <Button
+              size="small"
+              icon={<PaperClipOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                setAttachTarget(r)
+              }}
+            >
+              Attach
+            </Button>
+          </Space>
         )
       },
     },
@@ -266,6 +309,30 @@ export function InboxPage() {
           </Form.Item>
           <Form.Item name="comment" label="Note (optional)">
             <Input.TextArea rows={3} maxLength={500} showCount placeholder="Reason for delegation" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Attach Document modal */}
+      <Modal
+        title={`Attach Document: ${attachTarget?.title ?? ''}`}
+        open={!!attachTarget}
+        onCancel={() => { setAttachTarget(null); attachForm.resetFields() }}
+        onOk={handleAttach}
+        confirmLoading={attaching}
+        okText="Attach"
+        destroyOnClose
+      >
+        <Form form={attachForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="documentRef"
+            label="Document reference (URL or object key)"
+            rules={[{ required: true, message: 'Enter a document URL or MinIO object key' }]}
+          >
+            <Input placeholder="e.g. https://... or documents/approvals/..." autoFocus />
+          </Form.Item>
+          <Form.Item name="comment" label="Description (optional)">
+            <Input.TextArea rows={3} maxLength={500} showCount placeholder="Describe the attached document" />
           </Form.Item>
         </Form>
       </Modal>

@@ -15,6 +15,8 @@ public record WorkflowActionResponse(
         String actor,
         String comment,
         String ipAddress,
+        /** M166 — non-null for ATTACH_DOCUMENT actions. */
+        String documentRef,
         OffsetDateTime createdAt) {
 
     public static WorkflowActionResponse from(WorkflowAction a) {
@@ -27,6 +29,7 @@ public record WorkflowActionResponse(
                 a.getActor(),
                 a.getComment(),
                 a.getIpAddress(),
+                a.getDocumentRef(),
                 a.getCreatedAt());
     }
 }

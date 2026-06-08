@@ -10,5 +10,7 @@ public enum ActionType {
     CANCEL,
     AUTO_APPROVE,
     /** M162: explicit hand-off of the current step to a named user. */
-    DELEGATE
+    DELEGATE,
+    /** M166: attach a supporting document to the current step (PRD §9.3). */
+    ATTACH_DOCUMENT
 }

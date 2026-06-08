@@ -352,6 +352,23 @@ public class WorkflowService {
                         instanceId, currentStep.getName(), actor, delegateTo);
                 return saved;
             }
+            case ATTACH_DOCUMENT -> {
+                // M166: attach a supporting document to the current step (PRD §9.3).
+                // Any participant in the workflow (initiator or current-step approver
+                // or system admin) may attach a document; it does not advance the step.
+                if (!StringUtils.hasText(req.documentRef())) {
+                    throw new BadRequestException("documentRef is required for ATTACH_DOCUMENT action");
+                }
+                String docRef = req.documentRef().trim();
+                String docNote = StringUtils.hasText(req.comment())
+                        ? req.comment()
+                        : "Document attached: " + docRef;
+                recordAction(i, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.ATTACH_DOCUMENT, docNote, docRef);
+                log.info("Workflow {} step {} — document attached by {}: {}",
+                        instanceId, currentStep.getName(), actor, docRef);
+                return i;
+            }
             default -> throw new BadRequestException(
                     "Action " + req.action() + " cannot be invoked directly");
         }
@@ -368,6 +385,11 @@ public class WorkflowService {
 
     private void recordAction(WorkflowInstance i, int stepIndex, String stepName,
                               ActionType type, String comment) {
+        recordAction(i, stepIndex, stepName, type, comment, null);
+    }
+
+    private void recordAction(WorkflowInstance i, int stepIndex, String stepName,
+                              ActionType type, String comment, String documentRef) {
         WorkflowAction a = new WorkflowAction();
         a.setInstanceId(i.getId());
         a.setStepIndex(stepIndex);
@@ -376,6 +398,7 @@ public class WorkflowService {
         a.setActor(currentRequest.username());
         a.setComment(comment);
         a.setIpAddress(currentRequest.ipAddress());
+        a.setDocumentRef(documentRef);
         actions.save(a);
     }
 

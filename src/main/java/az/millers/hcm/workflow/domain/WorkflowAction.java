@@ -46,6 +46,10 @@ public class WorkflowAction {
     @Column(name = "ip_address")
     private String ipAddress;
 
+    /** M166 — for ATTACH_DOCUMENT actions: MinIO object key or external URL. */
+    @Column(name = "document_ref", length = 1024)
+    private String documentRef;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
