@@ -95,4 +95,12 @@ public class PerformanceReviewController {
     public PerformanceReviewResponse close(@PathVariable UUID id) {
         return PerformanceReviewResponse.from(service.close(id));
     }
+
+    /** M218 — HR_ADMIN can cancel a review that is PENDING_APPROVAL. */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
+    public PerformanceReviewResponse cancel(@PathVariable UUID id,
+                                             @RequestParam(required = false) String reason) {
+        return PerformanceReviewResponse.from(service.onCancelled(id, reason));
+    }
 }

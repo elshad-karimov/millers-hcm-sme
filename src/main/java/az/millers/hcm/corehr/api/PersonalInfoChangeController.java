@@ -33,11 +33,14 @@ public class PersonalInfoChangeController {
 
     private final PersonalInfoChangeService service;
     private final EmployeeContextService context;
+    private final az.millers.hcm.security.CurrentRequest currentRequest;
 
     public PersonalInfoChangeController(PersonalInfoChangeService service,
-                                         EmployeeContextService context) {
+                                         EmployeeContextService context,
+                                         az.millers.hcm.security.CurrentRequest currentRequest) {
         this.service = service;
         this.context = context;
+        this.currentRequest = currentRequest;
     }
 
     /** HR / scoped-manager queue. Scope filter is applied inside the service. */
@@ -71,5 +74,14 @@ public class PersonalInfoChangeController {
     public List<PersonalInfoChangeResponse> mine() {
         UUID empId = context.currentEmployee().getId();
         return service.mine(empId).stream().map(PersonalInfoChangeResponse::from).toList();
+    }
+
+    /** M218 — HR can cancel a pending personal-info change request. */
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public PersonalInfoChangeResponse cancel(@PathVariable UUID id,
+                                              @RequestParam(required = false) String reason) {
+        return PersonalInfoChangeResponse.from(
+                service.onCancelled(id, currentRequest.username(), reason));
     }
 }
