@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +24,7 @@ import az.millers.hcm.payroll.api.dto.CreateRunRequest;
 import az.millers.hcm.payroll.api.dto.PayrollAllowanceResponse;
 import az.millers.hcm.payroll.api.dto.PayrollResultResponse;
 import az.millers.hcm.payroll.api.dto.PayrollRunResponse;
+import az.millers.hcm.payroll.domain.BankFileFormat;
 import az.millers.hcm.payroll.service.BankFileService;
 import az.millers.hcm.payroll.service.PayrollRunService;
 import jakarta.validation.Valid;
@@ -122,12 +124,19 @@ public class PayrollRunController {
 
     @GetMapping("/{id}/bank-file")
     @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN','PAYROLL_SPECIALIST','FINANCE_USER')")
-    public ResponseEntity<String> bankFile(@PathVariable UUID id) {
-        String csv = bankFile.exportCsv(id);
+    public ResponseEntity<String> bankFile(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "CSV") BankFileFormat format) {
+        String content = bankFile.renderBankFile(id, format);
+        String ext = format == BankFileFormat.RESPUBLIKA ? "txt" : "csv";
+        String contentType = format == BankFileFormat.RESPUBLIKA
+                ? "text/plain; charset=utf-8"
+                : "text/csv; charset=utf-8";
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, "text/csv; charset=utf-8")
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=payroll-bank-" + id + ".csv")
-                .body(csv);
+                        "attachment; filename=payroll-bank-" + format.name().toLowerCase()
+                                + "-" + id + "." + ext)
+                .body(content);
     }
 }

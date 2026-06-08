@@ -243,13 +243,20 @@ export const payrollApi = {
     api.post<BankAccountResponse>('/payroll/bank-accounts', payload).then((r) => r.data),
 }
 
-export async function downloadBankFile(id: string) {
-  const response = await api.get(`/payroll/runs/${id}/bank-file`, { responseType: 'blob' })
-  const blob = new Blob([response.data as BlobPart], { type: 'text/csv' })
+export type BankFileFormat = 'CSV' | 'ABB' | 'KAPITAL' | 'PASHA' | 'RESPUBLIKA' | 'SWIFT_MT103' | 'SEPA' | 'CUSTOM'
+
+export async function downloadBankFile(id: string, format: BankFileFormat = 'CSV') {
+  const response = await api.get(`/payroll/runs/${id}/bank-file`, {
+    responseType: 'blob',
+    params: { format },
+  })
+  const ext = format === 'RESPUBLIKA' ? 'txt' : 'csv'
+  const mime = format === 'RESPUBLIKA' ? 'text/plain' : 'text/csv'
+  const blob = new Blob([response.data as BlobPart], { type: mime })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `payroll-bank-${id}.csv`
+  a.download = `payroll-bank-${format.toLowerCase()}-${id}.${ext}`
   a.click()
   URL.revokeObjectURL(url)
 }

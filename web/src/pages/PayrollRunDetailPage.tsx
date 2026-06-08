@@ -5,6 +5,7 @@ import {
   Collapse,
   DatePicker,
   Descriptions,
+  Dropdown,
   Form,
   Input,
   Modal,
@@ -17,6 +18,7 @@ import {
   Typography,
   App as AntdApp,
 } from 'antd'
+import { DownOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -25,6 +27,7 @@ import {
   downloadErpExport,
   erpExportApi,
   payrollApi,
+  type BankFileFormat,
   type ErpExportFormat,
   type ErpExportResponse,
   type ErpGenerateRequest,
@@ -244,7 +247,27 @@ export function PayrollRunDetailPage() {
               <Button onClick={() => wrap('Close', () => payrollApi.close(run.id))}>Close</Button>
             )}
             {(run.status === 'APPROVED' || run.status === 'PAID' || run.status === 'CLOSED') && (
-              <Button onClick={() => downloadBankFile(run.id)}>Download bank file (CSV)</Button>
+              <Dropdown
+                menu={{
+                  items: (
+                    [
+                      { key: 'CSV',        label: 'Generic CSV'      },
+                      { key: 'ABB',        label: 'ABB Bank (AZ)'    },
+                      { key: 'KAPITAL',    label: 'Kapital Bank (AZ)' },
+                      { key: 'PASHA',      label: 'PASHA Bank (AZ)'  },
+                      { key: 'RESPUBLIKA', label: 'Bank Respublika (AZ)' },
+                    ] as { key: BankFileFormat; label: string }[]
+                  ).map((item) => ({
+                    key: item.key,
+                    label: item.label,
+                    onClick: () => downloadBankFile(run.id, item.key),
+                  })),
+                }}
+              >
+                <Button icon={<DownOutlined />} iconPosition="end">
+                  Bank file
+                </Button>
+              </Dropdown>
             )}
             <Button onClick={() => navigate('/payroll/runs')}>Back to list</Button>
           </Space>
