@@ -45,6 +45,9 @@ public enum NotificationCategory {
     /** Termination processed — notifies the line manager, IT, and Finance. */
     TERMINATION_NOTICE("Termination notices",
             "Notifications when an employee termination is processed — sent to the manager, IT, and Finance."),
+    /** Employee payslip available — salary credited, payslip viewable in self-service. */
+    PAYSLIP_READY("Payslip ready",
+            "Notification when your monthly payslip is available in the self-service portal."),
     /** Pre-boarding invite lifecycle events — sent to the HR issuer when an invite expires. */
     PREBOARDING("Pre-boarding updates",
             "Notifications about pre-boarding invites — expiry without submission, etc."),

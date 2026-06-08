@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import az.millers.hcm.payroll.repo.PayrollAllowanceRepository;
 import az.millers.hcm.payroll.repo.PayrollBonusRepository;
 import az.millers.hcm.payroll.repo.PayrollResultRepository;
 import az.millers.hcm.payroll.repo.PayrollRunRepository;
+import az.millers.hcm.payroll.event.PayrollRunPaidEvent;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
@@ -40,6 +42,7 @@ public class PayrollRunService {
     private final PayrollAllowanceRepository allowances;
     private final PayrollEngine engine;
     private final WorkflowService workflowService;
+    private final ApplicationEventPublisher eventPublisher;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -49,6 +52,7 @@ public class PayrollRunService {
                               PayrollAllowanceRepository allowances,
                               PayrollEngine engine,
                               WorkflowService workflowService,
+                              ApplicationEventPublisher eventPublisher,
                               AuditService audit,
                               CurrentRequest currentRequest) {
         this.runs = runs;
@@ -57,6 +61,7 @@ public class PayrollRunService {
         this.allowances = allowances;
         this.engine = engine;
         this.workflowService = workflowService;
+        this.eventPublisher = eventPublisher;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -241,6 +246,9 @@ public class PayrollRunService {
         PayrollRun saved = runs.save(r);
         audit.record(MODULE, ENTITY, id.toString(), "PAID", null,
                 Map.of("paidAt", saved.getPaidAt().toString()));
+        eventPublisher.publishEvent(new PayrollRunPaidEvent(
+                saved.getId(), saved.getRunNo(),
+                saved.getPeriodYear(), saved.getPeriodMonth()));
         return saved;
     }
 
