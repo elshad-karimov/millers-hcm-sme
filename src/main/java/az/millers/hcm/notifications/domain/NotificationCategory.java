@@ -36,6 +36,12 @@ public enum NotificationCategory {
     /** Learning path / mandatory course nudges. */
     LEARNING_REMINDER("Learning reminders",
             "Nudges about pending learning paths and mandatory courses."),
+    /** Course assignment notifications — new course or path assigned to you. */
+    COURSE_ASSIGNMENT("Course assignments",
+            "Notifications when a new course or learning path is assigned to you."),
+    /** Course completion, failure, and certificate notifications. */
+    LEARNING_COMPLETION("Course completions & certificates",
+            "Notifications when you pass or fail a course, or when a certificate is issued."),
     /** Recruiter reminders about candidates that have gone cold. */
     STALE_POOL_REMINDER("Stale candidate reminders",
             "Daily digest of candidates in your pipeline that haven't been contacted recently."),

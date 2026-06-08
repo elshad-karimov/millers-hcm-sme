@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
+import az.millers.hcm.learning.event.CourseAssignedEvent;
+import az.millers.hcm.learning.event.CourseFailedEvent;
 import az.millers.hcm.learning.event.CoursePassedEvent;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
@@ -169,6 +171,8 @@ public class EnrollmentService {
         Enrollment saved = enrollments.save(e);
         audit.record(MODULE, "Enrollment", saved.getId().toString(),
                 "ENROLL", null, EnrollmentResponse.from(saved));
+        events.publishEvent(new CourseAssignedEvent(
+                saved.getEmployeeId(), course.getId(), course.getTitle(), saved.getId()));
         return saved;
     }
 
@@ -292,6 +296,9 @@ public class EnrollmentService {
                     enrollment.getEmployeeId(), course.getId(), enrollment.getBestScorePercent()));
         } else if (enrollment.getAttemptsUsed() >= course.getMaxAttempts()) {
             enrollment.setStatus(EnrollmentStatus.FAILED);
+            events.publishEvent(new CourseFailedEvent(
+                    enrollment.getEmployeeId(), course.getId(), course.getTitle(),
+                    enrollment.getBestScorePercent()));
         } else {
             enrollment.setStatus(EnrollmentStatus.IN_PROGRESS);
         }
