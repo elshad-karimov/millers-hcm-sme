@@ -253,3 +253,72 @@ export async function downloadBankFile(id: string) {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// ── M158: ERP / Accounting journal export ─────────────────────────────────────
+
+export type ErpExportFormat = 'CSV_GENERIC' | 'CSV_1C' | 'CSV_DYNAMICS365' | 'JSON'
+export type ErpExportStatus = 'PENDING' | 'GENERATING' | 'READY' | 'FAILED'
+
+export interface ErpExportLineResponse {
+  id: string
+  lineNo: number
+  accountCode: string
+  accountName?: string | null
+  costCentre?: string | null
+  description?: string | null
+  debit: number
+  credit: number
+  currency: string
+  employeeCount: number
+}
+
+export interface ErpExportResponse {
+  id: string
+  exportNo: string
+  runId: string
+  format: ErpExportFormat
+  status: ErpExportStatus
+  postingDate: string
+  referenceNo?: string | null
+  journalType?: string | null
+  lineCount: number
+  totalDebit?: number | null
+  totalCredit?: number | null
+  errorMessage?: string | null
+  fileSizeBytes?: number | null
+  createdBy?: string | null
+  createdAt: string
+  generatedAt?: string | null
+  lines: ErpExportLineResponse[]
+}
+
+export interface ErpGenerateRequest {
+  format: ErpExportFormat
+  postingDate: string
+  referenceNo?: string
+  journalType?: string
+}
+
+export const erpExportApi = {
+  listAll: () =>
+    api.get<ErpExportResponse[]>('/payroll/erp-exports').then((r) => r.data),
+  listByRun: (runId: string) =>
+    api.get<ErpExportResponse[]>(`/payroll/runs/${runId}/erp-exports`).then((r) => r.data),
+  get: (id: string) =>
+    api.get<ErpExportResponse>(`/payroll/erp-exports/${id}`).then((r) => r.data),
+  generate: (runId: string, body: ErpGenerateRequest) =>
+    api.post<ErpExportResponse>(`/payroll/runs/${runId}/erp-exports`, body).then((r) => r.data),
+}
+
+export async function downloadErpExport(id: string, exportNo: string, format: ErpExportFormat) {
+  const ext = format === 'JSON' ? 'json' : 'csv'
+  const response = await api.get(`/payroll/erp-exports/${id}/download`, { responseType: 'blob' })
+  const blob = new Blob([response.data as BlobPart],
+    { type: format === 'JSON' ? 'application/json' : 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${exportNo}.${ext}`
+  a.click()
+  URL.revokeObjectURL(url)
+}

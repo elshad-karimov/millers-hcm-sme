@@ -3,9 +3,13 @@ import {
   Button,
   Card,
   Collapse,
+  DatePicker,
   Descriptions,
+  Form,
+  Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Spin,
   Table,
@@ -14,10 +18,16 @@ import {
   App as AntdApp,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   downloadBankFile,
+  downloadErpExport,
+  erpExportApi,
   payrollApi,
+  type ErpExportFormat,
+  type ErpExportResponse,
+  type ErpGenerateRequest,
   type PayrollAllowance,
   type PayrollResult,
   type PayrollRun,
@@ -48,6 +58,10 @@ export function PayrollRunDetailPage() {
 
   const [run, setRun] = useState<PayrollRun | null>(null)
   const [results, setResults] = useState<PayrollResult[]>([])
+  const [erpExports, setErpExports] = useState<ErpExportResponse[]>([])
+  const [erpModalOpen, setErpModalOpen] = useState(false)
+  const [erpGenerating, setErpGenerating] = useState(false)
+  const [erpForm] = Form.useForm<ErpGenerateRequest>()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [actLoading, setActLoading] = useState(false)
@@ -59,14 +73,16 @@ export function PayrollRunDetailPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [r, res, emp] = await Promise.all([
+      const [r, res, emp, exp] = await Promise.all([
         payrollApi.run(id),
         payrollApi.results(id),
         employeesApi.list({ size: 500 }),
+        erpExportApi.listByRun(id).catch(() => [] as ErpExportResponse[]),
       ])
       setRun(r)
       setResults(res)
       setEmployees(emp.content)
+      setErpExports(exp)
     } catch (err) {
       message.error(
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
@@ -287,6 +303,109 @@ export function PayrollRunDetailPage() {
           />
         </Card>
       )}
+
+      {/* M158 — ERP export card */}
+      {(run.status === 'APPROVED' || run.status === 'PAID' || run.status === 'CLOSED') && (
+        <Card
+          title="ERP / Accounting export"
+          extra={
+            hasRole(...RoleSets.HR_ADMIN_WRITE) && (
+              <Button size="small" type="primary" onClick={() => {
+                erpForm.resetFields()
+                erpForm.setFieldsValue({ format: 'CSV_GENERIC', postingDate: dayjs() as unknown as string, journalType: 'Payroll' })
+                setErpModalOpen(true)
+              }}>
+                Generate export
+              </Button>
+            )
+          }
+        >
+          <Table
+            rowKey="id"
+            size="small"
+            pagination={false}
+            dataSource={erpExports}
+            locale={{ emptyText: 'No exports generated yet.' }}
+            columns={[
+              { title: 'Export #', dataIndex: 'exportNo', width: 120 },
+              { title: 'Format', dataIndex: 'format', width: 130 },
+              {
+                title: 'Status',
+                dataIndex: 'status',
+                width: 100,
+                render: (v: string) => (
+                  <Tag color={v === 'READY' ? 'green' : v === 'FAILED' ? 'red' : 'default'}>{v}</Tag>
+                ),
+              },
+              { title: 'Posting date', dataIndex: 'postingDate', width: 130 },
+              { title: 'Lines', dataIndex: 'lineCount', width: 70, align: 'right' },
+              { title: 'Total debit', dataIndex: 'totalDebit', width: 130, align: 'right' },
+              {
+                title: '',
+                width: 100,
+                render: (_: unknown, e: ErpExportResponse) =>
+                  e.status === 'READY' ? (
+                    <Button size="small" onClick={() => downloadErpExport(e.id, e.exportNo, e.format as ErpExportFormat)}>
+                      Download
+                    </Button>
+                  ) : null,
+              },
+            ]}
+          />
+        </Card>
+      )}
+
+      {/* ERP generate modal */}
+      <Modal
+        title="Generate ERP journal export"
+        open={erpModalOpen}
+        onCancel={() => setErpModalOpen(false)}
+        confirmLoading={erpGenerating}
+        okText="Generate"
+        onOk={async () => {
+          const raw = await erpForm.validateFields()
+          const values: ErpGenerateRequest = {
+            ...raw,
+            postingDate: dayjs.isDayjs(raw.postingDate)
+              ? (raw.postingDate as unknown as ReturnType<typeof dayjs>).format('YYYY-MM-DD')
+              : raw.postingDate,
+          }
+          setErpGenerating(true)
+          try {
+            await erpExportApi.generate(run.id, values)
+            message.success('Export generated.')
+            setErpModalOpen(false)
+            load()
+          } catch (e) {
+            message.error(
+              (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Generation failed',
+            )
+          } finally {
+            setErpGenerating(false)
+          }
+        }}
+        destroyOnClose
+      >
+        <Form form={erpForm} layout="vertical">
+          <Form.Item name="format" label="Format" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value="CSV_GENERIC">CSV (Generic)</Select.Option>
+              <Select.Option value="CSV_1C">CSV — 1C Accounting 8.x</Select.Option>
+              <Select.Option value="CSV_DYNAMICS365">CSV — Microsoft Dynamics 365</Select.Option>
+              <Select.Option value="JSON">JSON</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="postingDate" label="Posting date" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="journalType" label="Journal type">
+            <Input maxLength={80} placeholder="Payroll" />
+          </Form.Item>
+          <Form.Item name="referenceNo" label="Reference #">
+            <Input maxLength={100} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         open={!!detailsOpen}
