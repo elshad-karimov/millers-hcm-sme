@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import az.millers.hcm.policy.domain.PolicyAcknowledgement;
 import az.millers.hcm.policy.domain.PolicyBodyFormat;
 import az.millers.hcm.policy.domain.PolicyDocument;
 import az.millers.hcm.policy.domain.PolicyStatus;
+import az.millers.hcm.policy.event.PolicyPublishedEvent;
 import az.millers.hcm.policy.repo.PolicyAcknowledgementRepository;
 import az.millers.hcm.policy.repo.PolicyDocumentRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -49,17 +51,20 @@ public class PolicyService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final EmployeeContextService employeeContext;
+    private final ApplicationEventPublisher eventPublisher;
 
     public PolicyService(PolicyDocumentRepository policies,
                           PolicyAcknowledgementRepository acks,
                           AuditService audit,
                           CurrentRequest currentRequest,
-                          EmployeeContextService employeeContext) {
+                          EmployeeContextService employeeContext,
+                          ApplicationEventPublisher eventPublisher) {
         this.policies = policies;
         this.acks = acks;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.employeeContext = employeeContext;
+        this.eventPublisher = eventPublisher;
     }
 
     // ── Admin CRUD ─────────────────────────────────────────────────────
@@ -130,6 +135,12 @@ public class PolicyService {
         PolicyDocument saved = policies.save(p);
         audit.record(MODULE, ENTITY, id.toString(),
                 "STATUS_CHANGE", before, PolicyResponse.from(saved));
+
+        // Notify all ACTIVE employees when a mandatory-ack policy is published.
+        if (target == PolicyStatus.PUBLISHED && saved.isRequiresAck()) {
+            eventPublisher.publishEvent(new PolicyPublishedEvent(
+                    saved.getId(), saved.getCode(), saved.getTitle(), saved.getVersion()));
+        }
         return saved;
     }
 
