@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +18,14 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.api.dto.EmployeeRequest;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.service.EmployeeService;
+import az.millers.hcm.email.EmailService;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.StartAssignmentRequest;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateResponse;
 import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
 import az.millers.hcm.lifecycle.service.ChecklistService;
+import az.millers.hcm.preboarding.api.PreboardingDtos.IssueRequest;
+import az.millers.hcm.preboarding.api.PreboardingDtos.IssueResponse;
+import az.millers.hcm.preboarding.service.PreboardingInviteService;
 import az.millers.hcm.recruitment.api.dto.ApplicationResponse;
 import az.millers.hcm.recruitment.api.dto.StageTransitionRequest;
 import az.millers.hcm.recruitment.domain.Application;
@@ -64,8 +69,12 @@ public class ApplicationService {
     private final OfferRepository offers;
     private final EmployeeService employeeService;
     private final ChecklistService checklistService;
+    private final PreboardingInviteService preboardingInviteService;
+    private final EmailService emailService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final String preboardingBaseUrl;
+    private final int preboardingAutoExpiryDays;
 
     public ApplicationService(ApplicationRepository applications,
                                ApplicationEventRepository events,
@@ -74,8 +83,12 @@ public class ApplicationService {
                                OfferRepository offers,
                                EmployeeService employeeService,
                                ChecklistService checklistService,
+                               PreboardingInviteService preboardingInviteService,
+                               EmailService emailService,
                                AuditService audit,
-                               CurrentRequest currentRequest) {
+                               CurrentRequest currentRequest,
+                               @Value("${hcm.preboarding.base-url}") String preboardingBaseUrl,
+                               @Value("${hcm.preboarding.auto-invite-expiry-days:30}") int preboardingAutoExpiryDays) {
         this.applications = applications;
         this.events = events;
         this.vacancies = vacancies;
@@ -83,8 +96,12 @@ public class ApplicationService {
         this.offers = offers;
         this.employeeService = employeeService;
         this.checklistService = checklistService;
+        this.preboardingInviteService = preboardingInviteService;
+        this.emailService = emailService;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.preboardingBaseUrl = preboardingBaseUrl;
+        this.preboardingAutoExpiryDays = preboardingAutoExpiryDays;
     }
 
     @Transactional(readOnly = true)
@@ -264,6 +281,35 @@ public class ApplicationService {
             }
         } catch (Exception ex) {
             log.error("Failed to auto-start onboarding checklist for employee {}: {}",
+                    created.getEmployeeNo(), ex.getMessage(), ex);
+        }
+
+        // M193 — auto-issue a pre-boarding invite and email the candidate so they
+        // can fill in personal details before their first day.  Non-fatal: a failure
+        // here must never block the hire transaction.
+        try {
+            IssueResponse invite = preboardingInviteService.issue(
+                    new IssueRequest(created.getId(), preboardingAutoExpiryDays,
+                            "Auto-issued on hire from recruitment (Application " + a.getApplicationNo() + ")"));
+            String candidateEmail = c.getEmail();
+            if (candidateEmail != null && !candidateEmail.isBlank()) {
+                String link = preboardingBaseUrl + "?token=" + invite.plaintextToken();
+                String html = "<p>Dear " + c.getFirstName() + ",</p>"
+                        + "<p>Congratulations on your new role! Please complete your pre-boarding "
+                        + "information before your start date using the link below.</p>"
+                        + "<p><a href=\"" + link + "\">" + link + "</a></p>"
+                        + "<p>This link expires in " + preboardingAutoExpiryDays + " days.</p>"
+                        + "<p>Millers HCM</p>";
+                emailService.sendSimple(candidateEmail,
+                        "Welcome! Complete your pre-boarding details", html);
+                log.info("Pre-boarding invite sent to {} for employee {}",
+                        candidateEmail, created.getEmployeeNo());
+            } else {
+                log.info("Pre-boarding invite created for employee {} (no email — send link manually)",
+                        created.getEmployeeNo());
+            }
+        } catch (Exception ex) {
+            log.error("Failed to auto-issue pre-boarding invite for employee {}: {}",
                     created.getEmployeeNo(), ex.getMessage(), ex);
         }
 
