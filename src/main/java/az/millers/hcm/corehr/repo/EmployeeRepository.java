@@ -48,6 +48,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
 
     Page<Employee> findByEmploymentStatus(EmploymentStatus status, Pageable pageable);
 
+    /** All employees in a given status — used for bulk notification jobs. */
+    java.util.List<Employee> findAllByEmploymentStatus(EmploymentStatus status);
+
     long countByEmploymentStatus(EmploymentStatus status);
 
     Page<Employee> findByLastNameContainingIgnoreCaseOrFirstNameContainingIgnoreCase(

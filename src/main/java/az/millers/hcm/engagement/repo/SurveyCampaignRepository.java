@@ -31,4 +31,26 @@ public interface SurveyCampaignRepository extends JpaRepository<SurveyCampaign, 
             order by c.opensOn desc
             """)
     List<SurveyCampaign> findOpenOn(@Param("today") LocalDate today);
+
+    /**
+     * DRAFT campaigns whose opening date has arrived — ready to activate.
+     * Used by the daily campaign scheduler (M186).
+     */
+    @Query("""
+            select c from SurveyCampaign c
+            where c.status = az.millers.hcm.engagement.domain.CampaignStatus.DRAFT
+              and c.opensOn <= :today
+            """)
+    List<SurveyCampaign> findDraftDueToOpen(@Param("today") LocalDate today);
+
+    /**
+     * ACTIVE campaigns whose closing date has passed — ready to close.
+     * Used by the daily campaign scheduler (M186).
+     */
+    @Query("""
+            select c from SurveyCampaign c
+            where c.status = az.millers.hcm.engagement.domain.CampaignStatus.ACTIVE
+              and c.closesOn < :today
+            """)
+    List<SurveyCampaign> findActiveDueToClose(@Param("today") LocalDate today);
 }
