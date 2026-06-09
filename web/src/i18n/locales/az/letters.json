@@ -1,0 +1,19 @@
+{
+  "newRequest": {
+    "title": "Məktub sorğusu",
+    "template": "Şablon",
+    "templatePlaceholder": "Məktub şablonu seçin",
+    "pickTemplate": "Şablon seçin",
+    "requiresApproval": "Bu şablon verilməzdən əvvəl HR təsdiqi tələb edir.",
+    "autoIssued": "Bu şablon göndərilən kimi avtomatik verilir.",
+    "purpose": "Məqsəd",
+    "purposePlaceholder": "Qısa səbəb — audit izinə daxil edilir",
+    "fieldRequired": "Tələb olunur",
+    "submit": "Sorğunu göndər",
+    "loadFailed": "Şablonlar yüklənmədi",
+    "messages": {
+      "submitted": "Sorğu {{requestNo}} göndərildi",
+      "submitFailed": "Göndərmə uğursuz oldu"
+    }
+  }
+}

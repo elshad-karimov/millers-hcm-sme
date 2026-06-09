@@ -14,6 +14,7 @@ import {
   App as AntdApp,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   letterTemplatesApi,
   selfLettersApi,
@@ -23,6 +24,8 @@ import {
 export function LetterRequestFormPage() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
+  // M236 — letters namespace + common for the shared Cancel button.
+  const { t } = useTranslation(['letters', 'common'])
   const [templates, setTemplates] = useState<LetterTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -38,7 +41,7 @@ export function LetterRequestFormPage() {
       .list(true)
       .then(setTemplates)
       .catch((e) =>
-        message.error(e?.response?.data?.message ?? 'Failed to load templates'),
+        message.error(e?.response?.data?.message ?? t('letters:newRequest.loadFailed')),
       )
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,12 +64,12 @@ export function LetterRequestFormPage() {
         purpose: values.purpose,
         customFields: values.customFields,
       })
-      message.success(`Request ${created.requestNo} submitted`)
+      message.success(t('letters:newRequest.messages.submitted', { requestNo: created.requestNo }))
       navigate('/my')
     } catch (e) {
       message.error(
         (e as { response?: { data?: { message?: string } } }).response?.data?.message ??
-          'Submit failed',
+          t('letters:newRequest.messages.submitFailed'),
       )
     } finally {
       setSubmitting(false)
@@ -82,7 +85,7 @@ export function LetterRequestFormPage() {
   }
 
   return (
-    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>Request a letter</Typography.Title>}>
+    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{t('letters:newRequest.title')}</Typography.Title>}>
       <Form
         form={form}
         layout="vertical"
@@ -90,13 +93,13 @@ export function LetterRequestFormPage() {
         style={{ maxWidth: 720 }}
       >
         <Form.Item
-          label="Template"
+          label={t('letters:newRequest.template')}
           name="templateId"
-          rules={[{ required: true, message: 'Pick a template' }]}
+          rules={[{ required: true, message: t('letters:newRequest.pickTemplate') }]}
         >
           <Select
-            placeholder="Select a letter template"
-            options={templates.map((t) => ({ value: t.id, label: t.name }))}
+            placeholder={t('letters:newRequest.templatePlaceholder')}
+            options={templates.map((tpl) => ({ value: tpl.id, label: tpl.name }))}
             onChange={(v) => setTemplateId(v)}
           />
         </Form.Item>
@@ -109,15 +112,15 @@ export function LetterRequestFormPage() {
               style={{ marginBottom: 16 }}
               message={
                 selected.requiresApproval
-                  ? 'This template requires HR approval before issuing.'
-                  : 'This template is auto-issued on submit.'
+                  ? t('letters:newRequest.requiresApproval')
+                  : t('letters:newRequest.autoIssued')
               }
               description={selected.description ?? null}
             />
 
-            <Form.Item label="Purpose" name="purpose">
+            <Form.Item label={t('letters:newRequest.purpose')} name="purpose">
               <Input.TextArea rows={2}
-                placeholder="Short reason — included in the audit trail" />
+                placeholder={t('letters:newRequest.purposePlaceholder')} />
             </Form.Item>
 
             {selected.placeholdersJson &&
@@ -126,7 +129,7 @@ export function LetterRequestFormPage() {
                   key={key}
                   label={`${key} — ${description}`}
                   name={['customFields', key]}
-                  rules={[{ required: true, message: 'Required' }]}
+                  rules={[{ required: true, message: t('letters:newRequest.fieldRequired') }]}
                 >
                   <Input />
                 </Form.Item>
@@ -136,9 +139,9 @@ export function LetterRequestFormPage() {
 
         <Space>
           <Button type="primary" htmlType="submit" loading={submitting}>
-            Submit request
+            {t('letters:newRequest.submit')}
           </Button>
-          <Button onClick={() => navigate('/my')}>Cancel</Button>
+          <Button onClick={() => navigate('/my')}>{t('common:cancel')}</Button>
         </Space>
       </Form>
     </Card>

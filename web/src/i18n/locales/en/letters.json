@@ -1,0 +1,19 @@
+{
+  "newRequest": {
+    "title": "Request a letter",
+    "template": "Template",
+    "templatePlaceholder": "Select a letter template",
+    "pickTemplate": "Pick a template",
+    "requiresApproval": "This template requires HR approval before issuing.",
+    "autoIssued": "This template is auto-issued on submit.",
+    "purpose": "Purpose",
+    "purposePlaceholder": "Short reason — included in the audit trail",
+    "fieldRequired": "Required",
+    "submit": "Submit request",
+    "loadFailed": "Failed to load templates",
+    "messages": {
+      "submitted": "Request {{requestNo}} submitted",
+      "submitFailed": "Submit failed"
+    }
+  }
+}

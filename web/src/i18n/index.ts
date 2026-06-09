@@ -31,6 +31,7 @@ import azLeave from './locales/az/leave.json'
 import azInbox from './locales/az/inbox.json'
 import azPermission from './locales/az/permission.json'
 import azBusinessTrip from './locales/az/businessTrip.json'
+import azLetters from './locales/az/letters.json'
 import enCommon from './locales/en/common.json'
 import enNav from './locales/en/nav.json'
 import enEmployee from './locales/en/employee.json'
@@ -40,6 +41,7 @@ import enLeave from './locales/en/leave.json'
 import enInbox from './locales/en/inbox.json'
 import enPermission from './locales/en/permission.json'
 import enBusinessTrip from './locales/en/businessTrip.json'
+import enLetters from './locales/en/letters.json'
 
 /** Languages the SPA ships with. Order = order shown in the switcher. */
 export const SUPPORTED_LANGUAGES = [
@@ -61,8 +63,8 @@ export const FALLBACK_LANG: SupportedLang = 'en'
 
 /** Resources are wired here, never duplicated in `init` calls. */
 const resources = {
-  az: { common: azCommon, nav: azNav, employee: azEmployee, dashboard: azDashboard, selfService: azSelfService, leave: azLeave, inbox: azInbox, permission: azPermission, businessTrip: azBusinessTrip },
-  en: { common: enCommon, nav: enNav, employee: enEmployee, dashboard: enDashboard, selfService: enSelfService, leave: enLeave, inbox: enInbox, permission: enPermission, businessTrip: enBusinessTrip },
+  az: { common: azCommon, nav: azNav, employee: azEmployee, dashboard: azDashboard, selfService: azSelfService, leave: azLeave, inbox: azInbox, permission: azPermission, businessTrip: azBusinessTrip, letters: azLetters },
+  en: { common: enCommon, nav: enNav, employee: enEmployee, dashboard: enDashboard, selfService: enSelfService, leave: enLeave, inbox: enInbox, permission: enPermission, businessTrip: enBusinessTrip, letters: enLetters },
 }
 
 i18n
@@ -72,7 +74,7 @@ i18n
     resources,
     fallbackLng: FALLBACK_LANG,
     supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
-    ns: ['common', 'nav', 'employee', 'dashboard', 'selfService', 'leave', 'inbox', 'permission', 'businessTrip'],
+    ns: ['common', 'nav', 'employee', 'dashboard', 'selfService', 'leave', 'inbox', 'permission', 'businessTrip', 'letters'],
     defaultNS: 'common',
     interpolation: { escapeValue: false }, // React already escapes
     detection: {
