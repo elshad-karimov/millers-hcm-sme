@@ -1,0 +1,44 @@
+{
+  "title": "Approvals",
+  "tabs": {
+    "pendingForMe": "Pending for me",
+    "initiatedByMe": "Initiated by me"
+  },
+  "empty": {
+    "nothingWaiting": "Nothing waiting on you",
+    "noneInitiated": "You haven't started any workflows yet"
+  },
+  "columns": {
+    "title": "Title",
+    "workflow": "Workflow",
+    "initiator": "Initiator",
+    "waitingOn": "Waiting on",
+    "status": "Status",
+    "started": "Started"
+  },
+  "actions": {
+    "delegate": "Delegate",
+    "attach": "Attach"
+  },
+  "delegateModal": {
+    "title": "Delegate: {{title}}",
+    "ok": "Delegate",
+    "to": "Delegate to (username)",
+    "toPlaceholder": "e.g. john.smith",
+    "toRequired": "Enter the username to delegate to",
+    "note": "Note (optional)",
+    "notePlaceholder": "Reason for delegation",
+    "successDelegated": "Step delegated to {{username}}"
+  },
+  "attachModal": {
+    "title": "Attach Document: {{title}}",
+    "ok": "Attach",
+    "ref": "Document reference (URL or object key)",
+    "refPlaceholder": "e.g. https://... or documents/approvals/...",
+    "refRequired": "Enter a document URL or MinIO object key",
+    "description": "Description (optional)",
+    "descriptionPlaceholder": "Describe the attached document",
+    "successAttached": "Document attached"
+  },
+  "loadFailed": "Failed to load workflow inbox"
+}

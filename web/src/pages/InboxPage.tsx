@@ -17,6 +17,7 @@ import {
 import { PaperClipOutlined, ShareAltOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { workflowApi, type WorkflowInstance, type WorkflowStatus } from '../api/workflow'
 import { useAuth } from '../auth/AuthContext'
 
@@ -50,6 +51,8 @@ export function InboxPage() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
   const { user } = useAuth()
+  // M233 — inbox/approvals labels come from the inbox namespace.
+  const { t } = useTranslation('inbox')
   const [inbox, setInbox] = useState<WorkflowInstance[]>([])
   const [initiated, setInitiated] = useState<WorkflowInstance[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,7 +75,7 @@ export function InboxPage() {
         setInitiated(b)
       })
       .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to load workflow inbox'),
+        message.error(err?.response?.data?.message ?? t('loadFailed')),
       )
       .finally(() => setLoading(false))
   }
@@ -85,7 +88,7 @@ export function InboxPage() {
       const vals = await delegateForm.validateFields()
       setDelegating(true)
       await workflowApi.act(delegateTarget.id, 'DELEGATE', vals.comment, vals.delegateTo)
-      message.success(`Step delegated to ${vals.delegateTo}`)
+      message.success(t('delegateModal.successDelegated', { username: vals.delegateTo }))
       setDelegateTarget(null)
       delegateForm.resetFields()
       reload()
@@ -105,7 +108,7 @@ export function InboxPage() {
       const vals = await attachForm.validateFields()
       setAttaching(true)
       await workflowApi.act(attachTarget.id, 'ATTACH_DOCUMENT', vals.comment, undefined, vals.documentRef)
-      message.success('Document attached')
+      message.success(t('attachModal.successAttached'))
       setAttachTarget(null)
       attachForm.resetFields()
       reload()
@@ -120,15 +123,15 @@ export function InboxPage() {
   }
 
   const inboxColumns: ColumnsType<WorkflowInstance> = [
-    { title: 'Title', dataIndex: 'title' },
+    { title: t('columns.title'), dataIndex: 'title' },
     {
-      title: 'Workflow',
+      title: t('columns.workflow'),
       dataIndex: 'definitionCode',
       render: (v: string) => <Tag color="geekblue">{v}</Tag>,
     },
-    { title: 'Initiator', dataIndex: 'initiatedBy' },
+    { title: t('columns.initiator'), dataIndex: 'initiatedBy' },
     {
-      title: 'Waiting on',
+      title: t('columns.waitingOn'),
       render: (_, r) => {
         if (r.status !== 'PENDING') return '—'
         return (
@@ -144,12 +147,12 @@ export function InboxPage() {
       },
     },
     {
-      title: 'Status',
+      title: t('columns.status'),
       dataIndex: 'status',
       render: (s: WorkflowStatus) => <Tag color={STATUS_COLOR[s]}>{s}</Tag>,
     },
     {
-      title: 'Started',
+      title: t('columns.started'),
       dataIndex: 'initiatedAt',
       render: (v: string) => new Date(v).toLocaleString(),
     },
@@ -171,7 +174,7 @@ export function InboxPage() {
                   setDelegateTarget(r)
                 }}
               >
-                Delegate
+                {t('actions.delegate')}
               </Button>
             )}
             <Button
@@ -182,7 +185,7 @@ export function InboxPage() {
                 setAttachTarget(r)
               }}
             >
-              Attach
+              {t('actions.attach')}
             </Button>
           </Space>
         )
@@ -191,14 +194,14 @@ export function InboxPage() {
   ]
 
   const initiatedColumns: ColumnsType<WorkflowInstance> = [
-    { title: 'Title', dataIndex: 'title' },
+    { title: t('columns.title'), dataIndex: 'title' },
     {
-      title: 'Workflow',
+      title: t('columns.workflow'),
       dataIndex: 'definitionCode',
       render: (v: string) => <Tag color="geekblue">{v}</Tag>,
     },
     {
-      title: 'Waiting on',
+      title: t('columns.waitingOn'),
       render: (_, r) => {
         if (r.status !== 'PENDING') return '—'
         return (
@@ -214,12 +217,12 @@ export function InboxPage() {
       },
     },
     {
-      title: 'Status',
+      title: t('columns.status'),
       dataIndex: 'status',
       render: (s: WorkflowStatus) => <Tag color={STATUS_COLOR[s]}>{s}</Tag>,
     },
     {
-      title: 'Started',
+      title: t('columns.started'),
       dataIndex: 'initiatedAt',
       render: (v: string) => new Date(v).toLocaleString(),
     },
@@ -235,20 +238,20 @@ export function InboxPage() {
 
   return (
     <>
-      <Card title={<Typography.Title level={4} style={{ margin: 0 }}>Approvals</Typography.Title>}>
+      <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{t('title')}</Typography.Title>}>
         <Tabs
           items={[
             {
               key: 'inbox',
               label: (
                 <Space>
-                  Pending for me
+                  {t('tabs.pendingForMe')}
                   {inbox.length > 0 && <Tag color="gold">{inbox.length}</Tag>}
                 </Space>
               ),
               children:
                 inbox.length === 0 ? (
-                  <Empty description="Nothing waiting on you" />
+                  <Empty description={t('empty.nothingWaiting')} />
                 ) : (
                   <Table
                     rowKey="id"
@@ -266,10 +269,10 @@ export function InboxPage() {
             },
             {
               key: 'initiated',
-              label: 'Initiated by me',
+              label: t('tabs.initiatedByMe'),
               children:
                 initiated.length === 0 ? (
-                  <Empty description="You haven't started any workflows yet" />
+                  <Empty description={t('empty.noneInitiated')} />
                 ) : (
                   <Table
                     rowKey="id"
@@ -291,48 +294,48 @@ export function InboxPage() {
 
       {/* Delegate modal */}
       <Modal
-        title={`Delegate: ${delegateTarget?.title ?? ''}`}
+        title={t('delegateModal.title', { title: delegateTarget?.title ?? '' })}
         open={!!delegateTarget}
         onCancel={() => { setDelegateTarget(null); delegateForm.resetFields() }}
         onOk={handleDelegate}
         confirmLoading={delegating}
-        okText="Delegate"
+        okText={t('delegateModal.ok')}
         destroyOnClose
       >
         <Form form={delegateForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="delegateTo"
-            label="Delegate to (username)"
-            rules={[{ required: true, message: 'Enter the username to delegate to' }]}
+            label={t('delegateModal.to')}
+            rules={[{ required: true, message: t('delegateModal.toRequired') }]}
           >
-            <Input placeholder="e.g. john.smith" autoFocus />
+            <Input placeholder={t('delegateModal.toPlaceholder')} autoFocus />
           </Form.Item>
-          <Form.Item name="comment" label="Note (optional)">
-            <Input.TextArea rows={3} maxLength={500} showCount placeholder="Reason for delegation" />
+          <Form.Item name="comment" label={t('delegateModal.note')}>
+            <Input.TextArea rows={3} maxLength={500} showCount placeholder={t('delegateModal.notePlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Attach Document modal */}
       <Modal
-        title={`Attach Document: ${attachTarget?.title ?? ''}`}
+        title={t('attachModal.title', { title: attachTarget?.title ?? '' })}
         open={!!attachTarget}
         onCancel={() => { setAttachTarget(null); attachForm.resetFields() }}
         onOk={handleAttach}
         confirmLoading={attaching}
-        okText="Attach"
+        okText={t('attachModal.ok')}
         destroyOnClose
       >
         <Form form={attachForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="documentRef"
-            label="Document reference (URL or object key)"
-            rules={[{ required: true, message: 'Enter a document URL or MinIO object key' }]}
+            label={t('attachModal.ref')}
+            rules={[{ required: true, message: t('attachModal.refRequired') }]}
           >
-            <Input placeholder="e.g. https://... or documents/approvals/..." autoFocus />
+            <Input placeholder={t('attachModal.refPlaceholder')} autoFocus />
           </Form.Item>
-          <Form.Item name="comment" label="Description (optional)">
-            <Input.TextArea rows={3} maxLength={500} showCount placeholder="Describe the attached document" />
+          <Form.Item name="comment" label={t('attachModal.description')}>
+            <Input.TextArea rows={3} maxLength={500} showCount placeholder={t('attachModal.descriptionPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

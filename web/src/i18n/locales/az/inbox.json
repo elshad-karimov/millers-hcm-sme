@@ -1,0 +1,44 @@
+{
+  "title": "Təsdiqlər",
+  "tabs": {
+    "pendingForMe": "Mənim üçün gözləyir",
+    "initiatedByMe": "Mən başlatdım"
+  },
+  "empty": {
+    "nothingWaiting": "Sizin üçün heç nə gözləmir",
+    "noneInitiated": "Hələ heç bir iş axını başlatmamısınız"
+  },
+  "columns": {
+    "title": "Başlıq",
+    "workflow": "İş axını",
+    "initiator": "Başladan",
+    "waitingOn": "Gözləyir",
+    "status": "Status",
+    "started": "Başlanma"
+  },
+  "actions": {
+    "delegate": "Həvalə et",
+    "attach": "Əlavə et"
+  },
+  "delegateModal": {
+    "title": "Həvalə: {{title}}",
+    "ok": "Həvalə et",
+    "to": "Kimə həvalə (istifadəçi adı)",
+    "toPlaceholder": "məs. john.smith",
+    "toRequired": "Həvalə etmək üçün istifadəçi adı daxil edin",
+    "note": "Qeyd (məcburi deyil)",
+    "notePlaceholder": "Həvalənin səbəbi",
+    "successDelegated": "Addım {{username}} istifadəçisinə həvalə edildi"
+  },
+  "attachModal": {
+    "title": "Sənəd əlavə et: {{title}}",
+    "ok": "Əlavə et",
+    "ref": "Sənəd referansı (URL və ya obyekt açarı)",
+    "refPlaceholder": "məs. https://... və ya documents/approvals/...",
+    "refRequired": "Sənəd URL-i və ya MinIO obyekt açarı daxil edin",
+    "description": "Təsvir (məcburi deyil)",
+    "descriptionPlaceholder": "Əlavə edilmiş sənədi təsvir edin",
+    "successAttached": "Sənəd əlavə edildi"
+  },
+  "loadFailed": "İş axını gələnlər qutusu yüklənmədi"
+}
