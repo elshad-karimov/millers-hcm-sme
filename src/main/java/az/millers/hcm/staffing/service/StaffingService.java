@@ -29,13 +29,16 @@ public class StaffingService {
     private final PositionRepository repository;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final PositionLifecycleService lifecycle;
 
     public StaffingService(PositionRepository repository,
                            AuditService audit,
-                           CurrentRequest currentRequest) {
+                           CurrentRequest currentRequest,
+                           PositionLifecycleService lifecycle) {
         this.repository = repository;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.lifecycle = lifecycle;
     }
 
     // ---------- Queries ----------
@@ -112,24 +115,16 @@ public class StaffingService {
         return saved;
     }
 
+    /**
+     * Delegates to {@link PositionLifecycleService#close} so there is exactly
+     * one path that closes a position (validation, breadcrumb update, event
+     * journal write, audit). This method is kept as a back-compat shim for
+     * the older M109 / staffing callers; new code should call the lifecycle
+     * service directly via {@code POST /api/positions/{id}/lifecycle/close}.
+     */
     @Transactional
     public Position close(UUID id, String reason) {
-        Position p = get(id);
-        if (p.getStatus() == PositionStatus.CLOSED) {
-            throw new BadRequestException("Position is already closed");
-        }
-        if (p.getOccupiedHeadcount() > 0) {
-            throw new BadRequestException("Cannot close a position with occupied headcount");
-        }
-        PositionResponse before = PositionResponse.from(p);
-        p.setStatus(PositionStatus.CLOSED);
-        p.setVacancyState(VacancyState.CANCELLED);
-        p.setUpdatedBy(currentRequest.username());
-        Position saved = repository.save(p);
-        audit.record(MODULE, ENTITY, id.toString(),
-                "CLOSE", before,
-                new ClosureSnapshot(PositionStatus.CLOSED, reason));
-        return saved;
+        return lifecycle.close(id, reason);
     }
 
     /**
@@ -200,5 +195,5 @@ public class StaffingService {
     }
 
     private record VacancyStateSnapshot(VacancyState state, String reason) {}
-    private record ClosureSnapshot(PositionStatus status, String reason) {}
+    // ClosureSnapshot moved into PositionLifecycleService.LifecycleSnapshot (M243).
 }

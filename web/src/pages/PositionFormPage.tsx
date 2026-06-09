@@ -16,6 +16,7 @@ import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { positionsApi, type Position, type PositionRequest } from '../api/positions'
 import { FormPageShell } from '../components/FormPageShell'
+import { PositionLifecyclePanel } from '../components/PositionLifecyclePanel'
 
 interface FormValues {
   title: string
@@ -46,6 +47,9 @@ export function PositionFormPage() {
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
+  // M243 — kept in sync with the loaded position so the lifecycle panel
+  // re-renders after a transition without re-fetching the whole form.
+  const [current, setCurrent] = useState<Position | null>(null)
   const [positionOptions, setPositionOptions] = useState<{ value: string; label: string }[]>([])
 
   useEffect(() => {
@@ -63,6 +67,7 @@ export function PositionFormPage() {
     positionsApi
       .get(id!)
       .then((p: Position) => {
+        setCurrent(p)
         form.setFieldsValue({
           title: p.title,
           parentPositionId: p.parentPositionId ?? undefined,
@@ -121,7 +126,16 @@ export function PositionFormPage() {
           <Spin />
         </div>
       ) : (
-        <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
+        <>
+          {editing && current && (
+            <div style={{ marginBottom: 16, padding: 12, background: '#fafafa', borderRadius: 6 }}>
+              <PositionLifecyclePanel
+                position={current}
+                onChange={(updated) => setCurrent(updated)}
+              />
+            </div>
+          )}
+          <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
           <Form.Item name="title" label="Title" rules={[{ required: true, max: 200 }]}>
             <Input />
           </Form.Item>
@@ -225,6 +239,7 @@ export function PositionFormPage() {
             </Space>
           </Form.Item>
         </Form>
+        </>
       )}
     </FormPageShell>
   )

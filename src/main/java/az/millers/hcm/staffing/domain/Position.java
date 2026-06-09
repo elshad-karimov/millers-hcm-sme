@@ -114,6 +114,48 @@ public class Position {
     @Column(nullable = false)
     private PositionStatus status;
 
+    // ── M243 — lifecycle breadcrumbs ───────────────────────────────────────
+    // Denormalised cache of the most recent freeze/closure/approval event
+    // so the row can answer "why is this frozen?" without joining the
+    // event journal. The full audit history is in
+    // staffing.position_lifecycle_event.
+
+    @Column(name = "freeze_reason")
+    private String freezeReason;
+
+    @Column(name = "frozen_at")
+    private OffsetDateTime frozenAt;
+
+    @Column(name = "frozen_by")
+    private String frozenBy;
+
+    @Column(name = "scheduled_unfreeze_date")
+    private java.time.LocalDate scheduledUnfreezeDate;
+
+    @Column(name = "closure_reason")
+    private String closureReason;
+
+    @Column(name = "closed_at")
+    private OffsetDateTime closedAt;
+
+    @Column(name = "closed_by")
+    private String closedBy;
+
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
+
+    @Column(name = "review_reason")
+    private String reviewReason;
+
+    @Column(name = "under_review_at")
+    private OffsetDateTime underReviewAt;
+
+    @Column(name = "under_review_by")
+    private String underReviewBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

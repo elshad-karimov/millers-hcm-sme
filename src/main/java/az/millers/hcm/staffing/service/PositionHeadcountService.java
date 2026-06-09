@@ -77,9 +77,18 @@ public class PositionHeadcountService {
         if (positionId == null) return;
         Position p = positions.findById(positionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Position not found: " + positionId));
+        // M243 — only ACTIVE positions accept new fills. CLOSED is kept
+        // as an explicit case for the friendlier error message; every
+        // other non-ACTIVE state (DRAFT / PENDING_APPROVAL / APPROVED /
+        // FROZEN / UNDER_REVIEW / ARCHIVED) is also blocked.
         if (p.getStatus() == PositionStatus.CLOSED) {
             throw new BadRequestException(
                     "Position " + p.getCode() + " is CLOSED — cannot assign employees");
+        }
+        if (!p.getStatus().isFillable()) {
+            throw new BadRequestException(
+                    "Position " + p.getCode() + " is " + p.getStatus()
+                    + " — only ACTIVE positions can be filled");
         }
         long actualOccupied = employees.countActiveByPositionId(positionId);
         if (!hasRoom(p.getApprovedHeadcount(), actualOccupied)) {

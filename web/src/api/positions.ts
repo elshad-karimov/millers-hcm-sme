@@ -9,7 +9,40 @@ export type VacancyState =
   | 'PLANNED'
   | 'CANCELLED'
 
-export type PositionStatus = 'ACTIVE' | 'CLOSED'
+// M243 — Phase A lifecycle. ACTIVE + CLOSED kept for backward compat with
+// pre-M243 rows; new positions go through the full DRAFT → ACTIVE chain.
+export type PositionStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'ACTIVE'
+  | 'FROZEN'
+  | 'UNDER_REVIEW'
+  | 'CLOSED'
+  | 'ARCHIVED'
+
+/**
+ * One row of the position lifecycle journal. Each transition writes
+ * exactly one of these so the audit trail is complete and ordered.
+ */
+export interface PositionLifecycleEvent {
+  id: string
+  positionId: string
+  fromStatus?: PositionStatus | null
+  toStatus: PositionStatus
+  reason?: string | null
+  comments?: string | null
+  scheduledUnfreezeDate?: string | null
+  actor?: string | null
+  occurredAt: string
+}
+
+/** Body sent to every lifecycle action endpoint. */
+export interface LifecycleActionRequest {
+  reason?: string
+  comments?: string
+  scheduledUnfreezeDate?: string
+}
 
 export interface Position {
   id: string
@@ -36,6 +69,19 @@ export interface Position {
   effectiveTo?: string | null
   vacancyState: VacancyState
   status: PositionStatus
+  // M243 — denormalised breadcrumbs from the most recent lifecycle event.
+  freezeReason?: string | null
+  frozenAt?: string | null
+  frozenBy?: string | null
+  scheduledUnfreezeDate?: string | null
+  closureReason?: string | null
+  closedAt?: string | null
+  closedBy?: string | null
+  approvedAt?: string | null
+  approvedBy?: string | null
+  reviewReason?: string | null
+  underReviewAt?: string | null
+  underReviewBy?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -84,4 +130,61 @@ export const positionsApi = {
       .then((r) => r.data),
   close: (id: string, reason?: string) =>
     api.post<Position>(`/positions/${id}/close`, { reason }).then((r) => r.data),
+
+  // ── M243 — lifecycle transitions ─────────────────────────────────────
+  // Single helper for the 9 actions: thin wrapper around POST
+  // /positions/{id}/lifecycle/<action>. The SPA never speaks to the
+  // legacy /close endpoint for new code paths — everything routes here.
+  lifecycle: {
+    history: (id: string) =>
+      api.get<PositionLifecycleEvent[]>(`/positions/${id}/lifecycle`).then((r) => r.data),
+    act: (
+      id: string,
+      action:
+        | 'submit'
+        | 'approve'
+        | 'reject'
+        | 'activate'
+        | 'freeze'
+        | 'unfreeze'
+        | 'under-review'
+        | 'finish-review'
+        | 'close'
+        | 'archive',
+      body?: LifecycleActionRequest,
+    ) =>
+      api
+        .post<Position>(`/positions/${id}/lifecycle/${action}`, body ?? {})
+        .then((r) => r.data),
+  },
+}
+
+/**
+ * M243 — Tag colour per lifecycle state. Centralised so PositionsPage,
+ * PositionFormPage, PositionControlPage all render the pill the same.
+ */
+export const POSITION_STATUS_COLOR: Record<PositionStatus, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'gold',
+  APPROVED: 'cyan',
+  ACTIVE: 'green',
+  FROZEN: 'blue',
+  UNDER_REVIEW: 'purple',
+  CLOSED: 'red',
+  ARCHIVED: 'default',
+}
+
+/**
+ * Legal next-states per current state. Mirrors PositionLifecycleService.ALLOWED.
+ * The SPA uses this to grey out impossible actions in the menu.
+ */
+export const POSITION_STATUS_NEXT: Record<PositionStatus, PositionStatus[]> = {
+  DRAFT: ['PENDING_APPROVAL', 'CLOSED'],
+  PENDING_APPROVAL: ['APPROVED', 'DRAFT', 'CLOSED'],
+  APPROVED: ['ACTIVE', 'CLOSED'],
+  ACTIVE: ['FROZEN', 'UNDER_REVIEW', 'CLOSED'],
+  FROZEN: ['ACTIVE', 'CLOSED'],
+  UNDER_REVIEW: ['ACTIVE', 'CLOSED'],
+  CLOSED: ['ARCHIVED'],
+  ARCHIVED: [],
 }

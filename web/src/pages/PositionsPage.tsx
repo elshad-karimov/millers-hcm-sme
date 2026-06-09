@@ -14,6 +14,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import {
+  POSITION_STATUS_COLOR,
   positionsApi,
   type Position,
   type PositionStatus,
@@ -40,10 +41,10 @@ const VACANCY_COLOR: Record<VacancyState, string> = {
   CANCELLED: 'default',
 }
 
-const STATUS_COLOR: Record<PositionStatus, string> = {
-  ACTIVE: 'green',
-  CLOSED: 'default',
-}
+// M243 — page-local STATUS_COLOR replaced by shared POSITION_STATUS_COLOR
+// from api/positions so the 8-state lifecycle pill is consistent across
+// PositionsPage, PositionFormPage and PositionLifecyclePanel.
+const STATUS_COLOR = POSITION_STATUS_COLOR
 
 export function PositionsPage() {
   const { hasRole } = useAuth()
@@ -129,7 +130,9 @@ export function PositionsPage() {
     {
       title: 'Status',
       dataIndex: 'status',
-      render: (s: PositionStatus) => <Tag color={STATUS_COLOR[s]}>{s}</Tag>,
+      render: (s: PositionStatus) => (
+        <Tag color={STATUS_COLOR[s]}>{s.replace(/_/g, ' ')}</Tag>
+      ),
     },
     canEdit
       ? {
