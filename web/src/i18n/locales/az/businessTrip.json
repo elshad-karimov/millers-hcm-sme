@@ -1,0 +1,34 @@
+{
+  "newRequest": {
+    "title": "Yeni ezamiyyət",
+    "employee": "İşçi",
+    "tripType": "Səfər növü",
+    "tripTypeOptions": {
+      "DOMESTIC": "Daxili",
+      "INTERNATIONAL": "Beynəlxalq"
+    },
+    "destinationCity": "Təyinat şəhəri",
+    "destinationCountry": "Təyinat ölkəsi",
+    "dates": "Tarixlər",
+    "purpose": "Məqsəd",
+    "project": "Layihə / xərc kodu",
+    "costCentre": "Xərc mərkəzi",
+    "currency": "Valyuta",
+    "dailyAllowance": "Günlük gündəlik",
+    "requestedAdvance": "Tələb olunan avans",
+    "mealsProvided": "Yemək işəgötürən tərəfindən təmin edilir",
+    "accommodationProvided": "Yaşayış təmin edilir",
+    "attachments": "Əlavələr",
+    "attachmentsTooltip": "Hər sətirdə bir URL (MinIO yükləmələri tamamlanana qədər).",
+    "submit": "Səfər sorğusunu göndər",
+    "footer": "Göndərmə <code>BUSINESS_TRIP_APPROVAL</code> iş axınını başladır (Menecer → Maliyyə / HR → Rəhbərlik). Yekun xərc tənzimlənməsi səfərdən sonra səfərin təfsilat səhifəsində baş verir.",
+    "validation": {
+      "selectEmployee": "İşçi seçin",
+      "pickDates": "Səfər tarixlərini seçin"
+    },
+    "messages": {
+      "submitted": "Ezamiyyət göndərildi — iş axını başladı",
+      "submitFailed": "Göndərmə uğursuz oldu"
+    }
+  }
+}

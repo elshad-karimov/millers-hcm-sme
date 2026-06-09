@@ -1,0 +1,34 @@
+{
+  "newRequest": {
+    "title": "New business trip",
+    "employee": "Employee",
+    "tripType": "Trip type",
+    "tripTypeOptions": {
+      "DOMESTIC": "Domestic",
+      "INTERNATIONAL": "International"
+    },
+    "destinationCity": "Destination city",
+    "destinationCountry": "Destination country",
+    "dates": "Dates",
+    "purpose": "Purpose",
+    "project": "Project / cost code",
+    "costCentre": "Cost centre",
+    "currency": "Currency",
+    "dailyAllowance": "Daily allowance",
+    "requestedAdvance": "Requested advance",
+    "mealsProvided": "Meals provided by employer",
+    "accommodationProvided": "Accommodation provided",
+    "attachments": "Attachments",
+    "attachmentsTooltip": "One URL per line (until MinIO uploads ship).",
+    "submit": "Submit trip request",
+    "footer": "Submitting starts the <code>BUSINESS_TRIP_APPROVAL</code> workflow (Manager → Finance / HR → Executive). Final expense reconciliation happens after the trip on the trip's detail page.",
+    "validation": {
+      "selectEmployee": "Select an employee",
+      "pickDates": "Pick trip dates"
+    },
+    "messages": {
+      "submitted": "Business trip submitted — workflow started",
+      "submitFailed": "Submission failed"
+    }
+  }
+}
