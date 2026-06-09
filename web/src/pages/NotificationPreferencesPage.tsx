@@ -18,6 +18,7 @@ import {
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { useTranslation } from 'react-i18next'
 import {
   notificationPreferencesApi,
   type CategoryRow,
@@ -27,20 +28,12 @@ import {
 
 const { Title, Text, Paragraph } = Typography
 
-const CHANNEL_LABEL: Record<NotificationChannel, string> = {
-  EMAIL: 'Email',
-  PUSH: 'Push',
-  IN_APP: 'In-app',
-}
-
-const CHANNEL_DESCRIPTION: Record<NotificationChannel, string> = {
-  EMAIL: 'Sent to your work email address.',
-  PUSH: 'Mobile push (if you have a registered device).',
-  IN_APP: 'Shows up in the bell at the top of the platform.',
-}
-
 export function NotificationPreferencesPage() {
   const { message } = AntdApp.useApp()
+  // M238 — channel labels + descriptions live in JSON keyed by the
+  // enum value, so the same mapping table that drove the hard-coded
+  // Records is now generated via t(`channels.${ch}`).
+  const { t } = useTranslation('notifications')
   const [grid, setGrid] = useState<PreferenceGrid | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
@@ -50,7 +43,7 @@ export function NotificationPreferencesPage() {
       .mine()
       .then(setGrid)
       .catch((e) =>
-        message.error(e?.response?.data?.message ?? 'Failed to load preferences'),
+        message.error(e?.response?.data?.message ?? t('preferences.messages.loadFailed')),
       )
       .finally(() => setLoading(false))
   }, [message])
@@ -67,11 +60,15 @@ export function NotificationPreferencesPage() {
       const fresh = await notificationPreferencesApi.toggle(row.category, channel, enabled)
       setGrid(fresh)
       message.success(
-        `${row.displayName}: ${CHANNEL_LABEL[channel]} ${enabled ? 'enabled' : 'muted'}`,
+        t('preferences.messages.toggled', {
+          category: row.displayName,
+          channel: t(`preferences.channels.${channel}`),
+          state: enabled ? t('preferences.messages.enabled') : t('preferences.messages.muted'),
+        }),
       )
     } catch (e) {
       message.error(
-        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Save failed',
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('preferences.messages.saveFailed'),
       )
     } finally {
       setSaving(null)
@@ -79,16 +76,16 @@ export function NotificationPreferencesPage() {
   }
 
   if (loading) return <Spin />
-  if (!grid) return <Empty description="No data" />
+  if (!grid) return <Empty description={t('preferences.noData')} />
 
   const columns: ColumnsType<CategoryRow> = [
     {
-      title: 'Category',
+      title: t('preferences.columns.category'),
       render: (_, r) => (
         <Space direction="vertical" size={0}>
           <Space>
             <Text strong>{r.displayName}</Text>
-            {!r.mutable && <Tag color="default">always on</Tag>}
+            {!r.mutable && <Tag color="default">{t('preferences.alwaysOn')}</Tag>}
           </Space>
           <Text type="secondary" style={{ fontSize: 12 }}>{r.description}</Text>
         </Space>
@@ -98,9 +95,9 @@ export function NotificationPreferencesPage() {
       (ch) => ({
         title: (
           <Space direction="vertical" size={0}>
-            <Text strong>{CHANNEL_LABEL[ch]}</Text>
+            <Text strong>{t(`preferences.channels.${ch}`)}</Text>
             <Text type="secondary" style={{ fontSize: 11, fontWeight: 'normal' }}>
-              {CHANNEL_DESCRIPTION[ch]}
+              {t(`preferences.channelDescriptions.${ch}`)}
             </Text>
           </Space>
         ),
@@ -124,19 +121,16 @@ export function NotificationPreferencesPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Title level={3} style={{ margin: 0 }}>Notification preferences</Title>
+      <Title level={3} style={{ margin: 0 }}>{t('preferences.title')}</Title>
       <Paragraph type="secondary">
-        Control which alerts the platform sends you, per channel. Everything is on by default;
-        flip a switch off to opt out. Transactional notifications — workflow approvals you must
-        act on, security alerts, urgent escalations — are always delivered regardless of your
-        choices.
+        {t('preferences.intro')}
       </Paragraph>
 
       <Alert
         type="info"
         showIcon
-        message="Changes apply immediately"
-        description="Scheduled senders (expiry alerts, learning reminders, stale-pool digests) read your preferences at the moment of delivery — no need to wait for the next batch."
+        message={t('preferences.alertTitle')}
+        description={t('preferences.alertDescription')}
       />
 
       <Card>

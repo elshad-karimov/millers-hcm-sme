@@ -1,0 +1,30 @@
+{
+  "preferences": {
+    "title": "Notification preferences",
+    "intro": "Control which alerts the platform sends you, per channel. Everything is on by default; flip a switch off to opt out. Transactional notifications — workflow approvals you must act on, security alerts, urgent escalations — are always delivered regardless of your choices.",
+    "alertTitle": "Changes apply immediately",
+    "alertDescription": "Scheduled senders (expiry alerts, learning reminders, stale-pool digests) read your preferences at the moment of delivery — no need to wait for the next batch.",
+    "columns": {
+      "category": "Category"
+    },
+    "alwaysOn": "always on",
+    "channels": {
+      "EMAIL": "Email",
+      "PUSH": "Push",
+      "IN_APP": "In-app"
+    },
+    "channelDescriptions": {
+      "EMAIL": "Sent to your work email address.",
+      "PUSH": "Mobile push (if you have a registered device).",
+      "IN_APP": "Shows up in the bell at the top of the platform."
+    },
+    "noData": "No data",
+    "messages": {
+      "toggled": "{{category}}: {{channel}} {{state}}",
+      "enabled": "enabled",
+      "muted": "muted",
+      "loadFailed": "Failed to load preferences",
+      "saveFailed": "Save failed"
+    }
+  }
+}

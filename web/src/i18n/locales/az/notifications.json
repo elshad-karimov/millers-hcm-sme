@@ -1,0 +1,30 @@
+{
+  "preferences": {
+    "title": "Bildiriş tənzimləmələri",
+    "intro": "Platformanın sizə hansı xəbərdarlıqları, hansı kanal vasitəsilə göndərəcəyini idarə edin. Hər şey standart olaraq aktivdir; opt-out etmək üçün açarı söndürün. Tranzaksiya bildirişləri — sizin əməliyyat etməli olduğunuz iş axını təsdiqləri, təhlükəsizlik xəbərdarlıqları, təcili eskalasiyalar — seçimlərinizdən asılı olmayaraq həmişə çatdırılır.",
+    "alertTitle": "Dəyişikliklər dərhal tətbiq olunur",
+    "alertDescription": "Planlaşdırılmış göndərənlər (müddət bildirişləri, təlim xatırlatmaları, köhnə hovuz xülasələri) çatdırılma anında sizin tənzimləmələrinizi oxuyur — növbəti partiyanı gözləməyə ehtiyac yoxdur.",
+    "columns": {
+      "category": "Kateqoriya"
+    },
+    "alwaysOn": "həmişə aktiv",
+    "channels": {
+      "EMAIL": "E-poçt",
+      "PUSH": "Push",
+      "IN_APP": "Tətbiqdaxili"
+    },
+    "channelDescriptions": {
+      "EMAIL": "İş e-poçt ünvanınıza göndərilir.",
+      "PUSH": "Mobil push (qeydiyyatdan keçmiş cihazınız varsa).",
+      "IN_APP": "Platformanın yuxarı hissəsindəki zəng işarəsində görünür."
+    },
+    "noData": "Məlumat yoxdur",
+    "messages": {
+      "toggled": "{{category}}: {{channel}} {{state}}",
+      "enabled": "aktivləşdirildi",
+      "muted": "söndürüldü",
+      "loadFailed": "Tənzimləmələr yüklənmədi",
+      "saveFailed": "Saxlanılmadı"
+    }
+  }
+}
