@@ -41,6 +41,9 @@ public class EmployeeService {
     private final EmployeeHistoryService historyService;
     private final PositionHeadcountService headcountGate;
     private final StaffingService staffingService;
+    // M249 — Phase D.2: every position assignment open/close is mirrored
+    // into the position_occupancy table for full history + auto-grant.
+    private final az.millers.hcm.staffing.service.PositionOccupancyService occupancyService;
 
     public EmployeeService(EmployeeRepository repository,
                            AuditService auditService,
@@ -49,7 +52,8 @@ public class EmployeeService {
                            AccessScopeService accessScope,
                            EmployeeHistoryService historyService,
                            PositionHeadcountService headcountGate,
-                           StaffingService staffingService) {
+                           StaffingService staffingService,
+                           az.millers.hcm.staffing.service.PositionOccupancyService occupancyService) {
         this.repository = repository;
         this.auditService = auditService;
         this.onboardingWorkflow = onboardingWorkflow;
@@ -58,6 +62,7 @@ public class EmployeeService {
         this.historyService = historyService;
         this.headcountGate = headcountGate;
         this.staffingService = staffingService;
+        this.occupancyService = occupancyService;
     }
 
     /**
@@ -142,6 +147,11 @@ public class EmployeeService {
         if (saved.getPositionId() != null) {
             staffingService.adjustOccupancy(saved.getPositionId(), +1,
                     "Direct hire " + saved.getEmployeeNo());
+            // M249 — Phase D.2: mirror the assignment into position_occupancy
+            // so the seat has a full history + the M250 grant list lands
+            // in HR's PENDING queue automatically.
+            occupancyService.openPrimary(saved.getId(), saved.getPositionId(),
+                    saved.getHireDate(), "Direct hire " + saved.getEmployeeNo());
         }
 
         // M62 / P1-10 + P1-11: open the initial history slices at hire date.
@@ -186,10 +196,20 @@ public class EmployeeService {
             if (oldPositionId != null) {
                 staffingService.adjustOccupancy(oldPositionId, -1,
                         "Position swap (out) for " + saved.getEmployeeNo());
+                // M249 — close the active PRIMARY occupancy on the old seat.
+                occupancyService.closeActivePrimary(saved.getId(), oldPositionId,
+                        java.time.LocalDate.now(),
+                        "Position swap to new seat for " + saved.getEmployeeNo());
             }
             if (newPositionId != null) {
                 staffingService.adjustOccupancy(newPositionId, +1,
                         "Position swap (in) for " + saved.getEmployeeNo());
+                // M249 — open a new PRIMARY occupancy on the new seat.
+                // Auto-grants the new position's mandatory profile items
+                // into HR's PENDING queue (M250).
+                occupancyService.openPrimary(saved.getId(), newPositionId,
+                        java.time.LocalDate.now(),
+                        "Position swap from previous seat for " + saved.getEmployeeNo());
             }
         }
 

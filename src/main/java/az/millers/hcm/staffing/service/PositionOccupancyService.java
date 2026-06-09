@@ -39,15 +39,20 @@ public class PositionOccupancyService {
     private final PositionRepository positions;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    // M250 (Phase F.2) — auto-grants the position profile to a new
+    // occupant; revokes everything when the occupancy ends.
+    private final PositionProfileGrantService grantService;
 
     public PositionOccupancyService(PositionOccupancyRepository repo,
                                      PositionRepository positions,
                                      AuditService audit,
-                                     CurrentRequest currentRequest) {
+                                     CurrentRequest currentRequest,
+                                     PositionProfileGrantService grantService) {
         this.repo = repo;
         this.positions = positions;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.grantService = grantService;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────
@@ -102,6 +107,15 @@ public class PositionOccupancyService {
 
         audit.record(MODULE, ENTITY, saved.getId().toString(),
                 "CREATE", null, snapshot(saved));
+
+        // M250 — Phase F.2: every PRIMARY assignment auto-creates the
+        // PENDING grant list from the position's mandatory profile items.
+        // Other occupancy types (ACTING / TEMPORARY / SECONDARY / etc.)
+        // don't auto-grant because the home position bears those for the
+        // employee already.
+        if (saved.getOccupancyType() == OccupancyType.PRIMARY) {
+            grantService.autoGrantForOccupancy(saved);
+        }
         return saved;
     }
 
@@ -161,7 +175,71 @@ public class PositionOccupancyService {
                 "END", null,
                 java.util.Map.of("endDate", endDate.toString(),
                         "reason", reason == null ? "" : reason));
+
+        // M250 — Phase F.2: pulling an occupant revokes every non-terminal
+        // grant on that occupancy. Operator can still mark individual
+        // grants ACTIVE manually if a downstream concern (e.g. an
+        // allowance) needs to outlive the position assignment.
+        grantService.revokeAllForOccupancy(saved.getId(),
+                "Occupancy ended on " + endDate
+                        + (reason == null ? "" : " — " + reason));
         return saved;
+    }
+
+    // ── M249 — Phase D.2 entry points for EmployeeService + TerminationService ──
+
+    /**
+     * Open a new PRIMARY occupancy for an employee on a position. Called
+     * from EmployeeService.create / update (position change in) and from
+     * the recruitment-hire path. Idempotent: if an active PRIMARY row
+     * already exists for the same (employee, position), this is a no-op
+     * and returns the existing row.
+     *
+     * <p>{@code asOf} is the occupancy start date — typically the
+     * employee's hire date or contract-change effective date.
+     */
+    @Transactional
+    public PositionOccupancy openPrimary(java.util.UUID employeeId,
+                                          java.util.UUID positionId,
+                                          java.time.LocalDate asOf,
+                                          String notes) {
+        if (employeeId == null || positionId == null) return null;
+        // Idempotent: if there's already an active PRIMARY occupancy on
+        // this exact pair, leave it alone. Avoids duplicates from
+        // EmployeeService retries / replays.
+        var existing = repo.findByPositionIdAndEndDateIsNull(positionId).stream()
+                .filter(o -> employeeId.equals(o.getEmployeeId()))
+                .filter(o -> o.getOccupancyType() == OccupancyType.PRIMARY)
+                .findFirst();
+        if (existing.isPresent()) return existing.get();
+
+        PositionOccupancy o = new PositionOccupancy();
+        o.setPositionId(positionId);
+        o.setEmployeeId(employeeId);
+        o.setOccupancyType(OccupancyType.PRIMARY);
+        o.setFteAllocation(java.math.BigDecimal.ONE);
+        o.setStartDate(asOf == null ? java.time.LocalDate.now() : asOf);
+        o.setNotes(notes);
+        return create(o);  // re-uses validation + audit + auto-grant
+    }
+
+    /**
+     * End the currently-active PRIMARY occupancy for {@code employeeId}
+     * on {@code positionId}, if any. Called from EmployeeService.update
+     * (position change out) and TerminationService.process.
+     */
+    @Transactional
+    public PositionOccupancy closeActivePrimary(java.util.UUID employeeId,
+                                                 java.util.UUID positionId,
+                                                 java.time.LocalDate asOf,
+                                                 String reason) {
+        if (employeeId == null || positionId == null) return null;
+        var match = repo.findByPositionIdAndEndDateIsNull(positionId).stream()
+                .filter(o -> employeeId.equals(o.getEmployeeId()))
+                .filter(o -> o.getOccupancyType() == OccupancyType.PRIMARY)
+                .findFirst();
+        if (match.isEmpty()) return null;  // nothing to close
+        return end(match.get().getId(), asOf, reason, null);
     }
 
     @Transactional

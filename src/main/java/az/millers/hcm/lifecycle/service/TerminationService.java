@@ -77,6 +77,9 @@ public class TerminationService {
     private final CurrentRequest currentRequest;
     private final EmployeeHistoryService historyService;
     private final ApplicationEventPublisher eventPublisher;
+    // M249 — Phase D.2: close the active PRIMARY occupancy + auto-revoke
+    // every grant on the way out.
+    private final az.millers.hcm.staffing.service.PositionOccupancyService occupancyService;
 
     public TerminationService(TerminationRequestRepository terminations,
                               ExitInterviewRepository exitInterviews,
@@ -90,7 +93,8 @@ public class TerminationService {
                               AuditService audit,
                               CurrentRequest currentRequest,
                               EmployeeHistoryService historyService,
-                              ApplicationEventPublisher eventPublisher) {
+                              ApplicationEventPublisher eventPublisher,
+                              az.millers.hcm.staffing.service.PositionOccupancyService occupancyService) {
         this.terminations = terminations;
         this.exitInterviews = exitInterviews;
         this.employees = employees;
@@ -104,6 +108,7 @@ public class TerminationService {
         this.currentRequest = currentRequest;
         this.historyService = historyService;
         this.eventPublisher = eventPublisher;
+        this.occupancyService = occupancyService;
     }
 
     @Transactional(readOnly = true)
@@ -320,6 +325,24 @@ public class TerminationService {
                 log.warn("Failed to release position {} on termination {}: {}",
                         savedEmployee.getPositionId(), t.getTerminationNo(), ex.getMessage());
                 calcDetails.put("positionAdjustError", ex.getMessage());
+                t.setPayoutCalcDetails(calcDetails);
+            }
+            // M249 — close the PRIMARY occupancy + auto-revoke every
+            // grant. Soft-fail on error so a transient occupancy issue
+            // doesn't block the termination flow itself.
+            try {
+                occupancyService.closeActivePrimary(
+                        savedEmployee.getId(),
+                        savedEmployee.getPositionId(),
+                        t.getEffectiveDate() != null
+                                ? t.getEffectiveDate()
+                                : java.time.LocalDate.now(),
+                        "Termination " + t.getTerminationNo()
+                                + (t.getReasonCode() == null ? "" : " — " + t.getReasonCode()));
+            } catch (RuntimeException ex) {
+                log.warn("Failed to close PRIMARY occupancy on termination {}: {}",
+                        t.getTerminationNo(), ex.getMessage());
+                calcDetails.put("occupancyCloseError", ex.getMessage());
                 t.setPayoutCalcDetails(calcDetails);
             }
         }

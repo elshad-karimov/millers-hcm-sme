@@ -40,6 +40,17 @@ import {
   type ReplacementRequest,
 } from '../api/positionOccupancy'
 import { employeesApi, type Employee } from '../api/employees'
+import {
+  GRANT_STATUS_COLOR,
+  GRANT_STATUS_LABEL,
+  positionProfileGrantApi,
+  type ProfileGrant,
+} from '../api/positionProfileGrant'
+import {
+  PROFILE_ITEM_TYPE_COLOR,
+  PROFILE_ITEM_TYPE_ICON,
+  PROFILE_ITEM_TYPE_LABEL,
+} from '../api/positionProfile'
 
 interface Props {
   positionId: string
@@ -74,6 +85,13 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
   const [assignModal, setAssignModal] = useState(false)
   const [endModal, setEndModal] = useState<PositionOccupancy | null>(null)
   const [replacementModal, setReplacementModal] = useState<PositionOccupancy | null>(null)
+  // M250 — Phase F.2: grant drawer for a specific occupancy.
+  const [grantsOpen, setGrantsOpen] = useState<PositionOccupancy | null>(null)
+  const [grants, setGrants] = useState<ProfileGrant[]>([])
+  const [grantsLoading, setGrantsLoading] = useState(false)
+  // Batched count of PENDING grants per occupancy id — populated alongside
+  // the occupancy refresh so the row badge is always current.
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({})
 
   type AssignFormValues = {
     employeeId: string
@@ -105,9 +123,64 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
 
   const refresh = () => {
     setLoading(true)
-    positionOccupancyApi.forPosition(positionId).then(setOccupancies).catch(() => setOccupancies([]))
+    positionOccupancyApi.forPosition(positionId).then((rows) => {
+      setOccupancies(rows)
+      // After loading occupancies, fetch each one's grants in parallel
+      // and tally PENDING counts. This is a small N (rarely > 10 rows
+      // per position) so a per-row GET is fine without an aggregate
+      // endpoint.
+      const counts: Record<string, number> = {}
+      Promise.all(rows.map((o) =>
+        positionProfileGrantApi.forOccupancy(o.id).then((gs) => {
+          counts[o.id] = gs.filter((g) => g.status === 'PENDING').length
+        }).catch(() => {
+          counts[o.id] = 0
+        }),
+      )).then(() => setPendingCounts(counts))
+    }).catch(() => setOccupancies([]))
     positionReplacementApi.forPosition(positionId).then(setReplacements).catch(() => setReplacements([]))
     setLoading(false)
+  }
+
+  // ── Grants drawer ────────────────────────────────────────────────
+
+  const openGrants = (row: PositionOccupancy) => {
+    setGrantsOpen(row)
+    setGrantsLoading(true)
+    positionProfileGrantApi.forOccupancy(row.id)
+      .then(setGrants)
+      .catch(() => setGrants([]))
+      .finally(() => setGrantsLoading(false))
+  }
+  const refreshGrants = () => {
+    if (!grantsOpen) return
+    setGrantsLoading(true)
+    positionProfileGrantApi.forOccupancy(grantsOpen.id)
+      .then(setGrants)
+      .catch(() => setGrants([]))
+      .finally(() => setGrantsLoading(false))
+    // Also bump the badge counter on the row.
+    refresh()
+  }
+  const markGrantActive = async (id: string) => {
+    try {
+      await positionProfileGrantApi.markActive(id)
+      message.success('Marked active')
+      refreshGrants()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } }
+      message.error(e?.response?.data?.message ?? 'Failed')
+    }
+  }
+  const revokeGrant = async (id: string) => {
+    try {
+      await positionProfileGrantApi.revoke(id, 'Manually revoked from occupancy panel')
+      message.success('Revoked')
+      refreshGrants()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } }
+      message.error(e?.response?.data?.message ?? 'Failed')
+    }
   }
 
   useEffect(refresh, [positionId])
@@ -304,6 +377,25 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
       title: 'End reason',
       dataIndex: 'endReason',
       render: (v: string) => v ?? '',
+    },
+    // M250 — Phase F.2: per-row Grants button. Shows a badge with the
+    // pending count so HR can spot un-actioned items at a glance.
+    {
+      title: 'Grants',
+      width: 130,
+      render: (_, r) => {
+        const pending = pendingCounts[r.id] ?? 0
+        return (
+          <Button
+            size="small"
+            type={pending > 0 ? 'primary' : 'default'}
+            ghost={pending > 0}
+            onClick={() => openGrants(r)}
+          >
+            🎁 {pending > 0 ? `${pending} pending` : 'View'}
+          </Button>
+        )
+      },
     },
     ...(canEdit
       ? [
@@ -590,6 +682,97 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
             <Input.TextArea rows={2} maxLength={2000} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* ── M250 — Grants modal ── */}
+      <Modal
+        title={
+          grantsOpen
+            ? `Profile grants for ${employeeLabel(grantsOpen.employeeId)}`
+            : 'Grants'
+        }
+        open={!!grantsOpen}
+        onCancel={() => setGrantsOpen(null)}
+        footer={null}
+        width={780}
+        destroyOnClose
+      >
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
+          Auto-created from the position's mandatory profile items when the
+          occupancy was opened. Mark each PENDING item ACTIVE as you set it
+          up downstream (allowance, training enrolment, document collected, etc.).
+        </Typography.Paragraph>
+        <Table
+          size="small"
+          rowKey="id"
+          loading={grantsLoading}
+          dataSource={grants}
+          pagination={false}
+          locale={{ emptyText: 'No grants — the position has no mandatory profile items.' }}
+          columns={[
+            {
+              title: 'Type',
+              width: 160,
+              render: (_, r) => (
+                <Tag color={PROFILE_ITEM_TYPE_COLOR[r.itemType]}>
+                  {PROFILE_ITEM_TYPE_ICON[r.itemType]} {PROFILE_ITEM_TYPE_LABEL[r.itemType]}
+                </Tag>
+              ),
+            },
+            {
+              title: 'Label',
+              render: (_, r) => (
+                <Space direction="vertical" size={0}>
+                  <strong>{r.label}</strong>
+                  {r.referenceCode && (
+                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                      ref: {r.referenceCode}
+                    </Typography.Text>
+                  )}
+                </Space>
+              ),
+            },
+            {
+              title: 'Amount',
+              align: 'right' as const,
+              width: 130,
+              render: (_, r) =>
+                r.valueAmount != null
+                  ? `${r.currency ?? ''} ${Number(r.valueAmount).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`
+                  : '—',
+            },
+            {
+              title: 'Status',
+              width: 110,
+              render: (_, r) => (
+                <Tag color={GRANT_STATUS_COLOR[r.status]}>
+                  {GRANT_STATUS_LABEL[r.status]}
+                </Tag>
+              ),
+            },
+            {
+              title: '',
+              width: 180,
+              render: (_, r) => (
+                <Space size={4}>
+                  {r.status === 'PENDING' && (
+                    <Button size="small" type="primary" onClick={() => markGrantActive(r.id)}>
+                      Mark active
+                    </Button>
+                  )}
+                  {(r.status === 'ACTIVE' || r.status === 'PENDING') && (
+                    <Button size="small" danger onClick={() => revokeGrant(r.id)}>
+                      Revoke
+                    </Button>
+                  )}
+                </Space>
+              ),
+            },
+          ]}
+        />
       </Modal>
     </Space>
   )
