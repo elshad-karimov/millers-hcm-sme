@@ -1,11 +1,15 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ConfigProvider, App as AntdApp } from 'antd'
+import { App as AntdApp } from 'antd'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
-import { brand } from './theme'
 import 'antd/dist/reset.css'
+// M228 — must import the i18n bootstrap BEFORE any component that
+// calls useTranslation; the side-effect init configures the global
+// i18next singleton.
+import './i18n'
+import { LanguageProvider } from './i18n/LanguageProvider'
 
 // Hide the pre-React boot splash AFTER React has confirmed it can mount.
 // Setting display:none up front would re-blank the page if a downstream
@@ -18,35 +22,10 @@ function hideSplash() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: brand.purple,
-          colorInfo: brand.cyanDeep,
-          colorSuccess: brand.greenDeep,
-          colorLink: brand.purple,
-          colorTextHeading: brand.ink,
-          colorBgLayout: brand.cream,
-          borderRadius: 8,
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, "Helvetica Neue", sans-serif',
-        },
-        components: {
-          Layout: {
-            headerBg: '#ffffff',
-            siderBg: '#ffffff',
-            bodyBg: brand.cream,
-          },
-          Menu: {
-            itemSelectedBg: 'rgba(91, 63, 229, 0.10)',
-            itemSelectedColor: brand.purpleDeep,
-          },
-          Button: {
-            primaryShadow: '0 4px 14px rgba(91, 63, 229, 0.35)',
-          },
-        },
-      }}
-    >
+    {/* LanguageProvider supplies the AntD ConfigProvider with the
+        right locale (AZ ↔ EN) reactively. Theme tokens live there
+        so theme + locale stay in lockstep — one provider, not two. */}
+    <LanguageProvider>
       <AntdApp>
         <AuthProvider>
           <BrowserRouter>
@@ -54,7 +33,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           </BrowserRouter>
         </AuthProvider>
       </AntdApp>
-    </ConfigProvider>
+    </LanguageProvider>
   </React.StrictMode>,
 )
 

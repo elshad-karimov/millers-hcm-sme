@@ -1,0 +1,22 @@
+{
+  "home": "Home",
+  "myWorkspace": "My Workspace",
+  "preferences": "Preferences",
+  "signOut": "Sign out",
+  "people": "People",
+  "timeAttendance": "Time & Attendance",
+  "absence": "Absence",
+  "travel": "Travel",
+  "letters": "Letters",
+  "personalInfo": "Personal info",
+  "recruitment": "Recruitment",
+  "lifecycle": "Lifecycle",
+  "performance": "Performance",
+  "career": "Career",
+  "learning": "Learning",
+  "compBenefits": "Comp & Benefits",
+  "inbox": "Inbox",
+  "reportsAnalytics": "Reports & Analytics",
+  "admin": "Admin",
+  "policies": "Policies"
+}

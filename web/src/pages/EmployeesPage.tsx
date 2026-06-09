@@ -12,6 +12,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { employeesApi, type Employee, type EmploymentStatus } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -57,6 +58,9 @@ export function EmployeesPage() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
   const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
+  // M228 — pull from the `employee` namespace; status labels are nested
+  // under `status.*` so the enum value maps 1:1 to the i18n key.
+  const { t } = useTranslation('employee')
 
   const [data, setData] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)
@@ -75,7 +79,7 @@ export function EmployeesPage() {
         setTotal(res.totalElements)
       })
       .catch((err) => {
-        message.error(err?.response?.data?.message ?? 'Failed to load employees')
+        message.error(err?.response?.data?.message ?? t('loadFailed'))
       })
       .finally(() => setLoading(false))
   }
@@ -87,38 +91,40 @@ export function EmployeesPage() {
 
   const columns: ColumnsType<Employee> = [
     {
-      title: 'Employee #',
+      title: t('columns.employeeNo'),
       dataIndex: 'employeeNo',
       render: (value: string, record) => <Link to={`/employees/${record.id}`}>{value}</Link>,
     },
     {
-      title: 'Name',
+      title: t('columns.name'),
       render: (_, r) => `${r.lastName}, ${r.firstName}${r.middleName ? ' ' + r.middleName : ''}`,
     },
-    { title: 'Department', dataIndex: 'departmentName' },
-    { title: 'Position', dataIndex: 'positionTitle' },
-    { title: 'Hire date', dataIndex: 'hireDate' },
+    { title: t('columns.department'), dataIndex: 'departmentName' },
+    { title: t('columns.position'), dataIndex: 'positionTitle' },
+    { title: t('columns.hireDate'), dataIndex: 'hireDate' },
     {
-      title: 'Status',
+      title: t('columns.status'),
       dataIndex: 'employmentStatus',
-      render: (s: EmploymentStatus) => <Tag color={STATUS_COLOR[s]}>{s.replace(/_/g, ' ')}</Tag>,
+      render: (s: EmploymentStatus) => (
+        <Tag color={STATUS_COLOR[s]}>{t(`status.${s}`)}</Tag>
+      ),
     },
   ]
 
   return (
     <Card
-      title={<Typography.Title level={4} style={{ margin: 0 }}>Employees</Typography.Title>}
+      title={<Typography.Title level={4} style={{ margin: 0 }}>{t('title')}</Typography.Title>}
       extra={
         canEdit && (
           <Button type="primary" onClick={() => navigate('/employees/new')}>
-            New employee
+            {t('newEmployee')}
           </Button>
         )
       }
     >
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
-          placeholder="Search by name"
+          placeholder={t('searchPlaceholder')}
           allowClear
           onSearch={(v) => {
             setSearch(v)
@@ -129,9 +135,12 @@ export function EmployeesPage() {
         />
         <Select
           allowClear
-          placeholder="Filter by status"
+          placeholder={t('filterByStatus')}
           style={{ width: 220 }}
-          options={STATUS_OPTIONS.map((s) => ({ value: s, label: s.replace(/_/g, ' ') }))}
+          // M228 — both the select and the table cell render the SAME
+          // status enum through the SAME `status.<enum>` namespace key,
+          // so any tweak to a label propagates to both places at once.
+          options={STATUS_OPTIONS.map((s) => ({ value: s, label: t(`status.${s}`) }))}
           value={status}
           onChange={(v) => {
             setStatus(v)

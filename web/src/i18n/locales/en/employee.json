@@ -1,0 +1,31 @@
+{
+  "title": "Employees",
+  "newEmployee": "New employee",
+  "searchPlaceholder": "Search by name",
+  "filterByStatus": "Filter by status",
+  "columns": {
+    "employeeNo": "Employee #",
+    "name": "Name",
+    "department": "Department",
+    "position": "Position",
+    "hireDate": "Hire date",
+    "status": "Status"
+  },
+  "loadFailed": "Failed to load employees",
+  "status": {
+    "ACTIVE": "Active",
+    "ON_PROBATION": "On probation",
+    "ON_LEAVE": "On leave",
+    "ON_BUSINESS_TRIP": "On business trip",
+    "SUSPENDED": "Suspended",
+    "TERMINATED": "Terminated",
+    "RETIRED": "Retired",
+    "CONTRACTOR": "Contractor",
+    "INTERN": "Intern",
+    "MATERNITY_LEAVE": "Maternity leave",
+    "MILITARY_SERVICE": "Military service",
+    "EDUCATIONAL_LEAVE": "Educational leave",
+    "GARDEN_LEAVE": "Garden leave",
+    "NON_ACTIVE": "Non-active"
+  }
+}

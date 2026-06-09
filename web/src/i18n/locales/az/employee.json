@@ -1,0 +1,31 @@
+{
+  "title": "İşçilər",
+  "newEmployee": "Yeni işçi",
+  "searchPlaceholder": "Ad ilə axtar",
+  "filterByStatus": "Statusa görə süzgəc",
+  "columns": {
+    "employeeNo": "İşçi nömrəsi",
+    "name": "Ad Soyad",
+    "department": "Şöbə",
+    "position": "Vəzifə",
+    "hireDate": "İşə qəbul tarixi",
+    "status": "Status"
+  },
+  "loadFailed": "İşçilər siyahısı yüklənmədi",
+  "status": {
+    "ACTIVE": "Aktiv",
+    "ON_PROBATION": "Sınaq müddətində",
+    "ON_LEAVE": "Məzuniyyətdə",
+    "ON_BUSINESS_TRIP": "Ezamiyyətdə",
+    "SUSPENDED": "Dayandırılmış",
+    "TERMINATED": "İşdən azad edilmiş",
+    "RETIRED": "Təqaüdə çıxmış",
+    "CONTRACTOR": "Müqaviləli işçi",
+    "INTERN": "Stajor",
+    "MATERNITY_LEAVE": "Analıq məzuniyyəti",
+    "MILITARY_SERVICE": "Hərbi xidmət",
+    "EDUCATIONAL_LEAVE": "Təhsil məzuniyyəti",
+    "GARDEN_LEAVE": "Ödənişli icbari məzuniyyət",
+    "NON_ACTIVE": "Qeyri-aktiv"
+  }
+}

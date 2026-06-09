@@ -39,11 +39,13 @@ import {
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthContext'
 import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
 import { brand } from '../theme'
 import { RoleSets } from '../auth/roleSets'
+import { LanguageSwitcher } from '../i18n/LanguageSwitcher'
 
 const { Header, Content } = Layout
 
@@ -151,6 +153,10 @@ function resolveLocation(pathname: string) {
 
 export function AppLayout() {
   const { user, logout, hasRole } = useAuth()
+  // M228 — every label below either uses tNav (top-level module
+  // names) or stays in English for now; sub-page Link labels migrate
+  // to t() in follow-up milestones, namespace by namespace.
+  const { t: tNav } = useTranslation('nav')
   const location = useLocation()
   const { module: activeModule, screen: selectedKey } = resolveLocation(location.pathname)
 
@@ -181,18 +187,18 @@ export function AppLayout() {
     {
       key: 'home',
       icon: <HomeOutlined />,
-      label: <Link to="/home">Home</Link>,
+      label: <Link to="/home">{tNav('home')}</Link>,
     },
     {
       key: 'my',
       icon: <UserOutlined />,
-      label: <Link to="/my">My Workspace</Link>,
+      label: <Link to="/my">{tNav('myWorkspace')}</Link>,
     },
     // M138 — company policies (everyone)
     {
       key: 'self-policies',
       icon: <FileTextOutlined />,
-      label: <Link to="/self/policies">Policies</Link>,
+      label: <Link to="/self/policies">{tNav('policies')}</Link>,
     },
 
     // ── My team (managers + HR) — M76 ───────────────────────────────────────
@@ -212,7 +218,7 @@ export function AppLayout() {
           {
             key: 'people',
             icon: <TeamOutlined />,
-            label: 'People',
+            label: tNav('people'),
             children: [
               {
                 key: 'employees',
@@ -291,7 +297,7 @@ export function AppLayout() {
           {
             key: 'time',
             icon: <ClockCircleOutlined />,
-            label: 'Time & Attendance',
+            label: tNav('timeAttendance'),
             children: [
               {
                 key: 'presence-map',
@@ -344,7 +350,7 @@ export function AppLayout() {
           {
             key: 'absence',
             icon: <CoffeeOutlined />,
-            label: 'Absence',
+            label: tNav('absence'),
             children: [
               {
                 key: 'leave-requests',
@@ -406,7 +412,7 @@ export function AppLayout() {
           {
             key: 'travel',
             icon: <GlobalOutlined />,
-            label: 'Travel',
+            label: tNav('travel'),
             children: [
               {
                 key: 'business-trips',
@@ -429,7 +435,7 @@ export function AppLayout() {
           {
             key: 'letters',
             icon: <FileTextOutlined />,
-            label: 'HR letters',
+            label: tNav('letters'),
             children: [
               {
                 key: 'letters-requests',
@@ -490,7 +496,7 @@ export function AppLayout() {
           {
             key: 'recruitment',
             icon: <UserAddOutlined />,
-            label: 'Recruitment',
+            label: tNav('recruitment'),
             children: [
               {
                 key: 'recruitment-vacancies',
@@ -528,7 +534,7 @@ export function AppLayout() {
           {
             key: 'lifecycle',
             icon: <SwapOutlined />,
-            label: 'Lifecycle',
+            label: tNav('lifecycle'),
             children: [
               {
                 key: 'lifecycle-terminations',
@@ -556,7 +562,7 @@ export function AppLayout() {
           {
             key: 'performance',
             icon: <RocketOutlined />,
-            label: 'Performance',
+            label: tNav('performance'),
             children: [
               {
                 key: 'performance-cycles',
@@ -604,7 +610,7 @@ export function AppLayout() {
           {
             key: 'learning',
             icon: <BookOutlined />,
-            label: 'Learning',
+            label: tNav('learning'),
             children: [
               {
                 key: 'learning-courses',
@@ -647,7 +653,7 @@ export function AppLayout() {
           {
             key: 'compbenefits',
             icon: <DollarCircleOutlined />,
-            label: 'Comp & Benefits',
+            label: tNav('compBenefits'),
             children: [
               {
                 key: 'compbenefits-matrix',
@@ -701,7 +707,7 @@ export function AppLayout() {
           {
             key: 'reports',
             icon: <BarChartOutlined />,
-            label: 'Reports & Analytics',
+            label: tNav('reportsAnalytics'),
             children: [
               ...(isHR
                 ? [
@@ -780,7 +786,7 @@ export function AppLayout() {
           {
             key: 'admin',
             icon: <SettingOutlined />,
-            label: 'Administration',
+            label: tNav('admin'),
             children: [
               ...(isAdmin
                 ? [
@@ -854,13 +860,18 @@ export function AppLayout() {
           <Logo size={36} withWordmark wordmarkColor={brand.ink} />
         </Link>
         <Space size="middle">
+          {/* M228 — language picker (AZ default / EN fallback). Lives in
+              the top bar so it's reachable from every page; the actual
+              switch logic is in i18n/LanguageProvider so there's only
+              ever one source of truth for the active locale. */}
+          <LanguageSwitcher color={brand.purpleDeep} />
           <NotificationBell />
           <Typography.Text strong style={{ color: brand.ink }}>
             {user?.username}
           </Typography.Text>
           {/* M115 — quick link to notification preferences */}
           <Link to="/my/notifications" style={{ color: brand.purpleDeep, fontSize: 13 }}>
-            Preferences
+            {tNav('preferences')}
           </Link>
           {user?.roles.map((r) => {
             const label = r.replace('ROLE_', '')
@@ -878,7 +889,7 @@ export function AppLayout() {
               </Tag>
             )
           })}
-          <Button onClick={logout}>Sign out</Button>
+          <Button onClick={logout}>{tNav('signOut')}</Button>
         </Space>
       </Header>
 
