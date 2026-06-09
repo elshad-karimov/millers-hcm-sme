@@ -56,12 +56,50 @@ export function LeaveRequestsPage() {
   const [status, setStatus] = useState<LeaveRequestStatus | undefined>()
   const [filesFor, setFilesFor] = useState<LeaveRequest | null>(null)
 
+  // M241 — Split the bootstrap fetches with individual catches so a
+  // single rejection no longer leaves both maps empty (which made the
+  // table render raw UUIDs in the Employee + Type columns).
   useEffect(() => {
-    Promise.all([leaveApi.types(), employeesApi.list({ size: 500 })]).then(([t, e]) => {
-      setTypes(t)
-      setEmployees(e.content)
-    })
+    leaveApi.types()
+      .then(setTypes)
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load leave types — names will appear as IDs.'))
+    employeesApi.list({ size: 500 })
+      .then((r) => setEmployees(r.content))
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load employees — names will appear as IDs.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // M241 — Lazy fill-in for request rows referencing employees/types
+  // outside the initial 500-row slice (or hidden by ABAC scope).
+  useEffect(() => {
+    if (rows.length === 0) return
+    const have = new Set(employees.map((e) => e.id))
+    const missing = [...new Set(rows.map((r) => r.employeeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => employeesApi.get(id).catch(() => null)))
+      .then((extras) => {
+        const valid = extras.filter((e): e is Employee => e !== null)
+        if (valid.length > 0) setEmployees((prev) => [...prev, ...valid])
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, employees.length])
+
+  useEffect(() => {
+    if (rows.length === 0) return
+    const have = new Set(types.map((t) => t.id))
+    const missing = [...new Set(rows.map((r) => r.leaveTypeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => leaveApi.getType(id).catch(() => null)))
+      .then((extras) => {
+        const valid = extras.filter((t): t is LeaveType => t !== null)
+        if (valid.length > 0) setTypes((prev) => [...prev, ...valid])
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, types.length])
 
   const load = () => {
     setLoading(true)
@@ -92,14 +130,19 @@ export function LeaveRequestsPage() {
       dataIndex: 'employeeId',
       render: (id: string) => {
         const e = employeeMap.get(id)
-        return e ? `${e.employeeNo} ${e.lastName} ${e.firstName}` : id
+        return e ? `${e.employeeNo} · ${e.firstName} ${e.lastName}` : id
       },
     },
     {
       title: 'Type',
       dataIndex: 'leaveTypeId',
-      render: (id: string) => <Tag color="geekblue">{typeMap.get(id)?.code ?? id}</Tag>,
-      width: 110,
+      render: (id: string) => {
+        const t = typeMap.get(id)
+        return t
+          ? <span><Tag color="geekblue">{t.code}</Tag>{t.name}</span>
+          : id
+      },
+      width: 200,
     },
     { title: 'Start', dataIndex: 'startDate', width: 110 },
     { title: 'End', dataIndex: 'endDate', width: 110 },

@@ -41,12 +41,50 @@ export function PermissionBalancesPage() {
     reason: '',
   })
 
+  // M241 — Same defensive split as LeaveBalancesPage: a Promise.all
+  // with no .catch swallows BOTH setters on a single rejection, which
+  // is how every column ends up as a raw UUID.
   useEffect(() => {
-    Promise.all([permissionApi.types(), employeesApi.list({ size: 500 })]).then(([t, e]) => {
-      setTypes(t)
-      setEmployees(e.content)
-    })
+    permissionApi.types()
+      .then(setTypes)
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load permission types — names will appear as IDs.'))
+    employeesApi.list({ size: 500 })
+      .then((r) => setEmployees(r.content))
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load employees — names will appear as IDs.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // M241 — Lazy fill-in for any balance row that references an
+  // employee or permission-type outside the initial page-0 slice.
+  useEffect(() => {
+    if (balances.length === 0) return
+    const have = new Set(employees.map((e) => e.id))
+    const missing = [...new Set(balances.map((b) => b.employeeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => employeesApi.get(id).catch(() => null)))
+      .then((extras) => {
+        const valid = extras.filter((e): e is Employee => e !== null)
+        if (valid.length > 0) setEmployees((prev) => [...prev, ...valid])
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balances, employees.length])
+
+  useEffect(() => {
+    if (balances.length === 0) return
+    const have = new Set(types.map((t) => t.id))
+    const missing = [...new Set(balances.map((b) => b.permissionTypeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => permissionApi.getType(id).catch(() => null)))
+      .then((extras) => {
+        const valid = extras.filter((t): t is PermissionType => t !== null)
+        if (valid.length > 0) setTypes((prev) => [...prev, ...valid])
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balances, types.length])
 
   const load = () => {
     setLoading(true)
@@ -73,14 +111,19 @@ export function PermissionBalancesPage() {
       dataIndex: 'employeeId',
       render: (id: string) => {
         const e = employeeMap.get(id)
-        return e ? `${e.employeeNo} ${e.lastName} ${e.firstName}` : id
+        return e ? `${e.employeeNo} · ${e.firstName} ${e.lastName}` : id
       },
     },
     {
       title: 'Type',
       dataIndex: 'permissionTypeId',
-      render: (id: string) => <Tag color="geekblue">{typeMap.get(id)?.code ?? id}</Tag>,
-      width: 130,
+      render: (id: string) => {
+        const t = typeMap.get(id)
+        return t
+          ? <span><Tag color="geekblue">{t.code}</Tag>{t.name}</span>
+          : id
+      },
+      width: 220,
     },
     { title: 'Limit', dataIndex: 'limitHours', width: 100, align: 'right', render: (v: number) => `${v}h` },
     { title: 'Adjustment', dataIndex: 'adjustmentHours', width: 110, align: 'right', render: (v: number) => `${v}h` },

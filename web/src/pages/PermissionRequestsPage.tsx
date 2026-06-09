@@ -56,12 +56,48 @@ export function PermissionRequestsPage() {
   const [status, setStatus] = useState<PermissionRequestStatus | undefined>()
   const [filesFor, setFilesFor] = useState<PermissionRequest | null>(null)
 
+  // M241 — Split the bootstrap fetches with individual catches so a
+  // single rejection no longer leaves both maps empty (UUID-leak bug).
   useEffect(() => {
-    Promise.all([permissionApi.types(), employeesApi.list({ size: 500 })]).then(([t, e]) => {
-      setTypes(t)
-      setEmployees(e.content)
-    })
+    permissionApi.types()
+      .then(setTypes)
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load permission types — names will appear as IDs.'))
+    employeesApi.list({ size: 500 })
+      .then((r) => setEmployees(r.content))
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load employees — names will appear as IDs.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // M241 — Lazy fill-in for IDs missing from the initial page-0 slice.
+  useEffect(() => {
+    if (rows.length === 0) return
+    const have = new Set(employees.map((e) => e.id))
+    const missing = [...new Set(rows.map((r) => r.employeeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => employeesApi.get(id).catch(() => null)))
+      .then((extras) => {
+        const valid = extras.filter((e): e is Employee => e !== null)
+        if (valid.length > 0) setEmployees((prev) => [...prev, ...valid])
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, employees.length])
+
+  useEffect(() => {
+    if (rows.length === 0) return
+    const have = new Set(types.map((t) => t.id))
+    const missing = [...new Set(rows.map((r) => r.permissionTypeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => permissionApi.getType(id).catch(() => null)))
+      .then((extras) => {
+        const valid = extras.filter((t): t is PermissionType => t !== null)
+        if (valid.length > 0) setTypes((prev) => [...prev, ...valid])
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, types.length])
 
   const load = () => {
     setLoading(true)
@@ -92,14 +128,19 @@ export function PermissionRequestsPage() {
       dataIndex: 'employeeId',
       render: (id: string) => {
         const e = employeeMap.get(id)
-        return e ? `${e.employeeNo} ${e.lastName} ${e.firstName}` : id
+        return e ? `${e.employeeNo} · ${e.firstName} ${e.lastName}` : id
       },
     },
     {
       title: 'Type',
       dataIndex: 'permissionTypeId',
-      render: (id: string) => <Tag color="geekblue">{typeMap.get(id)?.code ?? id}</Tag>,
-      width: 110,
+      render: (id: string) => {
+        const t = typeMap.get(id)
+        return t
+          ? <span><Tag color="geekblue">{t.code}</Tag>{t.name}</span>
+          : id
+      },
+      width: 200,
     },
     { title: 'Date', dataIndex: 'permissionDate', width: 110 },
     {
