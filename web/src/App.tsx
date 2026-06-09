@@ -7,6 +7,8 @@ import { OrgUnitFormPage } from './pages/OrgUnitFormPage'
 import { PositionsPage } from './pages/PositionsPage'
 import { StaffingTablesPage } from './pages/StaffingTablesPage'
 import { StaffingTableDetailPage } from './pages/StaffingTableDetailPage'
+import { WorkforcePlansPage } from './pages/WorkforcePlansPage'
+import { WorkforcePlanDetailPage } from './pages/WorkforcePlanDetailPage'
 import { PositionFormPage } from './pages/PositionFormPage'
 import { PositionControlPage } from './pages/PositionControlPage'
 import { InboxPage } from './pages/InboxPage'
@@ -310,6 +312,9 @@ export default function App() {
           {/* M245 — staffing table (ştat cədvəli) */}
           <Route path="staffing-tables" element={<StaffingTablesPage />} />
           <Route path="staffing-tables/:id" element={<StaffingTableDetailPage />} />
+          {/* M247 — workforce plans + scenarios */}
+          <Route path="workforce-plans" element={<WorkforcePlansPage />} />
+          <Route path="workforce-plans/:id" element={<WorkforcePlanDetailPage />} />
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />
