@@ -24,6 +24,11 @@ export interface ProfileGrant {
   revokedBy?: string | null
   revokeReason?: string | null
   failureReason?: string | null
+  // M251 — Phase F.3: when an ALLOWANCE grant fires successfully it
+  // stashes the resulting employee_allowance row id here. Future
+  // phases will populate this for TRAINING / EQUIPMENT etc. too.
+  downstreamEntityId?: string | null
+  downstreamEntityType?: string | null
   createdAt: string
   updatedAt: string
 }

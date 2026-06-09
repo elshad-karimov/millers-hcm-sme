@@ -746,11 +746,26 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
             },
             {
               title: 'Status',
-              width: 110,
+              width: 180,
               render: (_, r) => (
-                <Tag color={GRANT_STATUS_COLOR[r.status]}>
-                  {GRANT_STATUS_LABEL[r.status]}
-                </Tag>
+                <Space direction="vertical" size={0}>
+                  <Tag color={GRANT_STATUS_COLOR[r.status]}>
+                    {GRANT_STATUS_LABEL[r.status]}
+                  </Tag>
+                  {/* M251 — when the grant resolved into a real downstream
+                      row (e.g. employee_allowance), show the type so HR
+                      knows payroll is already picking it up. */}
+                  {r.downstreamEntityType && (
+                    <Typography.Text type="success" style={{ fontSize: 11 }}>
+                      ⚡ {r.downstreamEntityType.replace(/_/g, ' ').toLowerCase()}
+                    </Typography.Text>
+                  )}
+                  {r.failureReason && (
+                    <Typography.Text type="danger" style={{ fontSize: 11 }}>
+                      {r.failureReason}
+                    </Typography.Text>
+                  )}
+                </Space>
               ),
             },
             {

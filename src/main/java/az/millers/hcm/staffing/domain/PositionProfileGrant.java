@@ -85,6 +85,17 @@ public class PositionProfileGrant {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    // M251 — Phase F.3: back-link to the downstream row this grant
+    // created (e.g. comp_benefits.employee_allowance). Reserved as a
+    // generic UUID + type discriminator so later phases (training
+    // enrolment, equipment issuance) can reuse the same column without
+    // another migration.
+    @Column(name = "downstream_entity_id")
+    private UUID downstreamEntityId;
+
+    @Column(name = "downstream_entity_type", length = 32)
+    private String downstreamEntityType;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
