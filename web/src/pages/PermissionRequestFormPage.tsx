@@ -15,6 +15,7 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation, Trans } from 'react-i18next'
 import {
   permissionApi,
   type PermissionBalance,
@@ -42,6 +43,8 @@ export function PermissionRequestFormPage() {
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
+  // M234 — permission namespace + common for the shared Cancel button.
+  const { t } = useTranslation(['permission', 'common'])
   const [form] = Form.useForm<FormValues>()
   const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -87,7 +90,7 @@ export function PermissionRequestFormPage() {
   const onFinish = async (v: FormValues) => {
     const selectedType = typeMap.get(v.permissionTypeId)
     if (selectedType?.requiresAttachment && !v.attachmentUrl) {
-      message.warning(`${selectedType.code} requires an attachment URL`)
+      message.warning(t('permission:newRequest.messages.attachmentRequired', { code: selectedType.code }))
       return
     }
     setSaving(true)
@@ -106,12 +109,12 @@ export function PermissionRequestFormPage() {
       } else {
         await selfApi.submitPermission(payload)
       }
-      message.success('Permission request submitted — workflow started')
+      message.success(t('permission:newRequest.messages.submitted'))
       navigate(LIST_PATH)
     } catch (err) {
       message.error(
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-          'Submission failed',
+          t('permission:newRequest.messages.submitFailed'),
       )
     } finally {
       setSaving(false)
@@ -119,7 +122,7 @@ export function PermissionRequestFormPage() {
   }
 
   return (
-    <FormPageShell title="New permission request" backTo={LIST_PATH}>
+    <FormPageShell title={t('permission:newRequest.title')} backTo={LIST_PATH}>
       <Form
         form={form}
         layout="vertical"
@@ -132,8 +135,8 @@ export function PermissionRequestFormPage() {
             {isHrMode ? (
               <Form.Item
                 name="employeeId"
-                label="Employee"
-                rules={[{ required: true, message: 'Select an employee' }]}
+                label={t('permission:newRequest.employee')}
+                rules={[{ required: true, message: t('permission:newRequest.validation.selectEmployee') }]}
               >
                 <Select
                   showSearch
@@ -146,7 +149,7 @@ export function PermissionRequestFormPage() {
               </Form.Item>
             ) : (
               <>
-                <Form.Item label="Employee">
+                <Form.Item label={t('permission:newRequest.employee')}>
                   <Input disabled value={selfLabel} />
                 </Form.Item>
                 <Form.Item name="employeeId" hidden><Input /></Form.Item>
@@ -156,8 +159,8 @@ export function PermissionRequestFormPage() {
           <Col span={12}>
             <Form.Item
               name="permissionTypeId"
-              label="Permission type"
-              rules={[{ required: true, message: 'Select a type' }]}
+              label={t('permission:newRequest.permissionType')}
+              rules={[{ required: true, message: t('permission:newRequest.validation.selectType') }]}
             >
               <Select
                 options={types.map((t) => ({
@@ -172,8 +175,8 @@ export function PermissionRequestFormPage() {
           <Col span={12}>
             <Form.Item
               name="permissionDate"
-              label="Date"
-              rules={[{ required: true, message: 'Pick a date' }]}
+              label={t('permission:newRequest.date')}
+              rules={[{ required: true, message: t('permission:newRequest.validation.pickDate') }]}
             >
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
@@ -181,8 +184,8 @@ export function PermissionRequestFormPage() {
           <Col span={12}>
             <Form.Item
               name="timeRange"
-              label="Time range"
-              rules={[{ required: true, message: 'Pick a time range' }]}
+              label={t('permission:newRequest.timeRange')}
+              rules={[{ required: true, message: t('permission:newRequest.validation.pickTimeRange') }]}
             >
               <TimePicker.RangePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
             </Form.Item>
@@ -196,40 +199,34 @@ export function PermissionRequestFormPage() {
             style={{ marginBottom: 16 }}
             message={
               <Space size="large">
-                <span>
-                  Limit: <strong>{balance.limitHours}h</strong>
-                </span>
-                <span>
-                  Used: <strong>{balance.usedHours}h</strong>
-                </span>
-                <span>
-                  Reserved: <strong>{balance.reservedHours}h</strong>
-                </span>
-                <span>
-                  Remaining: <strong>{balance.remainingHours}h</strong>
-                </span>
+                <span>{t('permission:newRequest.balance.limit')}: <strong>{balance.limitHours}h</strong></span>
+                <span>{t('permission:newRequest.balance.used')}: <strong>{balance.usedHours}h</strong></span>
+                <span>{t('permission:newRequest.balance.reserved')}: <strong>{balance.reservedHours}h</strong></span>
+                <span>{t('permission:newRequest.balance.remaining')}: <strong>{balance.remainingHours}h</strong></span>
               </Space>
             }
           />
         )}
 
-        <Form.Item name="reason" label="Reason">
+        <Form.Item name="reason" label={t('permission:newRequest.reason')}>
           <Input.TextArea rows={3} />
         </Form.Item>
-        <Form.Item name="attachmentUrl" label="Attachment URL (if required)">
+        <Form.Item name="attachmentUrl" label={t('permission:newRequest.attachmentUrl')}>
           <Input placeholder="https://…/doc.pdf" />
         </Form.Item>
         <Form.Item>
           <Space>
-            <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>
+            <Button onClick={() => navigate(LIST_PATH)}>{t('common:cancel')}</Button>
             <Button type="primary" htmlType="submit" loading={saving}>
-              Submit request
+              {t('permission:newRequest.submit')}
             </Button>
           </Space>
         </Form.Item>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          Submitting starts the <code>PERMISSION_APPROVAL</code> workflow (single-step manager
-          review) and reserves the hours on the balance.
+          <Trans
+            i18nKey="permission:newRequest.footer"
+            components={{ code: <code /> }}
+          />
         </Typography.Text>
       </Form>
     </FormPageShell>

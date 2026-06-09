@@ -29,6 +29,7 @@ import azDashboard from './locales/az/dashboard.json'
 import azSelfService from './locales/az/selfService.json'
 import azLeave from './locales/az/leave.json'
 import azInbox from './locales/az/inbox.json'
+import azPermission from './locales/az/permission.json'
 import enCommon from './locales/en/common.json'
 import enNav from './locales/en/nav.json'
 import enEmployee from './locales/en/employee.json'
@@ -36,6 +37,7 @@ import enDashboard from './locales/en/dashboard.json'
 import enSelfService from './locales/en/selfService.json'
 import enLeave from './locales/en/leave.json'
 import enInbox from './locales/en/inbox.json'
+import enPermission from './locales/en/permission.json'
 
 /** Languages the SPA ships with. Order = order shown in the switcher. */
 export const SUPPORTED_LANGUAGES = [
@@ -57,8 +59,8 @@ export const FALLBACK_LANG: SupportedLang = 'en'
 
 /** Resources are wired here, never duplicated in `init` calls. */
 const resources = {
-  az: { common: azCommon, nav: azNav, employee: azEmployee, dashboard: azDashboard, selfService: azSelfService, leave: azLeave, inbox: azInbox },
-  en: { common: enCommon, nav: enNav, employee: enEmployee, dashboard: enDashboard, selfService: enSelfService, leave: enLeave, inbox: enInbox },
+  az: { common: azCommon, nav: azNav, employee: azEmployee, dashboard: azDashboard, selfService: azSelfService, leave: azLeave, inbox: azInbox, permission: azPermission },
+  en: { common: enCommon, nav: enNav, employee: enEmployee, dashboard: enDashboard, selfService: enSelfService, leave: enLeave, inbox: enInbox, permission: enPermission },
 }
 
 i18n
@@ -68,7 +70,7 @@ i18n
     resources,
     fallbackLng: FALLBACK_LANG,
     supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
-    ns: ['common', 'nav', 'employee', 'dashboard', 'selfService', 'leave', 'inbox'],
+    ns: ['common', 'nav', 'employee', 'dashboard', 'selfService', 'leave', 'inbox', 'permission'],
     defaultNS: 'common',
     interpolation: { escapeValue: false }, // React already escapes
     detection: {

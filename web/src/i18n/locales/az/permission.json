@@ -1,0 +1,30 @@
+{
+  "newRequest": {
+    "title": "Yeni icazə sorğusu",
+    "employee": "İşçi",
+    "permissionType": "İcazə növü",
+    "date": "Tarix",
+    "timeRange": "Vaxt aralığı",
+    "reason": "Səbəb",
+    "attachmentUrl": "Əlavə URL (tələb olunursa)",
+    "submit": "Sorğunu göndər",
+    "footer": "Göndərmə <code>PERMISSION_APPROVAL</code> iş axınını başladır (tək addımlı menecer baxışı) və saatları balansda rezerv edir.",
+    "balance": {
+      "limit": "Limit",
+      "used": "İstifadə edilmiş",
+      "reserved": "Rezerv edilmiş",
+      "remaining": "Qalan"
+    },
+    "validation": {
+      "selectEmployee": "İşçi seçin",
+      "selectType": "Növ seçin",
+      "pickDate": "Tarix seçin",
+      "pickTimeRange": "Vaxt aralığı seçin"
+    },
+    "messages": {
+      "submitted": "İcazə sorğusu göndərildi — iş axını başladı",
+      "submitFailed": "Göndərmə uğursuz oldu",
+      "attachmentRequired": "{{code}} əlavə URL tələb edir"
+    }
+  }
+}

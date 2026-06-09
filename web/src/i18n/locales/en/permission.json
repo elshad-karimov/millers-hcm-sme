@@ -1,0 +1,30 @@
+{
+  "newRequest": {
+    "title": "New permission request",
+    "employee": "Employee",
+    "permissionType": "Permission type",
+    "date": "Date",
+    "timeRange": "Time range",
+    "reason": "Reason",
+    "attachmentUrl": "Attachment URL (if required)",
+    "submit": "Submit request",
+    "footer": "Submitting starts the <code>PERMISSION_APPROVAL</code> workflow (single-step manager review) and reserves the hours on the balance.",
+    "balance": {
+      "limit": "Limit",
+      "used": "Used",
+      "reserved": "Reserved",
+      "remaining": "Remaining"
+    },
+    "validation": {
+      "selectEmployee": "Select an employee",
+      "selectType": "Select a type",
+      "pickDate": "Pick a date",
+      "pickTimeRange": "Pick a time range"
+    },
+    "messages": {
+      "submitted": "Permission request submitted — workflow started",
+      "submitFailed": "Submission failed",
+      "attachmentRequired": "{{code}} requires an attachment URL"
+    }
+  }
+}
