@@ -84,15 +84,26 @@ i18n
     defaultNS: 'common',
     interpolation: { escapeValue: false }, // React already escapes
     detection: {
-      // Read order: explicit localStorage choice → browser navigator
-      // → caches back into localStorage so it sticks.
+      // M240 — read order matters:
+      //   localStorage  → only set by an EXPLICIT switcher click via
+      //                   changeLanguage() in LanguageProvider.tsx.
+      //   navigator     → fallback when no choice has been made yet.
+      //
+      // `caches` is intentionally OMITTED. With caches set to
+      // ['localStorage'] the detector auto-writes the navigator value
+      // (e.g. 'en-US') into localStorage on first paint, which then
+      // makes the !localStorage check below a no-op forever — even
+      // though the user never asked for English. Keeping caches off
+      // means localStorage only fills when the user explicitly picks
+      // a language; the AZ-by-default branch can then kick in.
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: LANG_STORAGE_KEY,
-      caches: ['localStorage'],
     },
   })
 
-// Honour the AZ default when the detector found nothing (fresh browser).
+// Honour the AZ default whenever there's no explicit user choice in
+// localStorage — even if the detector saw `en` in `navigator.language`
+// and tentatively set i18n.language to it.
 if (!localStorage.getItem(LANG_STORAGE_KEY) && i18n.language !== DEFAULT_LANG) {
   i18n.changeLanguage(DEFAULT_LANG)
 }
