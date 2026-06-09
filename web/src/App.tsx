@@ -5,6 +5,8 @@ import { EmployeeFormPage } from './pages/EmployeeFormPage'
 import { OrgStructurePage } from './pages/OrgStructurePage'
 import { OrgUnitFormPage } from './pages/OrgUnitFormPage'
 import { PositionsPage } from './pages/PositionsPage'
+import { StaffingTablesPage } from './pages/StaffingTablesPage'
+import { StaffingTableDetailPage } from './pages/StaffingTableDetailPage'
 import { PositionFormPage } from './pages/PositionFormPage'
 import { PositionControlPage } from './pages/PositionControlPage'
 import { InboxPage } from './pages/InboxPage'
@@ -305,6 +307,9 @@ export default function App() {
           <Route path="positions/:id/skills" element={<PositionSkillsPage />} />
           {/* M109 — position control gate dashboard */}
           <Route path="positions/control" element={<PositionControlPage />} />
+          {/* M245 — staffing table (ştat cədvəli) */}
+          <Route path="staffing-tables" element={<StaffingTablesPage />} />
+          <Route path="staffing-tables/:id" element={<StaffingTableDetailPage />} />
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />
