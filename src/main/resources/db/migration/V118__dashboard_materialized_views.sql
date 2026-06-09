@@ -132,9 +132,9 @@ SELECT
     lt.code              AS leave_type_code,
     lt.name              AS leave_type_name,
     count(lb.id)         AS employee_count,
-    sum(lb.balance_days) AS total_days,
+    sum(lb.entitlement_days + lb.carried_forward_days + lb.adjustment_days - lb.used_days) AS total_days,
     sum(lb.reserved_days) AS reserved_days,
-    sum(lb.balance_days - lb.reserved_days) AS available_days,
+    sum(lb.entitlement_days + lb.carried_forward_days + lb.adjustment_days - lb.used_days - lb.reserved_days) AS available_days,
     now()                AS populated_at
 FROM   leave_mgmt.leave_balance lb
 JOIN   leave_mgmt.leave_type lt ON lt.id = lb.leave_type_id
