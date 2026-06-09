@@ -1,6 +1,7 @@
 package az.millers.hcm.learning.repo;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -18,6 +19,13 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
     long nextNoSequence();
 
     boolean existsByCode(String code);
+
+    /**
+     * M252 — Phase F.4 lookup: when a position profile TRAINING item
+     * carries a {@code reference_code} matching {@code course.code},
+     * the grant auto-enrols the employee in the matching course.
+     */
+    Optional<Course> findByCode(String code);
 
     Page<Course> findByStatusOrderByTitleAsc(CourseStatus status, Pageable pageable);
 

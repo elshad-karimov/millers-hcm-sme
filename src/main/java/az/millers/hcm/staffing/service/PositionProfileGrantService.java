@@ -15,6 +15,14 @@ import az.millers.hcm.compbenefits.domain.AllowanceType;
 import az.millers.hcm.compbenefits.domain.EmployeeAllowance;
 import az.millers.hcm.compbenefits.repo.AllowanceTypeRepository;
 import az.millers.hcm.compbenefits.service.EmployeeAllowanceService;
+import az.millers.hcm.learning.api.dto.EnrollRequest;
+import az.millers.hcm.learning.domain.Course;
+import az.millers.hcm.learning.domain.CourseStatus;
+import az.millers.hcm.learning.domain.EnrolledVia;
+import az.millers.hcm.learning.domain.Enrollment;
+import az.millers.hcm.learning.repo.CourseRepository;
+import az.millers.hcm.learning.repo.EnrollmentRepository;
+import az.millers.hcm.learning.service.EnrollmentService;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.domain.GrantStatus;
 import az.millers.hcm.staffing.domain.PositionOccupancy;
@@ -48,19 +56,32 @@ public class PositionProfileGrantService {
     // employee_allowance row so payroll picks it up immediately.
     private final EmployeeAllowanceService employeeAllowanceService;
     private final AllowanceTypeRepository allowanceTypes;
+    // M252 — Phase F.4: when a TRAINING grant has a reference_code that
+    // resolves to a Course.code, we auto-enrol the employee in the
+    // matching course. Idempotent — if the employee is already enrolled
+    // we just link to the existing enrollment.
+    private final EnrollmentService enrollmentService;
+    private final EnrollmentRepository enrollments;
+    private final CourseRepository courses;
 
     public PositionProfileGrantService(PositionProfileGrantRepository grants,
                                         PositionProfileItemRepository items,
                                         AuditService audit,
                                         CurrentRequest currentRequest,
                                         EmployeeAllowanceService employeeAllowanceService,
-                                        AllowanceTypeRepository allowanceTypes) {
+                                        AllowanceTypeRepository allowanceTypes,
+                                        EnrollmentService enrollmentService,
+                                        EnrollmentRepository enrollments,
+                                        CourseRepository courses) {
         this.grants = grants;
         this.items = items;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.employeeAllowanceService = employeeAllowanceService;
         this.allowanceTypes = allowanceTypes;
+        this.enrollmentService = enrollmentService;
+        this.enrollments = enrollments;
+        this.courses = courses;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────
@@ -117,12 +138,11 @@ public class PositionProfileGrantService {
             g.setUpdatedBy(actor);
             PositionProfileGrant saved = grants.save(g);
 
-            // M251 — Phase F.3: for ALLOWANCE grants with a non-blank
-            // reference_code matching an AllowanceType.code, immediately
-            // create the employee_allowance row + flip the grant to
-            // ACTIVE. Soft-fail if anything goes wrong so a single bad
-            // allowance code doesn't take down the whole hire.
-            saved = tryAutoFireAllowance(saved, occupancy);
+            // M251 / M252 — Phase F.3 + F.4: dispatch to the right
+            // downstream module based on item_type. Soft-fail if anything
+            // goes wrong so a single bad reference doesn't break the
+            // whole hire — the grant becomes FAILED with the reason.
+            saved = tryAutoFireDownstream(saved, occupancy);
             created.add(saved);
         }
 
@@ -149,13 +169,17 @@ public class PositionProfileGrantService {
             throw new BadRequestException(
                     "Can only mark PENDING/FAILED grants as ACTIVE; current = " + g.getStatus());
         }
-        // M251 — Phase F.3: if this is an ALLOWANCE that wasn't auto-fired
-        // on hire (no downstream row yet), try to create it now. Otherwise
-        // just flip the status — operator confirms the work is done.
-        if (g.getItemType() == ProfileItemType.ALLOWANCE
-                && g.getDownstreamEntityId() == null
-                && hasText(g.getReferenceCode())) {
-            return tryFireAllowanceForExistingGrant(g);
+        // M251 / M252 — if the grant has a downstream module wired and
+        // wasn't auto-fired on hire (no downstream row yet), try to fire
+        // it now. Otherwise just flip the status — operator confirms the
+        // work is done.
+        if (g.getDownstreamEntityId() == null && hasText(g.getReferenceCode())) {
+            if (g.getItemType() == ProfileItemType.ALLOWANCE) {
+                return tryFireAllowanceForExistingGrant(g);
+            }
+            if (g.getItemType() == ProfileItemType.TRAINING) {
+                return tryFireTrainingForExistingGrant(g);
+            }
         }
         g.setStatus(GrantStatus.ACTIVE);
         g.setGrantedAt(OffsetDateTime.now());
@@ -233,6 +257,24 @@ public class PositionProfileGrantService {
                 () -> new ResourceNotFoundException("Grant not found: " + id));
     }
 
+    // ── M251 / M252 — Phase F.3 + F.4 dispatcher ─────────────────────────
+
+    /**
+     * Dispatch a freshly-saved PENDING grant to its native module if it
+     * carries a {@code reference_code}. Each per-type helper soft-fails
+     * back to FAILED — the hire flow never throws because of a bad code.
+     */
+    private PositionProfileGrant tryAutoFireDownstream(PositionProfileGrant g, PositionOccupancy occ) {
+        if (!hasText(g.getReferenceCode())) return g;
+        switch (g.getItemType()) {
+            case ALLOWANCE: return tryAutoFireAllowance(g, occ);
+            case TRAINING:  return tryAutoFireTraining(g, occ);
+            // Other types stay PENDING — Phase F.5+ will wire EQUIPMENT,
+            // ACCESS_ROLE, REQUIRED_DOCUMENT.
+            default: return g;
+        }
+    }
+
     // ── M251 — Phase F.3: ALLOWANCE wire-up ───────────────────────────────
 
     /**
@@ -242,8 +284,6 @@ public class PositionProfileGrantService {
      * resolve, or downstream service threw).
      */
     private PositionProfileGrant tryAutoFireAllowance(PositionProfileGrant g, PositionOccupancy occ) {
-        if (g.getItemType() != ProfileItemType.ALLOWANCE) return g;
-        if (!hasText(g.getReferenceCode())) return g;            // no code → leave PENDING
         if (g.getValueAmount() == null) return markFailedSilently(g,
                 "Allowance grant has no amount; cannot fire downstream");
 
@@ -319,6 +359,88 @@ public class PositionProfileGrantService {
             g.setFailureReason("Downstream allowance end failed: " + ex.getMessage());
         }
     }
+
+    // ── M252 — Phase F.4: TRAINING wire-up ────────────────────────────────
+
+    /**
+     * Auto-enrol the employee in the course identified by the grant's
+     * {@code reference_code} (matched against {@code course.code}). If
+     * they're already enrolled, link to the existing enrollment — that
+     * way the grant is idempotent on re-hires + position re-assignments.
+     *
+     * <p>Soft-fail: any error → grant becomes FAILED with the reason,
+     * but the rest of the hire flow continues.
+     */
+    private PositionProfileGrant tryAutoFireTraining(PositionProfileGrant g, PositionOccupancy occ) {
+        java.util.Optional<Course> courseOpt = courses.findByCode(g.getReferenceCode());
+        if (courseOpt.isEmpty()) {
+            return markFailedSilently(g,
+                    "No course with code '" + g.getReferenceCode() + "'");
+        }
+        Course course = courseOpt.get();
+        if (course.getStatus() != CourseStatus.PUBLISHED) {
+            return markFailedSilently(g,
+                    "Course '" + course.getCode() + "' is " + course.getStatus()
+                            + " — must be PUBLISHED to auto-enrol");
+        }
+        return enrolDownstreamCourse(g, course);
+    }
+
+    /** Operator-triggered late-fire path called from {@link #markActive}. */
+    private PositionProfileGrant tryFireTrainingForExistingGrant(PositionProfileGrant g) {
+        java.util.Optional<Course> courseOpt = courses.findByCode(g.getReferenceCode());
+        if (courseOpt.isEmpty()) {
+            throw new BadRequestException(
+                    "No course with code '" + g.getReferenceCode() + "'");
+        }
+        Course course = courseOpt.get();
+        if (course.getStatus() != CourseStatus.PUBLISHED) {
+            throw new BadRequestException(
+                    "Course '" + course.getCode() + "' is " + course.getStatus()
+                            + " — must be PUBLISHED to enrol");
+        }
+        return enrolDownstreamCourse(g, course);
+    }
+
+    /**
+     * Common enrolment path. Idempotent: if the employee already has an
+     * enrollment in this course, we don't create another — we link the
+     * grant to the existing one so the SPA shows the right back-link
+     * and a future revoke can do the right thing.
+     */
+    private PositionProfileGrant enrolDownstreamCourse(PositionProfileGrant g, Course course) {
+        try {
+            // Check first — the underlying EnrollmentService.enroll throws
+            // BadRequestException on duplicate, which we'd rather treat as
+            // a soft "already done" than a failure.
+            var existing = enrollments.findByCourseIdAndEmployeeId(course.getId(), g.getEmployeeId());
+            UUID enrollmentId;
+            if (existing.isPresent()) {
+                enrollmentId = existing.get().getId();
+            } else {
+                Enrollment created = enrollmentService.enroll(
+                        new EnrollRequest(course.getId(), g.getEmployeeId(),
+                                EnrolledVia.ASSIGNED, null));
+                enrollmentId = created.getId();
+            }
+
+            g.setStatus(GrantStatus.ACTIVE);
+            g.setGrantedAt(OffsetDateTime.now());
+            g.setGrantedBy(currentRequest.username());
+            g.setDownstreamEntityId(enrollmentId);
+            g.setDownstreamEntityType("ENROLLMENT");
+            g.setUpdatedBy(currentRequest.username());
+            return grants.save(g);
+        } catch (RuntimeException ex) {
+            return markFailedSilently(g, "Downstream enrollment create failed: " + ex.getMessage());
+        }
+    }
+
+    // Note: TRAINING grants are *not* withdrawn on revoke. A completed
+    // training stays valid historically even after the employee changes
+    // position — there's no clean way to "un-train" someone. So
+    // revoke()/revokeAllForOccupancy just flip the grant status and
+    // leave the enrollment in place.
 
     private PositionProfileGrant markFailedSilently(PositionProfileGrant g, String reason) {
         g.setStatus(GrantStatus.FAILED);
