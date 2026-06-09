@@ -198,28 +198,28 @@ type ActivityRow = {
 const ACTIVITIES: ActivityRow[] = [
   {
     icon: <CoffeeOutlined />, color: '#D46B08', bg: 'rgba(255,159,64,0.13)',
-    textKey: 'items.leaveSubmitted', textVars: { name: 'Aliya Aliyeva' },
-    timeKey: 'time.hoursAgo', timeVars: { count: 2 },
+    textKey: 'activity.items.leaveSubmitted', textVars: { name: 'Aliya Aliyeva' },
+    timeKey: 'activity.time.hoursAgo', timeVars: { count: 2 },
   },
   {
     icon: <FileDoneOutlined />, color: brand.purpleDeep, bg: 'rgba(91,63,229,0.10)',
-    textKey: 'items.timesheetsAwaiting', textVars: { count: 3 },
-    timeKey: 'time.hoursAgo', timeVars: { count: 3 },
+    textKey: 'activity.items.timesheetsAwaiting', textVars: { count: 3 },
+    timeKey: 'activity.time.hoursAgo', timeVars: { count: 3 },
   },
   {
     icon: <UserAddOutlined />, color: brand.cyanDeep, bg: 'rgba(63,191,191,0.15)',
-    textKey: 'items.onboardingStarted', textVars: { name: 'Alex Chen' },
-    timeKey: 'time.yesterday', timeVars: { time: '16:20' },
+    textKey: 'activity.items.onboardingStarted', textVars: { name: 'Alex Chen' },
+    timeKey: 'activity.time.yesterday', timeVars: { time: '16:20' },
   },
   {
     icon: <BankOutlined />, color: brand.greenDeep, bg: 'rgba(157,238,58,0.18)',
-    textKey: 'items.payrollDraft', textVars: { month: 'May', year: 2026 },
-    timeKey: 'time.yesterday', timeVars: { time: '09:00' },
+    textKey: 'activity.items.payrollDraft', textVars: { month: 'May', year: 2026 },
+    timeKey: 'activity.time.yesterday', timeVars: { time: '09:00' },
   },
   {
     icon: <UserOutlined />, color: '#999', bg: 'rgba(0,0,0,0.05)',
-    textKey: 'items.profileUpdated', textVars: { name: 'Rashad Aliyev' },
-    timeKey: 'time.daysAgo', timeVars: { count: 2 },
+    textKey: 'activity.items.profileUpdated', textVars: { name: 'Rashad Aliyev' },
+    timeKey: 'activity.time.daysAgo', timeVars: { count: 2 },
   },
 ]
 
