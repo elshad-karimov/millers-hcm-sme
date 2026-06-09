@@ -117,11 +117,12 @@ SELECT x.no, a.eid, x.tt, x.country, x.city, x.purp, x.proj, x.cc,
        x.s::date, x.e::date, x.days, 'AZN', x.daily, x.req, x.appr, x.paid,
        x.meals, x.acc, x.status, 'admin', x.created::timestamptz, x.created::timestamptz
 FROM a, (VALUES
+  -- TripStatus enum: DRAFT · PENDING · APPROVED · REJECTED · CANCELLED · COMPLETED
   ('BT-1001'::varchar, 'INTERNATIONAL'::varchar, 'TR'::varchar, 'Istanbul'::varchar,
    'Customer demo + HRTech conference'::text, 'Sales – EU expansion'::varchar, 'CC-SALES'::varchar,
    '2026-04-22'::text, '2026-04-25'::text, 4::int,
    80.00::numeric, 600.00::numeric, 600.00::numeric, 600.00::numeric,
-   false::bool, true::bool, 'PAID'::varchar, '2026-04-08T12:00:00+04:00'::text),
+   false::bool, true::bool, 'COMPLETED'::varchar, '2026-04-08T12:00:00+04:00'::text),
   ('BT-1002'::varchar, 'DOMESTIC'::varchar, 'AZ'::varchar, 'Ganja'::varchar,
    'Regional office launch'::text, 'Ops – regional rollout'::varchar, 'CC-OPS'::varchar,
    '2026-07-15'::text, '2026-07-17'::text, 3::int,
@@ -158,7 +159,9 @@ INSERT INTO learning.enrollment
   (enrollment_no, course_id, employee_id, status, enrolled_at, started_at, completed_at,
    attempts_used, best_score_percent, last_score_percent, last_attempt_at,
    enrolled_via, assigned_by)
-SELECT 'EN-1001', c.cid, a.eid, 'COMPLETED',
+-- EnrollmentStatus enum: ENROLLED · IN_PROGRESS · PASSED · FAILED · WITHDRAWN · EXPIRED
+-- Use PASSED for a completed-with-cert state (COMPLETED is a UI label, not an enum value).
+SELECT 'EN-1001', c.cid, a.eid, 'PASSED',
        '2026-01-12T09:00:00+04:00', '2026-01-12T10:30:00+04:00', '2026-01-20T16:45:00+04:00',
        1, 92.0, 92.0, '2026-01-20T16:45:00+04:00',
        'ASSIGNED', 'hr'
@@ -197,18 +200,20 @@ INSERT INTO performance.goal
 SELECT x.no, c.cid, a.eid, x.title, x.descr, x.cat, x.weight, x.prog, x.status, x.due::date,
        '2026-01-15T09:00:00+04:00', '2026-06-05T12:00:00+04:00', 'admin'
 FROM a, c, (VALUES
+  -- GoalCategory enum: COMPANY · DEPARTMENT · TEAM · INDIVIDUAL · DEVELOPMENT
+  -- GoalStatus   enum: DRAFT · ACTIVE · ON_TRACK · AT_RISK · BLOCKED · ACHIEVED · MISSED · CANCELLED
   ('G-2026-01'::varchar,
     'Ship Azerbaijani localisation across SPA'::varchar,
     'Reach ≥80% page coverage with AZ default, EN fallback, language switcher.'::text,
-    'BUSINESS'::varchar, 40::numeric, 85::numeric, 'IN_PROGRESS'::varchar, '2026-09-30'::text),
+    'COMPANY'::varchar, 40::numeric, 85::numeric, 'ON_TRACK'::varchar, '2026-09-30'::text),
   ('G-2026-02'::varchar,
     'Reduce payroll cycle time'::varchar,
     'Bring monthly payroll close from 5 business days down to 3.'::text,
-    'PROCESS'::varchar, 30::numeric, 60::numeric, 'IN_PROGRESS'::varchar, '2026-12-31'::text),
+    'DEPARTMENT'::varchar, 30::numeric, 60::numeric, 'ON_TRACK'::varchar, '2026-12-31'::text),
   ('G-2026-03'::varchar,
     'Manager NPS uplift'::varchar,
     'Raise manager-self-service NPS from +18 to +35 via inbox + delegation polish.'::text,
-    'PEOPLE'::varchar, 30::numeric, 45::numeric, 'IN_PROGRESS'::varchar, '2026-12-31'::text)
+    'DEVELOPMENT'::varchar, 30::numeric, 45::numeric, 'ON_TRACK'::varchar, '2026-12-31'::text)
 ) AS x(no, title, descr, cat, weight, prog, status, due)
 WHERE NOT EXISTS (SELECT 1 FROM performance.goal g WHERE g.goal_no = x.no);
 
