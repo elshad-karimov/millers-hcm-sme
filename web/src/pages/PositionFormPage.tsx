@@ -18,6 +18,7 @@ import { positionsApi, type Position, type PositionRequest } from '../api/positi
 import { FormPageShell } from '../components/FormPageShell'
 import { PositionLifecyclePanel } from '../components/PositionLifecyclePanel'
 import { PositionBudgetFundingPanel } from '../components/PositionBudgetFundingPanel'
+import { PositionOccupancyPanel } from '../components/PositionOccupancyPanel'
 
 interface FormValues {
   title: string
@@ -142,6 +143,11 @@ export function PositionFormPage() {
                 positionId={current.id}
                 defaultCurrency={current.currency}
               />
+            </div>
+          )}
+          {editing && current && (
+            <div style={{ marginBottom: 16 }}>
+              <PositionOccupancyPanel positionId={current.id} />
             </div>
           )}
           <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
