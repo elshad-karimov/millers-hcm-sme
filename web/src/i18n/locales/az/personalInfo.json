@@ -1,0 +1,32 @@
+{
+  "newRequest": {
+    "title": "Şəxsi məlumat dəyişikliyi sorğusu",
+    "alertTitle": "HR təsdiqi tələb olunur",
+    "alertDescription": "Redaktələriniz HR mütəxəssisi tərəfindən baxılana qədər gözləyir. Təsdiq edildikdən sonra dəyişiklik avtomatik tətbiq edilir.",
+    "field": "Sahə",
+    "fieldPlaceholder": "Dəyişdirmək istədiyiniz sahəni seçin",
+    "pickField": "Sahə seçin",
+    "newValue": "Yeni dəyər",
+    "enterNewValue": "Yeni dəyəri daxil edin",
+    "reason": "Səbəb (məcburi deyil)",
+    "reasonPlaceholder": "Bu dəyişikliyi nə üçün istəyirsiniz?",
+    "submit": "Təsdiq üçün göndər",
+    "fieldHelp": {
+      "email": "İş və ya şəxsi e-poçt — etibarlı ünvan olmalıdır.",
+      "phone": "+994 55 123 4567 — rəqəmlər, boşluqlar, mötərizə, defislər icazə verilir.",
+      "addressLine1": "Sərbəst mətn, 200 simvola qədər.",
+      "addressLine2": "Sərbəst mətn, 200 simvola qədər.",
+      "city": "Sərbəst mətn, 200 simvola qədər.",
+      "district": "Sərbəst mətn, 200 simvola qədər.",
+      "postalCode": "Hərf-rəqəm poçt kodu (3-20 simvol).",
+      "country": "ISO 3166-1 alpha-2 kodu, məs. AZ, TR.",
+      "maritalStatus": "SINGLE, MARRIED, DIVORCED, WIDOWED, DOMESTIC_PARTNERSHIP.",
+      "emergencyContactName": "Tam ad, 200 simvola qədər.",
+      "emergencyContactPhone": "Ölkə kodu ilə telefon nömrəsi."
+    },
+    "messages": {
+      "submitted": "{{requestNo}} kimi göndərildi — HR təsdiqi gözləyir",
+      "submitFailed": "Göndərmə uğursuz oldu"
+    }
+  }
+}

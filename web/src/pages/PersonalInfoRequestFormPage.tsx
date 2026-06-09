@@ -16,29 +16,20 @@ import {
   App as AntdApp,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   PERSONAL_INFO_FIELDS,
   selfPersonalInfoApi,
   type PersonalInfoFieldKey,
 } from '../api/personalInfo'
 
-const FIELD_HELP: Record<PersonalInfoFieldKey, string> = {
-  email: 'Work or personal e-mail — must be a valid address.',
-  phone: '+994 55 123 4567 — digits, spaces, parentheses, hyphens allowed.',
-  addressLine1: 'Free text, up to 200 characters.',
-  addressLine2: 'Free text, up to 200 characters.',
-  city: 'Free text, up to 200 characters.',
-  district: 'Free text, up to 200 characters.',
-  postalCode: 'Alphanumeric postal code (3-20 chars).',
-  country: 'ISO 3166-1 alpha-2 code, e.g. AZ, TR.',
-  maritalStatus: 'SINGLE, MARRIED, DIVORCED, WIDOWED, DOMESTIC_PARTNERSHIP.',
-  emergencyContactName: 'Full name, up to 200 characters.',
-  emergencyContactPhone: 'Phone number with country code.',
-}
-
 export function PersonalInfoRequestFormPage() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
+  // M237 — personalInfo namespace + common. Per-field help text lives
+  // in JSON; the dictionary key is the same as the enum value, so
+  // adding a new field = one row per locale, zero code changes.
+  const { t } = useTranslation(['personalInfo', 'common'])
   const [submitting, setSubmitting] = useState(false)
   const [field, setField] = useState<PersonalInfoFieldKey | undefined>()
   const [form] = Form.useForm<{
@@ -59,12 +50,12 @@ export function PersonalInfoRequestFormPage() {
         newValue: values.newValue,
         reason: values.reason,
       })
-      message.success(`Submitted as ${created.requestNo} — awaiting HR approval`)
+      message.success(t('personalInfo:newRequest.messages.submitted', { requestNo: created.requestNo }))
       navigate('/my')
     } catch (e) {
       message.error(
         (e as { response?: { data?: { message?: string } } }).response?.data?.message ??
-          'Submit failed',
+          t('personalInfo:newRequest.messages.submitFailed'),
       )
     } finally {
       setSubmitting(false)
@@ -75,7 +66,7 @@ export function PersonalInfoRequestFormPage() {
     <Card
       title={
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Request a personal-info change
+          {t('personalInfo:newRequest.title')}
         </Typography.Title>
       }
     >
@@ -83,8 +74,8 @@ export function PersonalInfoRequestFormPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16, maxWidth: 720 }}
-        message="HR approval is required"
-        description="Your edits stay pending until an HR specialist reviews them. The change is applied automatically once approved."
+        message={t('personalInfo:newRequest.alertTitle')}
+        description={t('personalInfo:newRequest.alertDescription')}
       />
 
       <Form
@@ -94,12 +85,12 @@ export function PersonalInfoRequestFormPage() {
         style={{ maxWidth: 720 }}
       >
         <Form.Item
-          label="Field"
+          label={t('personalInfo:newRequest.field')}
           name="fieldKey"
-          rules={[{ required: true, message: 'Pick a field' }]}
+          rules={[{ required: true, message: t('personalInfo:newRequest.pickField') }]}
         >
           <Select
-            placeholder="Select the field you want to change"
+            placeholder={t('personalInfo:newRequest.fieldPlaceholder')}
             options={PERSONAL_INFO_FIELDS.map((f) => ({ value: f, label: f }))}
             onChange={(v) => setField(v)}
           />
@@ -108,25 +99,25 @@ export function PersonalInfoRequestFormPage() {
         {field && (
           <>
             <Form.Item
-              label="New value"
+              label={t('personalInfo:newRequest.newValue')}
               name="newValue"
-              extra={FIELD_HELP[field]}
-              rules={[{ required: true, message: 'Enter the new value' }]}
+              extra={t(`personalInfo:newRequest.fieldHelp.${field}`)}
+              rules={[{ required: true, message: t('personalInfo:newRequest.enterNewValue') }]}
             >
               <Input />
             </Form.Item>
-            <Form.Item label="Reason (optional)" name="reason">
+            <Form.Item label={t('personalInfo:newRequest.reason')} name="reason">
               <Input.TextArea rows={2}
-                placeholder="Why are you requesting this change?" />
+                placeholder={t('personalInfo:newRequest.reasonPlaceholder')} />
             </Form.Item>
           </>
         )}
 
         <Space>
           <Button type="primary" htmlType="submit" loading={submitting}>
-            Submit for approval
+            {t('personalInfo:newRequest.submit')}
           </Button>
-          <Button onClick={() => navigate('/my')}>Cancel</Button>
+          <Button onClick={() => navigate('/my')}>{t('common:cancel')}</Button>
         </Space>
       </Form>
     </Card>
