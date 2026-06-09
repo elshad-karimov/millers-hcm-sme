@@ -1,0 +1,34 @@
+{
+  "newRequest": {
+    "title": "Yeni məzuniyyət sorğusu",
+    "employee": "İşçi",
+    "leaveType": "Məzuniyyət növü",
+    "dates": "Tarixlər",
+    "halfDay": "Yarımgün (yalnız tək tarix — 0.5 sayılır)",
+    "reason": "Səbəb",
+    "reasonPlaceholder": "Məzuniyyət üçün qısa səbəb",
+    "replacement": "Əvəzedici işçi (məcburi deyil)",
+    "replacementTooltip": "Sizin yoxluğunuzda vəzifələrinizi əvəz edəcək həmkarınızı seçin.",
+    "replacementPlaceholder": "Ad ilə axtar…",
+    "attachmentUrl": "Əlavə URL (tələb olunursa)",
+    "attachmentTooltip": "MinIO yükləmələri tamamlanana qədər təsdiqedici sənədə link yapışdırın.",
+    "submit": "Sorğunu göndər",
+    "footer": "Göndərmə <code>LEAVE_REQUEST_APPROVAL</code> iş axınını başladır və günləri balansda rezerv edir. Təsdiqləyicilər bunu Təsdiqlər qutusunda görür.",
+    "balance": {
+      "entitlement": "Hüquq",
+      "used": "İstifadə edilmiş",
+      "reserved": "Rezerv edilmiş",
+      "remaining": "Qalan"
+    },
+    "validation": {
+      "selectEmployee": "İşçi seçin",
+      "selectLeaveType": "Məzuniyyət növü seçin",
+      "pickDates": "Məzuniyyət tarixlərini seçin"
+    },
+    "messages": {
+      "submitted": "Məzuniyyət sorğusu göndərildi — iş axını başladı",
+      "submitFailed": "Göndərmə uğursuz oldu",
+      "attachmentRequired": "{{code}} əlavə URL tələb edir"
+    }
+  }
+}

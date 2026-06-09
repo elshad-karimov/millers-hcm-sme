@@ -15,6 +15,7 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation, Trans } from 'react-i18next'
 import { leaveApi, type LeaveBalance, type LeaveType, type LeaveSubmitRequest } from '../api/leave'
 import { employeesApi, type Employee } from '../api/employees'
 import { selfApi } from '../api/self'
@@ -39,6 +40,9 @@ export function LeaveRequestFormPage() {
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
+  // M232 — all strings come from the leave namespace; the form
+  // shell's Cancel button uses the shared common namespace.
+  const { t } = useTranslation(['leave', 'common'])
   const [form] = Form.useForm<FormValues>()
   /** HR/admin can pick any employee; plain EMPLOYEE submits for themselves only. */
   const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
@@ -96,7 +100,7 @@ export function LeaveRequestFormPage() {
   const onFinish = async (v: FormValues) => {
     const selectedType = typeMap.get(v.leaveTypeId)
     if (selectedType?.requiresAttachment && !v.attachmentUrl) {
-      message.warning(`${selectedType.code} requires an attachment URL`)
+      message.warning(t('leave:newRequest.messages.attachmentRequired', { code: selectedType.code }))
       return
     }
     setSaving(true)
@@ -118,12 +122,12 @@ export function LeaveRequestFormPage() {
       } else {
         await selfApi.submitLeave(payload)
       }
-      message.success('Leave request submitted — workflow started')
+      message.success(t('leave:newRequest.messages.submitted'))
       navigate(LIST_PATH)
     } catch (err) {
       message.error(
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-          'Submission failed',
+          t('leave:newRequest.messages.submitFailed'),
       )
     } finally {
       setSaving(false)
@@ -131,7 +135,7 @@ export function LeaveRequestFormPage() {
   }
 
   return (
-    <FormPageShell title="New leave request" backTo={LIST_PATH}>
+    <FormPageShell title={t('leave:newRequest.title')} backTo={LIST_PATH}>
       <Form
         form={form}
         layout="vertical"
@@ -144,8 +148,8 @@ export function LeaveRequestFormPage() {
             {isHrMode ? (
               <Form.Item
                 name="employeeId"
-                label="Employee"
-                rules={[{ required: true, message: 'Select an employee' }]}
+                label={t('leave:newRequest.employee')}
+                rules={[{ required: true, message: t('leave:newRequest.validation.selectEmployee') }]}
               >
                 <Select
                   showSearch
@@ -158,7 +162,7 @@ export function LeaveRequestFormPage() {
               </Form.Item>
             ) : (
               <>
-                <Form.Item label="Employee">
+                <Form.Item label={t('leave:newRequest.employee')}>
                   <Input disabled value={selfLabel} />
                 </Form.Item>
                 {/* Hidden form field holds the UUID for submission */}
@@ -169,8 +173,8 @@ export function LeaveRequestFormPage() {
           <Col span={12}>
             <Form.Item
               name="leaveTypeId"
-              label="Leave type"
-              rules={[{ required: true, message: 'Select a leave type' }]}
+              label={t('leave:newRequest.leaveType')}
+              rules={[{ required: true, message: t('leave:newRequest.validation.selectLeaveType') }]}
             >
               <Select
                 options={types.map((t) => ({
@@ -183,8 +187,8 @@ export function LeaveRequestFormPage() {
         </Row>
         <Form.Item
           name="range"
-          label="Dates"
-          rules={[{ required: true, message: 'Pick the leave dates' }]}
+          label={t('leave:newRequest.dates')}
+          rules={[{ required: true, message: t('leave:newRequest.validation.pickDates') }]}
         >
           <DatePicker.RangePicker
             disabledDate={disabledDate}
@@ -192,7 +196,7 @@ export function LeaveRequestFormPage() {
           />
         </Form.Item>
         <Form.Item name="halfDay" valuePropName="checked">
-          <Checkbox>Half-day (single date only — counts as 0.5)</Checkbox>
+          <Checkbox>{t('leave:newRequest.halfDay')}</Checkbox>
         </Form.Item>
 
         {balance && (
@@ -202,30 +206,30 @@ export function LeaveRequestFormPage() {
             style={{ marginBottom: 16 }}
             message={
               <Space size="large">
-                <span>Entitlement: <strong>{balance.entitlementDays}</strong></span>
-                <span>Used: <strong>{balance.usedDays}</strong></span>
-                <span>Reserved: <strong>{balance.reservedDays}</strong></span>
-                <span>Remaining: <strong>{balance.remainingDays}</strong></span>
+                <span>{t('leave:newRequest.balance.entitlement')}: <strong>{balance.entitlementDays}</strong></span>
+                <span>{t('leave:newRequest.balance.used')}: <strong>{balance.usedDays}</strong></span>
+                <span>{t('leave:newRequest.balance.reserved')}: <strong>{balance.reservedDays}</strong></span>
+                <span>{t('leave:newRequest.balance.remaining')}: <strong>{balance.remainingDays}</strong></span>
               </Space>
             }
           />
         )}
 
-        <Form.Item name="reason" label="Reason">
-          <Input.TextArea rows={3} placeholder="Brief reason for the leave" />
+        <Form.Item name="reason" label={t('leave:newRequest.reason')}>
+          <Input.TextArea rows={3} placeholder={t('leave:newRequest.reasonPlaceholder')} />
         </Form.Item>
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="replacementEmployeeId"
-              label="Replacement employee (optional)"
-              tooltip="Designate a colleague to cover your duties while you are away."
+              label={t('leave:newRequest.replacement')}
+              tooltip={t('leave:newRequest.replacementTooltip')}
             >
               <Select
                 allowClear
                 showSearch
                 optionFilterProp="label"
-                placeholder="Search by name…"
+                placeholder={t('leave:newRequest.replacementPlaceholder')}
                 options={peers.map((p) => ({
                   value: p.id,
                   label: `${p.employeeNo} — ${p.firstName} ${p.lastName}`,
@@ -236,8 +240,8 @@ export function LeaveRequestFormPage() {
           <Col span={12}>
             <Form.Item
               name="attachmentUrl"
-              label="Attachment URL (if required)"
-              tooltip="Until MinIO uploads ship, paste a link to the supporting document."
+              label={t('leave:newRequest.attachmentUrl')}
+              tooltip={t('leave:newRequest.attachmentTooltip')}
             >
               <Input placeholder="https://…/medical-certificate.pdf" />
             </Form.Item>
@@ -245,15 +249,20 @@ export function LeaveRequestFormPage() {
         </Row>
         <Form.Item>
           <Space>
-            <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>
+            <Button onClick={() => navigate(LIST_PATH)}>{t('common:cancel')}</Button>
             <Button type="primary" htmlType="submit" loading={saving}>
-              Submit request
+              {t('leave:newRequest.submit')}
             </Button>
           </Space>
         </Form.Item>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          Submitting starts the <code>LEAVE_REQUEST_APPROVAL</code> workflow and reserves the days
-          on the balance. Approvers see it in the Approvals inbox.
+          {/* <Trans> preserves the inline <code> markup across languages so
+              both AZ and EN can use the same JSX structure with just the
+              surrounding text translated. */}
+          <Trans
+            i18nKey="leave:newRequest.footer"
+            components={{ code: <code /> }}
+          />
         </Typography.Text>
       </Form>
     </FormPageShell>

@@ -1,0 +1,34 @@
+{
+  "newRequest": {
+    "title": "New leave request",
+    "employee": "Employee",
+    "leaveType": "Leave type",
+    "dates": "Dates",
+    "halfDay": "Half-day (single date only — counts as 0.5)",
+    "reason": "Reason",
+    "reasonPlaceholder": "Brief reason for the leave",
+    "replacement": "Replacement employee (optional)",
+    "replacementTooltip": "Designate a colleague to cover your duties while you are away.",
+    "replacementPlaceholder": "Search by name…",
+    "attachmentUrl": "Attachment URL (if required)",
+    "attachmentTooltip": "Until MinIO uploads ship, paste a link to the supporting document.",
+    "submit": "Submit request",
+    "footer": "Submitting starts the <code>LEAVE_REQUEST_APPROVAL</code> workflow and reserves the days on the balance. Approvers see it in the Approvals inbox.",
+    "balance": {
+      "entitlement": "Entitlement",
+      "used": "Used",
+      "reserved": "Reserved",
+      "remaining": "Remaining"
+    },
+    "validation": {
+      "selectEmployee": "Select an employee",
+      "selectLeaveType": "Select a leave type",
+      "pickDates": "Pick the leave dates"
+    },
+    "messages": {
+      "submitted": "Leave request submitted — workflow started",
+      "submitFailed": "Submission failed",
+      "attachmentRequired": "{{code}} requires an attachment URL"
+    }
+  }
+}
