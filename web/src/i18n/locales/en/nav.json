@@ -18,5 +18,117 @@
   "inbox": "Inbox",
   "reportsAnalytics": "Reports & Analytics",
   "admin": "Admin",
-  "policies": "Policies"
+  "policies": "Policies",
+  "myTeam": "My team",
+  "engagement": "Engagement",
+  "sub": {
+    "people": {
+      "employees": "Employees",
+      "policiesAdmin": "Policies admin",
+      "preboarding": "Pre-boarding",
+      "assets": "Assets",
+      "organization": "Organization",
+      "legalEntities": "Legal entities",
+      "locations": "Locations",
+      "hrPartners": "HR partners",
+      "unitTypes": "Unit types",
+      "unitDocuments": "Unit documents",
+      "positions": "Positions",
+      "positionControl": "Position control"
+    },
+    "time": {
+      "presenceMap": "Presence map",
+      "schedules": "Schedules",
+      "roster": "Roster",
+      "shiftPatterns": "Shift patterns",
+      "rosterVariance": "Roster variance",
+      "events": "Events",
+      "dailySummary": "Daily summary",
+      "timesheets": "Timesheets"
+    },
+    "absence": {
+      "leaveRequests": "Leave requests",
+      "teamCalendar": "Team calendar",
+      "leaveBalances": "Leave balances",
+      "leaveTypes": "Leave types",
+      "blackoutWindows": "Blackout windows",
+      "permissionRequests": "Permission requests",
+      "permissionBalances": "Permission balances",
+      "permissionTypes": "Permission types"
+    },
+    "travel": {
+      "businessTrips": "Business trips",
+      "expenseClaims": "Expense claims"
+    },
+    "letters": {
+      "requests": "Letter requests",
+      "templates": "Templates"
+    },
+    "personalInfo": {
+      "changes": "Personal-info changes"
+    },
+    "payroll": {
+      "runs": "Payroll runs",
+      "compensation": "Compensation"
+    },
+    "recruitment": {
+      "vacancies": "Vacancies",
+      "candidates": "Candidates",
+      "interviewKits": "Interview kits",
+      "talentPool": "Talent pool",
+      "analytics": "Analytics"
+    },
+    "lifecycle": {
+      "terminations": "Terminations",
+      "contractChanges": "Contract changes",
+      "checklists": "Checklists"
+    },
+    "performance": {
+      "cycles": "Review cycles",
+      "goals": "Goals",
+      "reviews": "Reviews",
+      "feedback360": "360° feedback",
+      "succession9Box": "9-box succession",
+      "benchDepth": "Bench depth",
+      "nominations": "Nominations"
+    },
+    "learning": {
+      "catalog": "Course catalog",
+      "paths": "Learning paths",
+      "my": "My learning",
+      "certificates": "Certificates",
+      "competencies": "Competencies",
+      "trainingPlans": "Training plans"
+    },
+    "compBenefits": {
+      "matrix": "Bonus matrix",
+      "allowances": "Allowances",
+      "bonusRuns": "Bonus runs",
+      "salaryPlanning": "Salary planning",
+      "compPlanning": "Comp planning",
+      "benefitsPlans": "Benefits plans"
+    },
+    "reports": {
+      "live": "Live reports",
+      "schedulesHistory": "Schedules & history",
+      "customBuilder": "Custom report builder",
+      "empMgmt": "Employee Management",
+      "spanOfControl": "Span of control",
+      "org": "Org reports",
+      "activityFeed": "Activity feed"
+    },
+    "inbox": {
+      "approvals": "Approvals",
+      "workflowSla": "Workflow SLA"
+    },
+    "admin": {
+      "userManagement": "User management",
+      "backups": "Backups",
+      "ldapSync": "LDAP Sync",
+      "biExport": "BI Export",
+      "analyticsWarehouse": "Analytics Warehouse",
+      "apiKeys": "API keys",
+      "auditLog": "Audit log"
+    }
+  }
 }

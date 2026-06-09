@@ -207,7 +207,7 @@ export function AppLayout() {
           {
             key: 'my-team',
             icon: <TeamOutlined />,
-            label: <Link to="/my/team">My team</Link>,
+            label: <Link to="/my/team">{tNav('myTeam')}</Link>,
           },
         ]
       : []),
@@ -223,68 +223,68 @@ export function AppLayout() {
               {
                 key: 'employees',
                 icon: <IdcardOutlined />,
-                label: <Link to="/employees">Employees</Link>,
+                label: <Link to="/employees">{tNav('sub.people.employees')}</Link>,
               },
               {
                 // M138 — HR policy admin
                 key: 'policies-admin',
                 icon: <FileTextOutlined />,
-                label: <Link to="/policies">Policies admin</Link>,
+                label: <Link to="/policies">{tNav('sub.people.policiesAdmin')}</Link>,
               },
               {
                 key: 'hr-preboarding',
                 icon: <UserAddOutlined />,
-                label: <Link to="/hr/preboarding">Pre-boarding</Link>,
+                label: <Link to="/hr/preboarding">{tNav('sub.people.preboarding')}</Link>,
               },
               {
                 key: 'hr-assets',
                 icon: <InboxOutlined />,
-                label: <Link to="/hr/assets">Assets</Link>,
+                label: <Link to="/hr/assets">{tNav('sub.people.assets')}</Link>,
               },
               {
                 key: 'organization',
                 icon: <ApartmentOutlined />,
-                label: <Link to="/organization">Organization</Link>,
+                label: <Link to="/organization">{tNav('sub.people.organization')}</Link>,
               },
               {
                 // M140 — Legal entities master
                 key: 'legal-entities',
                 icon: <BankOutlined />,
-                label: <Link to="/organization/legal-entities">Legal entities</Link>,
+                label: <Link to="/organization/legal-entities">{tNav('sub.people.legalEntities')}</Link>,
               },
               {
                 // M141 — Location master
                 key: 'locations',
                 icon: <GlobalOutlined />,
-                label: <Link to="/organization/locations">Locations</Link>,
+                label: <Link to="/organization/locations">{tNav('sub.people.locations')}</Link>,
               },
               {
                 // M142 — HRBP assignments
                 key: 'hr-partners',
                 icon: <TeamOutlined />,
-                label: <Link to="/organization/hr-partners">HR partners</Link>,
+                label: <Link to="/organization/hr-partners">{tNav('sub.people.hrPartners')}</Link>,
               },
               {
                 // M143 — configurable org unit types
                 key: 'unit-types',
                 icon: <AppstoreOutlined />,
-                label: <Link to="/organization/unit-types">Unit types</Link>,
+                label: <Link to="/organization/unit-types">{tNav('sub.people.unitTypes')}</Link>,
               },
               {
                 // M147 — org unit documents + expiry
                 key: 'org-documents',
                 icon: <FileTextOutlined />,
-                label: <Link to="/organization/documents">Unit documents</Link>,
+                label: <Link to="/organization/documents">{tNav('sub.people.unitDocuments')}</Link>,
               },
               {
                 key: 'positions',
                 icon: <SolutionOutlined />,
-                label: <Link to="/positions">Positions</Link>,
+                label: <Link to="/positions">{tNav('sub.people.positions')}</Link>,
               },
               {
                 key: 'position-control',
                 icon: <FundOutlined />,
-                label: <Link to="/positions/control">Position control</Link>,
+                label: <Link to="/positions/control">{tNav('sub.people.positionControl')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -302,42 +302,42 @@ export function AppLayout() {
               {
                 key: 'presence-map',
                 icon: <GlobalOutlined />,
-                label: <Link to="/presence">Presence map</Link>,
+                label: <Link to="/presence">{tNav('sub.time.presenceMap')}</Link>,
               },
               {
                 key: 'attendance-schedules',
                 icon: <CalendarOutlined />,
-                label: <Link to="/attendance/schedules">Schedules</Link>,
+                label: <Link to="/attendance/schedules">{tNav('sub.time.schedules')}</Link>,
               },
               {
                 key: 'attendance-roster',
                 icon: <CalendarOutlined />,
-                label: <Link to="/attendance/roster">Roster</Link>,
+                label: <Link to="/attendance/roster">{tNav('sub.time.roster')}</Link>,
               },
               {
                 key: 'attendance-shift-patterns',
                 icon: <CalendarOutlined />,
-                label: <Link to="/attendance/shift-patterns">Shift patterns</Link>,
+                label: <Link to="/attendance/shift-patterns">{tNav('sub.time.shiftPatterns')}</Link>,
               },
               {
                 key: 'attendance-variance',
                 icon: <BarChartOutlined />,
-                label: <Link to="/attendance/variance">Roster variance</Link>,
+                label: <Link to="/attendance/variance">{tNav('sub.time.rosterVariance')}</Link>,
               },
               {
                 key: 'attendance-events',
                 icon: <SwapOutlined />,
-                label: <Link to="/attendance/events">Events</Link>,
+                label: <Link to="/attendance/events">{tNav('sub.time.events')}</Link>,
               },
               {
                 key: 'attendance-summary',
                 icon: <BarChartOutlined />,
-                label: <Link to="/attendance/summary">Daily summary</Link>,
+                label: <Link to="/attendance/summary">{tNav('sub.time.dailySummary')}</Link>,
               },
               {
                 key: 'timesheets',
                 icon: <FileDoneOutlined />,
-                label: <Link to="/timesheets">Timesheets</Link>,
+                label: <Link to="/timesheets">{tNav('sub.time.timesheets')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -355,29 +355,29 @@ export function AppLayout() {
               {
                 key: 'leave-requests',
                 icon: <FileDoneOutlined />,
-                label: <Link to="/leave/requests">Leave requests</Link>,
+                label: <Link to="/leave/requests">{tNav('sub.absence.leaveRequests')}</Link>,
               },
               {
                 key: 'leave-team-calendar',
                 icon: <CoffeeOutlined />,
-                label: <Link to="/leave/team-calendar">Team calendar</Link>,
+                label: <Link to="/leave/team-calendar">{tNav('sub.absence.teamCalendar')}</Link>,
               },
               {
                 key: 'leave-balances',
                 icon: <WalletOutlined />,
-                label: <Link to="/leave/balances">Leave balances</Link>,
+                label: <Link to="/leave/balances">{tNav('sub.absence.leaveBalances')}</Link>,
               },
               ...(isHR
                 ? [
                     {
                       key: 'leave-types',
                       icon: <SettingOutlined />,
-                      label: <Link to="/leave/types">Leave types</Link>,
+                      label: <Link to="/leave/types">{tNav('sub.absence.leaveTypes')}</Link>,
                     },
                     {
                       key: 'leave-blackouts',
                       icon: <SafetyCertificateOutlined />,
-                      label: <Link to="/leave/blackouts">Blackout windows</Link>,
+                      label: <Link to="/leave/blackouts">{tNav('sub.absence.blackoutWindows')}</Link>,
                     },
                     { type: 'divider' as const },
                   ]
@@ -385,19 +385,19 @@ export function AppLayout() {
               {
                 key: 'permission-requests',
                 icon: <ClockCircleTwoTone twoToneColor="#5B3FE5" />,
-                label: <Link to="/permission/requests">Permission requests</Link>,
+                label: <Link to="/permission/requests">{tNav('sub.absence.permissionRequests')}</Link>,
               },
               {
                 key: 'permission-balances',
                 icon: <WalletOutlined />,
-                label: <Link to="/permission/balances">Permission balances</Link>,
+                label: <Link to="/permission/balances">{tNav('sub.absence.permissionBalances')}</Link>,
               },
               ...(isHR
                 ? [
                     {
                       key: 'permission-types',
                       icon: <SettingOutlined />,
-                      label: <Link to="/permission/types">Permission types</Link>,
+                      label: <Link to="/permission/types">{tNav('sub.absence.permissionTypes')}</Link>,
                     },
                   ]
                 : []),
@@ -417,12 +417,12 @@ export function AppLayout() {
               {
                 key: 'business-trips',
                 icon: <RocketOutlined />,
-                label: <Link to="/business-trips">Business trips</Link>,
+                label: <Link to="/business-trips">{tNav('sub.travel.businessTrips')}</Link>,
               },
               {
                 key: 'travel-expense-claims',
                 icon: <WalletOutlined />,
-                label: <Link to="/business-trips/expense-claims">Expense claims</Link>,
+                label: <Link to="/business-trips/expense-claims">{tNav('sub.travel.expenseClaims')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -440,14 +440,14 @@ export function AppLayout() {
               {
                 key: 'letters-requests',
                 icon: <FileDoneOutlined />,
-                label: <Link to="/letters">Letter requests</Link>,
+                label: <Link to="/letters">{tNav('sub.letters.requests')}</Link>,
               },
               ...(isHR
                 ? [
                     {
                       key: 'letters-templates',
                       icon: <ProfileOutlined />,
-                      label: <Link to="/letters/templates">Templates</Link>,
+                      label: <Link to="/letters/templates">{tNav('sub.letters.templates')}</Link>,
                     },
                   ]
                 : []),
@@ -462,7 +462,7 @@ export function AppLayout() {
           {
             key: 'personal-info-queue',
             icon: <ProfileOutlined />,
-            label: <Link to="/personal-info-changes">Personal-info changes</Link>,
+            label: <Link to="/personal-info-changes">{tNav('sub.personalInfo.changes')}</Link>,
           } satisfies ItemType,
         ]
       : []),
@@ -478,12 +478,12 @@ export function AppLayout() {
               {
                 key: 'payroll-runs',
                 icon: <BankOutlined />,
-                label: <Link to="/payroll/runs">Payroll runs</Link>,
+                label: <Link to="/payroll/runs">{tNav('sub.payroll.runs')}</Link>,
               },
               {
                 key: 'payroll-compensation',
                 icon: <WalletOutlined />,
-                label: <Link to="/payroll/compensation">Compensation</Link>,
+                label: <Link to="/payroll/compensation">{tNav('sub.payroll.compensation')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -501,27 +501,27 @@ export function AppLayout() {
               {
                 key: 'recruitment-vacancies',
                 icon: <ProfileOutlined />,
-                label: <Link to="/recruitment/vacancies">Vacancies</Link>,
+                label: <Link to="/recruitment/vacancies">{tNav('sub.recruitment.vacancies')}</Link>,
               },
               {
                 key: 'recruitment-candidates',
                 icon: <SearchOutlined />,
-                label: <Link to="/recruitment/candidates">Candidates</Link>,
+                label: <Link to="/recruitment/candidates">{tNav('sub.recruitment.candidates')}</Link>,
               },
               {
                 key: 'recruitment-interview-kits',
                 icon: <ExperimentOutlined />,
-                label: <Link to="/recruitment/interview-kits">Interview kits</Link>,
+                label: <Link to="/recruitment/interview-kits">{tNav('sub.recruitment.interviewKits')}</Link>,
               },
               {
                 key: 'recruitment-talent-pool',
                 icon: <UserAddOutlined />,
-                label: <Link to="/recruitment/talent-pool">Talent pool</Link>,
+                label: <Link to="/recruitment/talent-pool">{tNav('sub.recruitment.talentPool')}</Link>,
               },
               {
                 key: 'recruitment-analytics',
                 icon: <FundOutlined />,
-                label: <Link to="/recruitment/analytics">Analytics</Link>,
+                label: <Link to="/recruitment/analytics">{tNav('sub.recruitment.analytics')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -539,17 +539,17 @@ export function AppLayout() {
               {
                 key: 'lifecycle-terminations',
                 icon: <FileDoneOutlined />,
-                label: <Link to="/lifecycle/terminations">Terminations</Link>,
+                label: <Link to="/lifecycle/terminations">{tNav('sub.lifecycle.terminations')}</Link>,
               },
               {
                 key: 'lifecycle-contract-changes',
                 icon: <SolutionOutlined />,
-                label: <Link to="/lifecycle/contract-changes">Contract changes</Link>,
+                label: <Link to="/lifecycle/contract-changes">{tNav('sub.lifecycle.contractChanges')}</Link>,
               },
               {
                 key: 'lifecycle-checklists',
                 icon: <FileTextOutlined />,
-                label: <Link to="/lifecycle/checklists">Checklists</Link>,
+                label: <Link to="/lifecycle/checklists">{tNav('sub.lifecycle.checklists')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -567,37 +567,37 @@ export function AppLayout() {
               {
                 key: 'performance-cycles',
                 icon: <CalendarOutlined />,
-                label: <Link to="/performance/cycles">Review cycles</Link>,
+                label: <Link to="/performance/cycles">{tNav('sub.performance.cycles')}</Link>,
               },
               {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
-                label: <Link to="/performance/goals">Goals</Link>,
+                label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,
               },
               {
                 key: 'performance-reviews',
                 icon: <ProfileOutlined />,
-                label: <Link to="/performance/reviews">Reviews</Link>,
+                label: <Link to="/performance/reviews">{tNav('sub.performance.reviews')}</Link>,
               },
               {
                 key: 'performance-feedback',
                 icon: <CoffeeOutlined />,
-                label: <Link to="/performance/feedback">360° feedback</Link>,
+                label: <Link to="/performance/feedback">{tNav('sub.performance.feedback360')}</Link>,
               },
               {
                 key: 'performance-succession',
                 icon: <RocketOutlined />,
-                label: <Link to="/performance/succession">9-box succession</Link>,
+                label: <Link to="/performance/succession">{tNav('sub.performance.succession9Box')}</Link>,
               },
               {
                 key: 'performance-bench',
                 icon: <TeamOutlined />,
-                label: <Link to="/performance/succession/bench">Bench depth</Link>,
+                label: <Link to="/performance/succession/bench">{tNav('sub.performance.benchDepth')}</Link>,
               },
               {
                 key: 'performance-nominations',
                 icon: <ProfileOutlined />,
-                label: <Link to="/performance/succession/nominations">Nominations</Link>,
+                label: <Link to="/performance/succession/nominations">{tNav('sub.performance.nominations')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -615,32 +615,32 @@ export function AppLayout() {
               {
                 key: 'learning-courses',
                 icon: <ReadOutlined />,
-                label: <Link to="/learning/courses">Course catalog</Link>,
+                label: <Link to="/learning/courses">{tNav('sub.learning.catalog')}</Link>,
               },
               {
                 key: 'learning-paths',
                 icon: <SolutionOutlined />,
-                label: <Link to="/learning/paths">Learning paths</Link>,
+                label: <Link to="/learning/paths">{tNav('sub.learning.paths')}</Link>,
               },
               {
                 key: 'learning-my',
                 icon: <PlayCircleOutlined />,
-                label: <Link to="/learning/my">My learning</Link>,
+                label: <Link to="/learning/my">{tNav('sub.learning.my')}</Link>,
               },
               {
                 key: 'learning-certificates',
                 icon: <SafetyCertificateOutlined />,
-                label: <Link to="/learning/certificates">Certificates</Link>,
+                label: <Link to="/learning/certificates">{tNav('sub.learning.certificates')}</Link>,
               },
               {
                 key: 'learning-competencies',
                 icon: <ExperimentOutlined />,
-                label: <Link to="/learning/competencies">Competencies</Link>,
+                label: <Link to="/learning/competencies">{tNav('sub.learning.competencies')}</Link>,
               },
               {
                 key: 'learning-training-plans',
                 icon: <ProfileOutlined />,
-                label: <Link to="/learning/training-plans">Training plans</Link>,
+                label: <Link to="/learning/training-plans">{tNav('sub.learning.trainingPlans')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -658,32 +658,32 @@ export function AppLayout() {
               {
                 key: 'compbenefits-matrix',
                 icon: <BarChartOutlined />,
-                label: <Link to="/compbenefits/matrix">Bonus matrix</Link>,
+                label: <Link to="/compbenefits/matrix">{tNav('sub.compBenefits.matrix')}</Link>,
               },
               {
                 key: 'compbenefits-allowances',
                 icon: <WalletOutlined />,
-                label: <Link to="/compbenefits/allowances">Allowances</Link>,
+                label: <Link to="/compbenefits/allowances">{tNav('sub.compBenefits.allowances')}</Link>,
               },
               {
                 key: 'compbenefits-bonus-runs',
                 icon: <RocketOutlined />,
-                label: <Link to="/compbenefits/bonus-runs">Bonus runs</Link>,
+                label: <Link to="/compbenefits/bonus-runs">{tNav('sub.compBenefits.bonusRuns')}</Link>,
               },
               {
                 key: 'compbenefits-salary-planning',
                 icon: <FundOutlined />,
-                label: <Link to="/compbenefits/salary-planning">Salary planning</Link>,
+                label: <Link to="/compbenefits/salary-planning">{tNav('sub.compBenefits.salaryPlanning')}</Link>,
               },
               {
                 key: 'compbenefits-comp-planning',
                 icon: <DollarCircleOutlined />,
-                label: <Link to="/compbenefits/comp-planning">Comp planning</Link>,
+                label: <Link to="/compbenefits/comp-planning">{tNav('sub.compBenefits.compPlanning')}</Link>,
               },
               {
                 key: 'compbenefits-benefits',
                 icon: <DollarCircleOutlined />,
-                label: <Link to="/compbenefits/benefits">Benefits plans</Link>,
+                label: <Link to="/compbenefits/benefits">{tNav('sub.compBenefits.benefitsPlans')}</Link>,
               },
             ],
           } satisfies ItemType,
@@ -696,7 +696,7 @@ export function AppLayout() {
           {
             key: 'engagement',
             icon: <ExperimentOutlined />,
-            label: <Link to="/engagement/surveys">Engagement</Link>,
+            label: <Link to="/engagement/surveys">{tNav('engagement')}</Link>,
           } satisfies ItemType,
         ]
       : []),
@@ -714,17 +714,17 @@ export function AppLayout() {
                     {
                       key: 'reports',
                       icon: <BarChartOutlined />,
-                      label: <Link to="/reports">Live reports</Link>,
+                      label: <Link to="/reports">{tNav('sub.reports.live')}</Link>,
                     },
                     {
                       key: 'reports-schedules',
                       icon: <ClockCircleOutlined />,
-                      label: <Link to="/reports/schedules">Schedules & history</Link>,
+                      label: <Link to="/reports/schedules">{tNav('sub.reports.schedulesHistory')}</Link>,
                     },
                     {
                       key: 'reports-custom',
                       icon: <BarChartOutlined />,
-                      label: <Link to="/reports/custom">Custom report builder</Link>,
+                      label: <Link to="/reports/custom">{tNav('sub.reports.customBuilder')}</Link>,
                     },
                   ]
                 : []),
@@ -732,26 +732,26 @@ export function AppLayout() {
               {
                 key: 'reports-emp-mgmt',
                 icon: <FileDoneOutlined />,
-                label: <Link to="/reports/emp-mgmt">Employee Management</Link>,
+                label: <Link to="/reports/emp-mgmt">{tNav('sub.reports.empMgmt')}</Link>,
               },
               // M81 span-of-control — same gate as emp-mgmt.
               {
                 key: 'reports-span',
                 icon: <ApartmentOutlined />,
-                label: <Link to="/reports/span-of-control">Span of control</Link>,
+                label: <Link to="/reports/span-of-control">{tNav('sub.reports.spanOfControl')}</Link>,
               },
               // M145 org-native reports.
               {
                 key: 'reports-org',
                 icon: <ApartmentOutlined />,
-                label: <Link to="/reports/org">Org reports</Link>,
+                label: <Link to="/reports/org">{tNav('sub.reports.org')}</Link>,
               },
               ...(isHR || isAdminOrAuditor
                 ? [
                     {
                       key: 'activity-feed',
                       icon: <ClockCircleTwoTone twoToneColor="#1677ff" />,
-                      label: <Link to="/activity">Activity feed</Link>,
+                      label: <Link to="/activity">{tNav('sub.reports.activityFeed')}</Link>,
                     },
                   ]
                 : []),
@@ -766,13 +766,13 @@ export function AppLayout() {
           {
             key: 'approvals',
             icon: <InboxOutlined />,
-            label: <Link to="/inbox">Approvals</Link>,
+            label: <Link to="/inbox">{tNav('sub.inbox.approvals')}</Link>,
           } satisfies ItemType,
           ...(isHR || isAdminOrAuditor
             ? [{
                 key: 'workflow-sla',
                 icon: <ClockCircleOutlined />,
-                label: <Link to="/hr/workflow-sla">Workflow SLA</Link>,
+                label: <Link to="/hr/workflow-sla">{tNav('sub.inbox.workflowSla')}</Link>,
               } satisfies ItemType]
             : []),
         ]
@@ -793,17 +793,17 @@ export function AppLayout() {
                     {
                       key: 'admin-users',
                       icon: <TeamOutlined />,
-                      label: <Link to="/admin/users">User management</Link>,
+                      label: <Link to="/admin/users">{tNav('sub.admin.userManagement')}</Link>,
                     },
                     {
                       key: 'admin-backups',
                       icon: <CloudServerOutlined />,
-                      label: <Link to="/admin/backups">Backups</Link>,
+                      label: <Link to="/admin/backups">{tNav('sub.admin.backups')}</Link>,
                     },
                     {
                       key: 'admin-ldap',
                       icon: <LinkOutlined />,
-                      label: <Link to="/admin/ldap">LDAP Sync</Link>,
+                      label: <Link to="/admin/ldap">{tNav('sub.admin.ldapSync')}</Link>,
                     },
                   ]
                 : []),
@@ -812,17 +812,17 @@ export function AppLayout() {
                     {
                       key: 'admin-bi-export',
                       icon: <FundOutlined />,
-                      label: <Link to="/admin/bi-export">BI Export</Link>,
+                      label: <Link to="/admin/bi-export">{tNav('sub.admin.biExport')}</Link>,
                     },
                     {
                       key: 'admin-warehouse',
                       icon: <DatabaseOutlined />,
-                      label: <Link to="/admin/warehouse">Analytics Warehouse</Link>,
+                      label: <Link to="/admin/warehouse">{tNav('sub.admin.analyticsWarehouse')}</Link>,
                     },
                     {
                       key: 'admin-api-keys',
                       icon: <KeyOutlined />,
-                      label: <Link to="/admin/api-keys">API keys</Link>,
+                      label: <Link to="/admin/api-keys">{tNav('sub.admin.apiKeys')}</Link>,
                     },
                   ]
                 : []),
@@ -831,7 +831,7 @@ export function AppLayout() {
                     {
                       key: 'admin-audit-log',
                       icon: <FileSearchOutlined />,
-                      label: <Link to="/admin/audit-log">Audit log</Link>,
+                      label: <Link to="/admin/audit-log">{tNav('sub.admin.auditLog')}</Link>,
                     },
                   ]
                 : []),

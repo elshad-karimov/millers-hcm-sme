@@ -18,5 +18,117 @@
   "inbox": "Təsdiqlər qutusu",
   "reportsAnalytics": "Hesabatlar və analitika",
   "admin": "İdarəetmə",
-  "policies": "Siyasətlər"
+  "policies": "Siyasətlər",
+  "myTeam": "Mənim komandam",
+  "engagement": "Əməkdaşlıq",
+  "sub": {
+    "people": {
+      "employees": "İşçilər",
+      "policiesAdmin": "Siyasətlər (admin)",
+      "preboarding": "Adaptasiya öncəsi",
+      "assets": "Aktivlər",
+      "organization": "Təşkilat",
+      "legalEntities": "Hüquqi şəxslər",
+      "locations": "Yerləşmə yerləri",
+      "hrPartners": "HR partnyorlar",
+      "unitTypes": "Bölmə növləri",
+      "unitDocuments": "Bölmə sənədləri",
+      "positions": "Vəzifələr",
+      "positionControl": "Vəzifə nəzarəti"
+    },
+    "time": {
+      "presenceMap": "İştirak xəritəsi",
+      "schedules": "Cədvəllər",
+      "roster": "Növbə cədvəli",
+      "shiftPatterns": "Növbə şablonları",
+      "rosterVariance": "Növbə uyğunsuzluğu",
+      "events": "Hadisələr",
+      "dailySummary": "Günlük xülasə",
+      "timesheets": "İş cədvəlləri"
+    },
+    "absence": {
+      "leaveRequests": "Məzuniyyət sorğuları",
+      "teamCalendar": "Komanda təqvimi",
+      "leaveBalances": "Məzuniyyət qalıqları",
+      "leaveTypes": "Məzuniyyət növləri",
+      "blackoutWindows": "Qadağa pəncərələri",
+      "permissionRequests": "İcazə sorğuları",
+      "permissionBalances": "İcazə qalıqları",
+      "permissionTypes": "İcazə növləri"
+    },
+    "travel": {
+      "businessTrips": "Ezamiyyətlər",
+      "expenseClaims": "Xərc tələbləri"
+    },
+    "letters": {
+      "requests": "Məktub sorğuları",
+      "templates": "Şablonlar"
+    },
+    "personalInfo": {
+      "changes": "Şəxsi məlumat dəyişiklikləri"
+    },
+    "payroll": {
+      "runs": "Əmək haqqı hesablamaları",
+      "compensation": "Mükafatlandırma"
+    },
+    "recruitment": {
+      "vacancies": "Vakansiyalar",
+      "candidates": "Namizədlər",
+      "interviewKits": "Müsahibə dəstləri",
+      "talentPool": "İstedad hovuzu",
+      "analytics": "Analitika"
+    },
+    "lifecycle": {
+      "terminations": "İşdən azad",
+      "contractChanges": "Müqavilə dəyişiklikləri",
+      "checklists": "Yoxlama siyahıları"
+    },
+    "performance": {
+      "cycles": "Qiymətləndirmə dövrləri",
+      "goals": "Məqsədlər",
+      "reviews": "Qiymətləndirmələr",
+      "feedback360": "360° rəylər",
+      "succession9Box": "9-xanalı varislik",
+      "benchDepth": "Ehtiyat dərinliyi",
+      "nominations": "Namizədlər"
+    },
+    "learning": {
+      "catalog": "Kurs kataloqu",
+      "paths": "Təlim yolları",
+      "my": "Mənim təlimim",
+      "certificates": "Sertifikatlar",
+      "competencies": "Bacarıqlar",
+      "trainingPlans": "Təlim planları"
+    },
+    "compBenefits": {
+      "matrix": "Bonus matrisi",
+      "allowances": "Müavinətlər",
+      "bonusRuns": "Bonus hesablamaları",
+      "salaryPlanning": "Əmək haqqı planlaması",
+      "compPlanning": "Mükafat planlaması",
+      "benefitsPlans": "Müavinət planları"
+    },
+    "reports": {
+      "live": "Canlı hesabatlar",
+      "schedulesHistory": "Cədvəllər və tarix",
+      "customBuilder": "Xüsusi hesabat qurucusu",
+      "empMgmt": "İşçi idarəetməsi",
+      "spanOfControl": "Nəzarət əhatəsi",
+      "org": "Təşkilat hesabatları",
+      "activityFeed": "Fəaliyyət lenti"
+    },
+    "inbox": {
+      "approvals": "Təsdiqlər",
+      "workflowSla": "İş axını SLA"
+    },
+    "admin": {
+      "userManagement": "İstifadəçi idarəetməsi",
+      "backups": "Ehtiyat nüsxələr",
+      "ldapSync": "LDAP sinxronizasiyası",
+      "biExport": "BI ixracı",
+      "analyticsWarehouse": "Analitika anbarı",
+      "apiKeys": "API açarları",
+      "auditLog": "Audit qeydləri"
+    }
+  }
 }
