@@ -19,6 +19,7 @@ import { FormPageShell } from '../components/FormPageShell'
 import { PositionLifecyclePanel } from '../components/PositionLifecyclePanel'
 import { PositionBudgetFundingPanel } from '../components/PositionBudgetFundingPanel'
 import { PositionOccupancyPanel } from '../components/PositionOccupancyPanel'
+import { PositionProfilePanel } from '../components/PositionProfilePanel'
 
 interface FormValues {
   title: string
@@ -148,6 +149,11 @@ export function PositionFormPage() {
           {editing && current && (
             <div style={{ marginBottom: 16 }}>
               <PositionOccupancyPanel positionId={current.id} />
+            </div>
+          )}
+          {editing && current && (
+            <div style={{ marginBottom: 16 }}>
+              <PositionProfilePanel positionId={current.id} />
             </div>
           )}
           <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
