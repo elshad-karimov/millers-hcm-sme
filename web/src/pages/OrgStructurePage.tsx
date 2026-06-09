@@ -29,6 +29,7 @@ import {
   LIFECYCLE_COLOR,
   type OrgUnitLifecycleState,
 } from '../api/orgUnitLifecycle'
+import { headcountApi, type OrgUnitRoll } from '../api/headcount'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
 import { brand } from '../theme'
@@ -68,6 +69,10 @@ export function OrgStructurePage() {
   const [tree, setTree] = useState<OrgTreeNode | null>(null)
   const [units, setUnits] = useState<OrgUnitResponse[]>([])
   const [loading, setLoading] = useState(false)
+  // M242 — headcount roll per org unit, used to decorate the tree.
+  // null until first fetch completes; an empty array is still a valid
+  // "loaded but zero rolls" state.
+  const [rolls, setRolls] = useState<OrgUnitRoll[] | null>(null)
 
   const goToNewUnit = (parentId?: string | null) => {
     if (!selectedId) return
@@ -111,6 +116,12 @@ export function OrgStructurePage() {
     loadVersions().catch((err) =>
       message.error(err?.response?.data?.message ?? 'Failed to load versions'),
     )
+    // M242 — pull headcount roll-up once on mount; the data is
+    // tenant-wide (not version-scoped) and the summary endpoint is
+    // already cheap (one query + in-memory group-by).
+    headcountApi.summary()
+      .then((s) => setRolls(s.byOrgUnit))
+      .catch(() => setRolls([]))  // soft-fail: tree still renders without pills
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -118,21 +129,82 @@ export function OrgStructurePage() {
     if (selectedId) loadVersionDetail(selectedId).catch(() => undefined)
   }, [selectedId])
 
+  // M242 — Per-unit cumulative headcount (this unit + all descendants).
+  // We post-order the tree once and stash {approved, occupied, openVac,
+  // gap} per nodeId, then look it up in the title renderer below.
+  const cumulativeByUnit = useMemo(() => {
+    const direct = new Map<string, OrgUnitRoll>()
+    for (const r of rolls ?? []) if (r.orgUnitId) direct.set(r.orgUnitId, r)
+    const cumulative = new Map<string, {
+      approved: number; occupied: number; openVac: number; gap: number
+    }>()
+    function walk(node: OrgTreeNode): { approved: number; occupied: number; openVac: number } {
+      let approved = 0, occupied = 0, openVac = 0
+      const own = direct.get(node.id)
+      if (own) {
+        approved += own.approvedHeadcount
+        occupied += own.actualOccupied
+        openVac += own.openVacancyOpenings
+      }
+      for (const child of node.children) {
+        const c = walk(child)
+        approved += c.approved
+        occupied += c.occupied
+        openVac += c.openVac
+      }
+      cumulative.set(node.id, {
+        approved, occupied, openVac,
+        gap: Math.max(0, approved - occupied - openVac),
+      })
+      return { approved, occupied, openVac }
+    }
+    if (tree) walk(tree)
+    return cumulative
+  }, [tree, rolls])
+
   const treeData: DataNode[] = useMemo(() => {
     if (!tree) return []
-    const toNode = (n: OrgTreeNode): DataNode => ({
-      key: n.id,
-      title: (
-        <Space size="small">
-          <Tag color={TYPE_COLOR[n.unitType]}>{n.unitType}</Tag>
-          <span style={{ fontWeight: 600 }}>{n.name}</span>
-          <Typography.Text type="secondary">{n.code}</Typography.Text>
-        </Space>
-      ),
-      children: n.children.map(toNode),
-    })
+    const toNode = (n: OrgTreeNode): DataNode => {
+      const roll = cumulativeByUnit.get(n.id)
+      // Only render the pill row if we have non-zero numbers AND the
+      // rolls actually loaded — otherwise the tree shows nothing
+      // headcount-related on first paint until the fetch resolves.
+      const showPills = !!roll && roll.approved + roll.occupied + roll.openVac > 0
+      return ({
+        key: n.id,
+        title: (
+          <Space size="small" wrap>
+            <Tag color={TYPE_COLOR[n.unitType]}>{n.unitType}</Tag>
+            <span style={{ fontWeight: 600 }}>{n.name}</span>
+            <Typography.Text type="secondary">{n.code}</Typography.Text>
+            {showPills && (
+              <Space size={4} style={{ marginLeft: 8 }}>
+                {/* Sum across this node + all descendants. */}
+                <Tag color="blue"      title="Approved headcount (cumulative)">
+                  📋 {roll!.approved}
+                </Tag>
+                <Tag color="green"     title="Currently filled (cumulative)">
+                  👥 {roll!.occupied}
+                </Tag>
+                {roll!.openVac > 0 && (
+                  <Tag color="gold"    title="Open vacancies (cumulative)">
+                    🪑 {roll!.openVac}
+                  </Tag>
+                )}
+                {roll!.gap > 0 && (
+                  <Tag color="red"     title="Seats budgeted but not yet filled / posted">
+                    ➕ {roll!.gap} to hire
+                  </Tag>
+                )}
+              </Space>
+            )}
+          </Space>
+        ),
+        children: n.children.map(toNode),
+      })
+    }
     return [toNode(tree)]
-  }, [tree])
+  }, [tree, cumulativeByUnit])
 
   const createDraft = () => {
     let effectiveDate = dayjs()

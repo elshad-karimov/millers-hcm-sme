@@ -13,7 +13,7 @@ import {
   App as AntdApp,
 } from 'antd'
 import dayjs from 'dayjs'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { recruitmentApi, type Vacancy, type VacancyRequest } from '../api/recruitment'
 import { positionsApi, type Position } from '../api/positions'
 import { employeesApi, type Employee } from '../api/employees'
@@ -40,6 +40,13 @@ interface FormValues {
 export function VacancyFormPage() {
   const { id } = useParams()
   const editing = !!id
+  // M242 — When the Position Control page drops a "Create vacancy"
+  // shortcut, it passes `?positionId=<uuid>&openings=<gap>` so the
+  // recruiter doesn't have to re-pick the position or recompute the
+  // gap. The Form-level prefill effect below picks it up.
+  const [searchParams] = useSearchParams()
+  const prefilledPositionId = searchParams.get('positionId')
+  const prefilledOpenings = Number(searchParams.get('openings')) || 1
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<FormValues>()
@@ -60,7 +67,14 @@ export function VacancyFormPage() {
 
   useEffect(() => {
     if (!editing) {
-      form.setFieldsValue({ openings: 1, currency: 'AZN' })
+      form.setFieldsValue({
+        openings: prefilledOpenings,
+        currency: 'AZN',
+        // ?positionId arrives ahead of the positions list, so just
+        // seed the form field now and let the second effect below
+        // fill in title / department / salary once positions load.
+        positionId: prefilledPositionId ?? undefined,
+      })
       return
     }
     setLoading(true)
@@ -89,6 +103,15 @@ export function VacancyFormPage() {
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load vacancy'))
       .finally(() => setLoading(false))
   }, [editing, id, form, message])
+
+  // M242 — Once the positions list arrives, run the same prefill the
+  // user would get by picking the position manually. Skipped in edit
+  // mode (existing vacancy already has its fields).
+  useEffect(() => {
+    if (editing || !prefilledPositionId || positions.length === 0) return
+    onPositionChange(prefilledPositionId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, prefilledPositionId, editing])
 
   const onPositionChange = (positionId?: string) => {
     if (!positionId) return

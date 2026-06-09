@@ -29,6 +29,7 @@ import {
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { useNavigate } from 'react-router-dom'
 import {
   headcountApi,
   hcrApi,
@@ -67,6 +68,8 @@ function percent(occupied: number, approved: number): number {
 
 export function PositionControlPage() {
   const { message } = AntdApp.useApp()
+  // M242 — used by the "+ Create vacancy" shortcut on each gapped row.
+  const navigate = useNavigate()
   const { hasRole } = useAuth()
   const canReconcile = hasRole(...RoleSets.HR_ADMIN_WRITE)
   const canSubmitHcr = hasRole(...RoleSets.HR_PLUS_MANAGERS_WRITE)
@@ -233,6 +236,33 @@ export function PositionControlPage() {
           {r.driftDetected && <Tag color="orange">drift</Tag>}
         </Space>
       ),
+    },
+    // M242 — One-click "Create vacancy" for any position with an
+    // unfilled gap. remainingCapacity = approved − actualOccupied −
+    // openVacancyOpenings; a positive number is exactly the count of
+    // seats we still need to post. Skipped on rows where every seat
+    // is either filled OR already has an open vacancy.
+    {
+      title: '',
+      width: 130,
+      render: (_: unknown, r: PositionHeadcountRow) => {
+        if (r.remainingCapacity <= 0) return null
+        return (
+          <Tooltip title={`Open a vacancy for ${r.remainingCapacity} seat(s) on this position`}>
+            <Button
+              size="small"
+              type="primary"
+              ghost
+              onClick={() => navigate(
+                `/recruitment/vacancies/new?positionId=${r.positionId}` +
+                `&openings=${r.remainingCapacity}`,
+              )}
+            >
+              + Vacancy ({r.remainingCapacity})
+            </Button>
+          </Tooltip>
+        )
+      },
     },
     ...(canSubmitHcr
       ? [
