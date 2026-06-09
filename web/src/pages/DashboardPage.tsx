@@ -24,6 +24,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthContext'
 import { brand } from '../theme'
 import { employeesApi } from '../api/employees'
@@ -38,10 +39,15 @@ const { Text, Title } = Typography
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function greetingForHour(h: number): string {
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
+/**
+ * Pure-static greeting-key resolver. Returns the i18n key under
+ * `dashboard.greeting`; the caller looks it up via t() so the same
+ * decision logic is reused regardless of locale.
+ */
+function greetingKeyForHour(h: number): 'morning' | 'afternoon' | 'evening' {
+  if (h < 12) return 'morning'
+  if (h < 18) return 'afternoon'
+  return 'evening'
 }
 
 function capitalise(s: string) {
@@ -152,44 +158,68 @@ function PendingCard({ icon, iconColor, iconBg, label, count, subLabel, actionLa
 }
 
 // ── Shortcut tiles ───────────────────────────────────────────────────────────
+//
+// Label is i18n-keyed (`dashboard.shortcuts.labels.<key>`) not stored
+// here. Adding a new shortcut = drop a row below + add one key in
+// dashboard.json (az + en); zero copy-paste of strings.
 
 const SHORTCUTS = [
-  { key: 'employees',    to: '/employees',             label: 'Employees',      icon: <IdcardOutlined />,       tint: 'rgba(91,63,229,0.10)',   iconColor: brand.purpleDeep },
-  { key: 'organization', to: '/organization',          label: 'Organization',   icon: <ApartmentOutlined />,    tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
-  { key: 'positions',    to: '/positions',             label: 'Positions',      icon: <SolutionOutlined />,     tint: 'rgba(157,238,58,0.18)',  iconColor: brand.greenDeep  },
-  { key: 'timesheets',   to: '/timesheets',            label: 'Timesheets',     icon: <FileDoneOutlined />,     tint: 'rgba(91,63,229,0.08)',   iconColor: brand.purple     },
-  { key: 'leave',        to: '/leave/requests',        label: 'Leave Requests', icon: <CoffeeOutlined />,       tint: 'rgba(255,159,64,0.15)', iconColor: '#D46B08'        },
-  { key: 'payroll',      to: '/payroll/runs',          label: 'Payroll',        icon: <BankOutlined />,         tint: 'rgba(157,238,58,0.18)',  iconColor: brand.greenDeep  },
-  { key: 'recruitment',  to: '/recruitment/vacancies', label: 'Recruitment',    icon: <UserAddOutlined />,      tint: 'rgba(91,63,229,0.10)',   iconColor: brand.purpleDeep },
-  { key: 'performance',  to: '/performance/reviews',   label: 'Performance',    icon: <RocketOutlined />,       tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
-  { key: 'learning',     to: '/learning/courses',      label: 'Learning',       icon: <BookOutlined />,         tint: 'rgba(157,238,58,0.18)',  iconColor: brand.greenDeep  },
-  { key: 'reports',      to: '/reports',               label: 'Reports',        icon: <BarChartOutlined />,     tint: 'rgba(255,159,64,0.15)', iconColor: '#D46B08'        },
-  { key: 'approvals',    to: '/inbox',                 label: 'Approvals',      icon: <InboxOutlined />,        tint: 'rgba(91,63,229,0.10)',   iconColor: brand.purpleDeep },
-  { key: 'my',           to: '/my',                    label: 'My Workspace',   icon: <UserOutlined />,         tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
-]
+  { key: 'employees',    to: '/employees',             icon: <IdcardOutlined />,    tint: 'rgba(91,63,229,0.10)',  iconColor: brand.purpleDeep },
+  { key: 'organization', to: '/organization',          icon: <ApartmentOutlined />, tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
+  { key: 'positions',    to: '/positions',             icon: <SolutionOutlined />,  tint: 'rgba(157,238,58,0.18)', iconColor: brand.greenDeep  },
+  { key: 'timesheets',   to: '/timesheets',            icon: <FileDoneOutlined />,  tint: 'rgba(91,63,229,0.08)',  iconColor: brand.purple     },
+  { key: 'leave',        to: '/leave/requests',        icon: <CoffeeOutlined />,    tint: 'rgba(255,159,64,0.15)', iconColor: '#D46B08'        },
+  { key: 'payroll',      to: '/payroll/runs',          icon: <BankOutlined />,      tint: 'rgba(157,238,58,0.18)', iconColor: brand.greenDeep  },
+  { key: 'recruitment',  to: '/recruitment/vacancies', icon: <UserAddOutlined />,   tint: 'rgba(91,63,229,0.10)',  iconColor: brand.purpleDeep },
+  { key: 'performance',  to: '/performance/reviews',   icon: <RocketOutlined />,    tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
+  { key: 'learning',     to: '/learning/courses',      icon: <BookOutlined />,      tint: 'rgba(157,238,58,0.18)', iconColor: brand.greenDeep  },
+  { key: 'reports',      to: '/reports',               icon: <BarChartOutlined />,  tint: 'rgba(255,159,64,0.15)', iconColor: '#D46B08'        },
+  { key: 'approvals',    to: '/inbox',                 icon: <InboxOutlined />,     tint: 'rgba(91,63,229,0.10)',  iconColor: brand.purpleDeep },
+  { key: 'my',           to: '/my',                    icon: <UserOutlined />,      tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
+] as const
 
 // ── Static activity feed ─────────────────────────────────────────────────────
+//
+// Each row references an i18n key under `dashboard.activity.items.*`
+// plus interpolation parameters. The visible strings live in the JSON
+// locale files; if M80's live activity feed lands later, the data
+// source changes but the per-row mapper stays the same.
 
-const ACTIVITIES = [
+type ActivityRow = {
+  icon: React.ReactNode
+  color: string
+  bg: string
+  textKey: string
+  textVars: Record<string, string | number>
+  timeKey: string
+  timeVars?: Record<string, string | number>
+}
+
+const ACTIVITIES: ActivityRow[] = [
   {
     icon: <CoffeeOutlined />, color: '#D46B08', bg: 'rgba(255,159,64,0.13)',
-    text: 'Leave request submitted by Aliya Aliyeva', time: '2 hours ago',
+    textKey: 'items.leaveSubmitted', textVars: { name: 'Aliya Aliyeva' },
+    timeKey: 'time.hoursAgo', timeVars: { count: 2 },
   },
   {
     icon: <FileDoneOutlined />, color: brand.purpleDeep, bg: 'rgba(91,63,229,0.10)',
-    text: '3 timesheets are awaiting your approval', time: '3 hours ago',
+    textKey: 'items.timesheetsAwaiting', textVars: { count: 3 },
+    timeKey: 'time.hoursAgo', timeVars: { count: 3 },
   },
   {
     icon: <UserAddOutlined />, color: brand.cyanDeep, bg: 'rgba(63,191,191,0.15)',
-    text: 'Onboarding started for new hire: Alex Chen', time: 'Yesterday, 16:20',
+    textKey: 'items.onboardingStarted', textVars: { name: 'Alex Chen' },
+    timeKey: 'time.yesterday', timeVars: { time: '16:20' },
   },
   {
     icon: <BankOutlined />, color: brand.greenDeep, bg: 'rgba(157,238,58,0.18)',
-    text: 'Payroll draft for May 2026 has been created', time: 'Yesterday, 09:00',
+    textKey: 'items.payrollDraft', textVars: { month: 'May', year: 2026 },
+    timeKey: 'time.yesterday', timeVars: { time: '09:00' },
   },
   {
     icon: <UserOutlined />, color: '#999', bg: 'rgba(0,0,0,0.05)',
-    text: 'Rashad Aliyev updated their profile information', time: '2 days ago',
+    textKey: 'items.profileUpdated', textVars: { name: 'Rashad Aliyev' },
+    timeKey: 'time.daysAgo', timeVars: { count: 2 },
   },
 ]
 
@@ -219,10 +249,14 @@ export function DashboardPage() {
     'SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR',
   )
   const navigate = useNavigate()
+  // M229 — dashboard namespace, plus i18n.language for the dateStr
+  // formatter so the Sat/Şən and month names follow the active locale.
+  const { t, i18n } = useTranslation('dashboard')
   const now = new Date()
-  const greeting = greetingForHour(now.getHours())
-  const displayName = user?.username ? capitalise(user.username) : 'Admin'
-  const dateStr = now.toLocaleDateString('en-US', {
+  const greeting = t(`greeting.${greetingKeyForHour(now.getHours())}`)
+  const displayName = user?.username ? capitalise(user.username) : t('greeting.defaultName')
+  const dateLocale = i18n.language?.startsWith('az') ? 'az-AZ' : 'en-US'
+  const dateStr = now.toLocaleDateString(dateLocale, {
     weekday: 'short', month: 'long', day: 'numeric', year: 'numeric',
   })
 
@@ -282,7 +316,7 @@ export function DashboardPage() {
         pendingTimesheets: tsCount,
         payrollLabel: nextRun
           ? `${MONTH_SHORT[nextRun.periodMonth - 1]} ${nextRun.periodYear}`
-          : 'No active run',
+          : t('pendingActions.payroll.noActiveRun'),
         staleCandidates:
           staleRes.status === 'fulfilled' && staleRes.value
             ? (staleRes.value as StaleSummary)
@@ -301,10 +335,10 @@ export function DashboardPage() {
   const kpiCards = [
     {
       id: 'emp',
-      label: 'Active Employees',
+      label: t('kpi.activeEmployees'),
       value: stats.activeEmployees,
       trend: 'up' as const,
-      trendLabel: '+3 this month',
+      trendLabel: t('kpi.trend.upMonth', { count: 3 }),
       icon: <TeamOutlined />,
       bg: 'rgba(91,63,229,0.10)',
       iconColor: brand.purple,
@@ -313,10 +347,10 @@ export function DashboardPage() {
     },
     {
       id: 'approvals',
-      label: 'Pending Approvals',
+      label: t('kpi.pendingApprovals'),
       value: stats.pendingApprovals,
       trend: 'down' as const,
-      trendLabel: '-4 since yesterday',
+      trendLabel: t('kpi.trend.downYesterday', { count: 4 }),
       icon: <InboxOutlined />,
       bg: 'rgba(255,159,64,0.15)',
       iconColor: '#D46B08',
@@ -325,10 +359,10 @@ export function DashboardPage() {
     },
     {
       id: 'leave',
-      label: 'Employees on Leave',
+      label: t('kpi.employeesOnLeave'),
       value: stats.onLeave,
       trend: 'flat' as const,
-      trendLabel: 'Same as last week',
+      trendLabel: t('kpi.trend.flatWeek'),
       icon: <CoffeeOutlined />,
       bg: 'rgba(63,191,191,0.15)',
       iconColor: brand.cyanDeep,
@@ -337,10 +371,10 @@ export function DashboardPage() {
     },
     {
       id: 'positions',
-      label: 'Open Positions',
+      label: t('kpi.openPositions'),
       value: stats.openPositions,
       trend: 'up' as const,
-      trendLabel: '+1 this week',
+      trendLabel: t('kpi.trend.upWeek', { count: 1 }),
       icon: <SolutionOutlined />,
       bg: 'rgba(157,238,58,0.18)',
       iconColor: brand.greenDeep,
@@ -360,7 +394,7 @@ export function DashboardPage() {
             {greeting}, {displayName}
           </Title>
           <Text style={{ color: '#888', fontSize: 14 }}>
-            Here is what needs your attention today.
+            {t('subtitle')}
           </Text>
         </Col>
         <Col flex="none">
@@ -387,7 +421,9 @@ export function DashboardPage() {
               }}
               onClick={() => navigate('/inbox')}
             >
-              {stats.pendingApprovals !== null ? `${stats.pendingApprovals} new` : '— new'}
+              {stats.pendingApprovals !== null
+                ? t('chip.newCount', { count: stats.pendingApprovals })
+                : t('chip.newEmpty')}
             </Tag>
 
             {/* Tasks chip */}
@@ -399,7 +435,9 @@ export function DashboardPage() {
                 color: brand.ink, lineHeight: '20px',
               }}
             >
-              {stats.pendingLeave !== null ? `${stats.pendingLeave} due today` : '— due today'}
+              {stats.pendingLeave !== null
+                ? t('chip.dueTodayCount', { count: stats.pendingLeave })
+                : t('chip.dueTodayEmpty')}
             </Tag>
 
             {/* Quick action */}
@@ -413,7 +451,7 @@ export function DashboardPage() {
               }}
               onClick={() => navigate('/employees')}
             >
-              Quick action
+              {t('quickAction')}
             </Button>
           </Space>
         </Col>
@@ -487,7 +525,7 @@ export function DashboardPage() {
           {/* Pending Actions */}
           <div style={{ marginBottom: 24 }}>
             <Title level={5} style={{ margin: '0 0 14px', color: brand.ink, fontWeight: 600, fontSize: 15 }}>
-              Pending Actions
+              {t('pendingActions.heading')}
             </Title>
             <Row gutter={[14, 14]}>
               <Col xs={24} sm={12}>
@@ -495,10 +533,10 @@ export function DashboardPage() {
                   icon={<CoffeeOutlined />}
                   iconColor="#D46B08"
                   iconBg="rgba(255,159,64,0.15)"
-                  label="Leave Requests"
+                  label={t('pendingActions.leave.label')}
                   count={loading ? '…' : (stats.pendingLeave ?? '—')}
-                  subLabel={`${stats.pendingLeave ?? '—'} pending approval`}
-                  actionLabel="Review requests"
+                  subLabel={t('pendingActions.leave.sub', { count: stats.pendingLeave ?? 0 })}
+                  actionLabel={t('pendingActions.leave.action')}
                   to="/leave/requests"
                 />
               </Col>
@@ -507,10 +545,10 @@ export function DashboardPage() {
                   icon={<FileDoneOutlined />}
                   iconColor={brand.purpleDeep}
                   iconBg="rgba(91,63,229,0.10)"
-                  label="Timesheets"
+                  label={t('pendingActions.timesheets.label')}
                   count={loading ? '…' : (stats.pendingTimesheets ?? '—')}
-                  subLabel="Need your approval"
-                  actionLabel="Review timesheets"
+                  subLabel={t('pendingActions.timesheets.sub')}
+                  actionLabel={t('pendingActions.timesheets.action')}
                   to="/timesheets"
                 />
               </Col>
@@ -524,7 +562,7 @@ export function DashboardPage() {
                         : brand.cyanDeep
                     }
                     iconBg="rgba(63,191,191,0.15)"
-                    label="Stale Candidates"
+                    label={t('pendingActions.staleCandidates.label')}
                     count={
                       loading
                         ? '…'
@@ -532,12 +570,14 @@ export function DashboardPage() {
                     }
                     subLabel={
                       stats.staleCandidates
-                        ? `${stats.staleCandidates.bucket90plus} ≥ 90d · ` +
-                          `${stats.staleCandidates.bucket60to89} ≥ 60d · ` +
-                          `${stats.staleCandidates.bucket30to59} ≥ 30d`
-                        : 'No contact in 30+ days'
+                        ? t('pendingActions.staleCandidates.subSummary', {
+                            p90: stats.staleCandidates.bucket90plus,
+                            p60: stats.staleCandidates.bucket60to89,
+                            p30: stats.staleCandidates.bucket30to59,
+                          })
+                        : t('pendingActions.staleCandidates.subEmpty')
                     }
-                    actionLabel="Review pool"
+                    actionLabel={t('pendingActions.staleCandidates.action')}
                     to="/recruitment/analytics"
                   />
                 ) : (
@@ -545,10 +585,10 @@ export function DashboardPage() {
                     icon={<UserAddOutlined />}
                     iconColor={brand.cyanDeep}
                     iconBg="rgba(63,191,191,0.15)"
-                    label="Recruitment"
+                    label={t('pendingActions.recruitment.label')}
                     count={loading ? '…' : (stats.openPositions ?? '—')}
-                    subLabel="Open positions"
-                    actionLabel="View vacancies"
+                    subLabel={t('pendingActions.recruitment.sub')}
+                    actionLabel={t('pendingActions.recruitment.action')}
                     to="/recruitment/vacancies"
                   />
                 )}
@@ -558,10 +598,10 @@ export function DashboardPage() {
                   icon={<BankOutlined />}
                   iconColor={brand.greenDeep}
                   iconBg="rgba(157,238,58,0.18)"
-                  label="Payroll"
+                  label={t('pendingActions.payroll.label')}
                   count={loading ? '…' : stats.payrollLabel}
-                  subLabel="Payroll run scheduled"
-                  actionLabel="Go to payroll"
+                  subLabel={t('pendingActions.payroll.sub')}
+                  actionLabel={t('pendingActions.payroll.action')}
                   to="/payroll/runs"
                 />
               </Col>
@@ -578,16 +618,18 @@ export function DashboardPage() {
                         : brand.purpleDeep
                     }
                     iconBg="rgba(91,63,229,0.10)"
-                    label="Learning Paths"
+                    label={t('pendingActions.learningPaths.label')}
                     count={loading ? '…' : (stats.pathBacklog?.active ?? '—')}
                     subLabel={
                       stats.pathBacklog
-                        ? `${stats.pathBacklog.overdue} overdue · ` +
-                          `${stats.pathBacklog.dueWithin7} due 7d · ` +
-                          `${stats.pathBacklog.dueWithin30} due 30d`
-                        : 'Active assignments'
+                        ? t('pendingActions.learningPaths.subSummary', {
+                            overdue: stats.pathBacklog.overdue,
+                            due7: stats.pathBacklog.dueWithin7,
+                            due30: stats.pathBacklog.dueWithin30,
+                          })
+                        : t('pendingActions.learningPaths.subEmpty')
                     }
-                    actionLabel="View paths"
+                    actionLabel={t('pendingActions.learningPaths.action')}
                     to="/learning/paths"
                   />
                 </Col>
@@ -599,10 +641,10 @@ export function DashboardPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <Title level={5} style={{ margin: 0, color: brand.ink, fontWeight: 600, fontSize: 15 }}>
-                My Shortcuts
+                {t('shortcuts.heading')}
               </Title>
               <Text style={{ fontSize: 13, color: brand.purple, cursor: 'pointer', fontWeight: 500 }}>
-                Customize
+                {t('shortcuts.customize')}
               </Text>
             </div>
             <Row gutter={[10, 10]}>
@@ -630,7 +672,7 @@ export function DashboardPage() {
                           {s.icon}
                         </div>
                         <Text style={{ fontSize: 12, color: brand.ink, textAlign: 'center', lineHeight: 1.3, fontWeight: 500 }}>
-                          {s.label}
+                          {t(`shortcuts.labels.${s.key}`)}
                         </Text>
                       </div>
                     </Card>
@@ -653,7 +695,7 @@ export function DashboardPage() {
             styles={{ body: { padding: '20px 20px 16px' } }}
           >
             <Title level={5} style={{ margin: '0 0 18px', color: brand.ink, fontWeight: 600, fontSize: 15 }}>
-              Recent Activity
+              {t('activity.heading')}
             </Title>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -679,10 +721,10 @@ export function DashboardPage() {
                   </div>
                   <div>
                     <Text style={{ fontSize: 13, color: brand.ink, lineHeight: 1.45, display: 'block' }}>
-                      {a.text}
+                      {t(a.textKey, a.textVars)}
                     </Text>
                     <Text style={{ fontSize: 12, color: '#bbb', marginTop: 3, display: 'block' }}>
-                      {a.time}
+                      {t(a.timeKey, a.timeVars)}
                     </Text>
                   </div>
                 </div>
@@ -691,7 +733,7 @@ export function DashboardPage() {
 
             <div style={{ textAlign: 'center', paddingTop: 12, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
               <Link to="/inbox" style={{ fontSize: 13, color: brand.purple, fontWeight: 500 }}>
-                Go to activity feed <RightOutlined style={{ fontSize: 10 }} />
+                {t('activity.goTo')} <RightOutlined style={{ fontSize: 10 }} />
               </Link>
             </div>
           </Card>

@@ -1,0 +1,100 @@
+{
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "defaultName": "Admin"
+  },
+  "subtitle": "Here is what needs your attention today.",
+  "quickAction": "Quick action",
+  "chip": {
+    "newCount": "{{count}} new",
+    "newEmpty": "— new",
+    "dueTodayCount": "{{count}} due today",
+    "dueTodayEmpty": "— due today"
+  },
+  "kpi": {
+    "activeEmployees": "Active Employees",
+    "pendingApprovals": "Pending Approvals",
+    "employeesOnLeave": "Employees on Leave",
+    "openPositions": "Open Positions",
+    "trend": {
+      "upMonth": "+{{count}} this month",
+      "downYesterday": "−{{count}} since yesterday",
+      "flatWeek": "Same as last week",
+      "upWeek": "+{{count}} this week"
+    }
+  },
+  "pendingActions": {
+    "heading": "Pending Actions",
+    "leave": {
+      "label": "Leave Requests",
+      "sub": "{{count}} pending approval",
+      "action": "Review requests"
+    },
+    "timesheets": {
+      "label": "Timesheets",
+      "sub": "Need your approval",
+      "action": "Review timesheets"
+    },
+    "staleCandidates": {
+      "label": "Stale Candidates",
+      "subEmpty": "No contact in 30+ days",
+      "subSummary": "{{p90}} ≥ 90d · {{p60}} ≥ 60d · {{p30}} ≥ 30d",
+      "action": "Review pool"
+    },
+    "recruitment": {
+      "label": "Recruitment",
+      "sub": "Open positions",
+      "action": "View vacancies"
+    },
+    "payroll": {
+      "label": "Payroll",
+      "sub": "Payroll run scheduled",
+      "action": "Go to payroll",
+      "noActiveRun": "No active run"
+    },
+    "learningPaths": {
+      "label": "Learning Paths",
+      "subEmpty": "Active assignments",
+      "subSummary": "{{overdue}} overdue · {{due7}} due 7d · {{due30}} due 30d",
+      "action": "View paths"
+    }
+  },
+  "shortcuts": {
+    "heading": "My Shortcuts",
+    "customize": "Customize",
+    "labels": {
+      "employees": "Employees",
+      "organization": "Organization",
+      "positions": "Positions",
+      "timesheets": "Timesheets",
+      "leave": "Leave Requests",
+      "payroll": "Payroll",
+      "recruitment": "Recruitment",
+      "performance": "Performance",
+      "learning": "Learning",
+      "reports": "Reports",
+      "approvals": "Approvals",
+      "my": "My Workspace"
+    }
+  },
+  "activity": {
+    "heading": "Recent Activity",
+    "goTo": "Go to activity feed",
+    "time": {
+      "hoursAgo_one": "{{count}} hour ago",
+      "hoursAgo_other": "{{count}} hours ago",
+      "yesterday": "Yesterday, {{time}}",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago"
+    },
+    "items": {
+      "leaveSubmitted": "Leave request submitted by {{name}}",
+      "timesheetsAwaiting": "{{count}} timesheets are awaiting your approval",
+      "onboardingStarted": "Onboarding started for new hire: {{name}}",
+      "payrollDraft": "Payroll draft for {{month}} {{year}} has been created",
+      "profileUpdated": "{{name}} updated their profile information"
+    }
+  }
+}

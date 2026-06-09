@@ -1,0 +1,100 @@
+{
+  "greeting": {
+    "morning": "Sabahınız xeyir",
+    "afternoon": "Günortanız xeyir",
+    "evening": "Axşamınız xeyir",
+    "defaultName": "İstifadəçi"
+  },
+  "subtitle": "Bugün diqqətinizi tələb edənlər",
+  "quickAction": "Tez əməliyyat",
+  "chip": {
+    "newCount": "{{count}} yeni",
+    "newEmpty": "— yeni",
+    "dueTodayCount": "{{count}} bu gün üçün",
+    "dueTodayEmpty": "— bu gün üçün"
+  },
+  "kpi": {
+    "activeEmployees": "Aktiv işçilər",
+    "pendingApprovals": "Gözləyən təsdiqlər",
+    "employeesOnLeave": "Məzuniyyətdə olanlar",
+    "openPositions": "Açıq vəzifələr",
+    "trend": {
+      "upMonth": "+{{count}} bu ay",
+      "downYesterday": "−{{count}} dünəndən",
+      "flatWeek": "Keçən həftə ilə eyni",
+      "upWeek": "+{{count}} bu həftə"
+    }
+  },
+  "pendingActions": {
+    "heading": "Gözləyən əməliyyatlar",
+    "leave": {
+      "label": "Məzuniyyət sorğuları",
+      "sub": "{{count}} təsdiq gözləyir",
+      "action": "Sorğulara bax"
+    },
+    "timesheets": {
+      "label": "İş cədvəlləri",
+      "sub": "Sizin təsdiqinizi gözləyir",
+      "action": "İş cədvəllərinə bax"
+    },
+    "staleCandidates": {
+      "label": "Köhnəlmiş namizədlər",
+      "subEmpty": "30+ gün əlaqə yoxdur",
+      "subSummary": "{{p90}} ≥ 90g · {{p60}} ≥ 60g · {{p30}} ≥ 30g",
+      "action": "Hovuzu yoxla"
+    },
+    "recruitment": {
+      "label": "İşə qəbul",
+      "sub": "Açıq vəzifələr",
+      "action": "Vakansiyalara bax"
+    },
+    "payroll": {
+      "label": "Əmək haqqı",
+      "sub": "Növbəti əmək haqqı hesablanması",
+      "action": "Əmək haqqına keç",
+      "noActiveRun": "Aktiv hesablama yoxdur"
+    },
+    "learningPaths": {
+      "label": "Təlim yolları",
+      "subEmpty": "Aktiv təyinatlar",
+      "subSummary": "{{overdue}} gecikmiş · {{due7}} 7g · {{due30}} 30g",
+      "action": "Yollara bax"
+    }
+  },
+  "shortcuts": {
+    "heading": "Qısa yollarım",
+    "customize": "Fərdiləşdir",
+    "labels": {
+      "employees": "İşçilər",
+      "organization": "Təşkilat",
+      "positions": "Vəzifələr",
+      "timesheets": "İş cədvəlləri",
+      "leave": "Məzuniyyət sorğuları",
+      "payroll": "Əmək haqqı",
+      "recruitment": "İşə qəbul",
+      "performance": "Performans",
+      "learning": "Təlim",
+      "reports": "Hesabatlar",
+      "approvals": "Təsdiqlər",
+      "my": "İş yerim"
+    }
+  },
+  "activity": {
+    "heading": "Son fəaliyyət",
+    "goTo": "Fəaliyyət lentinə keç",
+    "time": {
+      "hoursAgo_one": "{{count}} saat öncə",
+      "hoursAgo_other": "{{count}} saat öncə",
+      "yesterday": "Dünən, {{time}}",
+      "daysAgo_one": "{{count}} gün öncə",
+      "daysAgo_other": "{{count}} gün öncə"
+    },
+    "items": {
+      "leaveSubmitted": "{{name}} tərəfindən məzuniyyət sorğusu göndərildi",
+      "timesheetsAwaiting": "{{count}} iş cədvəli təsdiqinizi gözləyir",
+      "onboardingStarted": "Yeni işçi üçün adaptasiya başladı: {{name}}",
+      "payrollDraft": "{{month}} {{year}} üçün əmək haqqı qaralaması yaradıldı",
+      "profileUpdated": "{{name}} profil məlumatlarını yenilədi"
+    }
+  }
+}

@@ -25,9 +25,11 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import azCommon from './locales/az/common.json'
 import azNav from './locales/az/nav.json'
 import azEmployee from './locales/az/employee.json'
+import azDashboard from './locales/az/dashboard.json'
 import enCommon from './locales/en/common.json'
 import enNav from './locales/en/nav.json'
 import enEmployee from './locales/en/employee.json'
+import enDashboard from './locales/en/dashboard.json'
 
 /** Languages the SPA ships with. Order = order shown in the switcher. */
 export const SUPPORTED_LANGUAGES = [
@@ -49,8 +51,8 @@ export const FALLBACK_LANG: SupportedLang = 'en'
 
 /** Resources are wired here, never duplicated in `init` calls. */
 const resources = {
-  az: { common: azCommon, nav: azNav, employee: azEmployee },
-  en: { common: enCommon, nav: enNav, employee: enEmployee },
+  az: { common: azCommon, nav: azNav, employee: azEmployee, dashboard: azDashboard },
+  en: { common: enCommon, nav: enNav, employee: enEmployee, dashboard: enDashboard },
 }
 
 i18n
@@ -60,7 +62,7 @@ i18n
     resources,
     fallbackLng: FALLBACK_LANG,
     supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
-    ns: ['common', 'nav', 'employee'],
+    ns: ['common', 'nav', 'employee', 'dashboard'],
     defaultNS: 'common',
     interpolation: { escapeValue: false }, // React already escapes
     detection: {
