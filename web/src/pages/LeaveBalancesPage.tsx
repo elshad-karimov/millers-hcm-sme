@@ -37,12 +37,56 @@ export function LeaveBalancesPage() {
     reason: '',
   })
 
+  // M241 — Split fetches with individual catches. The previous
+  // Promise.all swallowed both setters if EITHER call rejected, which
+  // is exactly how the table ended up rendering raw UUIDs: an HTTP
+  // error on /employees left both employees AND types empty.
   useEffect(() => {
-    Promise.all([leaveApi.types(), employeesApi.list({ size: 500 })]).then(([t, e]) => {
-      setTypes(t)
-      setEmployees(e.content)
-    })
+    leaveApi.types()
+      .then(setTypes)
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load leave types — names will appear as IDs.'))
+    employeesApi.list({ size: 500 })
+      .then((r) => setEmployees(r.content))
+      .catch((err) => message.warning(
+        err?.response?.data?.message ?? 'Could not load employees — names will appear as IDs.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // M241 — Lazy fill-in: any balance row that references an
+  // employee/type ID we don't have yet (e.g. one beyond the 500-row
+  // initial page, or one not returned because of ABAC scoping) is
+  // fetched by ID and merged in. Keeps the table honest no matter what
+  // upstream returned.
+  useEffect(() => {
+    if (balances.length === 0) return
+    const have = new Set(employees.map((e) => e.id))
+    const missing = [...new Set(balances.map((b) => b.employeeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) =>
+      employeesApi.get(id).catch(() => null),
+    )).then((extras) => {
+      const valid = extras.filter((e): e is Employee => e !== null)
+      if (valid.length > 0) setEmployees((prev) => [...prev, ...valid])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balances, employees.length])
+
+  useEffect(() => {
+    if (balances.length === 0) return
+    const have = new Set(types.map((t) => t.id))
+    const missing = [...new Set(balances.map((b) => b.leaveTypeId))]
+      .filter((id) => !have.has(id))
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) =>
+      leaveApi.getType(id).catch(() => null),
+    )).then((extras) => {
+      const valid = extras.filter((t): t is LeaveType => t !== null)
+      if (valid.length > 0) setTypes((prev) => [...prev, ...valid])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balances, types.length])
 
   const load = () => {
     setLoading(true)
@@ -69,7 +113,10 @@ export function LeaveBalancesPage() {
       dataIndex: 'employeeId',
       render: (id: string) => {
         const e = employeeMap.get(id)
-        return e ? `${e.employeeNo} — ${e.lastName} ${e.firstName}` : id
+        // EMP-00002 · Rashad Aliyev — natural first-last order; the
+        // last-resort fallback to the raw UUID stays so a stale row
+        // can still be told apart instead of rendering blank.
+        return e ? `${e.employeeNo} · ${e.firstName} ${e.lastName}` : id
       },
     },
     {
@@ -77,9 +124,13 @@ export function LeaveBalancesPage() {
       dataIndex: 'leaveTypeId',
       render: (id: string) => {
         const t = typeMap.get(id)
-        return t ? <Tag color="geekblue">{t.code}</Tag> : id
+        // Show both code AND name so the demo audience doesn't have
+        // to mentally decode "ANNUAL" vs "MARRIAGE" etc.
+        return t
+          ? <span><Tag color="geekblue">{t.code}</Tag>{t.name}</span>
+          : id
       },
-      width: 130,
+      width: 220,
     },
     { title: 'Entitlement', dataIndex: 'entitlementDays', width: 110, align: 'right' },
     { title: 'Carry-fwd', dataIndex: 'carriedForwardDays', width: 110, align: 'right' },
