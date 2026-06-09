@@ -51,6 +51,7 @@ spring:
       - performance
       - learning
       - comp_benefits
+      - compbenefits
       - reporting
       - notification
       - backup

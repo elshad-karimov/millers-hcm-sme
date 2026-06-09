@@ -4,6 +4,8 @@
 --   benefit_plan        — catalog of available plans (health, pension, etc.).
 --   benefit_enrollment  — per-employee enrolment in a specific plan.
 
+CREATE SCHEMA IF NOT EXISTS compbenefits;
+
 CREATE TABLE compbenefits.benefit_plan (
     id              uuid PRIMARY KEY,
     code            varchar(40) NOT NULL UNIQUE,

@@ -2,16 +2,27 @@ package az.millers.hcm.corehr.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.MaritalStatus;
+import az.millers.hcm.corehr.repo.EmployeeAddressRepository;
+import az.millers.hcm.corehr.repo.EmployeeEmergencyContactRepository;
 
 class PersonalInfoFieldValidatorTest {
 
-    private final PersonalInfoFieldValidator validator = new PersonalInfoFieldValidator();
+    private final EmployeeAddressRepository addressRepo =
+            mock(EmployeeAddressRepository.class);
+    private final EmployeeEmergencyContactRepository emergencyRepo =
+            mock(EmployeeEmergencyContactRepository.class);
+    private final PersonalInfoFieldValidator validator =
+            new PersonalInfoFieldValidator(addressRepo, emergencyRepo);
 
     @Test
     void rejectsUnknownFields() {
@@ -83,10 +94,14 @@ class PersonalInfoFieldValidatorTest {
     }
 
     @Test
-    void applyForUnimplementedFieldFailsLoudly() {
+    void applyAddressFieldReturnsFalseWhenNoHomeAddressExists() {
+        // addressLine1 is handled via the address repository; returns false
+        // (no mutation) when no HOME address row is found for the employee.
         Employee e = new Employee();
-        assertThatThrownBy(() -> validator.apply(e, "addressLine1", "123 Main"))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("not implemented");
+        when(addressRepo.findOpenForEmployee(e.getId(),
+                az.millers.hcm.corehr.domain.AddressType.HOME))
+                .thenReturn(Optional.empty());
+        boolean result = validator.apply(e, "addressLine1", "123 Main");
+        assertThat(result).isFalse();
     }
 }
