@@ -30,6 +30,16 @@
   "yesterday": "Yesterday",
   "tomorrow": "Tomorrow",
   "language": "Language",
+  "roles": {
+    "SYSTEM_ADMIN": "System Admin",
+    "HR_ADMIN": "HR Admin",
+    "HR_SPECIALIST": "HR Specialist",
+    "DEPARTMENT_MANAGER": "Department Manager",
+    "MANAGER": "Manager",
+    "AUDITOR": "Auditor",
+    "RECRUITER": "Recruiter",
+    "EMPLOYEE": "Employee"
+  },
   "error": {
     "loadFailed": "Failed to load",
     "saveFailed": "Failed to save",

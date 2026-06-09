@@ -30,6 +30,16 @@
   "yesterday": "Dünən",
   "tomorrow": "Sabah",
   "language": "Dil",
+  "roles": {
+    "SYSTEM_ADMIN": "Sistem administratoru",
+    "HR_ADMIN": "HR administratoru",
+    "HR_SPECIALIST": "HR mütəxəssisi",
+    "DEPARTMENT_MANAGER": "Şöbə rəhbəri",
+    "MANAGER": "Menecer",
+    "AUDITOR": "Auditor",
+    "RECRUITER": "İşə qəbul mütəxəssisi",
+    "EMPLOYEE": "İşçi"
+  },
   "error": {
     "loadFailed": "Yükləmək alınmadı",
     "saveFailed": "Yadda saxlanılmadı",

@@ -157,6 +157,10 @@ export function AppLayout() {
   // names) or stays in English for now; sub-page Link labels migrate
   // to t() in follow-up milestones, namespace by namespace.
   const { t: tNav } = useTranslation('nav')
+  // M241 — role tags pulled from the common namespace so the chips
+  // read "System Admin / Sistem administratoru" instead of the raw
+  // Keycloak enum value SYSTEM_ADMIN.
+  const { t: tCommon } = useTranslation('common')
   const location = useLocation()
   const { module: activeModule, screen: selectedKey } = resolveLocation(location.pathname)
 
@@ -874,7 +878,13 @@ export function AppLayout() {
             {tNav('preferences')}
           </Link>
           {user?.roles.map((r) => {
-            const label = r.replace('ROLE_', '')
+            // Keycloak ships realm roles as e.g. ROLE_SYSTEM_ADMIN;
+            // strip the prefix to match the enum keys in
+            // common.json → roles.*. Unknown roles fall through to
+            // the raw stripped value so a freshly-added role still
+            // renders (just not pretty).
+            const enumKey = r.replace('ROLE_', '')
+            const label = tCommon(`roles.${enumKey}`, { defaultValue: enumKey })
             return (
               <Tag
                 key={r}
