@@ -54,15 +54,21 @@ public class PositionHeadcountService {
     private final EmployeeRepository employees;
     private final VacancyRepository vacancies;
     private final AuditService audit;
+    // M244 — funding gate; injected lazily by Spring so we don't create a
+    // circular constructor cycle if PositionFundingService ever depends
+    // back on this service.
+    private final PositionFundingService fundingService;
 
     public PositionHeadcountService(PositionRepository positions,
                                     EmployeeRepository employees,
                                     VacancyRepository vacancies,
-                                    AuditService audit) {
+                                    AuditService audit,
+                                    PositionFundingService fundingService) {
         this.positions = positions;
         this.employees = employees;
         this.vacancies = vacancies;
         this.audit = audit;
+        this.fundingService = fundingService;
     }
 
     // ─── Gating ─────────────────────────────────────────────────────────────
@@ -90,6 +96,9 @@ public class PositionHeadcountService {
                     "Position " + p.getCode() + " is " + p.getStatus()
                     + " — only ACTIVE positions can be filled");
         }
+        // M244 — funding gate. UNFUNDED / PENDING / EXPIRED positions are
+        // ACTIVE but cannot accept new hires until funding is allocated.
+        fundingService.assertCanRecruit(positionId);
         long actualOccupied = employees.countActiveByPositionId(positionId);
         if (!hasRoom(p.getApprovedHeadcount(), actualOccupied)) {
             throw new BadRequestException(

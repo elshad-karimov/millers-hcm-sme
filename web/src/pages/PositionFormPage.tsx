@@ -17,6 +17,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { positionsApi, type Position, type PositionRequest } from '../api/positions'
 import { FormPageShell } from '../components/FormPageShell'
 import { PositionLifecyclePanel } from '../components/PositionLifecyclePanel'
+import { PositionBudgetFundingPanel } from '../components/PositionBudgetFundingPanel'
 
 interface FormValues {
   title: string
@@ -132,6 +133,14 @@ export function PositionFormPage() {
               <PositionLifecyclePanel
                 position={current}
                 onChange={(updated) => setCurrent(updated)}
+              />
+            </div>
+          )}
+          {editing && current && (
+            <div style={{ marginBottom: 16 }}>
+              <PositionBudgetFundingPanel
+                positionId={current.id}
+                defaultCurrency={current.currency}
               />
             </div>
           )}

@@ -20,6 +20,12 @@ import {
   type PositionStatus,
   type VacancyState,
 } from '../api/positions'
+import {
+  FUNDING_STATUS_COLOR,
+  FUNDING_STATUS_LABEL,
+  positionFundingApi,
+  type FundingStatus,
+} from '../api/positionBudget'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -60,6 +66,9 @@ export function PositionsPage() {
   const [search, setSearch] = useState('')
   const [vacancyState, setVacancyState] = useState<VacancyState | undefined>()
   const [status, setStatus] = useState<PositionStatus | undefined>()
+  // M244 — batched funding lookup so every row can show its funding pill
+  // without an N+1 fetch. Refreshed on the same trigger as the list.
+  const [fundingMap, setFundingMap] = useState<Record<string, FundingStatus>>({})
 
   const load = () => {
     setLoading(true)
@@ -85,6 +94,15 @@ export function PositionsPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, size, vacancyState, status])
+
+  // M244 — fetch the funding map once on mount; positions on this page
+  // can be reordered/filtered without a fresh fetch since funding state
+  // is per-position, not per-list.
+  useEffect(() => {
+    positionFundingApi.allMap()
+      .then(setFundingMap)
+      .catch(() => setFundingMap({}))
+  }, [])
 
   const columns: ColumnsType<Position> = [
     { title: 'Code', dataIndex: 'code', width: 110 },
@@ -133,6 +151,16 @@ export function PositionsPage() {
       render: (s: PositionStatus) => (
         <Tag color={STATUS_COLOR[s]}>{s.replace(/_/g, ' ')}</Tag>
       ),
+    },
+    {
+      // M244 — funding pill. Pulls from the batched fundingMap so each
+      // row reads from one in-memory lookup, never an extra fetch.
+      title: 'Funding',
+      width: 130,
+      render: (_, r) => {
+        const f = fundingMap[r.id] ?? 'UNFUNDED'
+        return <Tag color={FUNDING_STATUS_COLOR[f]}>{FUNDING_STATUS_LABEL[f]}</Tag>
+      },
     },
     canEdit
       ? {
