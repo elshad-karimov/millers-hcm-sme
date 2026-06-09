@@ -15,12 +15,16 @@ import {
 } from 'antd'
 import { CheckOutlined, FileTextOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useTranslation } from 'react-i18next'
 import { policiesApi, type SelfPolicyView } from '../api/policies'
 
 const { Title, Text, Paragraph } = Typography
 
 export function MyPoliciesPage() {
   const { message } = AntdApp.useApp()
+  // M239 — self-service policy browse; uses i18next plural rules for
+  // the pendingAlert title (1 policy vs N policies).
+  const { t } = useTranslation('policies')
   const [items, setItems] = useState<SelfPolicyView[]>([])
   const [loading, setLoading] = useState(true)
   const [reading, setReading] = useState<SelfPolicyView | null>(null)
@@ -29,7 +33,7 @@ export function MyPoliciesPage() {
     setLoading(true)
     policiesApi.myPolicies()
       .then(setItems)
-      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load policies'))
+      .catch((e) => message.error(e?.response?.data?.message ?? t('my.messages.loadFailed')))
       .finally(() => setLoading(false))
   }
   useEffect(load, []) // eslint-disable-line
@@ -37,11 +41,11 @@ export function MyPoliciesPage() {
   const ack = async (id: string) => {
     try {
       await policiesApi.acknowledge(id)
-      message.success('Acknowledged')
+      message.success(t('my.messages.acknowledged'))
       load()
     } catch (e) {
       message.error(
-        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Ack failed',
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('my.messages.ackFailed'),
       )
     }
   }
@@ -55,19 +59,19 @@ export function MyPoliciesPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Title level={3} style={{ margin: 0 }}>Company policies</Title>
+      <Title level={3} style={{ margin: 0 }}>{t('my.title')}</Title>
 
       {pending.length > 0 && (
         <Alert
           type="warning"
           showIcon
-          message={`${pending.length} polic${pending.length === 1 ? 'y' : 'ies'} need your acknowledgement`}
-          description="Tap the policy title to read it, then press Acknowledge."
+          message={t('my.pendingAlert', { count: pending.length })}
+          description={t('my.pendingDescription')}
         />
       )}
 
       {items.length === 0
-        ? <Card><Empty description="No published policies yet" /></Card>
+        ? <Card><Empty description={t('my.empty')} /></Card>
         : items.map((v) => {
           const p = v.policy
           return (
@@ -78,29 +82,31 @@ export function MyPoliciesPage() {
                   <FileTextOutlined />
                   <Text strong>{p.title}</Text>
                   <Tag>{p.category}</Tag>
-                  <Text type="secondary" style={{ fontSize: 11 }}>v{p.version}</Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{t('my.version', { version: p.version })}</Text>
                 </Space>
               }
               size="small"
               extra={
                 v.acknowledged
                   ? <Tag color="green" icon={<CheckOutlined />}>
-                      Acked {v.acknowledgedAt && dayjs(v.acknowledgedAt).format('YYYY-MM-DD')}
+                      {v.acknowledgedAt
+                        ? t('my.ackedOn', { date: dayjs(v.acknowledgedAt).format('YYYY-MM-DD') })
+                        : t('my.ackedNoDate')}
                     </Tag>
                   : p.requiresAck
-                    ? <Tag color="orange">Ack required</Tag>
+                    ? <Tag color="orange">{t('my.ackRequired')}</Tag>
                     : null
               }
             >
               <Paragraph type="secondary">{p.summary ?? '—'}</Paragraph>
               <Space>
-                <Button onClick={() => setReading(v)}>Read</Button>
+                <Button onClick={() => setReading(v)}>{t('my.actions.read')}</Button>
                 {p.attachmentUrl && (p.bodyFormat === 'PDF' || p.bodyFormat === 'URL') && (
-                  <Button href={p.attachmentUrl} target="_blank" rel="noreferrer">Open attachment</Button>
+                  <Button href={p.attachmentUrl} target="_blank" rel="noreferrer">{t('my.actions.openAttachment')}</Button>
                 )}
                 {p.requiresAck && !v.acknowledged && (
                   <Button type="primary" onClick={() => ack(p.id)}>
-                    Acknowledge
+                    {t('my.actions.acknowledge')}
                   </Button>
                 )}
               </Space>
@@ -115,12 +121,12 @@ export function MyPoliciesPage() {
         footer={
           reading?.policy.requiresAck && !reading?.acknowledged
             ? <Space>
-                <Button onClick={() => setReading(null)}>Close</Button>
+                <Button onClick={() => setReading(null)}>{t('my.actions.close')}</Button>
                 <Button type="primary" onClick={async () => {
                   if (reading) { await ack(reading.policy.id); setReading(null) }
-                }}>Acknowledge</Button>
+                }}>{t('my.actions.acknowledge')}</Button>
               </Space>
-            : <Button onClick={() => setReading(null)}>Close</Button>
+            : <Button onClick={() => setReading(null)}>{t('my.actions.close')}</Button>
         }
         width={760}
       >
@@ -133,12 +139,12 @@ export function MyPoliciesPage() {
                 </pre>
               : reading.policy.attachmentUrl
                 ? <Text>
-                    Body is published as an attachment.{' '}
+                    {t('my.modal.attachmentBody')}{' '}
                     <a href={reading.policy.attachmentUrl} target="_blank" rel="noreferrer">
-                      Open here
+                      {t('my.modal.openHere')}
                     </a>.
                   </Text>
-                : <Empty description="No body content" />
+                : <Empty description={t('my.modal.noBody')} />
         )}
       </Modal>
     </Space>

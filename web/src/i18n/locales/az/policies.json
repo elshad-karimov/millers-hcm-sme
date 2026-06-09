@@ -1,0 +1,29 @@
+{
+  "my": {
+    "title": "Şirkət siyasətləri",
+    "pendingAlert_one": "{{count}} siyasət sizin təsdiqinizi tələb edir",
+    "pendingAlert_other": "{{count}} siyasət sizin təsdiqinizi tələb edir",
+    "pendingDescription": "Siyasətin adına toxunaraq onu oxuyun, sonra Təsdiqlə düyməsinə basın.",
+    "empty": "Hələ heç bir dərc edilmiş siyasət yoxdur",
+    "version": "v{{version}}",
+    "ackedOn": "{{date}} təsdiq edildi",
+    "ackedNoDate": "Təsdiq edildi",
+    "ackRequired": "Təsdiq tələb olunur",
+    "actions": {
+      "read": "Oxu",
+      "openAttachment": "Əlavəni aç",
+      "acknowledge": "Təsdiqlə",
+      "close": "Bağla"
+    },
+    "modal": {
+      "attachmentBody": "Mətn əlavə kimi dərc edilib.",
+      "openHere": "Buradan açın",
+      "noBody": "Mətn yoxdur"
+    },
+    "messages": {
+      "acknowledged": "Təsdiq edildi",
+      "loadFailed": "Siyasətlər yüklənmədi",
+      "ackFailed": "Təsdiq uğursuz oldu"
+    }
+  }
+}

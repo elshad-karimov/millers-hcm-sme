@@ -1,0 +1,29 @@
+{
+  "my": {
+    "title": "Company policies",
+    "pendingAlert_one": "{{count}} policy needs your acknowledgement",
+    "pendingAlert_other": "{{count}} policies need your acknowledgement",
+    "pendingDescription": "Tap the policy title to read it, then press Acknowledge.",
+    "empty": "No published policies yet",
+    "version": "v{{version}}",
+    "ackedOn": "Acked {{date}}",
+    "ackedNoDate": "Acked",
+    "ackRequired": "Ack required",
+    "actions": {
+      "read": "Read",
+      "openAttachment": "Open attachment",
+      "acknowledge": "Acknowledge",
+      "close": "Close"
+    },
+    "modal": {
+      "attachmentBody": "Body is published as an attachment.",
+      "openHere": "Open here",
+      "noBody": "No body content"
+    },
+    "messages": {
+      "acknowledged": "Acknowledged",
+      "loadFailed": "Failed to load policies",
+      "ackFailed": "Ack failed"
+    }
+  }
+}
