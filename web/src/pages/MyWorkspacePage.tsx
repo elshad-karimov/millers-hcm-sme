@@ -21,6 +21,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   selfApi,
   type SelfProfile,
@@ -52,6 +53,9 @@ function Dashboard({
   onJump: (key: string) => void
 }) {
   const navigate = useNavigate()
+  // M230 — Dashboard tab strings come from the selfService namespace;
+  // tab content (data tables) stays in English for follow-up.
+  const { t } = useTranslation('selfService')
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -80,11 +84,11 @@ function Dashboard({
           </Col>
           <Col>
             <Space>
-              <Button onClick={() => navigate('/leave/requests/new')}>Request leave</Button>
-              <Button onClick={() => navigate('/permission/requests/new')}>Request permission</Button>
-              <Button onClick={() => navigate('/business-trips/new')}>New business trip</Button>
-              <Button onClick={() => navigate('/letters/request')}>Request HR letter</Button>
-              <Button onClick={() => navigate('/personal-info/request')}>Update personal info</Button>
+              <Button onClick={() => navigate('/leave/requests/new')}>{t('quickActions.requestLeave')}</Button>
+              <Button onClick={() => navigate('/permission/requests/new')}>{t('quickActions.requestPermission')}</Button>
+              <Button onClick={() => navigate('/business-trips/new')}>{t('quickActions.newBusinessTrip')}</Button>
+              <Button onClick={() => navigate('/letters/request')}>{t('quickActions.requestLetter')}</Button>
+              <Button onClick={() => navigate('/personal-info/request')}>{t('quickActions.updatePersonalInfo')}</Button>
             </Space>
           </Col>
         </Row>
@@ -94,15 +98,15 @@ function Dashboard({
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('leave')}>
             <Statistic
-              title="Annual leave remaining"
+              title={t('kpi.annualLeaveRemaining')}
               value={summary.annualLeaveRemaining ?? 0}
-              suffix=" days"
+              suffix={t('kpi.annualLeaveUnit')}
               precision={1}
               valueStyle={{ color: (summary.annualLeaveRemaining ?? 0) > 5 ? '#3f8600' : '#cf1322' }}
             />
             {summary.leaveRequestsPending > 0 && (
               <Tag color="gold" style={{ marginTop: 6 }}>
-                {summary.leaveRequestsPending} pending
+                {t('kpi.pendingCount', { count: summary.leaveRequestsPending })}
               </Tag>
             )}
           </Card>
@@ -110,14 +114,14 @@ function Dashboard({
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('permission')}>
             <Statistic
-              title="Permission hours left"
+              title={t('kpi.permissionHoursLeft')}
               value={summary.permissionHoursRemaining ?? 0}
-              suffix=" h"
+              suffix={t('kpi.permissionHoursUnit')}
               precision={1}
             />
             {summary.permissionRequestsPending > 0 && (
               <Tag color="gold" style={{ marginTop: 6 }}>
-                {summary.permissionRequestsPending} pending
+                {t('kpi.pendingCount', { count: summary.permissionRequestsPending })}
               </Tag>
             )}
           </Card>
@@ -125,8 +129,10 @@ function Dashboard({
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('timesheets')}>
             <Statistic
-              title={`Timesheet ${summary.year}-${String(new Date().getMonth() + 1).padStart(2, '0')}`}
-              value={summary.currentTimesheetStatus ?? 'not started'}
+              title={t('kpi.timesheet', {
+                period: `${summary.year}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+              })}
+              value={summary.currentTimesheetStatus ?? t('kpi.timesheetNotStarted')}
               valueStyle={{ fontSize: 18 }}
             />
           </Card>
@@ -134,10 +140,10 @@ function Dashboard({
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('payslips')}>
             <Statistic
-              title="Latest payslip net"
+              title={t('kpi.latestPayslipNet')}
               value={summary.lastPayslipNet ?? 0}
               precision={2}
-              suffix=" AZN"
+              suffix={t('kpi.currency')}
               valueStyle={{ color: '#3f8600' }}
             />
             {summary.lastPayslipAt && (
@@ -152,32 +158,32 @@ function Dashboard({
       <Row gutter={16}>
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('learning')}>
-            <Statistic title="Certificates" value={summary.certificatesHeld} />
+            <Statistic title={t('kpi.certificates')} value={summary.certificatesHeld} />
             {summary.mandatoryCoursesPending > 0 ? (
               <Tag color="red" style={{ marginTop: 6 }}>
-                {summary.mandatoryCoursesPending} mandatory pending
+                {t('kpi.mandatoryPending', { count: summary.mandatoryCoursesPending })}
               </Tag>
             ) : (
-              <Tag color="green" style={{ marginTop: 6 }}>All mandatory done</Tag>
+              <Tag color="green" style={{ marginTop: 6 }}>{t('kpi.allMandatoryDone')}</Tag>
             )}
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('performance')}>
             <Statistic
-              title="Latest review"
+              title={t('kpi.latestReview')}
               value={summary.activeReviewStatus ?? '—'}
               valueStyle={{ fontSize: 18 }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={12}>
-          <Card title="Profile" size="small">
+          <Card title={t('profile.heading')} size="small">
             <Descriptions size="small" column={2}>
-              <Descriptions.Item label="Employee #">{profile.employeeNo}</Descriptions.Item>
-              <Descriptions.Item label="Hire date">{profile.hireDate}</Descriptions.Item>
-              <Descriptions.Item label="Email">{profile.email ?? '—'}</Descriptions.Item>
-              <Descriptions.Item label="Phone">{profile.phone ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label={t('profile.employeeNo')}>{profile.employeeNo}</Descriptions.Item>
+              <Descriptions.Item label={t('profile.hireDate')}>{profile.hireDate}</Descriptions.Item>
+              <Descriptions.Item label={t('profile.email')}>{profile.email ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label={t('profile.phone')}>{profile.phone ?? '—'}</Descriptions.Item>
             </Descriptions>
           </Card>
         </Col>
@@ -752,6 +758,8 @@ function PerformanceTab() {
 // ============================================================================
 export function MyWorkspacePage() {
   const { message } = AntdApp.useApp()
+  // M230 — wrapper-level strings come from selfService namespace.
+  const { t } = useTranslation('selfService')
   const [profile, setProfile] = useState<SelfProfile | null>(null)
   const [summary, setSummary] = useState<SelfSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -779,34 +787,31 @@ export function MyWorkspacePage() {
         <Alert
           type="warning"
           showIcon
-          message="No employee profile linked to this user"
-          description={
-            error ??
-            "Ask HR to set the 'username' on your employee profile so My Workspace can resolve your record."
-          }
+          message={t('noProfileAlert.title')}
+          description={error ?? t('noProfileAlert.description')}
         />
       </Card>
     )
   }
 
   return (
-    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>My Workspace</Typography.Title>}>
+    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>{t('title')}</Typography.Title>}>
       <Tabs
         activeKey={active}
         onChange={setActive}
         items={[
           {
             key: 'dashboard',
-            label: 'Dashboard',
+            label: t('tabs.dashboard'),
             children: <Dashboard profile={profile} summary={summary} onJump={setActive} />,
           },
-          { key: 'leave',         label: 'Leave',          children: <LeaveTab /> },
-          { key: 'permission',    label: 'Permission',     children: <PermissionTab /> },
-          { key: 'businessTrips', label: 'Business trips', children: <BusinessTripsTab /> },
-          { key: 'timesheets',    label: 'Timesheets',     children: <TimesheetsTab /> },
-          { key: 'payslips',      label: 'Payslips',       children: <PayslipsTab /> },
-          { key: 'learning',      label: 'Learning',       children: <LearningTab /> },
-          { key: 'performance',   label: 'Performance',    children: <PerformanceTab /> },
+          { key: 'leave',         label: t('tabs.leave'),          children: <LeaveTab /> },
+          { key: 'permission',    label: t('tabs.permission'),     children: <PermissionTab /> },
+          { key: 'businessTrips', label: t('tabs.businessTrips'),  children: <BusinessTripsTab /> },
+          { key: 'timesheets',    label: t('tabs.timesheets'),     children: <TimesheetsTab /> },
+          { key: 'payslips',      label: t('tabs.payslips'),       children: <PayslipsTab /> },
+          { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
+          { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
         ]}
       />
       {summary.mandatoryCoursesPending > 0 && (
@@ -814,8 +819,8 @@ export function MyWorkspacePage() {
           type="warning"
           style={{ marginTop: 16 }}
           showIcon
-          message={`${summary.mandatoryCoursesPending} mandatory course${summary.mandatoryCoursesPending === 1 ? '' : 's'} pending`}
-          description="Some compliance training is still required. Open the Learning tab and complete the assigned courses."
+          message={t('mandatoryAlert.title', { count: summary.mandatoryCoursesPending })}
+          description={t('mandatoryAlert.description')}
         />
       )}
       <Progress style={{ display: 'none' }} />

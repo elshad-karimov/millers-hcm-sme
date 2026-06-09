@@ -1,0 +1,51 @@
+{
+  "title": "My Workspace",
+  "tabs": {
+    "dashboard": "Dashboard",
+    "leave": "Leave",
+    "permission": "Permission",
+    "businessTrips": "Business trips",
+    "timesheets": "Timesheets",
+    "payslips": "Payslips",
+    "learning": "Learning",
+    "performance": "Performance"
+  },
+  "quickActions": {
+    "requestLeave": "Request leave",
+    "requestPermission": "Request permission",
+    "newBusinessTrip": "New business trip",
+    "requestLetter": "Request HR letter",
+    "updatePersonalInfo": "Update personal info"
+  },
+  "kpi": {
+    "annualLeaveRemaining": "Annual leave remaining",
+    "annualLeaveUnit": " days",
+    "permissionHoursLeft": "Permission hours left",
+    "permissionHoursUnit": " h",
+    "timesheet": "Timesheet {{period}}",
+    "timesheetNotStarted": "not started",
+    "latestPayslipNet": "Latest payslip net",
+    "currency": " AZN",
+    "certificates": "Certificates",
+    "latestReview": "Latest review",
+    "pendingCount": "{{count}} pending",
+    "mandatoryPending": "{{count}} mandatory pending",
+    "allMandatoryDone": "All mandatory done"
+  },
+  "profile": {
+    "heading": "Profile",
+    "employeeNo": "Employee #",
+    "hireDate": "Hire date",
+    "email": "Email",
+    "phone": "Phone"
+  },
+  "noProfileAlert": {
+    "title": "No employee profile linked to this user",
+    "description": "Ask HR to set the 'username' on your employee profile so My Workspace can resolve your record."
+  },
+  "mandatoryAlert": {
+    "title_one": "{{count}} mandatory course pending",
+    "title_other": "{{count}} mandatory courses pending",
+    "description": "Some compliance training is still required. Open the Learning tab and complete the assigned courses."
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "title": "İş yerim",
+  "tabs": {
+    "dashboard": "İcmal",
+    "leave": "Məzuniyyət",
+    "permission": "İcazə",
+    "businessTrips": "Ezamiyyətlər",
+    "timesheets": "İş cədvəlləri",
+    "payslips": "Maaş hesabatları",
+    "learning": "Təlim",
+    "performance": "Performans"
+  },
+  "quickActions": {
+    "requestLeave": "Məzuniyyət sorğusu",
+    "requestPermission": "İcazə sorğusu",
+    "newBusinessTrip": "Yeni ezamiyyət",
+    "requestLetter": "HR məktubu sorğusu",
+    "updatePersonalInfo": "Şəxsi məlumatları yenilə"
+  },
+  "kpi": {
+    "annualLeaveRemaining": "Qalan illik məzuniyyət",
+    "annualLeaveUnit": " gün",
+    "permissionHoursLeft": "Qalan icazə saatları",
+    "permissionHoursUnit": " s",
+    "timesheet": "İş cədvəli {{period}}",
+    "timesheetNotStarted": "başlanmayıb",
+    "latestPayslipNet": "Son maaş (xalis)",
+    "currency": " AZN",
+    "certificates": "Sertifikatlar",
+    "latestReview": "Son qiymətləndirmə",
+    "pendingCount": "{{count}} gözləyir",
+    "mandatoryPending": "{{count}} icbari təlim gözləyir",
+    "allMandatoryDone": "Bütün icbari təlimlər tamamlanıb"
+  },
+  "profile": {
+    "heading": "Profil",
+    "employeeNo": "İşçi nömrəsi",
+    "hireDate": "İşə qəbul tarixi",
+    "email": "E-poçt",
+    "phone": "Telefon"
+  },
+  "noProfileAlert": {
+    "title": "Bu istifadəçi üçün işçi profili tapılmadı",
+    "description": "İş yerimin sizin qeydinizi tapa bilməsi üçün HR-dan işçi profilinizdə 'username' sahəsini doldurmasını xahiş edin."
+  },
+  "mandatoryAlert": {
+    "title_one": "{{count}} icbari təlim gözləyir",
+    "title_other": "{{count}} icbari təlim gözləyir",
+    "description": "Bəzi icbari təlimlər hələ də tələb olunur. Təlim sekmesini açın və təyin edilmiş kursları tamamlayın."
+  }
+}
