@@ -8,13 +8,14 @@ import java.util.UUID;
 public class PositionCompetencyRequirementId implements Serializable {
 
     private UUID positionId;
-    private UUID competencyId;
+    // Must match the field name in the entity (not the column name).
+    private UUID competency;
 
     public PositionCompetencyRequirementId() {}
 
-    public PositionCompetencyRequirementId(UUID positionId, UUID competencyId) {
+    public PositionCompetencyRequirementId(UUID positionId, UUID competency) {
         this.positionId = positionId;
-        this.competencyId = competencyId;
+        this.competency = competency;
     }
 
     @Override
@@ -22,11 +23,11 @@ public class PositionCompetencyRequirementId implements Serializable {
         if (this == o) return true;
         if (!(o instanceof PositionCompetencyRequirementId that)) return false;
         return Objects.equals(positionId, that.positionId)
-                && Objects.equals(competencyId, that.competencyId);
+                && Objects.equals(competency, that.competency);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(positionId, competencyId);
+        return Objects.hash(positionId, competency);
     }
 }
