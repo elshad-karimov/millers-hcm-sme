@@ -40,6 +40,23 @@ import {
   type PositionLifecycleEvent,
   type PositionStatus,
 } from '../api/positions'
+import type { ReasonCategory } from '../api/reasonMaster'
+import { ReasonSelect } from './ReasonSelect'
+
+/**
+ * M259 — Map a lifecycle action to its reason-master category.
+ *
+ * <p>FREEZE / UNDER_REVIEW / REJECT all use FREEZE category (review and
+ * rejection are both holds, semantically aligned with freeze reasons).
+ * CLOSE uses CLOSURE. Everything else uses FREEZE as a safe default
+ * since those actions don't actually surface the reason UI.
+ */
+function reasonCategoryFor(
+  actionId: string,
+): ReasonCategory {
+  if (actionId === 'close') return 'CLOSURE'
+  return 'FREEZE'
+}
 
 /**
  * Human label for every state + the action that gets you there. Both
@@ -292,8 +309,15 @@ export function PositionLifecyclePanel({ position, onChange, canAct = true }: Pr
               name="reason"
               label="Reason"
               rules={[{ required: true, message: 'A reason is required for this action.' }]}
+              tooltip="Pick from the master list or type a custom reason"
             >
-              <Input.TextArea rows={3} maxLength={1000} showCount placeholder="e.g. Budget freeze 2026 Q1" />
+              {/* M259 — backed by §22 reason master. Maps the action
+                  to the appropriate category; AutoComplete allows
+                  freeform fallback. */}
+              <ReasonSelect
+                category={reasonCategoryFor(pending.actionId)}
+                placeholder="e.g. Budget freeze 2026 Q1"
+              />
             </Form.Item>
           )}
           {pending?.isFreeze && (
