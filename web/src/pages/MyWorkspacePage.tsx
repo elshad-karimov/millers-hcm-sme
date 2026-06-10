@@ -40,6 +40,7 @@ import {
 } from '../api/learningPaths'
 import type { PerformanceReview } from '../api/performance'
 import { RequiredDocumentsWidget } from '../components/RequiredDocumentsWidget'
+import { ApprovalLimitsWidget } from '../components/ApprovalLimitsWidget'
 
 // ============================================================================
 //  Dashboard tab
@@ -64,6 +65,10 @@ function Dashboard({
           the employee has no pending REQUIRED_DOCUMENT obligations,
           so the dashboard stays clean for the typical case. */}
       <RequiredDocumentsWidget />
+      {/* M264 — "💳 Your approval authority" widget. Renders nothing
+          unless the employee actually holds approval limits (typical
+          for managers + senior staff). */}
+      <ApprovalLimitsWidget />
       <Card>
         <Row gutter={16} align="middle">
           <Col flex="auto">

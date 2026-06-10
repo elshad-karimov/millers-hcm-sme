@@ -108,6 +108,9 @@ public class SelfController {
     // M263 — Phase F.5a self surface: lets the current employee see
     // their own required-document obligations on My Workspace.
     private final az.millers.hcm.corehr.service.RequiredEmployeeDocumentService requiredDocService;
+    // M264 — Phase F.7 self surface: lets the current employee see
+    // their active approval-limit grants on My Workspace.
+    private final az.millers.hcm.corehr.service.EmployeeApprovalLimitService approvalLimitService;
 
     public SelfController(EmployeeContextService context,
                           EmployeeRepository employeeRepo,
@@ -131,11 +134,13 @@ public class SelfController {
                           EmployeeAllowanceRepository allowances,
                           LetterRequestService letterRequestService,
                           PersonalInfoChangeService personalInfoChangeService,
-                          az.millers.hcm.corehr.service.RequiredEmployeeDocumentService requiredDocService) {
+                          az.millers.hcm.corehr.service.RequiredEmployeeDocumentService requiredDocService,
+                          az.millers.hcm.corehr.service.EmployeeApprovalLimitService approvalLimitService) {
         this.context = context;
         this.letterRequestService = letterRequestService;
         this.personalInfoChangeService = personalInfoChangeService;
         this.requiredDocService = requiredDocService;
+        this.approvalLimitService = approvalLimitService;
         this.employeeRepo = employeeRepo;
         this.leaveBalances = leaveBalances;
         this.leaveTypes = leaveTypes;
@@ -505,6 +510,22 @@ public class SelfController {
         Employee me = context.currentEmployee();
         return requiredDocService.listPending(me.getId()).stream()
                 .map(az.millers.hcm.corehr.api.RequiredEmployeeDocumentController.DocResponse::from)
+                .toList();
+    }
+
+    /**
+     * M264 — Phase F.7 self surface (PRD §27).
+     *
+     * <p>Returns the current employee's ACTIVE approval limits so the
+     * My Workspace widget can show "your purchase-order ceiling is
+     * 50,000 AZN" without the employee needing to know which limit
+     * type they hold.
+     */
+    @GetMapping("/approval-limits")
+    public List<az.millers.hcm.corehr.api.EmployeeApprovalLimitController.LimitResponse> myApprovalLimits() {
+        Employee me = context.currentEmployee();
+        return approvalLimitService.listActive(me.getId()).stream()
+                .map(az.millers.hcm.corehr.api.EmployeeApprovalLimitController.LimitResponse::from)
                 .toList();
     }
 

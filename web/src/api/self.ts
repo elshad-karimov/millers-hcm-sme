@@ -52,6 +52,31 @@ export interface SelfSummary {
   activeReviewStatus?: string | null
 }
 
+// M264 — Phase F.7 "your approval authority" self surface.
+export type ApprovalLimitType =
+  | 'PURCHASE_ORDER'
+  | 'EXPENSE_REPORT'
+  | 'CONTRACT'
+  | 'INVOICE'
+  | 'TRAVEL'
+  | 'GENERAL'
+export interface SelfApprovalLimit {
+  id: string
+  employeeId: string
+  limitType: ApprovalLimitType
+  maxAmount: number
+  currency: string
+  effectiveFrom: string
+  effectiveTo?: string | null
+  source: string
+  sourceGrantId?: string | null
+  notes?: string | null
+  createdAt: string
+  createdBy?: string | null
+  updatedAt: string
+  updatedBy?: string | null
+}
+
 // M263 — Phase F.5a "you owe HR" self surface.
 export type RequiredDocumentStatus = 'PENDING' | 'SATISFIED' | 'WAIVED' | 'EXPIRED'
 export interface SelfRequiredDocument {
@@ -80,6 +105,9 @@ export const selfApi = {
   // M263 — pending required-document obligations for the current employee.
   requiredDocuments: () =>
     api.get<SelfRequiredDocument[]>('/self/required-documents').then((r) => r.data),
+  // M264 — active approval limits for the current employee.
+  approvalLimits: () =>
+    api.get<SelfApprovalLimit[]>('/self/approval-limits').then((r) => r.data),
 
   leaveBalances: () => api.get<LeaveBalance[]>('/self/leave/balances').then((r) => r.data),
   leaveTypes: () => api.get<LeaveType[]>('/self/leave/types').then((r) => r.data),
