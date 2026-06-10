@@ -35,6 +35,8 @@ import {
   successionApi,
   type BenchReport,
   type BenchRow,
+  type CriticalRoleRow,
+  type CriticalRolesReport,
   type DevelopmentEmployee,
   type DevelopmentList,
 } from '../../api/succession'
@@ -86,6 +88,22 @@ export function BenchDepthPage() {
     notes?: string
   }>()
   const [assigning, setAssigning] = useState(false)
+
+  // M257 — Critical Roles at Risk (PRD §31 wired into M103). Cycle-agnostic
+  // so it loads independently of bench/cycle selection.
+  const [criticalReport, setCriticalReport] = useState<CriticalRolesReport | null>(null)
+  const [loadingCritical, setLoadingCritical] = useState(false)
+
+  useEffect(() => {
+    setLoadingCritical(true)
+    successionApi
+      .criticalRoles()
+      .then(setCriticalReport)
+      .catch((e) =>
+        message.error(e?.response?.data?.message ?? 'Failed to load critical roles'),
+      )
+      .finally(() => setLoadingCritical(false))
+  }, [message])
 
   useEffect(() => {
     performanceApi
@@ -341,6 +359,97 @@ export function BenchDepthPage() {
               </Col>
             </Row>
           </Card>
+
+          {/* M257 — Critical Roles at Risk (PRD §31 → M103). Shown above
+              the per-manager bench so the most urgent gaps surface first. */}
+          {criticalReport && criticalReport.totalCritical > 0 && (
+            <Card
+              title={
+                <Space>
+                  <span>🔴 Critical Roles at Risk</span>
+                  <Tag color={criticalReport.atRiskCount > 0 ? 'red' : 'green'}>
+                    {criticalReport.atRiskCount} of {criticalReport.totalCritical} need attention
+                  </Tag>
+                </Space>
+              }
+              loading={loadingCritical}
+              style={{ marginBottom: 16 }}
+            >
+              <Table<CriticalRoleRow>
+                rowKey="positionId"
+                size="small"
+                dataSource={criticalReport.rows}
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+                rowClassName={(r) => (r.atRisk ? 'row-at-risk' : '')}
+                columns={[
+                  {
+                    title: 'Position',
+                    dataIndex: 'positionTitle',
+                    render: (v: string, r: CriticalRoleRow) => (
+                      <Space size={4}>
+                        <span>{v}</span>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          {r.positionCode}
+                        </Text>
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: 'Org Unit',
+                    dataIndex: 'orgUnitLabel',
+                    width: 140,
+                    render: (v?: string | null) => v || '—',
+                  },
+                  {
+                    title: 'Impact',
+                    dataIndex: 'businessImpactScore',
+                    width: 80,
+                    align: 'center' as const,
+                    render: (v?: number | null) =>
+                      v == null ? '—' : <Tag>{v} / 5</Tag>,
+                  },
+                  {
+                    title: 'Risk',
+                    dataIndex: 'riskCategory',
+                    width: 130,
+                    render: (v?: string | null) =>
+                      v ? <Tag>{v.replace(/_/g, ' ')}</Tag> : '—',
+                  },
+                  {
+                    title: 'Bench',
+                    key: 'bench',
+                    width: 200,
+                    render: (_: unknown, r: CriticalRoleRow) => (
+                      <Space size={4}>
+                        <Tag color={r.readyNowCount > 0 ? 'green' : 'red'}>
+                          Now: {r.readyNowCount}
+                        </Tag>
+                        <Tag color={r.readySoonCount > 0 ? 'blue' : 'default'}>
+                          Soon: {r.readySoonCount}
+                        </Tag>
+                        <Tag color="default">Long: {r.readyLongTermCount}</Tag>
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: 'Status',
+                    key: 'status',
+                    width: 280,
+                    render: (_: unknown, r: CriticalRoleRow) =>
+                      r.atRisk ? (
+                        <Text type="danger" style={{ fontSize: 12 }}>
+                          ⚠ {r.atRiskReason}
+                        </Text>
+                      ) : (
+                        <Text type="success" style={{ fontSize: 12 }}>
+                          ✓ Covered
+                        </Text>
+                      ),
+                  },
+                ]}
+              />
+            </Card>
+          )}
 
           <Card title={`Per-manager bench (${report.cycleName})`}>
             <Table

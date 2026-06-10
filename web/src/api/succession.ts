@@ -88,6 +88,30 @@ export interface DevelopmentList {
   employees: DevelopmentEmployee[]
 }
 
+// M257 — Critical Roles at Risk (PRD §31 wired into M103).
+export interface CriticalRoleRow {
+  positionId: string
+  positionCode: string
+  positionTitle: string
+  orgUnitLabel?: string | null
+  businessImpactScore?: number | null
+  riskCategory?: string | null
+  keySkillConcentration: boolean
+  successorRequired: boolean
+  totalNominations: number
+  readyNowCount: number
+  readySoonCount: number
+  readyLongTermCount: number
+  atRisk: boolean
+  atRiskReason?: string | null
+}
+
+export interface CriticalRolesReport {
+  totalCritical: number
+  atRiskCount: number
+  rows: CriticalRoleRow[]
+}
+
 export const successionApi = {
   grid: (cycleId: string) =>
     api.get<SuccessionGrid>(`/performance/succession/grid/${cycleId}`).then((r) => r.data),
@@ -101,4 +125,7 @@ export const successionApi = {
         params: managerId ? { managerId } : undefined,
       })
       .then((r) => r.data),
+  // M257 — snapshot of critical positions + their nomination depth.
+  criticalRoles: () =>
+    api.get<CriticalRolesReport>('/performance/succession/critical-roles').then((r) => r.data),
 }

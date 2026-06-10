@@ -23,6 +23,8 @@ import az.millers.hcm.performance.api.dto.SuccessionGridDtos.AssignmentSummary;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Band;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchReport;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchRow;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.CriticalRoleRow;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.CriticalRolesReport;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.DevelopmentEmployee;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.DevelopmentList;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.GridCell;
@@ -30,6 +32,10 @@ import az.millers.hcm.performance.api.dto.SuccessionGridDtos.GridEmployee;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.PotentialRatingRequest;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.SuccessionGrid;
+import az.millers.hcm.performance.domain.SuccessionNomination;
+import az.millers.hcm.performance.repo.SuccessionNominationRepository;
+import az.millers.hcm.staffing.domain.Position;
+import az.millers.hcm.staffing.repo.PositionRepository;
 import az.millers.hcm.learning.domain.LearningPathAssignment;
 import az.millers.hcm.learning.domain.PathAssignmentStatus;
 import az.millers.hcm.learning.repo.LearningPathAssignmentRepository;
@@ -66,6 +72,9 @@ public class SuccessionPlanService {
     private final LearningPathAssignmentRepository pathAssignments;
     private final LearningPathRepository paths;
     private final LearningPathAssignmentService pathAssignmentService;
+    // M257 — critical-roles-at-risk report depends on staffing + nominations.
+    private final PositionRepository positions;
+    private final SuccessionNominationRepository nominations;
 
     public SuccessionPlanService(ReviewCycleRepository cycles,
                                   PerformanceReviewRepository reviews,
@@ -73,7 +82,9 @@ public class SuccessionPlanService {
                                   AuditService audit,
                                   LearningPathAssignmentRepository pathAssignments,
                                   LearningPathRepository paths,
-                                  LearningPathAssignmentService pathAssignmentService) {
+                                  LearningPathAssignmentService pathAssignmentService,
+                                  PositionRepository positions,
+                                  SuccessionNominationRepository nominations) {
         this.cycles = cycles;
         this.reviews = reviews;
         this.employees = employees;
@@ -81,6 +92,8 @@ public class SuccessionPlanService {
         this.pathAssignments = pathAssignments;
         this.paths = paths;
         this.pathAssignmentService = pathAssignmentService;
+        this.positions = positions;
+        this.nominations = nominations;
     }
 
     /**
@@ -235,6 +248,78 @@ public class SuccessionPlanService {
                 .thenComparing(Comparator.comparing(BenchRow::managerName,
                         Comparator.nullsLast(String::compareToIgnoreCase))));
         return new BenchReport(cycleId, cycle.getName(), rows.size(), rows);
+    }
+
+    /**
+     * M257 — Critical Roles at Risk report (PRD §31 wired into M103).
+     *
+     * <p>Loads every {@code critical_flag = TRUE} position (set in the
+     * M254 form), then for each one counts the active nominations from
+     * M103 bucketed by readiness tier. A row is {@code atRisk} when:
+     * <ul>
+     *   <li>{@code successor_required = TRUE} and no nominations exist
+     *       at all — "named successor required but none picked"; or
+     *   <li>position is critical and no {@code READY_NOW} successor —
+     *       "no immediate cover if the seat empties tomorrow".
+     * </ul>
+     *
+     * <p>Cycle-agnostic — this is a snapshot of "current succession
+     * pipeline for critical roles" not a cycle-bound bench report.
+     * Operators run this between cycles to find gaps to close.
+     */
+    @Transactional(readOnly = true)
+    public CriticalRolesReport criticalRolesAtRisk() {
+        List<Position> critical = positions
+                .findByCriticalFlagTrueOrderByBusinessImpactScoreDescTitleAsc();
+
+        List<CriticalRoleRow> rows = new ArrayList<>(critical.size());
+        int atRiskCount = 0;
+        for (Position p : critical) {
+            List<SuccessionNomination> active = nominations
+                    .findByPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(p.getId());
+            int total = active.size();
+            int readyNow = 0, readySoon = 0, readyLong = 0;
+            for (SuccessionNomination n : active) {
+                switch (n.getReadinessTier()) {
+                    case READY_NOW         -> readyNow++;
+                    case READY_SOON        -> readySoon++;
+                    case READY_LONG_TERM   -> readyLong++;
+                    case UNDER_DEVELOPMENT -> { /* not counted as bench depth */ }
+                }
+            }
+
+            // At-risk classification — see Javadoc.
+            String reason = null;
+            if (p.isSuccessorRequired() && total == 0) {
+                reason = "Successor required but none nominated";
+            } else if (readyNow == 0 && total == 0) {
+                reason = "No nominees at all";
+            } else if (readyNow == 0) {
+                reason = "No READY_NOW successor — only future readiness";
+            }
+            boolean atRisk = reason != null;
+            if (atRisk) atRiskCount++;
+
+            rows.add(new CriticalRoleRow(
+                    p.getId(),
+                    p.getCode(),
+                    p.getTitle(),
+                    p.getOrgUnitLabel(),
+                    p.getBusinessImpactScore(),
+                    p.getRiskCategory(),
+                    p.isKeySkillConcentration(),
+                    p.isSuccessorRequired(),
+                    total, readyNow, readySoon, readyLong,
+                    atRisk,
+                    reason));
+        }
+
+        // At-risk first, then by descending business impact, then by title.
+        // Already pre-sorted by impact/title from the repo, so just shuffle
+        // the at-risk rows to the top while preserving the rest's order.
+        rows.sort(Comparator
+                .comparing(CriticalRoleRow::atRisk).reversed());
+        return new CriticalRolesReport(rows.size(), atRiskCount, rows);
     }
 
     /**

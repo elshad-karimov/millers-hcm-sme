@@ -126,4 +126,37 @@ public final class SuccessionGridDtos {
             String managerName,
             int total,
             List<DevelopmentEmployee> employees) {}
+
+    // ── M257 — Critical Roles at Risk (PRD §31 wired into M103) ────────────
+
+    /**
+     * One critical position with its succession-nomination status.
+     * {@code atRisk} is {@code true} when the position needs urgent
+     * attention — either no successors at all, or no READY_NOW
+     * successor when {@code successorRequired} is set.
+     */
+    public record CriticalRoleRow(
+            UUID positionId,
+            String positionCode,
+            String positionTitle,
+            String orgUnitLabel,
+            Short businessImpactScore,
+            String riskCategory,
+            boolean keySkillConcentration,
+            boolean successorRequired,
+            int totalNominations,
+            int readyNowCount,
+            int readySoonCount,
+            int readyLongTermCount,
+            boolean atRisk,
+            String atRiskReason) {}
+
+    /**
+     * Critical-roles report — surfaces M256 critical_flag positions
+     * alongside their M103 nomination depth.
+     */
+    public record CriticalRolesReport(
+            int totalCritical,
+            int atRiskCount,
+            List<CriticalRoleRow> rows) {}
 }

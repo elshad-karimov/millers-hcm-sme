@@ -33,4 +33,11 @@ public interface PositionRepository extends JpaRepository<Position, UUID> {
 
     /** All ACTIVE positions grouped by org unit — for the control dashboard. */
     List<Position> findByStatusOrderByOrgUnitLabelAscTitleAsc(PositionStatus status);
+
+    /**
+     * M257 — all critical positions, highest-impact first.
+     * Consumed by the M103 succession bench-depth "Critical Roles at Risk"
+     * report to flag positions without named successors.
+     */
+    List<Position> findByCriticalFlagTrueOrderByBusinessImpactScoreDescTitleAsc();
 }

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.BenchReport;
+import az.millers.hcm.performance.api.dto.SuccessionGridDtos.CriticalRolesReport;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.DevelopmentList;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.PotentialRatingRequest;
 import az.millers.hcm.performance.api.dto.SuccessionGridDtos.SuccessionGrid;
@@ -51,6 +52,18 @@ public class SuccessionPlanController {
     @PreAuthorize(READ)
     public BenchReport bench(@PathVariable UUID cycleId) {
         return service.benchDepth(cycleId);
+    }
+
+    /**
+     * M257 — Critical Roles at Risk (PRD §31 wired into M103).
+     * Cycle-agnostic — a snapshot of every critical position with its
+     * succession-nomination depth, flagging gaps that need urgent
+     * attention.
+     */
+    @GetMapping("/critical-roles")
+    @PreAuthorize(READ)
+    public CriticalRolesReport criticalRoles() {
+        return service.criticalRolesAtRisk();
     }
 
     /**
