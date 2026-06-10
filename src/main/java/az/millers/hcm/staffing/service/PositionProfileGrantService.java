@@ -15,6 +15,12 @@ import az.millers.hcm.compbenefits.domain.AllowanceType;
 import az.millers.hcm.compbenefits.domain.EmployeeAllowance;
 import az.millers.hcm.compbenefits.repo.AllowanceTypeRepository;
 import az.millers.hcm.compbenefits.service.EmployeeAllowanceService;
+import az.millers.hcm.corehr.api.dto.AssetRequest;
+import az.millers.hcm.corehr.api.dto.AssetResponse;
+import az.millers.hcm.corehr.api.dto.AssetReturnRequest;
+import az.millers.hcm.corehr.domain.AssetStatus;
+import az.millers.hcm.corehr.domain.AssetType;
+import az.millers.hcm.corehr.service.EmployeeAssetService;
 import az.millers.hcm.learning.api.dto.EnrollRequest;
 import az.millers.hcm.learning.domain.Course;
 import az.millers.hcm.learning.domain.CourseStatus;
@@ -63,6 +69,10 @@ public class PositionProfileGrantService {
     private final EnrollmentService enrollmentService;
     private final EnrollmentRepository enrollments;
     private final CourseRepository courses;
+    // M253 — Phase F.5b: when an EQUIPMENT grant has a reference_code that
+    // matches one of the AssetType enum values, we auto-create the matching
+    // employee_asset row + auto-return it on revoke.
+    private final EmployeeAssetService employeeAssetService;
 
     public PositionProfileGrantService(PositionProfileGrantRepository grants,
                                         PositionProfileItemRepository items,
@@ -72,7 +82,8 @@ public class PositionProfileGrantService {
                                         AllowanceTypeRepository allowanceTypes,
                                         EnrollmentService enrollmentService,
                                         EnrollmentRepository enrollments,
-                                        CourseRepository courses) {
+                                        CourseRepository courses,
+                                        EmployeeAssetService employeeAssetService) {
         this.grants = grants;
         this.items = items;
         this.audit = audit;
@@ -82,6 +93,7 @@ public class PositionProfileGrantService {
         this.enrollmentService = enrollmentService;
         this.enrollments = enrollments;
         this.courses = courses;
+        this.employeeAssetService = employeeAssetService;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────
@@ -180,6 +192,9 @@ public class PositionProfileGrantService {
             if (g.getItemType() == ProfileItemType.TRAINING) {
                 return tryFireTrainingForExistingGrant(g);
             }
+            if (g.getItemType() == ProfileItemType.EQUIPMENT) {
+                return tryFireEquipmentForExistingGrant(g);
+            }
         }
         g.setStatus(GrantStatus.ACTIVE);
         g.setGrantedAt(OffsetDateTime.now());
@@ -196,9 +211,11 @@ public class PositionProfileGrantService {
     public PositionProfileGrant revoke(UUID grantId, String reason) {
         PositionProfileGrant g = loadOrThrow(grantId);
         if (g.getStatus() == GrantStatus.REVOKED) return g;
-        // M251 — Phase F.3: if this grant has a downstream allowance row,
-        // end it now so payroll stops picking it up.
+        // M251 / M253: type-aware downstream cleanup. Allowance end-dates
+        // its row so payroll stops picking it up; Equipment auto-returns
+        // the asset. Training intentionally leaves the enrollment alone.
         tryEndDownstreamAllowance(g);
+        tryReturnDownstreamEquipment(g);
         g.setStatus(GrantStatus.REVOKED);
         g.setRevokedAt(OffsetDateTime.now());
         g.setRevokedBy(currentRequest.username());
@@ -220,10 +237,11 @@ public class PositionProfileGrantService {
         String actor = currentRequest.username();
         for (PositionProfileGrant g : rows) {
             if (g.getStatus().isTerminal()) continue;
-            // M251 — end the linked employee_allowance (if any) so
-            // payroll stops picking it up. Soft-fail per row so one
-            // dangling allowance doesn't break the whole revoke.
+            // M251 / M253 — type-aware downstream cleanup per row.
+            // Soft-fail per row so one dangling downstream row doesn't
+            // break the whole revoke.
             tryEndDownstreamAllowance(g);
+            tryReturnDownstreamEquipment(g);
             g.setStatus(GrantStatus.REVOKED);
             g.setRevokedAt(now);
             g.setRevokedBy(actor);
@@ -269,8 +287,9 @@ public class PositionProfileGrantService {
         switch (g.getItemType()) {
             case ALLOWANCE: return tryAutoFireAllowance(g, occ);
             case TRAINING:  return tryAutoFireTraining(g, occ);
-            // Other types stay PENDING — Phase F.5+ will wire EQUIPMENT,
-            // ACCESS_ROLE, REQUIRED_DOCUMENT.
+            case EQUIPMENT: return tryAutoFireEquipment(g, occ);
+            // Other types stay PENDING — Phase F.6+ will wire REQUIRED_DOCUMENT
+            // and ACCESS_ROLE if/when the target modules exist.
             default: return g;
         }
     }
@@ -441,6 +460,94 @@ public class PositionProfileGrantService {
     // position — there's no clean way to "un-train" someone. So
     // revoke()/revokeAllForOccupancy just flip the grant status and
     // leave the enrollment in place.
+
+    // ── M253 — Phase F.5b: EQUIPMENT wire-up ──────────────────────────────
+
+    /**
+     * Auto-issue a company asset to the employee on hire. The grant's
+     * {@code reference_code} is parsed as an {@link AssetType} enum value
+     * (LAPTOP, MOBILE_PHONE, VEHICLE, UNIFORM, …); anything that doesn't
+     * match falls back to {@link AssetType#EQUIPMENT}. Asset name comes
+     * from the grant's label so HR can be specific ("MacBook Pro 16",
+     * "Toyota Hilux fleet veh.").
+     */
+    private PositionProfileGrant tryAutoFireEquipment(PositionProfileGrant g, PositionOccupancy occ) {
+        AssetType type = resolveAssetType(g.getReferenceCode());
+        return assignDownstreamEquipment(g, type, occ.getStartDate());
+    }
+
+    private PositionProfileGrant tryFireEquipmentForExistingGrant(PositionProfileGrant g) {
+        AssetType type = resolveAssetType(g.getReferenceCode());
+        return assignDownstreamEquipment(g, type, java.time.LocalDate.now());
+    }
+
+    /**
+     * Common assignment path. Note: unlike allowances + training, we
+     * don't pre-check for an existing assignment — every fresh hire
+     * legitimately gets a fresh piece of equipment, so a duplicate is
+     * expected behavior on re-hire.
+     */
+    private PositionProfileGrant assignDownstreamEquipment(
+            PositionProfileGrant g, AssetType type, java.time.LocalDate assignedAt) {
+        try {
+            AssetRequest req = new AssetRequest(
+                    type,
+                    g.getLabel(),
+                    null,                            // identifier filled in by HR later
+                    null,                            // description
+                    assignedAt == null ? java.time.LocalDate.now() : assignedAt,
+                    null,                            // expectedReturnDate
+                    null,                            // conditionAtAssignment
+                    null,                            // custodyFormUrl
+                    "Auto-granted from position profile (M253)");
+            AssetResponse created = employeeAssetService.assign(g.getEmployeeId(), req);
+
+            g.setStatus(GrantStatus.ACTIVE);
+            g.setGrantedAt(OffsetDateTime.now());
+            g.setGrantedBy(currentRequest.username());
+            g.setDownstreamEntityId(created.id());
+            g.setDownstreamEntityType("EMPLOYEE_ASSET");
+            g.setUpdatedBy(currentRequest.username());
+            return grants.save(g);
+        } catch (RuntimeException ex) {
+            return markFailedSilently(g, "Downstream asset assign failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Auto-return the linked {@code employee_asset} row when the grant is
+     * revoked. Soft-fail — the asset may already be in a terminal state
+     * (LOST / DAMAGED / WRITTEN_OFF) which the state machine would block.
+     */
+    private void tryReturnDownstreamEquipment(PositionProfileGrant g) {
+        if (g.getDownstreamEntityId() == null) return;
+        if (!"EMPLOYEE_ASSET".equals(g.getDownstreamEntityType())) return;
+        try {
+            employeeAssetService.close(g.getDownstreamEntityId(),
+                    new AssetReturnRequest(
+                            AssetStatus.RETURNED,
+                            java.time.LocalDate.now(),
+                            null,
+                            "Auto-returned on occupancy end (M253)"));
+        } catch (RuntimeException ex) {
+            // Don't block the revoke — record the issue on the grant.
+            g.setFailureReason("Downstream asset return failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Parse the reference_code as an AssetType. Falls back to the
+     * generic {@link AssetType#EQUIPMENT} so a position can carry items
+     * like "Forklift" without forcing a new enum value.
+     */
+    private AssetType resolveAssetType(String code) {
+        if (!hasText(code)) return AssetType.EQUIPMENT;
+        try {
+            return AssetType.valueOf(code.toUpperCase().trim());
+        } catch (IllegalArgumentException ex) {
+            return AssetType.EQUIPMENT;
+        }
+    }
 
     private PositionProfileGrant markFailedSilently(PositionProfileGrant g, String reason) {
         g.setStatus(GrantStatus.FAILED);
