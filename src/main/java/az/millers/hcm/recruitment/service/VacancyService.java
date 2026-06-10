@@ -116,5 +116,15 @@ public class VacancyService {
         v.setRecruiterId(req.recruiterId());
         v.setOpeningDate(req.openingDate());
         v.setClosingDate(req.closingDate());
+        // M274 — requisition fields. Type defaults to NEW_HEADCOUNT so
+        // pre-M274 clients that don't send it keep working.
+        v.setRequisitionType(req.requisitionType() == null
+                ? az.millers.hcm.recruitment.domain.RequisitionType.NEW_HEADCOUNT
+                : req.requisitionType());
+        v.setHiringReason(req.hiringReason());
+        v.setTargetStartDate(req.targetStartDate());
+        v.setCostCentre(req.costCentre());
+        v.setEmploymentType(req.employmentType());
+        v.setReplacedEmployeeId(req.replacedEmployeeId());
     }
 }

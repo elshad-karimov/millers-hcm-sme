@@ -153,7 +153,10 @@ public class PositionHeadcountService {
         fundingService.assertCanRecruit(positionId);
 
         long actualOccupied = employees.countActiveByPositionId(positionId);
-        int openVacancyOpenings = vacancies.sumOpeningsByPositionAndStatus(positionId, VacancyStatus.OPEN);
+        // M274 — count OPEN + PUBLISHED: both mean "actively accepting
+        // candidates" against this position's headcount.
+        int openVacancyOpenings = vacancies.sumOpeningsByPositionAndStatusIn(positionId,
+                java.util.List.of(VacancyStatus.OPEN, VacancyStatus.PUBLISHED));
         long committed = actualOccupied + openVacancyOpenings;
         if (committed + openings > p.getApprovedHeadcount()) {
             throw new BadRequestException(
@@ -180,7 +183,8 @@ public class PositionHeadcountService {
         Map<UUID, Integer> openVacanciesByPos = new HashMap<>();
         for (Position p : all) {
             openVacanciesByPos.put(p.getId(),
-                    vacancies.sumOpeningsByPositionAndStatus(p.getId(), VacancyStatus.OPEN));
+                    vacancies.sumOpeningsByPositionAndStatusIn(p.getId(),
+                            java.util.List.of(VacancyStatus.OPEN, VacancyStatus.PUBLISHED)));
         }
 
         List<PositionHeadcountRow> rows = new ArrayList<>(all.size());

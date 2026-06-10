@@ -29,6 +29,16 @@ public interface VacancyRepository extends JpaRepository<Vacancy, UUID> {
     int sumOpeningsByPositionAndStatus(@org.springframework.data.repository.query.Param("positionId") UUID positionId,
                                        @org.springframework.data.repository.query.Param("status") VacancyStatus status);
 
+    /**
+     * M274 — multi-status variant. The headcount gate needs OPEN +
+     * PUBLISHED counted together now that PUBLISHED is a distinct
+     * "accepting candidates" state.
+     */
+    @Query("select coalesce(sum(v.openings), 0) from Vacancy v "
+            + "where v.positionId = :positionId and v.status in :statuses")
+    int sumOpeningsByPositionAndStatusIn(@org.springframework.data.repository.query.Param("positionId") UUID positionId,
+                                         @org.springframework.data.repository.query.Param("statuses") java.util.Collection<VacancyStatus> statuses);
+
     /** M272 — all vacancies on a position (for impact analysis). */
     java.util.List<Vacancy> findByPositionIdOrderByCreatedAtDesc(UUID positionId);
 }

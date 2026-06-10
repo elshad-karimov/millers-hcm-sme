@@ -2,11 +2,46 @@ import { api } from './client'
 import type { PageResponse } from './employees'
 
 export type VacancyStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
   | 'OPEN'
+  | 'PUBLISHED'
+  | 'PAUSED'
   | 'ON_HOLD'
   | 'CLOSED'
   | 'FILLED'
   | 'CANCELLED'
+
+// M274 — requisition taxonomy (Recruitment PRD §4)
+export type RequisitionType =
+  | 'NEW_HEADCOUNT'
+  | 'REPLACEMENT'
+  | 'TEMPORARY'
+  | 'PROJECT'
+  | 'SEASONAL'
+  | 'INTERNSHIP'
+  | 'CONTRACTOR'
+  | 'MASS_HIRING'
+  | 'EXECUTIVE'
+  | 'INTERNAL'
+
+export type HiringReason =
+  | 'NEW_POSITION'
+  | 'RESIGNATION'
+  | 'TERMINATION'
+  | 'RETIREMENT'
+  | 'TRANSFER'
+  | 'PROMOTION'
+  | 'DEPARTMENT_EXPANSION'
+  | 'NEW_BRANCH'
+  | 'NEW_PROJECT'
+  | 'SEASONAL_DEMAND'
+  | 'BUSINESS_GROWTH'
+  | 'COMPLIANCE_REQUIREMENT'
+  | 'WORKLOAD_INCREASE'
+  | 'OTHER'
 
 export type CandidateSource =
   | 'LINKEDIN'
@@ -55,6 +90,13 @@ export interface Vacancy {
   hiringManagerId?: string | null
   recruiterId?: string | null
   status: VacancyStatus
+  // M274 — requisition fields
+  requisitionType: RequisitionType
+  hiringReason?: HiringReason | null
+  targetStartDate?: string | null
+  costCentre?: string | null
+  employmentType?: string | null
+  replacedEmployeeId?: string | null
   openingDate?: string | null
   closingDate?: string | null
   createdAt: string
@@ -78,6 +120,13 @@ export interface VacancyRequest {
   recruiterId?: string
   openingDate?: string
   closingDate?: string
+  // M274 — requisition fields
+  requisitionType?: RequisitionType
+  hiringReason?: HiringReason
+  targetStartDate?: string
+  costCentre?: string
+  employmentType?: string
+  replacedEmployeeId?: string
 }
 
 export interface Candidate {

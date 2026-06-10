@@ -14,7 +14,13 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { recruitmentApi, type Vacancy, type VacancyRequest } from '../api/recruitment'
+import {
+  recruitmentApi,
+  type HiringReason,
+  type RequisitionType,
+  type Vacancy,
+  type VacancyRequest,
+} from '../api/recruitment'
 import { positionsApi, type Position } from '../api/positions'
 import { employeesApi, type Employee } from '../api/employees'
 import { FormPageShell } from '../components/FormPageShell'
@@ -35,7 +41,46 @@ interface FormValues {
   hiringManagerId?: string
   recruiterId?: string
   range?: [dayjs.Dayjs | undefined, dayjs.Dayjs | undefined]
+  // M274 — requisition fields
+  requisitionType?: RequisitionType
+  hiringReason?: HiringReason
+  targetStartDate?: dayjs.Dayjs
+  costCentre?: string
+  employmentType?: string
+  replacedEmployeeId?: string
 }
+
+// M274 — requisition taxonomies (Recruitment PRD §4). Labels are
+// humanised here; values stay as the backend enum names.
+const REQ_TYPE_OPTIONS: { value: RequisitionType; label: string }[] = [
+  { value: 'NEW_HEADCOUNT', label: 'New headcount' },
+  { value: 'REPLACEMENT', label: 'Replacement' },
+  { value: 'TEMPORARY', label: 'Temporary' },
+  { value: 'PROJECT', label: 'Project hire' },
+  { value: 'SEASONAL', label: 'Seasonal' },
+  { value: 'INTERNSHIP', label: 'Internship' },
+  { value: 'CONTRACTOR', label: 'Contractor' },
+  { value: 'MASS_HIRING', label: 'Mass hiring' },
+  { value: 'EXECUTIVE', label: 'Executive' },
+  { value: 'INTERNAL', label: 'Internal hiring' },
+]
+
+const HIRING_REASON_OPTIONS: { value: HiringReason; label: string }[] = [
+  { value: 'NEW_POSITION', label: 'New position' },
+  { value: 'RESIGNATION', label: 'Resignation' },
+  { value: 'TERMINATION', label: 'Termination' },
+  { value: 'RETIREMENT', label: 'Retirement' },
+  { value: 'TRANSFER', label: 'Transfer' },
+  { value: 'PROMOTION', label: 'Promotion' },
+  { value: 'DEPARTMENT_EXPANSION', label: 'Department expansion' },
+  { value: 'NEW_BRANCH', label: 'New branch opening' },
+  { value: 'NEW_PROJECT', label: 'New project' },
+  { value: 'SEASONAL_DEMAND', label: 'Seasonal demand' },
+  { value: 'BUSINESS_GROWTH', label: 'Business growth' },
+  { value: 'COMPLIANCE_REQUIREMENT', label: 'Compliance requirement' },
+  { value: 'WORKLOAD_INCREASE', label: 'Workload increase' },
+  { value: 'OTHER', label: 'Other' },
+]
 
 export function VacancyFormPage() {
   const { id } = useParams()
@@ -70,6 +115,7 @@ export function VacancyFormPage() {
       form.setFieldsValue({
         openings: prefilledOpenings,
         currency: 'AZN',
+        requisitionType: 'NEW_HEADCOUNT',
         // ?positionId arrives ahead of the positions list, so just
         // seed the form field now and let the second effect below
         // fill in title / department / salary once positions load.
@@ -98,6 +144,13 @@ export function VacancyFormPage() {
             v.openingDate ? dayjs(v.openingDate) : undefined,
             v.closingDate ? dayjs(v.closingDate) : undefined,
           ],
+          // M274 — requisition fields
+          requisitionType: v.requisitionType,
+          hiringReason: v.hiringReason ?? undefined,
+          targetStartDate: v.targetStartDate ? dayjs(v.targetStartDate) : undefined,
+          costCentre: v.costCentre ?? undefined,
+          employmentType: v.employmentType ?? undefined,
+          replacedEmployeeId: v.replacedEmployeeId ?? undefined,
         })
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load vacancy'))
@@ -145,6 +198,13 @@ export function VacancyFormPage() {
       recruiterId: v.recruiterId,
       openingDate: v.range?.[0]?.format('YYYY-MM-DD'),
       closingDate: v.range?.[1]?.format('YYYY-MM-DD'),
+      // M274 — requisition fields
+      requisitionType: v.requisitionType,
+      hiringReason: v.hiringReason,
+      targetStartDate: v.targetStartDate?.format('YYYY-MM-DD'),
+      costCentre: v.costCentre,
+      employmentType: v.employmentType,
+      replacedEmployeeId: v.replacedEmployeeId,
     }
     try {
       if (editing) {
@@ -252,6 +312,65 @@ export function VacancyFormPage() {
                     label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
                   }))}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+          {/* M274 — requisition fields (Recruitment PRD §4) */}
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="requisitionType"
+                label="Requisition type"
+                rules={[{ required: true }]}
+              >
+                <Select options={REQ_TYPE_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="hiringReason" label="Hiring reason">
+                <Select allowClear options={HIRING_REASON_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="targetStartDate" label="Target start date">
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="costCentre" label="Cost centre" rules={[{ max: 64 }]}>
+                <Input placeholder="e.g. CC-FIN" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="employmentType" label="Employment type" rules={[{ max: 32 }]}>
+                <Input placeholder="e.g. FULL_TIME" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              {/* Only meaningful for REPLACEMENT requisitions; harmless
+                  to leave visible — backend stores it regardless. */}
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, cur) => prev.requisitionType !== cur.requisitionType}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('requisitionType') === 'REPLACEMENT' ? (
+                    <Form.Item name="replacedEmployeeId" label="Replacing employee">
+                      <Select
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="Who is being backfilled?"
+                        options={employees.map((e) => ({
+                          value: e.id,
+                          label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
+                        }))}
+                      />
+                    </Form.Item>
+                  ) : null
+                }
               </Form.Item>
             </Col>
           </Row>

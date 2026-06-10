@@ -9,6 +9,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import az.millers.hcm.recruitment.domain.HiringReason;
+import az.millers.hcm.recruitment.domain.RequisitionType;
+
 public record VacancyRequest(
         @NotBlank @Size(max = 200) String title,
         UUID positionId,
@@ -23,5 +26,13 @@ public record VacancyRequest(
         UUID hiringManagerId,
         UUID recruiterId,
         LocalDate openingDate,
-        LocalDate closingDate) {
+        LocalDate closingDate,
+        // ── M274 — requisition fields (all optional; type defaults to
+        // NEW_HEADCOUNT server-side so old clients keep working) ──
+        RequisitionType requisitionType,
+        HiringReason hiringReason,
+        LocalDate targetStartDate,
+        @Size(max = 64) String costCentre,
+        @Size(max = 32) String employmentType,
+        UUID replacedEmployeeId) {
 }

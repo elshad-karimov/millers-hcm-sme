@@ -129,8 +129,9 @@ public class ApplicationService {
     public Application apply(UUID vacancyId, UUID candidateId) {
         Vacancy v = vacancies.findById(vacancyId)
                 .orElseThrow(() -> new BadRequestException("Vacancy not found: " + vacancyId));
-        if (v.getStatus() != VacancyStatus.OPEN) {
-            throw new BadRequestException("Vacancy is not open: " + v.getStatus());
+        // M274 — OPEN and PUBLISHED both accept candidates.
+        if (!v.getStatus().isAccepting()) {
+            throw new BadRequestException("Vacancy is not accepting applications: " + v.getStatus());
         }
         if (!candidates.existsById(candidateId)) {
             throw new BadRequestException("Candidate not found: " + candidateId);

@@ -67,6 +67,30 @@ public class Vacancy {
     @Column(nullable = false)
     private VacancyStatus status;
 
+    // ── M274 / Recruitment PRD §4 — requisition fields ──────────────
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "requisition_type", nullable = false, length = 32)
+    private RequisitionType requisitionType = RequisitionType.NEW_HEADCOUNT;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hiring_reason", length = 64)
+    private HiringReason hiringReason;
+
+    @Column(name = "target_start_date")
+    private LocalDate targetStartDate;
+
+    @Column(name = "cost_centre", length = 64)
+    private String costCentre;
+
+    /** Mirrors the position's employment type so the offer can default it. */
+    @Column(name = "employment_type", length = 32)
+    private String employmentType;
+
+    /** For REPLACEMENT requisitions — the departing employee being backfilled. */
+    @Column(name = "replaced_employee_id")
+    private UUID replacedEmployeeId;
+
     @Column(name = "opening_date")
     private LocalDate openingDate;
 

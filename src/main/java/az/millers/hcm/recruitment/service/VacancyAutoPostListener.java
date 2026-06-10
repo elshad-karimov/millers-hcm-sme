@@ -51,7 +51,15 @@ public class VacancyAutoPostListener {
                     null,  // hiringManagerId — to be assigned
                     null,  // recruiterId — to be assigned
                     null,  // openingDate
-                    null); // closingDate
+                    null,  // closingDate
+                    // M274 — auto-posted vacancies are new headcount by
+                    // definition (they fire on headcount increase).
+                    az.millers.hcm.recruitment.domain.RequisitionType.NEW_HEADCOUNT,
+                    az.millers.hcm.recruitment.domain.HiringReason.DEPARTMENT_EXPANSION,
+                    null,  // targetStartDate
+                    null,  // costCentre
+                    null,  // employmentType
+                    null); // replacedEmployeeId
             var v = vacancyService.create(req);
             log.info("VacancyAutoPostListener: auto-created vacancy {} ({} opening(s)) "
                     + "for position {} approved by {}",

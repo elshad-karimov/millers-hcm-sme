@@ -85,7 +85,7 @@ public class PositionImpactService {
         // ── Open vacancies ────────────────────────────────────────
         List<Vacancy> vacRaw = vacancies.findByPositionIdOrderByCreatedAtDesc(positionId);
         List<AffectedVacancy> openVacs = vacRaw.stream()
-                .filter(v -> v.getStatus() == VacancyStatus.OPEN)
+                .filter(v -> v.getStatus().isAccepting())
                 .map(v -> new AffectedVacancy(
                         v.getId(), v.getVacancyNo(), v.getTitle(),
                         v.getStatus().name(), v.getOpenings()))

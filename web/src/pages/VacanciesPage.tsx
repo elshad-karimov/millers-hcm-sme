@@ -16,7 +16,13 @@ import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: VacancyStatus[] = [
+  'DRAFT',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'REJECTED',
   'OPEN',
+  'PUBLISHED',
+  'PAUSED',
   'ON_HOLD',
   'CLOSED',
   'FILLED',
@@ -24,7 +30,13 @@ const STATUS_OPTIONS: VacancyStatus[] = [
 ]
 
 const STATUS_COLOR: Record<VacancyStatus, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'gold',
+  APPROVED: 'cyan',
+  REJECTED: 'red',
   OPEN: 'green',
+  PUBLISHED: 'green',
+  PAUSED: 'orange',
   ON_HOLD: 'orange',
   CLOSED: 'default',
   FILLED: 'blue',
