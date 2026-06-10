@@ -17,9 +17,12 @@ import az.millers.hcm.recruitment.domain.Application;
 import az.millers.hcm.recruitment.domain.ApplicationStage;
 import az.millers.hcm.recruitment.domain.Offer;
 import az.millers.hcm.recruitment.domain.OfferStatus;
+import az.millers.hcm.recruitment.domain.Vacancy;
 import az.millers.hcm.recruitment.repo.ApplicationRepository;
 import az.millers.hcm.recruitment.repo.OfferRepository;
+import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.staffing.service.PositionHeadcountService;
 
 @Service
 public class OfferService {
@@ -31,15 +34,24 @@ public class OfferService {
     private final ApplicationRepository applications;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    // M268 — gate at SEND / ACCEPT against the live position state so
+    // a frozen / unfunded / closed position can't accept commitments
+    // a week after the vacancy was posted under a different state.
+    private final VacancyRepository vacancies;
+    private final PositionHeadcountService headcountGate;
 
     public OfferService(OfferRepository offers,
                          ApplicationRepository applications,
                          AuditService audit,
-                         CurrentRequest currentRequest) {
+                         CurrentRequest currentRequest,
+                         VacancyRepository vacancies,
+                         PositionHeadcountService headcountGate) {
         this.offers = offers;
         this.applications = applications;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.vacancies = vacancies;
+        this.headcountGate = headcountGate;
     }
 
     @Transactional(readOnly = true)
@@ -87,6 +99,14 @@ public class OfferService {
                 .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + offerId));
         OfferStatus old = o.getStatus();
         validateTransition(old, newStatus);
+        // M268 — gate against stale position state. Block SEND + ACCEPT
+        // when the position has gone non-fillable since the vacancy was
+        // posted. The right gate is assertCanFill: it checks lifecycle
+        // (M243), funding (M244), AND headcount room — which is exactly
+        // what would block the hire seconds later in EmployeeService.create().
+        if (newStatus == OfferStatus.SENT || newStatus == OfferStatus.ACCEPTED) {
+            assertPositionStillFillable(o);
+        }
         o.setStatus(newStatus);
         if (notes != null && !notes.isBlank()) o.setNotes(notes);
         OffsetDateTime now = OffsetDateTime.now();
@@ -114,5 +134,26 @@ public class OfferService {
         };
         if (!ok) throw new BadRequestException(
                 "Cannot transition offer from " + from + " to " + to);
+    }
+
+    /**
+     * M268 — refuse to SEND or ACCEPT an offer when the position can no
+     * longer be filled. Vacancy → Application → Offer chain may take
+     * weeks; the position state can have changed since posting (frozen
+     * during a reorg, funding expired, headcount filled by a parallel
+     * direct hire, etc.). The same gate that {@code EmployeeService.create}
+     * uses to block hires is the right gate here too — applied EARLIER
+     * so the candidate never gets an offer that would fail at hire.
+     *
+     * <p>No-op when the application's vacancy has no linked position
+     * (legacy data) — we don't want to block historical offers that
+     * predate the position-control gate.
+     */
+    private void assertPositionStillFillable(Offer o) {
+        Application app = applications.findById(o.getApplicationId()).orElse(null);
+        if (app == null) return;
+        Vacancy v = vacancies.findById(app.getVacancyId()).orElse(null);
+        if (v == null || v.getPositionId() == null) return;
+        headcountGate.assertCanFill(v.getPositionId());
     }
 }
