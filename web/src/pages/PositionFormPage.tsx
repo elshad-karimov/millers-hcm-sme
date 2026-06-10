@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Button,
   Col,
+  Collapse,
   DatePicker,
   Form,
   Input,
@@ -36,6 +37,14 @@ interface FormValues {
   costCentre?: string
   budgetCode?: string
   location?: string
+  // M254 — compliance (PRD §44)
+  establishmentNumber?: string
+  civilServiceGrade?: string
+  unionCategory?: string
+  exemptStatus?: string
+  occupationalCategory?: string
+  laborClassification?: string
+  legalBasisReference?: string
   effectiveFrom?: dayjs.Dayjs
   effectiveTo?: dayjs.Dayjs
 }
@@ -86,6 +95,14 @@ export function PositionFormPage() {
           costCentre: p.costCentre ?? undefined,
           budgetCode: p.budgetCode ?? undefined,
           location: p.location ?? undefined,
+          // M254 — prefill compliance fields when editing an existing position
+          establishmentNumber: p.establishmentNumber ?? undefined,
+          civilServiceGrade: p.civilServiceGrade ?? undefined,
+          unionCategory: p.unionCategory ?? undefined,
+          exemptStatus: p.exemptStatus ?? undefined,
+          occupationalCategory: p.occupationalCategory ?? undefined,
+          laborClassification: p.laborClassification ?? undefined,
+          legalBasisReference: p.legalBasisReference ?? undefined,
           effectiveFrom: p.effectiveFrom ? dayjs(p.effectiveFrom) : undefined,
           effectiveTo: p.effectiveTo ? dayjs(p.effectiveTo) : undefined,
         })
@@ -251,6 +268,99 @@ export function PositionFormPage() {
               </Form.Item>
             </Col>
           </Row>
+          {/* M254 — PRD §44 compliance / regulatory fields.
+              Tucked into a Collapse because most deployments won't need
+              them; gov-sector pitches expand on demand. */}
+          <Collapse
+            ghost
+            items={[
+              {
+                key: 'compliance',
+                label: '🏛️ Compliance & regulatory (PRD §44)',
+                children: (
+                  <>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="establishmentNumber"
+                          label="Establishment number"
+                          tooltip="Government registration / establishment id"
+                          rules={[{ max: 64 }]}
+                        >
+                          <Input placeholder="e.g. EST-2024-00123" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name="civilServiceGrade"
+                          label="Civil service grade"
+                          rules={[{ max: 32 }]}
+                        >
+                          <Input placeholder="e.g. CS-A5" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="unionCategory"
+                          label="Union / labor category"
+                          rules={[{ max: 64 }]}
+                        >
+                          <Input placeholder="e.g. PUBLIC_SERVANT_CAT_II" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name="exemptStatus"
+                          label="Exempt status"
+                          tooltip="Overtime eligibility under labor act"
+                        >
+                          <Select
+                            allowClear
+                            options={[
+                              { value: 'EXEMPT', label: 'Exempt' },
+                              { value: 'NON_EXEMPT', label: 'Non-exempt' },
+                              { value: 'SEMI_EXEMPT', label: 'Semi-exempt' },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="occupationalCategory"
+                          label="Occupational category"
+                          tooltip="ISCO / national occupational classification code"
+                          rules={[{ max: 32 }]}
+                        >
+                          <Input placeholder="e.g. ISCO-2411" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name="laborClassification"
+                          label="Labor classification"
+                          rules={[{ max: 64 }]}
+                        >
+                          <Input placeholder="e.g. LABOR-ACT-2018-CLS-A" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Form.Item
+                      name="legalBasisReference"
+                      label="Legal basis reference"
+                      tooltip="Appointment authority / legal act / order # that authorises this position"
+                      rules={[{ max: 200 }]}
+                    >
+                      <Input placeholder="e.g. Cabinet Decree #245 / 12-Mar-2024" />
+                    </Form.Item>
+                  </>
+                ),
+              },
+            ]}
+          />
           <Form.Item>
             <Space>
               <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>

@@ -185,6 +185,15 @@ public class StaffingService {
         p.setLocation(req.location());
         p.setEffectiveFrom(req.effectiveFrom());
         p.setEffectiveTo(req.effectiveTo());
+        // M254 / §44 — compliance fields. All nullable; null means
+        // "not applicable in this deployment".
+        p.setEstablishmentNumber(req.establishmentNumber());
+        p.setCivilServiceGrade(req.civilServiceGrade());
+        p.setUnionCategory(req.unionCategory());
+        p.setExemptStatus(req.exemptStatus());
+        p.setOccupationalCategory(req.occupationalCategory());
+        p.setLaborClassification(req.laborClassification());
+        p.setLegalBasisReference(req.legalBasisReference());
     }
 
     private VacancyState deriveVacancyState(int approved, int occupied) {

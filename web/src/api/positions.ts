@@ -65,6 +65,14 @@ export interface Position {
   costCentre?: string | null
   budgetCode?: string | null
   location?: string | null
+  // M254 — compliance / regulatory (PRD §44)
+  establishmentNumber?: string | null
+  civilServiceGrade?: string | null
+  unionCategory?: string | null
+  exemptStatus?: string | null
+  occupationalCategory?: string | null
+  laborClassification?: string | null
+  legalBasisReference?: string | null
   effectiveFrom?: string | null
   effectiveTo?: string | null
   vacancyState: VacancyState
@@ -105,6 +113,14 @@ export interface PositionRequest {
   costCentre?: string
   budgetCode?: string
   location?: string
+  // M254 — compliance / regulatory (PRD §44)
+  establishmentNumber?: string
+  civilServiceGrade?: string
+  unionCategory?: string
+  exemptStatus?: string
+  occupationalCategory?: string
+  laborClassification?: string
+  legalBasisReference?: string
   effectiveFrom?: string
   effectiveTo?: string
 }

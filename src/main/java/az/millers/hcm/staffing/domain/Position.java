@@ -100,6 +100,38 @@ public class Position {
 
     private String location;
 
+    // ── M254 / PRD §44 — compliance / regulatory fields ─────────────────
+    // All nullable. Surfaced on the PositionFormPage as a dedicated
+    // "Compliance" card so gov-sector deployments can keep the
+    // establishment register in lockstep with the staffing table.
+
+    @Column(name = "establishment_number", length = 64)
+    private String establishmentNumber;
+
+    @Column(name = "civil_service_grade", length = 32)
+    private String civilServiceGrade;
+
+    @Column(name = "union_category", length = 64)
+    private String unionCategory;
+
+    /** EXEMPT / NON_EXEMPT / SEMI_EXEMPT under the labor act. Free string
+     *  for now — value list enforced at the SPA layer to keep migrations
+     *  cheap if regulations widen. */
+    @Column(name = "exempt_status", length = 16)
+    private String exemptStatus;
+
+    /** ISCO / national occupational classification code. */
+    @Column(name = "occupational_category", length = 32)
+    private String occupationalCategory;
+
+    @Column(name = "labor_classification", length = 64)
+    private String laborClassification;
+
+    /** Appointment authority / legal act / order number that authorises
+     *  the position to exist. */
+    @Column(name = "legal_basis_reference", length = 200)
+    private String legalBasisReference;
+
     @Column(name = "effective_from")
     private LocalDate effectiveFrom;
 

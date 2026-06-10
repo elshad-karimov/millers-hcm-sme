@@ -27,5 +27,13 @@ public record PositionRequest(
         @Size(max = 64) String budgetCode,
         @Size(max = 160) String location,
         LocalDate effectiveFrom,
-        LocalDate effectiveTo) {
+        LocalDate effectiveTo,
+        // ── M254 / PRD §44 — compliance / regulatory fields ──
+        @Size(max = 64)  String establishmentNumber,
+        @Size(max = 32)  String civilServiceGrade,
+        @Size(max = 64)  String unionCategory,
+        @Size(max = 16)  String exemptStatus,
+        @Size(max = 32)  String occupationalCategory,
+        @Size(max = 64)  String laborClassification,
+        @Size(max = 200) String legalBasisReference) {
 }
