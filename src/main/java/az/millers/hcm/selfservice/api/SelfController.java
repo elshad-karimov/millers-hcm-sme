@@ -105,6 +105,9 @@ public class SelfController {
     private final EmployeeAllowanceRepository allowances;
     private final LetterRequestService letterRequestService;
     private final PersonalInfoChangeService personalInfoChangeService;
+    // M263 — Phase F.5a self surface: lets the current employee see
+    // their own required-document obligations on My Workspace.
+    private final az.millers.hcm.corehr.service.RequiredEmployeeDocumentService requiredDocService;
 
     public SelfController(EmployeeContextService context,
                           EmployeeRepository employeeRepo,
@@ -127,10 +130,12 @@ public class SelfController {
                           GoalRepository goals,
                           EmployeeAllowanceRepository allowances,
                           LetterRequestService letterRequestService,
-                          PersonalInfoChangeService personalInfoChangeService) {
+                          PersonalInfoChangeService personalInfoChangeService,
+                          az.millers.hcm.corehr.service.RequiredEmployeeDocumentService requiredDocService) {
         this.context = context;
         this.letterRequestService = letterRequestService;
         this.personalInfoChangeService = personalInfoChangeService;
+        this.requiredDocService = requiredDocService;
         this.employeeRepo = employeeRepo;
         this.leaveBalances = leaveBalances;
         this.leaveTypes = leaveTypes;
@@ -486,6 +491,21 @@ public class SelfController {
         Employee me = context.currentEmployee();
         return personalInfoChangeService.mine(me.getId())
                 .stream().map(PersonalInfoChangeResponse::from).toList();
+    }
+
+    /**
+     * M263 — Phase F.5a self surface (PRD §29).
+     *
+     * <p>Returns the current employee's PENDING required-document obligations
+     * so the My Workspace widget can prompt them to upload what HR is
+     * waiting for. Empty list when there's nothing outstanding.
+     */
+    @GetMapping("/required-documents")
+    public List<az.millers.hcm.corehr.api.RequiredEmployeeDocumentController.DocResponse> myRequiredDocuments() {
+        Employee me = context.currentEmployee();
+        return requiredDocService.listPending(me.getId()).stream()
+                .map(az.millers.hcm.corehr.api.RequiredEmployeeDocumentController.DocResponse::from)
+                .toList();
     }
 
     @PostMapping("/personal-info/submit")

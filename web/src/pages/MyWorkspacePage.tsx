@@ -39,6 +39,7 @@ import {
   type PathAssignmentStatus,
 } from '../api/learningPaths'
 import type { PerformanceReview } from '../api/performance'
+import { RequiredDocumentsWidget } from '../components/RequiredDocumentsWidget'
 
 // ============================================================================
 //  Dashboard tab
@@ -59,6 +60,10 @@ function Dashboard({
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {/* M263 — "📂 Documents owed to HR" widget. Renders nothing when
+          the employee has no pending REQUIRED_DOCUMENT obligations,
+          so the dashboard stays clean for the typical case. */}
+      <RequiredDocumentsWidget />
       <Card>
         <Row gutter={16} align="middle">
           <Col flex="auto">

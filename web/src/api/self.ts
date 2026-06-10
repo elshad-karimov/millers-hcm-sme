@@ -52,10 +52,34 @@ export interface SelfSummary {
   activeReviewStatus?: string | null
 }
 
+// M263 — Phase F.5a "you owe HR" self surface.
+export type RequiredDocumentStatus = 'PENDING' | 'SATISFIED' | 'WAIVED' | 'EXPIRED'
+export interface SelfRequiredDocument {
+  id: string
+  employeeId: string
+  documentType: string
+  label: string
+  requiredByDate?: string | null
+  status: RequiredDocumentStatus
+  attachmentId?: string | null
+  satisfiedAt?: string | null
+  satisfiedBy?: string | null
+  source: string
+  sourceGrantId?: string | null
+  notes?: string | null
+  createdAt: string
+  createdBy?: string | null
+  updatedAt: string
+  updatedBy?: string | null
+}
+
 export const selfApi = {
   profile: () => api.get<SelfProfile>('/self/employee').then((r) => r.data),
   summary: () => api.get<SelfSummary>('/self/summary').then((r) => r.data),
   peers: () => api.get<EmployeePeer[]>('/self/peers').then((r) => r.data),
+  // M263 — pending required-document obligations for the current employee.
+  requiredDocuments: () =>
+    api.get<SelfRequiredDocument[]>('/self/required-documents').then((r) => r.data),
 
   leaveBalances: () => api.get<LeaveBalance[]>('/self/leave/balances').then((r) => r.data),
   leaveTypes: () => api.get<LeaveType[]>('/self/leave/types').then((r) => r.data),
