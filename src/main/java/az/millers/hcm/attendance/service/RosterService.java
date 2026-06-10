@@ -121,8 +121,19 @@ public class RosterService {
     @Transactional
     public RosterEntry assign(AssignRequest req) {
         Shift s = ensureShiftAssignable(req.shiftId());
-        if (!employees.existsById(req.employeeId())) {
-            throw new BadRequestException("Employee not found: " + req.employeeId());
+        // M271 — load the full Employee so we can gate on employment status.
+        // Previously only checked existsById, which let HR roster a terminated
+        // / retired / suspended / garden-leave employee. After M269 the
+        // ex-employee's SSO is disabled and grants are revoked, but their
+        // ID lingered in the roster pool.
+        var emp = employees.findById(req.employeeId())
+                .orElseThrow(() -> new BadRequestException(
+                        "Employee not found: " + req.employeeId()));
+        var status = emp.getEmploymentStatus();
+        if (status != null && !status.isAvailableForRostering()) {
+            throw new BadRequestException(
+                    "Employee " + emp.getEmployeeNo() + " is " + status
+                    + " — not available for rostering");
         }
         Optional<RosterEntry> existingOpt =
                 roster.findByEmployeeIdAndRosterDate(req.employeeId(), req.rosterDate());
