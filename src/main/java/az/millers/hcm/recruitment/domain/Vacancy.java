@@ -91,6 +91,10 @@ public class Vacancy {
     @Column(name = "replaced_employee_id")
     private UUID replacedEmployeeId;
 
+    /** M275 — the approval WorkflowInstance driving DRAFT → APPROVED. */
+    @Column(name = "workflow_instance_id")
+    private UUID workflowInstanceId;
+
     @Column(name = "opening_date")
     private LocalDate openingDate;
 

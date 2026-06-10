@@ -33,6 +33,8 @@ public record VacancyResponse(
         String costCentre,
         String employmentType,
         UUID replacedEmployeeId,
+        /** M275 — approval workflow instance (null until first submit). */
+        UUID workflowInstanceId,
         LocalDate openingDate,
         LocalDate closingDate,
         OffsetDateTime createdAt,
@@ -50,6 +52,7 @@ public record VacancyResponse(
                 v.getRequisitionType(), v.getHiringReason(),
                 v.getTargetStartDate(), v.getCostCentre(),
                 v.getEmploymentType(), v.getReplacedEmployeeId(),
+                v.getWorkflowInstanceId(),
                 v.getOpeningDate(), v.getClosingDate(),
                 v.getCreatedAt(), v.getUpdatedAt(),
                 v.getCreatedBy(), v.getUpdatedBy());

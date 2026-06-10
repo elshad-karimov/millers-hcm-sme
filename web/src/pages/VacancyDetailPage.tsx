@@ -319,6 +319,37 @@ export function VacancyDetailPage() {
               <Button onClick={() => navigate(`/recruitment/vacancies/${vacancy.id}/edit`)}>
                 Edit
               </Button>
+              {/* M275 — requisition approval workflow */}
+              {(vacancy.status === 'DRAFT' || vacancy.status === 'REJECTED') && (
+                <Popconfirm
+                  title="Submit this requisition for approval?"
+                  onConfirm={() =>
+                    recruitmentApi
+                      .submitVacancyApproval(vacancy.id)
+                      .then(load)
+                      .catch((err) =>
+                        message.error(err?.response?.data?.message ?? 'Submit failed'),
+                      )
+                  }
+                >
+                  <Button type="primary">Submit for approval</Button>
+                </Popconfirm>
+              )}
+              {vacancy.status === 'APPROVED' && (
+                <Popconfirm
+                  title="Open this requisition for applications?"
+                  onConfirm={() =>
+                    recruitmentApi
+                      .changeVacancyStatus(vacancy.id, 'OPEN')
+                      .then(load)
+                      .catch((err) =>
+                        message.error(err?.response?.data?.message ?? 'Open failed'),
+                      )
+                  }
+                >
+                  <Button type="primary">Open vacancy</Button>
+                </Popconfirm>
+              )}
               {vacancy.status === 'OPEN' && (
                 <>
                   <Popconfirm

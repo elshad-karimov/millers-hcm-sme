@@ -74,4 +74,11 @@ public class VacancyController {
                                          @RequestParam(required = false) String reason) {
         return VacancyResponse.from(service.changeStatus(id, status, reason));
     }
+
+    /** M275 — Recruitment PRD §7: kick off the requisition approval workflow. */
+    @PostMapping("/{id}/submit-approval")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public VacancyResponse submitForApproval(@PathVariable UUID id) {
+        return VacancyResponse.from(service.submitForApproval(id));
+    }
 }

@@ -97,6 +97,8 @@ export interface Vacancy {
   costCentre?: string | null
   employmentType?: string | null
   replacedEmployeeId?: string | null
+  // M275 — approval workflow instance (null until first submit)
+  workflowInstanceId?: string | null
   openingDate?: string | null
   closingDate?: string | null
   createdAt: string
@@ -239,6 +241,9 @@ export const recruitmentApi = {
         params: { reason },
       })
       .then((r) => r.data),
+  // M275 — kick off the requisition approval workflow
+  submitVacancyApproval: (id: string) =>
+    api.post<Vacancy>(`/recruitment/vacancies/${id}/submit-approval`).then((r) => r.data),
 
   // Candidates
   candidates: (params: { search?: string; page?: number; size?: number }) =>

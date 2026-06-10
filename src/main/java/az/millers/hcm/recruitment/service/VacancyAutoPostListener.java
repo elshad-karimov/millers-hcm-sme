@@ -60,7 +60,9 @@ public class VacancyAutoPostListener {
                     null,  // costCentre
                     null,  // employmentType
                     null); // replacedEmployeeId
-            var v = vacancyService.create(req);
+            // M275 — auto-posted vacancies skip the requisition approval:
+            // they fire from an already-APPROVED headcount change.
+            var v = vacancyService.createOpen(req);
             log.info("VacancyAutoPostListener: auto-created vacancy {} ({} opening(s)) "
                     + "for position {} approved by {}",
                     v.getVacancyNo(), event.delta(), event.positionCode(), event.approvedBy());
