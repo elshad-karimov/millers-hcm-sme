@@ -108,7 +108,27 @@ export function PositionsPage() {
 
   const columns: ColumnsType<Position> = [
     { title: 'Code', dataIndex: 'code', width: 110 },
-    { title: 'Title', dataIndex: 'title' },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      // M256 — surface critical flag next to the title so the list
+      // reads naturally without a dedicated column for a sparse bool.
+      render: (v: string, row: Position) => (
+        <Space size={6}>
+          <span>{v}</span>
+          {row.criticalFlag && (
+            <Tag color="red" style={{ marginInlineEnd: 0 }}>
+              🔴 Critical
+            </Tag>
+          )}
+          {row.successorRequired && !row.criticalFlag && (
+            <Tag color="orange" style={{ marginInlineEnd: 0 }}>
+              ⚠ Successor req.
+            </Tag>
+          )}
+        </Space>
+      ),
+    },
     {
       title: 'Org unit',
       dataIndex: 'orgUnitLabel',

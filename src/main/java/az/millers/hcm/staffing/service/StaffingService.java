@@ -194,6 +194,14 @@ public class StaffingService {
         p.setOccupationalCategory(req.occupationalCategory());
         p.setLaborClassification(req.laborClassification());
         p.setLegalBasisReference(req.legalBasisReference());
+        // M256 / §31 — risk & criticality flags. Default boolean
+        // fields to false on create; preserve existing values on
+        // update when caller omits them (sent as null).
+        if (req.criticalFlag() != null) p.setCriticalFlag(req.criticalFlag());
+        if (req.keySkillConcentration() != null) p.setKeySkillConcentration(req.keySkillConcentration());
+        if (req.successorRequired() != null) p.setSuccessorRequired(req.successorRequired());
+        p.setBusinessImpactScore(req.businessImpactScore());
+        p.setRiskCategory(req.riskCategory());
     }
 
     private VacancyState deriveVacancyState(int approved, int occupied) {

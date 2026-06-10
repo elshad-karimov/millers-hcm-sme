@@ -11,6 +11,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   App as AntdApp,
 } from 'antd'
 import dayjs from 'dayjs'
@@ -45,6 +46,12 @@ interface FormValues {
   occupationalCategory?: string
   laborClassification?: string
   legalBasisReference?: string
+  // M256 — risk & criticality (PRD §31)
+  criticalFlag?: boolean
+  businessImpactScore?: number
+  riskCategory?: string
+  keySkillConcentration?: boolean
+  successorRequired?: boolean
   effectiveFrom?: dayjs.Dayjs
   effectiveTo?: dayjs.Dayjs
 }
@@ -103,6 +110,12 @@ export function PositionFormPage() {
           occupationalCategory: p.occupationalCategory ?? undefined,
           laborClassification: p.laborClassification ?? undefined,
           legalBasisReference: p.legalBasisReference ?? undefined,
+          // M256 — prefill risk & criticality
+          criticalFlag: p.criticalFlag,
+          businessImpactScore: p.businessImpactScore ?? undefined,
+          riskCategory: p.riskCategory ?? undefined,
+          keySkillConcentration: p.keySkillConcentration,
+          successorRequired: p.successorRequired,
           effectiveFrom: p.effectiveFrom ? dayjs(p.effectiveFrom) : undefined,
           effectiveTo: p.effectiveTo ? dayjs(p.effectiveTo) : undefined,
         })
@@ -356,6 +369,87 @@ export function PositionFormPage() {
                     >
                       <Input placeholder="e.g. Cabinet Decree #245 / 12-Mar-2024" />
                     </Form.Item>
+                  </>
+                ),
+              },
+              // M256 — PRD §31 risk & criticality flags. Hidden by
+              // default in another Collapse — operator opens when
+              // flagging critical or hard-to-replace positions.
+              {
+                key: 'risk',
+                label: '🔴 Risk & criticality (PRD §31)',
+                children: (
+                  <>
+                    <Row gutter={16}>
+                      <Col span={8}>
+                        <Form.Item
+                          name="criticalFlag"
+                          label="Critical position"
+                          valuePropName="checked"
+                          tooltip="Position is business-critical — vacancy triggers urgent succession review"
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="successorRequired"
+                          label="Named successor required"
+                          valuePropName="checked"
+                          tooltip="Must have a named successor at all times"
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="keySkillConcentration"
+                          label="Key-skill concentration"
+                          valuePropName="checked"
+                          tooltip="Role depends on hard-to-replace skills"
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="businessImpactScore"
+                          label="Business impact score"
+                          tooltip="1 (low) — 5 (extreme) impact if the position were vacant"
+                        >
+                          <Select
+                            allowClear
+                            options={[
+                              { value: 1, label: '1 — Low' },
+                              { value: 2, label: '2 — Moderate' },
+                              { value: 3, label: '3 — High' },
+                              { value: 4, label: '4 — Severe' },
+                              { value: 5, label: '5 — Extreme' },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name="riskCategory"
+                          label="Risk category"
+                          tooltip="Primary risk dimension this position carries"
+                        >
+                          <Select
+                            allowClear
+                            options={[
+                              { value: 'KEY_PERSON', label: 'Key Person' },
+                              { value: 'REGULATORY', label: 'Regulatory' },
+                              { value: 'OPERATIONAL', label: 'Operational' },
+                              { value: 'SPECIALIST', label: 'Specialist Skills' },
+                              { value: 'EXECUTIVE', label: 'Executive' },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
                   </>
                 ),
               },

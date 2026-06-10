@@ -283,7 +283,10 @@ public class PositionImportService {
                     null, null,     // effectiveFrom / effectiveTo
                     // M254 compliance fields — null on import; HR can fill
                     // them in afterwards if needed.
-                    null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null,
+                    // M256 risk & criticality — null/default false on import;
+                    // HR can flag critical positions after the bulk load.
+                    null, null, null, null, null);
         }
     }
 

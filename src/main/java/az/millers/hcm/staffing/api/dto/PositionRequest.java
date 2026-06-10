@@ -35,5 +35,11 @@ public record PositionRequest(
         @Size(max = 16)  String exemptStatus,
         @Size(max = 32)  String occupationalCategory,
         @Size(max = 64)  String laborClassification,
-        @Size(max = 200) String legalBasisReference) {
+        @Size(max = 200) String legalBasisReference,
+        // ── M256 / PRD §31 — risk & criticality flags ──
+        Boolean criticalFlag,
+        Short   businessImpactScore,
+        @Size(max = 32) String riskCategory,
+        Boolean keySkillConcentration,
+        Boolean successorRequired) {
 }

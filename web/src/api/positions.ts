@@ -73,6 +73,12 @@ export interface Position {
   occupationalCategory?: string | null
   laborClassification?: string | null
   legalBasisReference?: string | null
+  // M256 — risk & criticality (PRD §31)
+  criticalFlag: boolean
+  businessImpactScore?: number | null
+  riskCategory?: string | null
+  keySkillConcentration: boolean
+  successorRequired: boolean
   effectiveFrom?: string | null
   effectiveTo?: string | null
   vacancyState: VacancyState
@@ -121,6 +127,12 @@ export interface PositionRequest {
   occupationalCategory?: string
   laborClassification?: string
   legalBasisReference?: string
+  // M256 — risk & criticality (PRD §31)
+  criticalFlag?: boolean
+  businessImpactScore?: number | null
+  riskCategory?: string
+  keySkillConcentration?: boolean
+  successorRequired?: boolean
   effectiveFrom?: string
   effectiveTo?: string
 }

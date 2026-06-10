@@ -132,6 +132,29 @@ public class Position {
     @Column(name = "legal_basis_reference", length = 200)
     private String legalBasisReference;
 
+    // ── M256 / PRD §31 — risk & criticality flags ───────────────────────
+    // Used by the M103 succession bench-depth report to identify
+    // critical roles without named successors, and surfaced on the
+    // Positions list as a red criticality badge.
+
+    @Column(name = "critical_flag", nullable = false)
+    private boolean criticalFlag = false;
+
+    /** 1 (low) … 5 (extreme). Null when not yet scored. */
+    @Column(name = "business_impact_score")
+    private Short businessImpactScore;
+
+    /** KEY_PERSON / REGULATORY / OPERATIONAL / SPECIALIST / EXECUTIVE.
+     *  Free string for now — value list enforced at the SPA layer. */
+    @Column(name = "risk_category", length = 32)
+    private String riskCategory;
+
+    @Column(name = "key_skill_concentration", nullable = false)
+    private boolean keySkillConcentration = false;
+
+    @Column(name = "successor_required", nullable = false)
+    private boolean successorRequired = false;
+
     @Column(name = "effective_from")
     private LocalDate effectiveFrom;
 
