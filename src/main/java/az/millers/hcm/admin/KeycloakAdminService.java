@@ -254,6 +254,87 @@ public class KeycloakAdminService {
     }
 
     // -------------------------------------------------------------------------
+    // M265 / Phase F.6 — single-role grant/revoke + username lookup.
+    //
+    // Used by PositionProfileGrantService to wire the ACCESS_ROLE profile
+    // item through to Keycloak realm-role grants on hire / revoke on
+    // termination. The existing setUserRoles() is too coarse — it would
+    // stomp on roles granted outside the profile flow.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolves a Keycloak user_id from a {@code preferred_username}. Returns
+     * empty if the user doesn't exist (so the F.6 wire-up can soft-fail
+     * for terminated / not-yet-provisioned employees).
+     */
+    public java.util.Optional<String> findUserIdByUsername(String username) {
+        if (username == null || username.isBlank()) return java.util.Optional.empty();
+        String token = adminToken();
+        // Keycloak Admin: /users?username=<u>&exact=true → array of matches.
+        JsonNode arr = restClient.get()
+                .uri(realmUrl("/users?username=" + java.net.URLEncoder.encode(
+                        username, java.nio.charset.StandardCharsets.UTF_8) + "&exact=true"))
+                .header("Authorization", "Bearer " + token)
+                .retrieve()
+                .body(JsonNode.class);
+        if (arr == null || !arr.isArray() || arr.isEmpty()) return java.util.Optional.empty();
+        return java.util.Optional.of(arr.get(0).path("id").asText());
+    }
+
+    /**
+     * Grants a single realm role to a user (idempotent — Keycloak silently
+     * no-ops if the role is already assigned).
+     */
+    public void addRealmRoleToUser(String userId, String roleName) {
+        Map<String, String> role = lookupRealmRole(roleName);
+        if (role == null) {
+            log.warn("Cannot grant role {} — not found in realm", roleName);
+            return;
+        }
+        restClient.post()
+                .uri(realmUrl("/users/" + userId + "/role-mappings/realm"))
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(List.of(role))
+                .retrieve()
+                .toBodilessEntity();
+        log.debug("Granted role {} to user {}", roleName, userId);
+    }
+
+    /**
+     * Revokes a single realm role from a user. Idempotent — no-op if the
+     * user doesn't currently hold the role.
+     */
+    public void removeRealmRoleFromUser(String userId, String roleName) {
+        Map<String, String> role = lookupRealmRole(roleName);
+        if (role == null) {
+            log.warn("Cannot revoke role {} — not found in realm", roleName);
+            return;
+        }
+        restClient.method(HttpMethod.DELETE)
+                .uri(realmUrl("/users/" + userId + "/role-mappings/realm"))
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(List.of(role))
+                .retrieve()
+                .toBodilessEntity();
+        log.debug("Revoked role {} from user {}", roleName, userId);
+    }
+
+    /** Internal — find a realm role by name and return its {id,name} pair. */
+    private Map<String, String> lookupRealmRole(String roleName) {
+        if (roleName == null || roleName.isBlank()) return null;
+        JsonNode r = restClient.get()
+                .uri(realmUrl("/roles/" + java.net.URLEncoder.encode(
+                        roleName, java.nio.charset.StandardCharsets.UTF_8)))
+                .header("Authorization", "Bearer " + adminToken())
+                .retrieve()
+                .body(JsonNode.class);
+        if (r == null || r.path("id").isMissingNode()) return null;
+        return Map.of("id", r.path("id").asText(), "name", r.path("name").asText());
+    }
+
+    // -------------------------------------------------------------------------
     // Package-accessible helpers for collaborating services (M54)
     // -------------------------------------------------------------------------
 

@@ -27,6 +27,8 @@ import az.millers.hcm.corehr.domain.RequiredEmployeeDocument;
 import az.millers.hcm.corehr.service.EmployeeApprovalLimitService;
 import az.millers.hcm.corehr.service.EmployeeAssetService;
 import az.millers.hcm.corehr.service.RequiredEmployeeDocumentService;
+import az.millers.hcm.admin.KeycloakAdminService;
+import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.learning.api.dto.EnrollRequest;
 import az.millers.hcm.learning.domain.Course;
 import az.millers.hcm.learning.domain.CourseStatus;
@@ -88,6 +90,13 @@ public class PositionProfileGrantService {
     // create a required_employee_document row so the employee shows up
     // on the "owes HR these documents" list. Waived on revoke.
     private final RequiredEmployeeDocumentService requiredDocService;
+    // M265 — Phase F.6: when an ACCESS_ROLE grant fires, we look up the
+    // employee's Keycloak user_id by username and grant the realm role
+    // named in reference_code. Revoke removes it. Soft-fails when the
+    // user has no Keycloak account yet (newly created hire) — operator
+    // can mark the grant ACTIVE manually after provisioning.
+    private final KeycloakAdminService keycloakAdminService;
+    private final EmployeeRepository employees;
 
     public PositionProfileGrantService(PositionProfileGrantRepository grants,
                                         PositionProfileItemRepository items,
@@ -100,7 +109,9 @@ public class PositionProfileGrantService {
                                         CourseRepository courses,
                                         EmployeeAssetService employeeAssetService,
                                         EmployeeApprovalLimitService approvalLimitService,
-                                        RequiredEmployeeDocumentService requiredDocService) {
+                                        RequiredEmployeeDocumentService requiredDocService,
+                                        KeycloakAdminService keycloakAdminService,
+                                        EmployeeRepository employees) {
         this.grants = grants;
         this.items = items;
         this.audit = audit;
@@ -113,6 +124,8 @@ public class PositionProfileGrantService {
         this.employeeAssetService = employeeAssetService;
         this.approvalLimitService = approvalLimitService;
         this.requiredDocService = requiredDocService;
+        this.keycloakAdminService = keycloakAdminService;
+        this.employees = employees;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────
@@ -222,6 +235,10 @@ public class PositionProfileGrantService {
             if (g.getItemType() == ProfileItemType.REQUIRED_DOCUMENT) {
                 return tryFireRequiredDocForExistingGrant(g);
             }
+            // M265 — Phase F.6
+            if (g.getItemType() == ProfileItemType.ACCESS_ROLE) {
+                return tryFireAccessRoleForExistingGrant(g);
+            }
         }
         g.setStatus(GrantStatus.ACTIVE);
         g.setGrantedAt(OffsetDateTime.now());
@@ -245,6 +262,7 @@ public class PositionProfileGrantService {
         tryReturnDownstreamEquipment(g);
         tryEndDownstreamApprovalLimit(g);   // M261 / Phase F.7
         tryWaiveDownstreamRequiredDoc(g);   // M262 / Phase F.5a
+        tryRevokeDownstreamAccessRole(g);   // M265 / Phase F.6
         g.setStatus(GrantStatus.REVOKED);
         g.setRevokedAt(OffsetDateTime.now());
         g.setRevokedBy(currentRequest.username());
@@ -273,6 +291,7 @@ public class PositionProfileGrantService {
             tryReturnDownstreamEquipment(g);
             tryEndDownstreamApprovalLimit(g);   // M261 / Phase F.7
             tryWaiveDownstreamRequiredDoc(g);   // M262 / Phase F.5a
+            tryRevokeDownstreamAccessRole(g);   // M265 / Phase F.6
             g.setStatus(GrantStatus.REVOKED);
             g.setRevokedAt(now);
             g.setRevokedBy(actor);
@@ -321,6 +340,7 @@ public class PositionProfileGrantService {
             case EQUIPMENT: return tryAutoFireEquipment(g, occ);
             case APPROVAL_LIMIT: return tryAutoFireApprovalLimit(g, occ);
             case REQUIRED_DOCUMENT: return tryAutoFireRequiredDoc(g, occ);
+            case ACCESS_ROLE: return tryAutoFireAccessRole(g);
             // Other types stay PENDING — Phase F.6+ will wire REQUIRED_DOCUMENT
             // and ACCESS_ROLE if/when the target modules exist.
             default: return g;
@@ -729,6 +749,82 @@ public class PositionProfileGrantService {
             return DocumentRequirementType.valueOf(code.toUpperCase().trim());
         } catch (IllegalArgumentException ex) {
             return DocumentRequirementType.OTHER;
+        }
+    }
+
+    // ── M265 / Phase F.6 — ACCESS_ROLE → Keycloak realm role ────────
+
+    /**
+     * Auto-grant a Keycloak realm role when an ACCESS_ROLE grant fires.
+     *
+     * <p>{@code reference_code} is treated as the realm role name (e.g.
+     * "HR_SPECIALIST"). We look up the Keycloak user_id from the
+     * employee's username, then grant the role idempotently.
+     *
+     * <p>Soft-fail when the employee has no username yet OR no matching
+     * Keycloak user — the grant ends up FAILED with a clear reason so HR
+     * can re-fire it via markActive() after provisioning the SSO account.
+     */
+    private PositionProfileGrant tryAutoFireAccessRole(PositionProfileGrant g) {
+        return assignDownstreamAccessRole(g);
+    }
+
+    private PositionProfileGrant tryFireAccessRoleForExistingGrant(PositionProfileGrant g) {
+        return assignDownstreamAccessRole(g);
+    }
+
+    private PositionProfileGrant assignDownstreamAccessRole(PositionProfileGrant g) {
+        if (!hasText(g.getReferenceCode())) {
+            return markFailedSilently(g,
+                    "ACCESS_ROLE grant has no reference_code — set the realm role name on the profile item.");
+        }
+        var emp = employees.findById(g.getEmployeeId()).orElse(null);
+        if (emp == null) {
+            return markFailedSilently(g, "Employee not found for ACCESS_ROLE grant");
+        }
+        if (!hasText(emp.getUsername())) {
+            return markFailedSilently(g,
+                    "Employee has no username yet — provision SSO account, then mark active.");
+        }
+        try {
+            var userIdOpt = keycloakAdminService.findUserIdByUsername(emp.getUsername());
+            if (userIdOpt.isEmpty()) {
+                return markFailedSilently(g,
+                        "No Keycloak user for '" + emp.getUsername() + "' — provision the account first.");
+            }
+            String userId = userIdOpt.get();
+            keycloakAdminService.addRealmRoleToUser(userId, g.getReferenceCode());
+
+            g.setStatus(GrantStatus.ACTIVE);
+            g.setGrantedAt(OffsetDateTime.now());
+            g.setGrantedBy(currentRequest.username());
+            // No DB row downstream — store the realm role name as a synthetic
+            // identifier so revoke can look it up without re-reading the grant
+            // (Keycloak doesn't give us its own row id for the mapping itself).
+            g.setDownstreamEntityType("KEYCLOAK_REALM_ROLE");
+            g.setUpdatedBy(currentRequest.username());
+            return grants.save(g);
+        } catch (RuntimeException ex) {
+            return markFailedSilently(g, "Keycloak role grant failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Revoke the realm role on grant-revoke. Soft-fail — if Keycloak is down,
+     * the grant still flips to REVOKED locally so the operator's intent is
+     * recorded; the role can be cleaned up out-of-band.
+     */
+    private void tryRevokeDownstreamAccessRole(PositionProfileGrant g) {
+        if (!"KEYCLOAK_REALM_ROLE".equals(g.getDownstreamEntityType())) return;
+        if (!hasText(g.getReferenceCode())) return;
+        try {
+            var emp = employees.findById(g.getEmployeeId()).orElse(null);
+            if (emp == null || !hasText(emp.getUsername())) return;
+            var userIdOpt = keycloakAdminService.findUserIdByUsername(emp.getUsername());
+            if (userIdOpt.isEmpty()) return;
+            keycloakAdminService.removeRealmRoleFromUser(userIdOpt.get(), g.getReferenceCode());
+        } catch (RuntimeException ex) {
+            g.setFailureReason("Keycloak role revoke failed: " + ex.getMessage());
         }
     }
 
