@@ -207,6 +207,11 @@ export function PositionsPage() {
       extra={
         canEdit && (
           <Space>
+            {/* M258 — variance dashboard. Open to anyone who can see the
+                positions list; backend gate is HR / payroll / finance. */}
+            <Button onClick={() => navigate('/positions/variance')}>
+              💰 Budget vs Actual
+            </Button>
             {/* M255 — bulk import is HR_ADMIN only; canEdit already gates that */}
             <Button onClick={() => setImportOpen(true)}>📥 Import</Button>
             <Button type="primary" onClick={() => navigate('/positions/new')}>

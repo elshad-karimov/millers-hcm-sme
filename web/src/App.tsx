@@ -10,6 +10,7 @@ import { StaffingTableDetailPage } from './pages/StaffingTableDetailPage'
 import { WorkforcePlansPage } from './pages/WorkforcePlansPage'
 import { WorkforcePlanDetailPage } from './pages/WorkforcePlanDetailPage'
 import { PositionFormPage } from './pages/PositionFormPage'
+import { PositionVariancePage } from './pages/PositionVariancePage'
 import { PositionControlPage } from './pages/PositionControlPage'
 import { InboxPage } from './pages/InboxPage'
 import { AttendanceSchedulesPage } from './pages/AttendanceSchedulesPage'
@@ -305,6 +306,8 @@ export default function App() {
           <Route path="positions" element={<PositionsPage />} />
           <Route path="positions/new" element={<PositionFormPage />} />
           <Route path="positions/:id/edit" element={<PositionFormPage />} />
+          {/* M258 — budget vs actual variance dashboard (PRD §19) */}
+          <Route path="positions/variance" element={<PositionVariancePage />} />
           {/* M127 — position competency requirements + candidate fit */}
           <Route path="positions/:id/skills" element={<PositionSkillsPage />} />
           {/* M109 — position control gate dashboard */}

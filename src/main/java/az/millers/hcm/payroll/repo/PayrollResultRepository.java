@@ -1,5 +1,6 @@
 package az.millers.hcm.payroll.repo;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,12 @@ public interface PayrollResultRepository extends JpaRepository<PayrollResult, UU
     Optional<PayrollResult> findByRunIdAndEmployeeId(UUID runId, UUID employeeId);
 
     List<PayrollResult> findByEmployeeIdOrderByCreatedAtDesc(UUID employeeId);
+
+    /**
+     * M258 — all payroll results for a given period (month-start), used by
+     * the position budget-vs-actual variance dashboard.
+     */
+    List<PayrollResult> findByPeriodStart(LocalDate periodStart);
 
     void deleteByRunId(UUID runId);
 }
