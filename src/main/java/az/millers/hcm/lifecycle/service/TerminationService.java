@@ -80,6 +80,12 @@ public class TerminationService {
     // M249 — Phase D.2: close the active PRIMARY occupancy + auto-revoke
     // every grant on the way out.
     private final az.millers.hcm.staffing.service.PositionOccupancyService occupancyService;
+    // M269 — disable the Keycloak SSO account on termination so the
+    // ex-employee can't log in even before HR runs the manual
+    // user-management cleanup. Profile-granted realm roles are
+    // already revoked through occupancy close (M265); this closes
+    // the account itself.
+    private final az.millers.hcm.admin.KeycloakAdminService keycloakAdminService;
 
     public TerminationService(TerminationRequestRepository terminations,
                               ExitInterviewRepository exitInterviews,
@@ -94,7 +100,8 @@ public class TerminationService {
                               CurrentRequest currentRequest,
                               EmployeeHistoryService historyService,
                               ApplicationEventPublisher eventPublisher,
-                              az.millers.hcm.staffing.service.PositionOccupancyService occupancyService) {
+                              az.millers.hcm.staffing.service.PositionOccupancyService occupancyService,
+                              az.millers.hcm.admin.KeycloakAdminService keycloakAdminService) {
         this.terminations = terminations;
         this.exitInterviews = exitInterviews;
         this.employees = employees;
@@ -109,6 +116,7 @@ public class TerminationService {
         this.historyService = historyService;
         this.eventPublisher = eventPublisher;
         this.occupancyService = occupancyService;
+        this.keycloakAdminService = keycloakAdminService;
     }
 
     @Transactional(readOnly = true)
@@ -343,6 +351,24 @@ public class TerminationService {
                 log.warn("Failed to close PRIMARY occupancy on termination {}: {}",
                         t.getTerminationNo(), ex.getMessage());
                 calcDetails.put("occupancyCloseError", ex.getMessage());
+                t.setPayoutCalcDetails(calcDetails);
+            }
+        }
+
+        // M269 — disable the Keycloak SSO account so the ex-employee
+        // can't log in. Profile-granted realm roles are already revoked
+        // via the M249 occupancy close → M265 ACCESS_ROLE wire-up; this
+        // closes the account itself in case the employee held additional
+        // roles assigned outside the position profile. Soft-fail so an
+        // unreachable Keycloak doesn't block the termination — the
+        // M114 audit log records the failure for follow-up.
+        if (savedEmployee.getUsername() != null && !savedEmployee.getUsername().isBlank()) {
+            try {
+                keycloakAdminService.disableUser(savedEmployee.getUsername());
+            } catch (RuntimeException ex) {
+                log.warn("Failed to disable Keycloak user '{}' on termination {}: {}",
+                        savedEmployee.getUsername(), t.getTerminationNo(), ex.getMessage());
+                calcDetails.put("keycloakDisableError", ex.getMessage());
                 t.setPayoutCalcDetails(calcDetails);
             }
         }
