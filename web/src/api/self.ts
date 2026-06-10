@@ -52,6 +52,14 @@ export interface SelfSummary {
   activeReviewStatus?: string | null
 }
 
+// M266 — Phase F.* "checklist tasks" self surface.
+export interface SelfChecklistTask {
+  id: string
+  label: string
+  notes?: string | null
+  createdAt: string
+}
+
 // M264 — Phase F.7 "your approval authority" self surface.
 export type ApprovalLimitType =
   | 'PURCHASE_ORDER'
@@ -108,6 +116,13 @@ export const selfApi = {
   // M264 — active approval limits for the current employee.
   approvalLimits: () =>
     api.get<SelfApprovalLimit[]>('/self/approval-limits').then((r) => r.data),
+  // M266 — PENDING CHECKLIST_ITEM profile-grant tasks for the current employee.
+  checklistTasks: () =>
+    api.get<SelfChecklistTask[]>('/self/checklist-tasks').then((r) => r.data),
+  completeChecklistTask: (id: string) =>
+    api
+      .post<SelfChecklistTask>(`/self/checklist-tasks/${id}/complete`)
+      .then((r) => r.data),
 
   leaveBalances: () => api.get<LeaveBalance[]>('/self/leave/balances').then((r) => r.data),
   leaveTypes: () => api.get<LeaveType[]>('/self/leave/types').then((r) => r.data),

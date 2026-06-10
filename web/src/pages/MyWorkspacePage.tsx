@@ -41,6 +41,7 @@ import {
 import type { PerformanceReview } from '../api/performance'
 import { RequiredDocumentsWidget } from '../components/RequiredDocumentsWidget'
 import { ApprovalLimitsWidget } from '../components/ApprovalLimitsWidget'
+import { ChecklistTasksWidget } from '../components/ChecklistTasksWidget'
 
 // ============================================================================
 //  Dashboard tab
@@ -61,6 +62,10 @@ function Dashboard({
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {/* M266 — "✅ Onboarding checklist" widget. Renders nothing once
+          all checklist tasks are done; appears first so the new hire
+          sees their to-dos at the top. */}
+      <ChecklistTasksWidget />
       {/* M263 — "📂 Documents owed to HR" widget. Renders nothing when
           the employee has no pending REQUIRED_DOCUMENT obligations,
           so the dashboard stays clean for the typical case. */}

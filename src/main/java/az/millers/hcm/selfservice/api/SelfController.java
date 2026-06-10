@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -111,6 +112,10 @@ public class SelfController {
     // M264 — Phase F.7 self surface: lets the current employee see
     // their active approval-limit grants on My Workspace.
     private final az.millers.hcm.corehr.service.EmployeeApprovalLimitService approvalLimitService;
+    // M266 — Phase F.* self surface: lets the current employee see and
+    // tick off CHECKLIST_ITEM grants from their position profile.
+    private final az.millers.hcm.staffing.repo.PositionProfileGrantRepository profileGrants;
+    private final az.millers.hcm.staffing.service.PositionProfileGrantService grantService;
 
     public SelfController(EmployeeContextService context,
                           EmployeeRepository employeeRepo,
@@ -135,12 +140,16 @@ public class SelfController {
                           LetterRequestService letterRequestService,
                           PersonalInfoChangeService personalInfoChangeService,
                           az.millers.hcm.corehr.service.RequiredEmployeeDocumentService requiredDocService,
-                          az.millers.hcm.corehr.service.EmployeeApprovalLimitService approvalLimitService) {
+                          az.millers.hcm.corehr.service.EmployeeApprovalLimitService approvalLimitService,
+                          az.millers.hcm.staffing.repo.PositionProfileGrantRepository profileGrants,
+                          az.millers.hcm.staffing.service.PositionProfileGrantService grantService) {
         this.context = context;
         this.letterRequestService = letterRequestService;
         this.personalInfoChangeService = personalInfoChangeService;
         this.requiredDocService = requiredDocService;
         this.approvalLimitService = approvalLimitService;
+        this.profileGrants = profileGrants;
+        this.grantService = grantService;
         this.employeeRepo = employeeRepo;
         this.leaveBalances = leaveBalances;
         this.leaveTypes = leaveTypes;
@@ -527,6 +536,55 @@ public class SelfController {
         return approvalLimitService.listActive(me.getId()).stream()
                 .map(az.millers.hcm.corehr.api.EmployeeApprovalLimitController.LimitResponse::from)
                 .toList();
+    }
+
+    /**
+     * M266 — checklist tasks: the employee's CHECKLIST_ITEM profile-grant
+     * rows that are still PENDING. Returns id, label, notes, createdAt
+     * so the SPA widget can render a tick-off list.
+     */
+    @GetMapping("/checklist-tasks")
+    public List<ChecklistTaskResponse> myChecklistTasks() {
+        Employee me = context.currentEmployee();
+        return profileGrants.findByEmployeeIdAndItemTypeAndStatusOrderByCreatedAtDesc(
+                me.getId(),
+                az.millers.hcm.staffing.domain.ProfileItemType.CHECKLIST_ITEM,
+                az.millers.hcm.staffing.domain.GrantStatus.PENDING)
+                .stream().map(ChecklistTaskResponse::from).toList();
+    }
+
+    /**
+     * M266 — employee ticks off a checklist task. Routes through the
+     * normal {@code markActive} path so the same audit + lifecycle
+     * apply as when an operator marks it done; for CHECKLIST_ITEM there
+     * is no downstream module, so this just flips the status.
+     *
+     * <p>The boundary check is implicit: the grant must belong to the
+     * authenticated employee, otherwise we 404 to avoid leaking ids.
+     */
+    @PostMapping("/checklist-tasks/{id}/complete")
+    public ChecklistTaskResponse completeChecklistTask(@PathVariable UUID id) {
+        Employee me = context.currentEmployee();
+        var grant = profileGrants.findById(id)
+                .filter(g -> me.getId().equals(g.getEmployeeId()))
+                .filter(g -> g.getItemType() ==
+                        az.millers.hcm.staffing.domain.ProfileItemType.CHECKLIST_ITEM)
+                .orElseThrow(() -> new az.millers.hcm.common.ResourceNotFoundException(
+                        "Checklist task not found: " + id));
+        return ChecklistTaskResponse.from(grantService.markActive(grant.getId()));
+    }
+
+    public record ChecklistTaskResponse(
+            UUID id,
+            String label,
+            String notes,
+            java.time.OffsetDateTime createdAt) {
+
+        public static ChecklistTaskResponse from(
+                az.millers.hcm.staffing.domain.PositionProfileGrant g) {
+            return new ChecklistTaskResponse(
+                    g.getId(), g.getLabel(), g.getNotes(), g.getCreatedAt());
+        }
     }
 
     @PostMapping("/personal-info/submit")
