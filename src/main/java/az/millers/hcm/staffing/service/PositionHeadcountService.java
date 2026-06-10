@@ -133,10 +133,25 @@ public class PositionHeadcountService {
         }
         Position p = positions.findById(positionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Position not found: " + positionId));
-        if (p.getStatus() == PositionStatus.CLOSED) {
+        // M267 — full M243 lifecycle gate. Previously only blocked CLOSED;
+        // FROZEN / DRAFT / PENDING_APPROVAL / UNDER_REVIEW / ARCHIVED would
+        // all let vacancies be posted but then fail at hire time
+        // (assertCanFill uses isFillable). Block at posting to avoid
+        // ghost vacancies on positions that can never be filled.
+        if (!p.getStatus().isFillable()) {
             throw new BadRequestException(
-                    "Position " + p.getCode() + " is CLOSED — cannot post vacancies");
+                    "Position " + p.getCode() + " is " + p.getStatus()
+                    + " — only ACTIVE positions accept vacancies. "
+                    + (p.getStatus() == PositionStatus.FROZEN
+                            ? "Unfreeze the position first."
+                            : "Activate the position first."));
         }
+        // M267 — funding gate. Without this, you could post a vacancy
+        // for an UNFUNDED position, run a full recruitment cycle, and
+        // then have the hire blocked by assertCanFill at the very last
+        // step. Better to surface the gate up front.
+        fundingService.assertCanRecruit(positionId);
+
         long actualOccupied = employees.countActiveByPositionId(positionId);
         int openVacancyOpenings = vacancies.sumOpeningsByPositionAndStatus(positionId, VacancyStatus.OPEN);
         long committed = actualOccupied + openVacancyOpenings;
