@@ -28,4 +28,7 @@ public interface VacancyRepository extends JpaRepository<Vacancy, UUID> {
             + "where v.positionId = :positionId and v.status = :status")
     int sumOpeningsByPositionAndStatus(@org.springframework.data.repository.query.Param("positionId") UUID positionId,
                                        @org.springframework.data.repository.query.Param("status") VacancyStatus status);
+
+    /** M272 — all vacancies on a position (for impact analysis). */
+    java.util.List<Vacancy> findByPositionIdOrderByCreatedAtDesc(UUID positionId);
 }

@@ -176,6 +176,17 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     @Query("select e from Employee e where e.managerId = :managerId order by e.lastName, e.firstName")
     java.util.List<Employee> findDirectReports(@Param("managerId") UUID managerId);
 
+    /** M272 — all non-terminated employees on a position (for impact analysis). */
+    @Query("""
+            select e from Employee e
+            where e.positionId = :positionId
+              and e.employmentStatus not in (
+                az.millers.hcm.corehr.domain.EmploymentStatus.TERMINATED,
+                az.millers.hcm.corehr.domain.EmploymentStatus.RETIRED)
+            order by e.lastName, e.firstName
+            """)
+    java.util.List<Employee> findActiveByPositionId(@Param("positionId") UUID positionId);
+
     /**
      * Employees rehired via the M78 flow — i.e. their row has a non-null
      * {@code previousEmployeeId}. Used by the M80 "Recent rehires" report.
