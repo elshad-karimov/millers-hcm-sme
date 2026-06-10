@@ -21,9 +21,12 @@ import az.millers.hcm.corehr.api.dto.AssetReturnRequest;
 import az.millers.hcm.corehr.domain.ApprovalLimitType;
 import az.millers.hcm.corehr.domain.AssetStatus;
 import az.millers.hcm.corehr.domain.AssetType;
+import az.millers.hcm.corehr.domain.DocumentRequirementType;
 import az.millers.hcm.corehr.domain.EmployeeApprovalLimit;
+import az.millers.hcm.corehr.domain.RequiredEmployeeDocument;
 import az.millers.hcm.corehr.service.EmployeeApprovalLimitService;
 import az.millers.hcm.corehr.service.EmployeeAssetService;
+import az.millers.hcm.corehr.service.RequiredEmployeeDocumentService;
 import az.millers.hcm.learning.api.dto.EnrollRequest;
 import az.millers.hcm.learning.domain.Course;
 import az.millers.hcm.learning.domain.CourseStatus;
@@ -81,6 +84,10 @@ public class PositionProfileGrantService {
     // we auto-create an effective-dated employee_approval_limit row and
     // effective-date it out on revoke.
     private final EmployeeApprovalLimitService approvalLimitService;
+    // M262 — Phase F.5a: when a REQUIRED_DOCUMENT grant fires, we auto-
+    // create a required_employee_document row so the employee shows up
+    // on the "owes HR these documents" list. Waived on revoke.
+    private final RequiredEmployeeDocumentService requiredDocService;
 
     public PositionProfileGrantService(PositionProfileGrantRepository grants,
                                         PositionProfileItemRepository items,
@@ -92,7 +99,8 @@ public class PositionProfileGrantService {
                                         EnrollmentRepository enrollments,
                                         CourseRepository courses,
                                         EmployeeAssetService employeeAssetService,
-                                        EmployeeApprovalLimitService approvalLimitService) {
+                                        EmployeeApprovalLimitService approvalLimitService,
+                                        RequiredEmployeeDocumentService requiredDocService) {
         this.grants = grants;
         this.items = items;
         this.audit = audit;
@@ -104,6 +112,7 @@ public class PositionProfileGrantService {
         this.courses = courses;
         this.employeeAssetService = employeeAssetService;
         this.approvalLimitService = approvalLimitService;
+        this.requiredDocService = requiredDocService;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────
@@ -209,6 +218,10 @@ public class PositionProfileGrantService {
             if (g.getItemType() == ProfileItemType.APPROVAL_LIMIT) {
                 return tryFireApprovalLimitForExistingGrant(g);
             }
+            // M262 — Phase F.5a
+            if (g.getItemType() == ProfileItemType.REQUIRED_DOCUMENT) {
+                return tryFireRequiredDocForExistingGrant(g);
+            }
         }
         g.setStatus(GrantStatus.ACTIVE);
         g.setGrantedAt(OffsetDateTime.now());
@@ -231,6 +244,7 @@ public class PositionProfileGrantService {
         tryEndDownstreamAllowance(g);
         tryReturnDownstreamEquipment(g);
         tryEndDownstreamApprovalLimit(g);   // M261 / Phase F.7
+        tryWaiveDownstreamRequiredDoc(g);   // M262 / Phase F.5a
         g.setStatus(GrantStatus.REVOKED);
         g.setRevokedAt(OffsetDateTime.now());
         g.setRevokedBy(currentRequest.username());
@@ -258,6 +272,7 @@ public class PositionProfileGrantService {
             tryEndDownstreamAllowance(g);
             tryReturnDownstreamEquipment(g);
             tryEndDownstreamApprovalLimit(g);   // M261 / Phase F.7
+            tryWaiveDownstreamRequiredDoc(g);   // M262 / Phase F.5a
             g.setStatus(GrantStatus.REVOKED);
             g.setRevokedAt(now);
             g.setRevokedBy(actor);
@@ -305,6 +320,7 @@ public class PositionProfileGrantService {
             case TRAINING:  return tryAutoFireTraining(g, occ);
             case EQUIPMENT: return tryAutoFireEquipment(g, occ);
             case APPROVAL_LIMIT: return tryAutoFireApprovalLimit(g, occ);
+            case REQUIRED_DOCUMENT: return tryAutoFireRequiredDoc(g, occ);
             // Other types stay PENDING — Phase F.6+ will wire REQUIRED_DOCUMENT
             // and ACCESS_ROLE if/when the target modules exist.
             default: return g;
@@ -643,6 +659,76 @@ public class PositionProfileGrantService {
             return ApprovalLimitType.valueOf(code.toUpperCase().trim());
         } catch (IllegalArgumentException ex) {
             return ApprovalLimitType.GENERAL;
+        }
+    }
+
+    // ── M262 / Phase F.5a — REQUIRED_DOCUMENT wire-up ────────────────
+
+    /**
+     * Auto-create a required_employee_document row when a REQUIRED_DOCUMENT
+     * grant fires for a new occupancy.
+     *
+     * <p>{@code reference_code} is parsed as a {@link DocumentRequirementType}
+     * enum value (PASSPORT, DIPLOMA, NDA, …); anything that doesn't match
+     * falls back to {@link DocumentRequirementType#OTHER}. The grant's
+     * label becomes the human-readable document name.
+     */
+    private PositionProfileGrant tryAutoFireRequiredDoc(PositionProfileGrant g, PositionOccupancy occ) {
+        DocumentRequirementType type = resolveDocType(g.getReferenceCode());
+        return assignDownstreamRequiredDoc(g, type);
+    }
+
+    private PositionProfileGrant tryFireRequiredDocForExistingGrant(PositionProfileGrant g) {
+        DocumentRequirementType type = resolveDocType(g.getReferenceCode());
+        return assignDownstreamRequiredDoc(g, type);
+    }
+
+    private PositionProfileGrant assignDownstreamRequiredDoc(
+            PositionProfileGrant g, DocumentRequirementType type) {
+        try {
+            RequiredEmployeeDocument created = requiredDocService.assign(
+                    g.getEmployeeId(),
+                    type,
+                    g.getLabel(),
+                    null,                  // required_by_date — operator sets later if needed
+                    "PROFILE_GRANT",
+                    g.getId(),
+                    "Auto-required from position profile (M262)");
+
+            g.setStatus(GrantStatus.ACTIVE);
+            g.setGrantedAt(OffsetDateTime.now());
+            g.setGrantedBy(currentRequest.username());
+            g.setDownstreamEntityId(created.getId());
+            g.setDownstreamEntityType("REQUIRED_EMPLOYEE_DOCUMENT");
+            g.setUpdatedBy(currentRequest.username());
+            return grants.save(g);
+        } catch (RuntimeException ex) {
+            return markFailedSilently(g, "Downstream required-document assign failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Waive the linked requirement row when the grant is revoked. Soft-fail —
+     * if the doc was already SATISFIED or WAIVED, the service returns the
+     * row unchanged (no-op in those cases).
+     */
+    private void tryWaiveDownstreamRequiredDoc(PositionProfileGrant g) {
+        if (g.getDownstreamEntityId() == null) return;
+        if (!"REQUIRED_EMPLOYEE_DOCUMENT".equals(g.getDownstreamEntityType())) return;
+        try {
+            requiredDocService.waive(g.getDownstreamEntityId(),
+                    "Auto-waived on grant revoke (M262)");
+        } catch (RuntimeException ex) {
+            g.setFailureReason("Downstream required-document waive failed: " + ex.getMessage());
+        }
+    }
+
+    private DocumentRequirementType resolveDocType(String code) {
+        if (!hasText(code)) return DocumentRequirementType.OTHER;
+        try {
+            return DocumentRequirementType.valueOf(code.toUpperCase().trim());
+        } catch (IllegalArgumentException ex) {
+            return DocumentRequirementType.OTHER;
         }
     }
 
