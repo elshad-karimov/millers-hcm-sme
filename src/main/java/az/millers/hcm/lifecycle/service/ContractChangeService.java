@@ -60,6 +60,12 @@ public class ContractChangeService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final EmployeeHistoryService historyService;
+    // M270 — close / open M249 PositionOccupancy on POSITION change so
+    // the auto-revoke + auto-grant chains (M250-M265) fire on transfer
+    // the same way they fire on direct hire / termination. Without this,
+    // a promoted employee kept their old allowances, equipment, approval
+    // limits and Keycloak realm role forever.
+    private final az.millers.hcm.staffing.service.PositionOccupancyService occupancyService;
 
     public ContractChangeService(ContractChangeRepository changes,
                                   EmployeeRepository employees,
@@ -69,7 +75,8 @@ public class ContractChangeService {
                                   PositionHeadcountService headcountGate,
                                   AuditService audit,
                                   CurrentRequest currentRequest,
-                                  EmployeeHistoryService historyService) {
+                                  EmployeeHistoryService historyService,
+                                  az.millers.hcm.staffing.service.PositionOccupancyService occupancyService) {
         this.changes = changes;
         this.employees = employees;
         this.workflowService = workflowService;
@@ -79,6 +86,7 @@ public class ContractChangeService {
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.historyService = historyService;
+        this.occupancyService = occupancyService;
     }
 
     @Transactional(readOnly = true)
@@ -196,7 +204,7 @@ public class ContractChangeService {
 
         switch (c.getChangeType()) {
             case SALARY -> applySalary(employee, c.getEffectiveDate(), v, c);
-            case POSITION -> applyPosition(employee, v);
+            case POSITION -> applyPosition(employee, v, c);
             case DEPARTMENT -> {
                 employee.setOrgUnitId(uuidOrNull(v.get("orgUnitId")));
                 employee.setDepartmentName(strOrNull(v.get("departmentName")));
@@ -279,7 +287,7 @@ public class ContractChangeService {
         compensationService.upsert(comp);
     }
 
-    private void applyPosition(Employee employee, Map<String, Object> v) {
+    private void applyPosition(Employee employee, Map<String, Object> v, ContractChange c) {
         UUID newPositionId = uuidOrNull(v.get("positionId"));
         if (newPositionId == null) {
             throw new BadRequestException("POSITION change requires positionId");
@@ -299,10 +307,34 @@ public class ContractChangeService {
             } catch (RuntimeException ex) {
                 // not fatal — old position may already be closed
             }
+            // M270 — close the M249 PRIMARY occupancy on the old seat,
+            // which fires the auto-revoke chain: allowances end, equipment
+            // returns, approval limits effective-date out, required docs
+            // waive, Keycloak realm role from the old position revokes.
+            // Mirror of the EmployeeService.update position-swap path.
+            try {
+                occupancyService.closeActivePrimary(
+                        employee.getId(), oldPositionId,
+                        java.time.LocalDate.now(),
+                        "Contract change " + c.getChangeNo()
+                                + " — position swap for " + employee.getEmployeeNo());
+            } catch (RuntimeException ex) {
+                // soft-fail — occupancy may already be ended
+            }
         }
         if (!newPositionId.equals(oldPositionId)) {
             staffingService.adjustOccupancy(newPositionId, +1,
                     "Position change for " + employee.getEmployeeNo());
+            // M270 — open a new PRIMARY occupancy on the new seat. Triggers
+            // the M250 auto-grant queue so the new position's profile items
+            // land in HR's PENDING list and the M251-M265 wire-ups fire
+            // (allowances, training, equipment, approval limits, required
+            // docs, Keycloak realm role).
+            occupancyService.openPrimary(
+                    employee.getId(), newPositionId,
+                    java.time.LocalDate.now(),
+                    "Contract change " + c.getChangeNo()
+                            + " — position swap from previous seat for " + employee.getEmployeeNo());
         }
         employee.setPositionId(newPositionId);
         employee.setPositionTitle(newPos.getTitle());
