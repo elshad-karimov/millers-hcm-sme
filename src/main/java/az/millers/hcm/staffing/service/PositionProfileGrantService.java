@@ -18,8 +18,11 @@ import az.millers.hcm.compbenefits.service.EmployeeAllowanceService;
 import az.millers.hcm.corehr.api.dto.AssetRequest;
 import az.millers.hcm.corehr.api.dto.AssetResponse;
 import az.millers.hcm.corehr.api.dto.AssetReturnRequest;
+import az.millers.hcm.corehr.domain.ApprovalLimitType;
 import az.millers.hcm.corehr.domain.AssetStatus;
 import az.millers.hcm.corehr.domain.AssetType;
+import az.millers.hcm.corehr.domain.EmployeeApprovalLimit;
+import az.millers.hcm.corehr.service.EmployeeApprovalLimitService;
 import az.millers.hcm.corehr.service.EmployeeAssetService;
 import az.millers.hcm.learning.api.dto.EnrollRequest;
 import az.millers.hcm.learning.domain.Course;
@@ -73,6 +76,11 @@ public class PositionProfileGrantService {
     // matches one of the AssetType enum values, we auto-create the matching
     // employee_asset row + auto-return it on revoke.
     private final EmployeeAssetService employeeAssetService;
+    // M261 — Phase F.7: when an APPROVAL_LIMIT grant has a reference_code
+    // matching one of the ApprovalLimitType enum values + a value_amount,
+    // we auto-create an effective-dated employee_approval_limit row and
+    // effective-date it out on revoke.
+    private final EmployeeApprovalLimitService approvalLimitService;
 
     public PositionProfileGrantService(PositionProfileGrantRepository grants,
                                         PositionProfileItemRepository items,
@@ -83,7 +91,8 @@ public class PositionProfileGrantService {
                                         EnrollmentService enrollmentService,
                                         EnrollmentRepository enrollments,
                                         CourseRepository courses,
-                                        EmployeeAssetService employeeAssetService) {
+                                        EmployeeAssetService employeeAssetService,
+                                        EmployeeApprovalLimitService approvalLimitService) {
         this.grants = grants;
         this.items = items;
         this.audit = audit;
@@ -94,6 +103,7 @@ public class PositionProfileGrantService {
         this.enrollments = enrollments;
         this.courses = courses;
         this.employeeAssetService = employeeAssetService;
+        this.approvalLimitService = approvalLimitService;
     }
 
     // ── Reads ─────────────────────────────────────────────────────────────
@@ -195,6 +205,10 @@ public class PositionProfileGrantService {
             if (g.getItemType() == ProfileItemType.EQUIPMENT) {
                 return tryFireEquipmentForExistingGrant(g);
             }
+            // M261 — Phase F.7
+            if (g.getItemType() == ProfileItemType.APPROVAL_LIMIT) {
+                return tryFireApprovalLimitForExistingGrant(g);
+            }
         }
         g.setStatus(GrantStatus.ACTIVE);
         g.setGrantedAt(OffsetDateTime.now());
@@ -216,6 +230,7 @@ public class PositionProfileGrantService {
         // the asset. Training intentionally leaves the enrollment alone.
         tryEndDownstreamAllowance(g);
         tryReturnDownstreamEquipment(g);
+        tryEndDownstreamApprovalLimit(g);   // M261 / Phase F.7
         g.setStatus(GrantStatus.REVOKED);
         g.setRevokedAt(OffsetDateTime.now());
         g.setRevokedBy(currentRequest.username());
@@ -242,6 +257,7 @@ public class PositionProfileGrantService {
             // break the whole revoke.
             tryEndDownstreamAllowance(g);
             tryReturnDownstreamEquipment(g);
+            tryEndDownstreamApprovalLimit(g);   // M261 / Phase F.7
             g.setStatus(GrantStatus.REVOKED);
             g.setRevokedAt(now);
             g.setRevokedBy(actor);
@@ -288,6 +304,7 @@ public class PositionProfileGrantService {
             case ALLOWANCE: return tryAutoFireAllowance(g, occ);
             case TRAINING:  return tryAutoFireTraining(g, occ);
             case EQUIPMENT: return tryAutoFireEquipment(g, occ);
+            case APPROVAL_LIMIT: return tryAutoFireApprovalLimit(g, occ);
             // Other types stay PENDING — Phase F.6+ will wire REQUIRED_DOCUMENT
             // and ACCESS_ROLE if/when the target modules exist.
             default: return g;
@@ -546,6 +563,86 @@ public class PositionProfileGrantService {
             return AssetType.valueOf(code.toUpperCase().trim());
         } catch (IllegalArgumentException ex) {
             return AssetType.EQUIPMENT;
+        }
+    }
+
+    // ── M261 / Phase F.7 — APPROVAL_LIMIT wire-up ─────────────────────
+
+    /**
+     * Auto-create an employee_approval_limit row when an APPROVAL_LIMIT
+     * grant fires for a new occupancy.
+     *
+     * <p>{@code reference_code} is parsed as an {@link ApprovalLimitType}
+     * enum value (PURCHASE_ORDER, EXPENSE_REPORT, …); anything that
+     * doesn't match falls back to {@link ApprovalLimitType#GENERAL}.
+     * Amount + currency come from the grant's snapshot.
+     *
+     * <p>Soft-fail — if value_amount is null we can't create the
+     * downstream row (no meaningful limit), so we mark the grant
+     * FAILED with a clear reason rather than throwing.
+     */
+    private PositionProfileGrant tryAutoFireApprovalLimit(PositionProfileGrant g, PositionOccupancy occ) {
+        ApprovalLimitType type = resolveApprovalLimitType(g.getReferenceCode());
+        return assignDownstreamApprovalLimit(g, type, occ.getStartDate());
+    }
+
+    private PositionProfileGrant tryFireApprovalLimitForExistingGrant(PositionProfileGrant g) {
+        ApprovalLimitType type = resolveApprovalLimitType(g.getReferenceCode());
+        return assignDownstreamApprovalLimit(g, type, java.time.LocalDate.now());
+    }
+
+    private PositionProfileGrant assignDownstreamApprovalLimit(
+            PositionProfileGrant g, ApprovalLimitType type, java.time.LocalDate effectiveFrom) {
+        if (g.getValueAmount() == null) {
+            return markFailedSilently(g,
+                    "APPROVAL_LIMIT grant has no value_amount — set a max amount on the profile item.");
+        }
+        try {
+            EmployeeApprovalLimit created = approvalLimitService.assign(
+                    g.getEmployeeId(),
+                    type,
+                    g.getValueAmount(),
+                    g.getCurrency(),
+                    effectiveFrom == null ? java.time.LocalDate.now() : effectiveFrom,
+                    "PROFILE_GRANT",
+                    g.getId(),
+                    "Auto-granted from position profile (M261)");
+
+            g.setStatus(GrantStatus.ACTIVE);
+            g.setGrantedAt(OffsetDateTime.now());
+            g.setGrantedBy(currentRequest.username());
+            g.setDownstreamEntityId(created.getId());
+            g.setDownstreamEntityType("EMPLOYEE_APPROVAL_LIMIT");
+            g.setUpdatedBy(currentRequest.username());
+            return grants.save(g);
+        } catch (RuntimeException ex) {
+            return markFailedSilently(g, "Downstream approval-limit assign failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Effective-date the linked approval_limit row when the grant is
+     * revoked. Soft-fail — if the limit was already ended manually,
+     * the service returns the row unchanged.
+     */
+    private void tryEndDownstreamApprovalLimit(PositionProfileGrant g) {
+        if (g.getDownstreamEntityId() == null) return;
+        if (!"EMPLOYEE_APPROVAL_LIMIT".equals(g.getDownstreamEntityType())) return;
+        try {
+            approvalLimitService.end(g.getDownstreamEntityId(),
+                    java.time.LocalDate.now(),
+                    "Auto-ended on grant revoke (M261)");
+        } catch (RuntimeException ex) {
+            g.setFailureReason("Downstream approval-limit end failed: " + ex.getMessage());
+        }
+    }
+
+    private ApprovalLimitType resolveApprovalLimitType(String code) {
+        if (!hasText(code)) return ApprovalLimitType.GENERAL;
+        try {
+            return ApprovalLimitType.valueOf(code.toUpperCase().trim());
+        } catch (IllegalArgumentException ex) {
+            return ApprovalLimitType.GENERAL;
         }
     }
 
