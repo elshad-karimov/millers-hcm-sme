@@ -28,6 +28,7 @@ import {
 } from '../api/positionBudget'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
+import { PositionImportModal } from '../components/PositionImportModal'
 
 const VACANCY_OPTIONS: VacancyState[] = [
   'OCCUPIED',
@@ -60,6 +61,7 @@ export function PositionsPage() {
 
   const [rows, setRows] = useState<Position[]>([])
   const [loading, setLoading] = useState(false)
+  const [importOpen, setImportOpen] = useState(false) // M255
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(20)
   const [total, setTotal] = useState(0)
@@ -184,9 +186,13 @@ export function PositionsPage() {
       title={<Typography.Title level={4} style={{ margin: 0 }}>Positions</Typography.Title>}
       extra={
         canEdit && (
-          <Button type="primary" onClick={() => navigate('/positions/new')}>
-            New position
-          </Button>
+          <Space>
+            {/* M255 — bulk import is HR_ADMIN only; canEdit already gates that */}
+            <Button onClick={() => setImportOpen(true)}>📥 Import</Button>
+            <Button type="primary" onClick={() => navigate('/positions/new')}>
+              New position
+            </Button>
+          </Space>
         )
       }
     >
@@ -242,6 +248,13 @@ export function PositionsPage() {
           },
           showSizeChanger: true,
         }}
+      />
+      {/* M255 — bulk import wizard. Mounted as a child of the Card so
+          it lives in the same component tree as the list it refreshes. */}
+      <PositionImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => load()}
       />
     </Card>
   )
