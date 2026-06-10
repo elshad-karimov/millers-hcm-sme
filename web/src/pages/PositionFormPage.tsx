@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Button,
+  Card,
   Col,
   Collapse,
   DatePicker,
@@ -12,6 +13,7 @@ import {
   Space,
   Spin,
   Switch,
+  Typography,
   App as AntdApp,
 } from 'antd'
 import dayjs from 'dayjs'
@@ -22,6 +24,7 @@ import { PositionLifecyclePanel } from '../components/PositionLifecyclePanel'
 import { PositionBudgetFundingPanel } from '../components/PositionBudgetFundingPanel'
 import { PositionOccupancyPanel } from '../components/PositionOccupancyPanel'
 import { PositionProfilePanel } from '../components/PositionProfilePanel'
+import { PositionTransferPanel } from '../components/PositionTransferPanel'
 
 interface FormValues {
   title: string
@@ -185,6 +188,20 @@ export function PositionFormPage() {
             <div style={{ marginBottom: 16 }}>
               <PositionProfilePanel positionId={current.id} />
             </div>
+          )}
+          {/* M260 — Position transfer workflow (PRD §40). Embedded only
+              on edit so a brand-new position can be saved before a
+              transfer is initiated against it. */}
+          {editing && current && (
+            <Card
+              size="small"
+              title={
+                <span>📦 Transfers <Typography.Text type="secondary" style={{ fontSize: 12 }}>(PRD §40)</Typography.Text></span>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              <PositionTransferPanel positionId={current.id} />
+            </Card>
           )}
           <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 760 }}>
           <Form.Item name="title" label="Title" rules={[{ required: true, max: 200 }]}>
