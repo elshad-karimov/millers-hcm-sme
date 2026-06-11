@@ -49,6 +49,14 @@ public class Offer {
     @Column(nullable = false)
     private OfferStatus status;
 
+    /** M276 — the approval WorkflowInstance driving DRAFT → APPROVED. */
+    @Column(name = "workflow_instance_id")
+    private UUID workflowInstanceId;
+
+    /** M276 — true when the salary was outside the position range at submit. */
+    @Column(name = "salary_exception", nullable = false)
+    private boolean salaryException;
+
     @Column(name = "sent_at")
     private OffsetDateTime sentAt;
 

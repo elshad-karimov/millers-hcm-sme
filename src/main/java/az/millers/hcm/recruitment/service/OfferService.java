@@ -1,10 +1,14 @@
 package az.millers.hcm.recruitment.service;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +26,25 @@ import az.millers.hcm.recruitment.repo.ApplicationRepository;
 import az.millers.hcm.recruitment.repo.OfferRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.staffing.domain.Position;
+import az.millers.hcm.staffing.repo.PositionRepository;
 import az.millers.hcm.staffing.service.PositionHeadcountService;
+import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
+import az.millers.hcm.workflow.domain.WorkflowInstance;
+import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
+import az.millers.hcm.workflow.service.WorkflowService;
 
 @Service
 public class OfferService {
 
+    private static final Logger log = LoggerFactory.getLogger(OfferService.class);
+
     private static final String MODULE = "RECRUITMENT";
     private static final String ENTITY = "Offer";
+
+    /** M276 — Recruitment PRD §29-§30: definition codes seeded in V144. */
+    public static final String WORKFLOW_STANDARD = "OFFER_APPROVAL";
+    public static final String WORKFLOW_EXCEPTION = "OFFER_APPROVAL_EXCEPTION";
 
     private final OfferRepository offers;
     private final ApplicationRepository applications;
@@ -39,19 +55,26 @@ public class OfferService {
     // a week after the vacancy was posted under a different state.
     private final VacancyRepository vacancies;
     private final PositionHeadcountService headcountGate;
+    // M276 — salary-range validation against the position + approval workflow.
+    private final PositionRepository positions;
+    private final WorkflowService workflowService;
 
     public OfferService(OfferRepository offers,
                          ApplicationRepository applications,
                          AuditService audit,
                          CurrentRequest currentRequest,
                          VacancyRepository vacancies,
-                         PositionHeadcountService headcountGate) {
+                         PositionHeadcountService headcountGate,
+                         PositionRepository positions,
+                         WorkflowService workflowService) {
         this.offers = offers;
         this.applications = applications;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.vacancies = vacancies;
         this.headcountGate = headcountGate;
+        this.positions = positions;
+        this.workflowService = workflowService;
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +94,14 @@ public class OfferService {
             fresh.setStatus(OfferStatus.DRAFT);
             return fresh;
         });
-        if (o.getStatus() != OfferStatus.DRAFT && o.getStatus() != OfferStatus.SENT) {
+        // M276 — editable in DRAFT; editing an APPROVED offer invalidates
+        // the approval (PRD §33: material change after approval triggers
+        // re-approval) so it drops back to DRAFT. Frozen while pending.
+        if (o.getStatus() == OfferStatus.PENDING_APPROVAL) {
+            throw new BadRequestException(
+                    "Offer is pending approval — wait for the decision before editing");
+        }
+        if (o.getStatus() != OfferStatus.DRAFT && o.getStatus() != OfferStatus.APPROVED) {
             throw new BadRequestException("Cannot edit a " + o.getStatus() + " offer");
         }
         OfferResponse before = o.getId() == null ? null : OfferResponse.from(o);
@@ -80,6 +110,9 @@ public class OfferService {
         o.setProposedStartDate(req.proposedStartDate());
         o.setBenefits(req.benefits());
         o.setNotes(req.notes());
+        if (o.getStatus() == OfferStatus.APPROVED) {
+            o.setStatus(OfferStatus.DRAFT); // re-approval required
+        }
         Offer saved = offers.save(o);
         // Move the application to the OFFER stage if it isn't there yet.
         if (app.getCurrentStage() != ApplicationStage.OFFER
@@ -127,13 +160,142 @@ public class OfferService {
 
     private void validateTransition(OfferStatus from, OfferStatus to) {
         boolean ok = switch (from) {
-            case DRAFT -> to == OfferStatus.SENT || to == OfferStatus.RESCINDED;
+            // M276 — PRD §70: "Offer cannot be sent before approval".
+            // DRAFT can only be withdrawn; SENT requires APPROVED.
+            case DRAFT -> to == OfferStatus.RESCINDED;
+            case APPROVED -> to == OfferStatus.SENT || to == OfferStatus.RESCINDED;
             case SENT -> to == OfferStatus.ACCEPTED || to == OfferStatus.REJECTED
                     || to == OfferStatus.EXPIRED || to == OfferStatus.RESCINDED;
             default -> false;
         };
         if (!ok) throw new BadRequestException(
-                "Cannot transition offer from " + from + " to " + to);
+                from == OfferStatus.DRAFT && to == OfferStatus.SENT
+                        ? "Offer must be approved before it can be sent — submit it for approval first"
+                        : "Cannot transition offer from " + from + " to " + to);
+    }
+
+    // ── M276 — approval state machine (Recruitment PRD §29-§30) ────────
+
+    @Transactional
+    public Offer submitForApproval(UUID offerId) {
+        Offer o = offers.findById(offerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + offerId));
+        if (o.getStatus() != OfferStatus.DRAFT) {
+            throw new BadRequestException(
+                    "Only DRAFT offers can be submitted (current: " + o.getStatus() + ")");
+        }
+        if (o.getProposedSalary() == null) {
+            throw new BadRequestException("Offer needs a proposed salary before approval");
+        }
+
+        // Salary-range check against the position (fallback: the
+        // vacancy's advertised range). Out of range → exception chain.
+        SalaryRange range = resolveSalaryRange(o);
+        boolean exception = range != null && range.isOutside(o.getProposedSalary());
+
+        String definition = exception ? WORKFLOW_EXCEPTION : WORKFLOW_STANDARD;
+        String title = o.getOfferNo() + " — " + o.getProposedSalary() + " " + o.getCurrency()
+                + (exception
+                        ? " (EXCEPTION: outside range " + range.min() + "–" + range.max() + ")"
+                        : "");
+
+        WorkflowInstance instance = workflowService.start(new StartWorkflowRequest(
+                definition,
+                MODULE,
+                ENTITY,
+                o.getId().toString(),
+                title,
+                Map.of(
+                        "offerNo", o.getOfferNo(),
+                        "proposedSalary", o.getProposedSalary().toPlainString(),
+                        "currency", o.getCurrency(),
+                        "salaryException", exception,
+                        "rangeMin", range == null || range.min() == null ? "" : range.min().toPlainString(),
+                        "rangeMax", range == null || range.max() == null ? "" : range.max().toPlainString(),
+                        "requestedBy", currentRequest.username())));
+
+        o.setStatus(OfferStatus.PENDING_APPROVAL);
+        o.setSalaryException(exception);
+        o.setWorkflowInstanceId(instance.getId());
+        Offer saved = offers.save(o);
+        audit.record(MODULE, ENTITY, offerId.toString(), "SUBMIT_FOR_APPROVAL",
+                Map.of("status", OfferStatus.DRAFT.name()),
+                Map.of("status", saved.getStatus().name(),
+                        "definition", definition,
+                        "salaryException", exception,
+                        "workflowInstanceId", instance.getId().toString()));
+        return saved;
+    }
+
+    /** M276 — reacts to the offer approval workflow finishing. */
+    @EventListener
+    @Transactional
+    public void onWorkflowCompleted(WorkflowCompletedEvent event) {
+        if (!WORKFLOW_STANDARD.equals(event.definitionCode())
+                && !WORKFLOW_EXCEPTION.equals(event.definitionCode())) {
+            return;
+        }
+        if (!ENTITY.equals(event.subjectEntity())) return;
+
+        UUID offerId;
+        try {
+            offerId = UUID.fromString(event.subjectId());
+        } catch (IllegalArgumentException e) {
+            log.warn("Offer approval: invalid subjectId '{}'", event.subjectId());
+            return;
+        }
+        Offer o = offers.findById(offerId).orElse(null);
+        if (o == null) {
+            log.warn("Offer approval: offer {} not found for workflow {}",
+                    offerId, event.instanceId());
+            return;
+        }
+        if (o.getStatus() != OfferStatus.PENDING_APPROVAL) return; // idempotent guard
+
+        OfferStatus target = switch (event.status()) {
+            case APPROVED, AUTO_APPROVED -> OfferStatus.APPROVED;
+            // REJECTED / RETURNED / CANCELLED all land back in DRAFT so
+            // the recruiter can revise the salary and resubmit — an
+            // offer has no terminal "approval rejected" state because
+            // the negotiation continues.
+            default -> OfferStatus.DRAFT;
+        };
+        o.setStatus(target);
+        offers.save(o);
+        audit.record(MODULE, ENTITY, offerId.toString(), "APPROVAL_OUTCOME",
+                Map.of("status", OfferStatus.PENDING_APPROVAL.name()),
+                Map.of("status", target.name(),
+                        "workflowStatus", event.status().name(),
+                        "actor", event.actor() == null ? "" : event.actor(),
+                        "comment", event.comment() == null ? "" : event.comment()));
+        log.info("Offer {} approval outcome: {} → {} (by {})",
+                o.getOfferNo(), event.status(), target, event.actor());
+    }
+
+    /** Position range first (source of truth), vacancy range as fallback. */
+    private SalaryRange resolveSalaryRange(Offer o) {
+        Application app = applications.findById(o.getApplicationId()).orElse(null);
+        if (app == null) return null;
+        Vacancy v = vacancies.findById(app.getVacancyId()).orElse(null);
+        if (v == null) return null;
+        if (v.getPositionId() != null) {
+            Position p = positions.findById(v.getPositionId()).orElse(null);
+            if (p != null && (p.getSalaryMin() != null || p.getSalaryMax() != null)) {
+                return new SalaryRange(p.getSalaryMin(), p.getSalaryMax());
+            }
+        }
+        if (v.getSalaryMin() != null || v.getSalaryMax() != null) {
+            return new SalaryRange(v.getSalaryMin(), v.getSalaryMax());
+        }
+        return null;
+    }
+
+    private record SalaryRange(BigDecimal min, BigDecimal max) {
+        boolean isOutside(BigDecimal salary) {
+            if (min != null && salary.compareTo(min) < 0) return true;
+            if (max != null && salary.compareTo(max) > 0) return true;
+            return false;
+        }
     }
 
     /**

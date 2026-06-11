@@ -17,6 +17,9 @@ public record OfferResponse(
         LocalDate proposedStartDate,
         String benefits,
         OfferStatus status,
+        // M276 — approval workflow + salary exception flag
+        UUID workflowInstanceId,
+        boolean salaryException,
         OffsetDateTime sentAt,
         String sentBy,
         OffsetDateTime responseAt,
@@ -29,6 +32,7 @@ public record OfferResponse(
                 o.getId(), o.getOfferNo(), o.getApplicationId(),
                 o.getProposedSalary(), o.getCurrency(), o.getProposedStartDate(),
                 o.getBenefits(), o.getStatus(),
+                o.getWorkflowInstanceId(), o.isSalaryException(),
                 o.getSentAt(), o.getSentBy(), o.getResponseAt(),
                 o.getNotes(),
                 o.getCreatedAt(), o.getUpdatedAt());

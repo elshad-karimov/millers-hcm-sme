@@ -66,6 +66,8 @@ export type ApplicationStatus = 'IN_PROGRESS' | 'HIRED' | 'REJECTED' | 'WITHDRAW
 
 export type OfferStatus =
   | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
   | 'SENT'
   | 'ACCEPTED'
   | 'REJECTED'
@@ -207,6 +209,9 @@ export interface Offer {
   proposedStartDate: string
   benefits?: string | null
   status: OfferStatus
+  // M276 — approval workflow + salary exception flag
+  workflowInstanceId?: string | null
+  salaryException: boolean
   sentAt?: string | null
   sentBy?: string | null
   responseAt?: string | null
@@ -290,6 +295,9 @@ export const recruitmentApi = {
     api
       .put<Offer>('/recruitment/offers', payload, { params: { applicationId } })
       .then((r) => r.data),
+  // M276 — kick off the offer approval workflow (salary-exception routed)
+  submitOfferApproval: (id: string) =>
+    api.post<Offer>(`/recruitment/offers/${id}/submit-approval`).then((r) => r.data),
   transitionOffer: (id: string, status: OfferStatus, notes?: string) =>
     api
       .post<Offer>(`/recruitment/offers/${id}/status/${status}`, null, {

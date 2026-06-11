@@ -51,4 +51,11 @@ public class OfferController {
                                      @RequestParam(required = false) String notes) {
         return OfferResponse.from(service.transition(id, status, notes));
     }
+
+    /** M276 — Recruitment PRD §29-§30: kick off the offer approval workflow. */
+    @PostMapping("/{id}/submit-approval")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public OfferResponse submitForApproval(@PathVariable UUID id) {
+        return OfferResponse.from(service.submitForApproval(id));
+    }
 }

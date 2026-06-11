@@ -555,7 +555,10 @@ export function VacancyDetailPage() {
         {currentOffer && (
           <Space style={{ marginBottom: 12 }}>
             <Tag>{currentOffer.offerNo}</Tag>
-            <Tag color="geekblue">{currentOffer.status}</Tag>
+            <Tag color="geekblue">{currentOffer.status.replace(/_/g, ' ')}</Tag>
+            {currentOffer.salaryException && (
+              <Tag color="orange">SALARY EXCEPTION</Tag>
+            )}
           </Space>
         )}
         <Form form={oForm} layout="vertical">
@@ -587,13 +590,51 @@ export function VacancyDetailPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
+        {/* M276 — offers travel DRAFT → PENDING_APPROVAL → APPROVED → SENT */}
         {currentOffer && currentOffer.status === 'DRAFT' && (
           <Space style={{ marginTop: 8 }}>
             <Button
               type="primary"
               onClick={async () => {
-                await recruitmentApi.transitionOffer(currentOffer.id, 'SENT')
-                message.success('Offer marked SENT')
+                try {
+                  const o = await recruitmentApi.submitOfferApproval(currentOffer.id)
+                  message.success(
+                    o.salaryException
+                      ? 'Submitted — salary outside range, exception approval chain'
+                      : 'Submitted for approval',
+                  )
+                } catch (err) {
+                  message.error(
+                    (err as { response?: { data?: { message?: string } } }).response?.data
+                      ?.message ?? 'Submit failed',
+                  )
+                }
+                if (offerOpen) openOffer(offerOpen)
+              }}
+            >
+              Submit for approval
+            </Button>
+          </Space>
+        )}
+        {currentOffer && currentOffer.status === 'PENDING_APPROVAL' && (
+          <Tag color="gold" style={{ marginTop: 8 }}>
+            Awaiting approval — see the Approvals inbox
+          </Tag>
+        )}
+        {currentOffer && currentOffer.status === 'APPROVED' && (
+          <Space style={{ marginTop: 8 }}>
+            <Button
+              type="primary"
+              onClick={async () => {
+                try {
+                  await recruitmentApi.transitionOffer(currentOffer.id, 'SENT')
+                  message.success('Offer marked SENT')
+                } catch (err) {
+                  message.error(
+                    (err as { response?: { data?: { message?: string } } }).response?.data
+                      ?.message ?? 'Send failed',
+                  )
+                }
                 if (offerOpen) openOffer(offerOpen)
               }}
             >
