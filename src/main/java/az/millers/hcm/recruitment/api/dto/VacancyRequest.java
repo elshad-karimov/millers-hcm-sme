@@ -34,5 +34,7 @@ public record VacancyRequest(
         LocalDate targetStartDate,
         @Size(max = 64) String costCentre,
         @Size(max = 32) String employmentType,
-        UUID replacedEmployeeId) {
+        UUID replacedEmployeeId,
+        /** M277 — confidential requisition (null = leave unchanged). */
+        Boolean confidential) {
 }

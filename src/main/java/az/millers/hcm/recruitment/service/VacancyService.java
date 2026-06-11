@@ -54,28 +54,66 @@ public class VacancyService {
     private final CurrentRequest currentRequest;
     private final PositionHeadcountService headcountGate;
     private final WorkflowService workflowService;
+    // M277 — confidential requisition visibility (Recruitment PRD §41).
+    private final az.millers.hcm.security.scope.AccessScopeService accessScope;
+    private final az.millers.hcm.corehr.repo.EmployeeRepository employees;
 
     public VacancyService(VacancyRepository repository, AuditService audit,
                           CurrentRequest currentRequest,
                           PositionHeadcountService headcountGate,
-                          WorkflowService workflowService) {
+                          WorkflowService workflowService,
+                          az.millers.hcm.security.scope.AccessScopeService accessScope,
+                          az.millers.hcm.corehr.repo.EmployeeRepository employees) {
         this.repository = repository;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.headcountGate = headcountGate;
         this.workflowService = workflowService;
+        this.accessScope = accessScope;
+        this.employees = employees;
     }
 
     @Transactional(readOnly = true)
     public Vacancy get(UUID id) {
-        return repository.findById(id)
+        Vacancy v = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found: " + id));
+        // M277 — confidential requisitions 404 (not 403) for outsiders so
+        // their very existence stays hidden.
+        if (v.isConfidential() && !canViewConfidential(v)) {
+            throw new ResourceNotFoundException("Vacancy not found: " + id);
+        }
+        return v;
     }
 
     @Transactional(readOnly = true)
     public Page<Vacancy> list(VacancyStatus status, Pageable pageable) {
-        if (status != null) return repository.findByStatusOrderByCreatedAtDesc(status, pageable);
-        return repository.findAllByOrderByCreatedAtDesc(pageable);
+        // M277 — confidential rows are filtered in-query so pagination
+        // stays correct. The hiring team (named recruiter / hiring
+        // manager) and unrestricted users see everything.
+        boolean unrestricted = accessScope.isUnrestricted();
+        UUID employeeId = currentEmployeeIdOrNull();
+        if (status != null) {
+            return repository.findByStatusVisible(status, unrestricted, employeeId, pageable);
+        }
+        return repository.findAllVisible(unrestricted, employeeId, pageable);
+    }
+
+    /** M277 — true when the caller may see this confidential requisition. */
+    private boolean canViewConfidential(Vacancy v) {
+        if (accessScope.isUnrestricted()) return true;
+        UUID employeeId = currentEmployeeIdOrNull();
+        if (employeeId == null) return false;
+        return employeeId.equals(v.getRecruiterId())
+                || employeeId.equals(v.getHiringManagerId());
+    }
+
+    /** The caller's linked employee id, or null when no link exists. */
+    private UUID currentEmployeeIdOrNull() {
+        String username = currentRequest.username();
+        if (username == null || username.isBlank()) return null;
+        return employees.findByUsername(username)
+                .map(az.millers.hcm.corehr.domain.Employee::getId)
+                .orElse(null);
     }
 
     /**
@@ -306,5 +344,9 @@ public class VacancyService {
         v.setCostCentre(req.costCentre());
         v.setEmploymentType(req.employmentType());
         v.setReplacedEmployeeId(req.replacedEmployeeId());
+        // M277 — null means "not sent" (old clients): keep current value.
+        if (req.confidential() != null) {
+            v.setConfidential(req.confidential());
+        }
     }
 }

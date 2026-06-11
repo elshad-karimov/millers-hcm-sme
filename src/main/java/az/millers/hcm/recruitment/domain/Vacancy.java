@@ -95,6 +95,14 @@ public class Vacancy {
     @Column(name = "workflow_instance_id")
     private UUID workflowInstanceId;
 
+    /**
+     * M277 — Recruitment PRD §41: confidential requisitions are visible
+     * only to the named recruiter, the named hiring manager, and
+     * unrestricted-scope users (HR_ADMIN / SYSTEM_ADMIN).
+     */
+    @Column(nullable = false)
+    private boolean confidential;
+
     @Column(name = "opening_date")
     private LocalDate openingDate;
 

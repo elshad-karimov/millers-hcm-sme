@@ -35,6 +35,8 @@ public record VacancyResponse(
         UUID replacedEmployeeId,
         /** M275 — approval workflow instance (null until first submit). */
         UUID workflowInstanceId,
+        /** M277 — confidential requisition flag. */
+        boolean confidential,
         LocalDate openingDate,
         LocalDate closingDate,
         OffsetDateTime createdAt,
@@ -53,6 +55,7 @@ public record VacancyResponse(
                 v.getTargetStartDate(), v.getCostCentre(),
                 v.getEmploymentType(), v.getReplacedEmployeeId(),
                 v.getWorkflowInstanceId(),
+                v.isConfidential(),
                 v.getOpeningDate(), v.getClosingDate(),
                 v.getCreatedAt(), v.getUpdatedAt(),
                 v.getCreatedBy(), v.getUpdatedBy());

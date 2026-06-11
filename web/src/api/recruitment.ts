@@ -101,6 +101,8 @@ export interface Vacancy {
   replacedEmployeeId?: string | null
   // M275 — approval workflow instance (null until first submit)
   workflowInstanceId?: string | null
+  // M277 — confidential requisition flag
+  confidential: boolean
   openingDate?: string | null
   closingDate?: string | null
   createdAt: string
@@ -131,6 +133,8 @@ export interface VacancyRequest {
   costCentre?: string
   employmentType?: string
   replacedEmployeeId?: string
+  // M277 — confidential requisition
+  confidential?: boolean
 }
 
 export interface Candidate {

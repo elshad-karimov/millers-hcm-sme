@@ -311,6 +311,7 @@ export function VacancyDetailPage() {
             <strong>{vacancy.title}</strong>
             <Tag color="blue">{vacancy.vacancyNo}</Tag>
             <Tag color={STATUS_COLOR[vacancy.status]}>{vacancy.status.replace(/_/g, ' ')}</Tag>
+            {vacancy.confidential && <Tag color="purple">CONFIDENTIAL</Tag>}
           </Space>
         }
         extra={

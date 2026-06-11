@@ -20,6 +20,40 @@ public interface VacancyRepository extends JpaRepository<Vacancy, UUID> {
     Page<Vacancy> findByStatusOrderByCreatedAtDesc(VacancyStatus status, Pageable pageable);
 
     /**
+     * M277 — list with confidential filtering (Recruitment PRD §41).
+     * A confidential requisition is visible when the caller is
+     * unrestricted (HR_ADMIN / SYSTEM_ADMIN) or is its named recruiter
+     * / hiring manager. {@code employeeId} may be null (user with no
+     * linked employee row) — null never matches the named columns.
+     */
+    @Query("""
+            select v from Vacancy v
+            where (v.confidential = false
+                   or :unrestricted = true
+                   or v.recruiterId = :employeeId
+                   or v.hiringManagerId = :employeeId)
+            order by v.createdAt desc
+            """)
+    Page<Vacancy> findAllVisible(@org.springframework.data.repository.query.Param("unrestricted") boolean unrestricted,
+                                 @org.springframework.data.repository.query.Param("employeeId") UUID employeeId,
+                                 Pageable pageable);
+
+    /** M277 — status-filtered variant of {@link #findAllVisible}. */
+    @Query("""
+            select v from Vacancy v
+            where v.status = :status
+              and (v.confidential = false
+                   or :unrestricted = true
+                   or v.recruiterId = :employeeId
+                   or v.hiringManagerId = :employeeId)
+            order by v.createdAt desc
+            """)
+    Page<Vacancy> findByStatusVisible(@org.springframework.data.repository.query.Param("status") VacancyStatus status,
+                                      @org.springframework.data.repository.query.Param("unrestricted") boolean unrestricted,
+                                      @org.springframework.data.repository.query.Param("employeeId") UUID employeeId,
+                                      Pageable pageable);
+
+    /**
      * Sum of {@code openings} across vacancies in the given status — used by
      * {@code PositionHeadcountService} to count outstanding requisitions
      * against a position's approved headcount (M109).

@@ -59,7 +59,8 @@ public class VacancyAutoPostListener {
                     null,  // targetStartDate
                     null,  // costCentre
                     null,  // employmentType
-                    null); // replacedEmployeeId
+                    null,  // replacedEmployeeId
+                    null); // confidential (M277) — defaults false
             // M275 — auto-posted vacancies skip the requisition approval:
             // they fire from an already-APPROVED headcount change.
             var v = vacancyService.createOpen(req);

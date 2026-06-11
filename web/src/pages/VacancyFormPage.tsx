@@ -10,6 +10,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   App as AntdApp,
 } from 'antd'
 import dayjs from 'dayjs'
@@ -48,6 +49,8 @@ interface FormValues {
   costCentre?: string
   employmentType?: string
   replacedEmployeeId?: string
+  // M277 — confidential requisition
+  confidential?: boolean
 }
 
 // M274 — requisition taxonomies (Recruitment PRD §4). Labels are
@@ -151,6 +154,7 @@ export function VacancyFormPage() {
           costCentre: v.costCentre ?? undefined,
           employmentType: v.employmentType ?? undefined,
           replacedEmployeeId: v.replacedEmployeeId ?? undefined,
+          confidential: v.confidential,
         })
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load vacancy'))
@@ -205,6 +209,8 @@ export function VacancyFormPage() {
       costCentre: v.costCentre,
       employmentType: v.employmentType,
       replacedEmployeeId: v.replacedEmployeeId,
+      // M277 — confidential requisition
+      confidential: v.confidential ?? false,
     }
     try {
       if (editing) {
@@ -374,6 +380,15 @@ export function VacancyFormPage() {
               </Form.Item>
             </Col>
           </Row>
+          {/* M277 — confidential requisition (Recruitment PRD §41) */}
+          <Form.Item
+            name="confidential"
+            label="Confidential requisition"
+            valuePropName="checked"
+            tooltip="Visible only to the named recruiter, hiring manager, and HR admins. Use for executive hiring or replacing an employee who doesn't know yet."
+          >
+            <Switch />
+          </Form.Item>
           <Form.Item name="range" label="Opening / closing dates">
             <DatePicker.RangePicker style={{ width: '100%', maxWidth: 360 }} />
           </Form.Item>
