@@ -47,6 +47,10 @@ public class Application {
     @Column(name = "created_employee_id")
     private UUID createdEmployeeId;
 
+    /** M280 — which channel/language posting drove this application (PRD §44). */
+    @Column(name = "posting_id")
+    private UUID postingId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

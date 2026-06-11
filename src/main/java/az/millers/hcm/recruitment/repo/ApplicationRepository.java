@@ -19,4 +19,7 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     List<Application> findByCandidateIdOrderByCreatedAtDesc(UUID candidateId);
 
     long countByVacancyIdAndStatus(UUID vacancyId, ApplicationStatus status);
+
+    /** M280 — PRD §70: one application per candidate per requisition. */
+    boolean existsByVacancyIdAndCandidateId(UUID vacancyId, UUID candidateId);
 }

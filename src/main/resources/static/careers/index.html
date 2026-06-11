@@ -34,6 +34,25 @@
   .back { display:inline-block; margin-bottom:14px; color:var(--accent); cursor:pointer; font-size:14px; }
   .apply-note { margin-top:24px; padding:14px 16px; background:#eef6ee; border:1px solid #cde3cd;
                 border-radius:8px; font-size:14px; color:#2c5f2d; }
+  /* M280 — application form */
+  .apply-form { margin-top:24px; padding:20px; background:#f8fafc; border:1px solid #e3e8ef; border-radius:10px; }
+  .apply-form h3 { color:var(--brand); margin-bottom:14px; font-size:16px; }
+  .apply-form .row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .apply-form input[type=text], .apply-form input[type=email], .apply-form input[type=tel],
+  .apply-form input[type=number], .apply-form textarea {
+    flex:1; min-width:180px; padding:9px 12px; border:1px solid #d4dbe5; border-radius:8px;
+    font-size:14px; font-family:inherit; background:#fff; width:100%; }
+  .apply-form textarea { min-height:70px; resize:vertical; }
+  .apply-form .consent { display:flex; gap:8px; align-items:flex-start; font-size:13px;
+    color:var(--muted); margin:12px 0; }
+  .apply-form .consent input { margin-top:2px; }
+  .apply-form button { background:var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:11px 26px; font-size:15px; font-weight:600; cursor:pointer; }
+  .apply-form button:disabled { opacity:.6; cursor:default; }
+  .apply-form .hp { position:absolute; left:-9999px; top:-9999px; }
+  .form-msg { margin-top:12px; font-size:14px; padding:10px 14px; border-radius:8px; display:none; }
+  .form-msg.ok { display:block; background:#eef6ee; border:1px solid #cde3cd; color:#2c5f2d; }
+  .form-msg.err { display:block; background:#fdf0f0; border:1px solid #e8c9c9; color:#8a3030; }
 </style>
 </head>
 <body>
@@ -122,10 +141,33 @@ async function showDetail(id) {
     ${j.description ? `<section><h4>Təsvir / Description</h4><p>${esc(j.description)}</p></section>` : ''}
     ${j.requirements ? `<section><h4>Tələblər / Requirements</h4><p>${esc(j.requirements)}</p></section>` : ''}
     ${j.benefits ? `<section><h4>Üstünlüklər / Benefits</h4><p>${esc(j.benefits)}</p></section>` : ''}
-    <div class="apply-note">
-      Müraciət üçün CV-nizi <strong>hr@millers.az</strong> ünvanına göndərin
-      (mövzu sətrində vakansiya adını qeyd edin).<br>
-      To apply, email your CV to <strong>hr@millers.az</strong> with the job title in the subject line.
+    <div class="apply-form">
+      <h3>Müraciət et / Apply now</h3>
+      <form id="applyForm" onsubmit="return submitApplication(event, '${j.id}')">
+        <div class="row">
+          <input type="text" name="firstName" placeholder="Ad / First name *" required maxlength="100">
+          <input type="text" name="lastName" placeholder="Soyad / Last name *" required maxlength="100">
+        </div>
+        <div class="row">
+          <input type="email" name="email" placeholder="E-poçt / Email *" required maxlength="160">
+          <input type="tel" name="phone" placeholder="Telefon / Phone" maxlength="40">
+        </div>
+        <div class="row">
+          <input type="number" name="expectedSalary" placeholder="Gözlənilən maaş / Expected salary (AZN)" min="0">
+        </div>
+        <div class="row">
+          <textarea name="coverNote" placeholder="Qısa məktub / Cover note" maxlength="2000"></textarea>
+        </div>
+        <!-- honeypot: invisible to humans, bots fill it -->
+        <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off">
+        <label class="consent">
+          <input type="checkbox" name="consent" required>
+          <span>Şəxsi məlumatlarımın işə qəbul prosesi üçün emal olunmasına razıyam.
+          I consent to the processing of my personal data for recruitment purposes.</span>
+        </label>
+        <button type="submit" id="applyBtn">Müraciət göndər / Submit application</button>
+        <div class="form-msg" id="formMsg"></div>
+      </form>
     </div>`;
   document.getElementById('list').style.display = 'none';
   document.getElementById('detail').style.display = 'block';
@@ -135,6 +177,47 @@ async function showDetail(id) {
 function showList() {
   document.getElementById('detail').style.display = 'none';
   document.getElementById('list').style.display = 'block';
+}
+
+// M280 — anonymous application submission
+async function submitApplication(ev, jobId) {
+  ev.preventDefault();
+  const form = ev.target;
+  const btn = document.getElementById('applyBtn');
+  const msg = document.getElementById('formMsg');
+  msg.className = 'form-msg';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/public/careers/jobs/${jobId}/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: form.firstName.value.trim(),
+        lastName: form.lastName.value.trim(),
+        email: form.email.value.trim(),
+        phone: form.phone.value.trim() || null,
+        expectedSalary: form.expectedSalary.value ? Number(form.expectedSalary.value) : null,
+        coverNote: form.coverNote.value.trim() || null,
+        consent: form.consent.checked,
+        website: form.website.value, // honeypot
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      msg.className = 'form-msg ok';
+      msg.textContent = `✓ ${body.message ?? 'Application received'}`;
+      form.reset();
+    } else {
+      msg.className = 'form-msg err';
+      msg.textContent = body.message ?? 'Submission failed — please try again.';
+      btn.disabled = false;
+    }
+  } catch {
+    msg.className = 'form-msg err';
+    msg.textContent = 'Network error — please try again.';
+    btn.disabled = false;
+  }
+  return false;
 }
 
 document.getElementById('q').addEventListener('input', render);

@@ -23,6 +23,13 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     Page<Candidate> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     /**
+     * M280 — duplicate detection for public portal applications (PRD
+     * §12: "one candidate, many applications"). Oldest row wins when
+     * historical data already has duplicates.
+     */
+    java.util.Optional<Candidate> findFirstByEmailIgnoreCaseOrderByCreatedAtAsc(String email);
+
+    /**
      * M87 — talent-pool search. Filters by pool status and (optionally) the
      * id set produced by tag intersection. Free-text matches across name +
      * email + skills column.

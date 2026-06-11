@@ -8,6 +8,8 @@ import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +19,8 @@ import az.millers.hcm.recruitment.domain.JobPosting;
 import az.millers.hcm.recruitment.domain.Vacancy;
 import az.millers.hcm.recruitment.repo.JobPostingRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
+import az.millers.hcm.recruitment.service.PublicCareersApplyService;
+import az.millers.hcm.security.CurrentRequest;
 
 /**
  * M279 — Recruitment PRD §9: public career portal API.
@@ -34,11 +38,25 @@ public class CareersPublicController {
 
     private final JobPostingRepository postings;
     private final VacancyRepository vacancies;
+    private final PublicCareersApplyService applyService;
+    private final CurrentRequest currentRequest;
 
     public CareersPublicController(JobPostingRepository postings,
-                                    VacancyRepository vacancies) {
+                                    VacancyRepository vacancies,
+                                    PublicCareersApplyService applyService,
+                                    CurrentRequest currentRequest) {
         this.postings = postings;
         this.vacancies = vacancies;
+        this.applyService = applyService;
+        this.currentRequest = currentRequest;
+    }
+
+    /** M280 — anonymous application submission (PRD §9). */
+    @PostMapping("/jobs/{id}/apply")
+    public PublicCareersApplyService.PublicApplyResult apply(
+            @PathVariable UUID id,
+            @RequestBody PublicCareersApplyService.PublicApplyRequest req) {
+        return applyService.apply(id, req, currentRequest.ipAddress());
     }
 
     /** Public job card — the list view. */

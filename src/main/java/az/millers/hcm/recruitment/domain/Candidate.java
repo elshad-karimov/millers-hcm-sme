@@ -71,6 +71,14 @@ public class Candidate {
     @Column(name = "last_contacted_at")
     private OffsetDateTime lastContactedAt;
 
+    /** M280 — when the candidate accepted the privacy consent (PRD §46). */
+    @Column(name = "consent_at")
+    private OffsetDateTime consentAt;
+
+    /** M280 — which consent text version they accepted. */
+    @Column(name = "consent_version", length = 20)
+    private String consentVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
