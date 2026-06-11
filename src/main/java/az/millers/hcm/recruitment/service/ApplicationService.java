@@ -195,6 +195,16 @@ public class ApplicationService {
                 .orElseThrow(() -> new BadRequestException("Vacancy missing"));
         Candidate c = candidates.findById(a.getCandidateId())
                 .orElseThrow(() -> new BadRequestException("Candidate missing"));
+        // M281 — PRD §10/§70: an internal candidate is ALREADY an employee;
+        // hiring them here would create a duplicate employee record. The
+        // correct path is a Position Transfer (M260) or Contract Change
+        // POSITION (M270), which moves their existing record.
+        if (c.getSource() == az.millers.hcm.recruitment.domain.CandidateSource.INTERNAL) {
+            throw new BadRequestException(
+                    "Internal candidate " + c.getCandidateNo() + " is an existing employee — "
+                    + "use Position Transfer or Contract Change (POSITION) instead of hire, "
+                    + "then mark this application REJECTED with reason 'internal move'");
+        }
         Offer offer = offers.findByApplicationId(a.getId()).orElse(null);
 
         LocalDate hireDate = offer != null && offer.getProposedStartDate() != null

@@ -106,8 +106,32 @@ export interface SelfRequiredDocument {
   updatedBy?: string | null
 }
 
+// M281 — internal career portal (Recruitment PRD §10)
+export interface InternalJob {
+  postingId: string
+  title: string
+  department?: string | null
+  location?: string | null
+  language: string
+  salaryMin?: number | null
+  salaryMax?: number | null
+  currency?: string | null
+  applicationDeadline?: string | null
+  description?: string | null
+  requirements?: string | null
+  alreadyApplied: boolean
+}
+
 export const selfApi = {
   profile: () => api.get<SelfProfile>('/self/employee').then((r) => r.data),
+  // M281 — internal job board + one-click apply
+  internalJobs: () => api.get<InternalJob[]>('/self/internal-jobs').then((r) => r.data),
+  applyInternalJob: (postingId: string) =>
+    api
+      .post<{ applicationNo: string; message: string }>(
+        `/self/internal-jobs/${postingId}/apply`,
+      )
+      .then((r) => r.data),
   summary: () => api.get<SelfSummary>('/self/summary').then((r) => r.data),
   peers: () => api.get<EmployeePeer[]>('/self/peers').then((r) => r.data),
   // M263 — pending required-document obligations for the current employee.

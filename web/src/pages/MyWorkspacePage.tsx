@@ -42,6 +42,7 @@ import type { PerformanceReview } from '../api/performance'
 import { RequiredDocumentsWidget } from '../components/RequiredDocumentsWidget'
 import { ApprovalLimitsWidget } from '../components/ApprovalLimitsWidget'
 import { ChecklistTasksWidget } from '../components/ChecklistTasksWidget'
+import { InternalJobsWidget } from '../components/InternalJobsWidget'
 
 // ============================================================================
 //  Dashboard tab
@@ -74,6 +75,9 @@ function Dashboard({
           unless the employee actually holds approval limits (typical
           for managers + senior staff). */}
       <ApprovalLimitsWidget />
+      {/* M281 — "💼 Internal opportunities" widget (Recruitment PRD §10).
+          Renders nothing while no INTERNAL-channel postings are live. */}
+      <InternalJobsWidget />
       <Card>
         <Row gutter={16} align="middle">
           <Col flex="auto">
