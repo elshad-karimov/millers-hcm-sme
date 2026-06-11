@@ -22,4 +22,7 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
 
     /** M280 — PRD §70: one application per candidate per requisition. */
     boolean existsByVacancyIdAndCandidateId(UUID vacancyId, UUID candidateId);
+
+    /** M282 — anonymous tracking lookup; the token is the credential. */
+    java.util.Optional<Application> findByTrackingToken(String trackingToken);
 }

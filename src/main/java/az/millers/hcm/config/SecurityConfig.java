@@ -74,7 +74,11 @@ public class SecurityConfig {
                         // requisitions with public-safe fields; /careers/**
                         // is the anonymous server-hosted job board page.
                         .requestMatchers("/api/public/careers/**").permitAll()
-                        .requestMatchers("/careers", "/careers/**").permitAll()
+                        // "/careers/" listed explicitly: the PathPattern
+                        // "/careers/**" does not match the bare trailing-
+                        // slash form under Spring Security 6 (M282 smoke
+                        // caught a 401 on tracking links).
+                        .requestMatchers("/careers", "/careers/", "/careers/**").permitAll()
                         // M170 — Swagger UI + OpenAPI JSON; unauthenticated access is
                         // acceptable because the spec reveals no sensitive data and the
                         // Authorize button in the UI accepts a Keycloak Bearer token.

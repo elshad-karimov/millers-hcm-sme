@@ -51,6 +51,13 @@ public class Application {
     @Column(name = "posting_id")
     private UUID postingId;
 
+    /**
+     * M282 — anonymous tracking credential for public-portal
+     * applications (PRD §9). Null for HR-entered / internal ones.
+     */
+    @Column(name = "tracking_token", length = 64, unique = true)
+    private String trackingToken;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

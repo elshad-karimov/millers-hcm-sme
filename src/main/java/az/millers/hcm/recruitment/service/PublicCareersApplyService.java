@@ -73,7 +73,9 @@ public class PublicCareersApplyService {
             /** Honeypot — rendered invisible on the page; humans leave it blank. */
             String website) {}
 
-    public record PublicApplyResult(String applicationNo, String message) {}
+    public record PublicApplyResult(String applicationNo, String message,
+                                    /** M282 — anonymous status-tracking credential. */
+                                    String trackingToken) {}
 
     private final JobPostingRepository postings;
     private final VacancyRepository vacancies;
@@ -108,7 +110,8 @@ public class PublicCareersApplyService {
         // Honeypot first — fake success, store nothing, log the hit.
         if (req.website() != null && !req.website().isBlank()) {
             log.info("Careers honeypot hit #{} from {}", honeypotHits.incrementAndGet(), ip);
-            return new PublicApplyResult("APP-00000", "Application received");
+            // Fake token too — indistinguishable from a real success.
+            return new PublicApplyResult("APP-00000", "Application received", newToken());
         }
         throttle(ip);
 
@@ -159,6 +162,7 @@ public class PublicCareersApplyService {
 
         Application a = applicationService.apply(v.getId(), candidate.getId());
         a.setPostingId(p.getId()); // PRD §44 — channel attribution
+        a.setTrackingToken(newToken()); // M282 — anonymous status tracking
         applications.save(a);
 
         audit.record(MODULE, "Application", a.getId().toString(), "PUBLIC_APPLY",
@@ -169,7 +173,27 @@ public class PublicCareersApplyService {
                         "sourceIp", ip == null ? "" : ip,
                         "consentVersion", CONSENT_VERSION));
         return new PublicApplyResult(a.getApplicationNo(),
-                "Application received — reference " + a.getApplicationNo());
+                "Application received — reference " + a.getApplicationNo(),
+                a.getTrackingToken());
+    }
+
+    /** M282 — tracking lookup; unknown token → 404 (token is the credential). */
+    @Transactional(readOnly = true)
+    public Application findByTrackingToken(String token) {
+        if (token == null || token.length() < 16) {
+            throw new ResourceNotFoundException("Application not found");
+        }
+        return applications.findByTrackingToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+    }
+
+    /** 32-hex-char SecureRandom token (128 bits) — the tracking credential. */
+    private static String newToken() {
+        byte[] bytes = new byte[16];
+        new java.security.SecureRandom().nextBytes(bytes);
+        StringBuilder sb = new StringBuilder(32);
+        for (byte b : bytes) sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 
     private void throttle(String ip) {

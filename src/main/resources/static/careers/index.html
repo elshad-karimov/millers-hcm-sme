@@ -205,7 +205,16 @@ async function submitApplication(ev, jobId) {
     const body = await res.json().catch(() => ({}));
     if (res.ok) {
       msg.className = 'form-msg ok';
-      msg.textContent = `✓ ${body.message ?? 'Application received'}`;
+      // M282 — give the candidate their tracking link
+      const trackUrl = body.trackingToken
+        ? `${location.origin}/careers?track=${body.trackingToken}`
+        : null;
+      msg.innerHTML = `✓ ${esc(body.message ?? 'Application received')}` +
+        (trackUrl
+          ? `<br>Statusu izləyin / Track your application:<br>` +
+            `<a href="${trackUrl}">${trackUrl}</a><br>` +
+            `<small>Bu linki saxlayın — yalnız sizə görünür. Save this link — it is your private key.</small>`
+          : '');
       form.reset();
     } else {
       msg.className = 'form-msg err';
@@ -223,10 +232,36 @@ async function submitApplication(ev, jobId) {
 document.getElementById('q').addEventListener('input', render);
 document.getElementById('lang').addEventListener('change', render);
 
-fetch('/api/public/careers/jobs')
-  .then(r => r.json())
-  .then(jobs => { allJobs = jobs; render(); })
-  .catch(() => { allJobs = []; render(); });
+// M282 — ?track=<token> renders the application status card instead of the list
+async function showTracking(token) {
+  const res = await fetch(`/api/public/careers/track/${encodeURIComponent(token)}`);
+  document.getElementById('list').style.display = 'none';
+  document.getElementById('detail').style.display = 'block';
+  const card = document.getElementById('detailCard');
+  if (!res.ok) {
+    card.innerHTML = `<h2>Müraciət tapılmadı / Application not found</h2>
+      <p style="color:var(--muted)">Linki yoxlayın və yenidən cəhd edin.
+      Please check your tracking link and try again.</p>`;
+    return;
+  }
+  const s = await res.json();
+  card.innerHTML = `
+    <h2>Müraciətin statusu / Application status</h2>
+    <section><h4>Müraciət / Reference</h4><p>${esc(s.applicationNo)}</p></section>
+    <section><h4>Vakansiya / Position</h4><p>${esc(s.jobTitle)}</p></section>
+    ${s.submittedOn ? `<section><h4>Göndərilib / Submitted</h4><p>${s.submittedOn}</p></section>` : ''}
+    <section><h4>Status</h4><p><span class="badge">${esc(s.status)}</span></p></section>`;
+}
+
+const trackToken = new URLSearchParams(location.search).get('track');
+if (trackToken) {
+  showTracking(trackToken);
+} else {
+  fetch('/api/public/careers/jobs')
+    .then(r => r.json())
+    .then(jobs => { allJobs = jobs; render(); })
+    .catch(() => { allJobs = []; render(); });
+}
 </script>
 </body>
 </html>

@@ -59,6 +59,50 @@ public class CareersPublicController {
         return applyService.apply(id, req, currentRequest.ipAddress());
     }
 
+    /**
+     * M282 — anonymous status tracking. The candidate sees only their
+     * own application (the token is the credential) and only a
+     * candidate-friendly summary — internal pipeline stages collapse
+     * to four public phases so the company's process detail and any
+     * other candidates' data stay invisible (PRD §55: "Candidate —
+     * view own application only").
+     */
+    public record TrackingStatus(
+            String applicationNo,
+            String jobTitle,
+            LocalDate submittedOn,
+            String status) {}
+
+    @GetMapping("/track/{token}")
+    @Transactional(readOnly = true)
+    public TrackingStatus track(@PathVariable String token) {
+        var a = applyService.findByTrackingToken(token);
+        Vacancy v = vacancies.findById(a.getVacancyId()).orElse(null);
+        String title = v == null ? "—" : v.getTitle();
+        if (a.getPostingId() != null) {
+            title = postings.findById(a.getPostingId())
+                    .map(JobPosting::getTitle)
+                    .orElse(title);
+        }
+        return new TrackingStatus(
+                a.getApplicationNo(),
+                title,
+                a.getCreatedAt() == null ? null : a.getCreatedAt().toLocalDate(),
+                publicStage(a));
+    }
+
+    /** Collapse the internal pipeline to candidate-safe phases. */
+    private static String publicStage(az.millers.hcm.recruitment.domain.Application a) {
+        return switch (a.getCurrentStage()) {
+            case CV_SCREENING -> "Under review";
+            case HR_INTERVIEW, TECHNICAL_INTERVIEW, FINAL_INTERVIEW -> "Interview stage";
+            case OFFER -> "Offer stage";
+            case HIRED -> "Hired — welcome aboard!";
+            case REJECTED -> "Process closed";
+            case WITHDRAWN -> "Withdrawn";
+        };
+    }
+
     /** Public job card — the list view. */
     public record PublicJob(
             UUID id,
