@@ -204,6 +204,40 @@ export interface StageTransitionRequest {
   comment?: string
 }
 
+// M278 — job postings (Recruitment PRD §8)
+export type PostingChannel = 'INTERNAL' | 'EXTERNAL' | 'JOB_BOARD' | 'AGENCY' | 'SOCIAL'
+export type PostingStatus = 'DRAFT' | 'PUBLISHED' | 'PAUSED' | 'EXPIRED' | 'CLOSED'
+
+export interface JobPosting {
+  id: string
+  postingNo: string
+  vacancyId: string
+  channel: PostingChannel
+  language: string
+  title: string
+  description?: string | null
+  requirements?: string | null
+  benefitsDescription?: string | null
+  salaryVisible: boolean
+  applicationDeadline?: string | null
+  status: PostingStatus
+  publishedAt?: string | null
+  publishedBy?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface JobPostingRequest {
+  channel: PostingChannel
+  language?: string
+  title?: string
+  description?: string
+  requirements?: string
+  benefitsDescription?: string
+  salaryVisible?: boolean
+  applicationDeadline?: string
+}
+
 export interface Offer {
   id: string
   offerNo: string
@@ -302,6 +336,24 @@ export const recruitmentApi = {
   // M276 — kick off the offer approval workflow (salary-exception routed)
   submitOfferApproval: (id: string) =>
     api.post<Offer>(`/recruitment/offers/${id}/submit-approval`).then((r) => r.data),
+
+  // M278 — job postings (Recruitment PRD §8)
+  postingsForVacancy: (vacancyId: string) =>
+    api
+      .get<JobPosting[]>(`/recruitment/vacancies/${vacancyId}/postings`)
+      .then((r) => r.data),
+  createPosting: (vacancyId: string, payload: JobPostingRequest) =>
+    api
+      .post<JobPosting>(`/recruitment/vacancies/${vacancyId}/postings`, payload)
+      .then((r) => r.data),
+  updatePosting: (id: string, payload: JobPostingRequest) =>
+    api.put<JobPosting>(`/recruitment/postings/${id}`, payload).then((r) => r.data),
+  publishPosting: (id: string) =>
+    api.post<JobPosting>(`/recruitment/postings/${id}/publish`).then((r) => r.data),
+  pausePosting: (id: string) =>
+    api.post<JobPosting>(`/recruitment/postings/${id}/pause`).then((r) => r.data),
+  closePosting: (id: string) =>
+    api.post<JobPosting>(`/recruitment/postings/${id}/close`).then((r) => r.data),
   transitionOffer: (id: string, status: OfferStatus, notes?: string) =>
     api
       .post<Offer>(`/recruitment/offers/${id}/status/${status}`, null, {

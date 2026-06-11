@@ -31,6 +31,7 @@ import {
 } from '../api/recruitment'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
+import { JobPostingsPanel } from '../components/JobPostingsPanel'
 
 const STAGE_ORDER: ApplicationStage[] = [
   'CV_SCREENING',
@@ -405,6 +406,9 @@ export function VacancyDetailPage() {
           </Typography.Paragraph>
         )}
       </Card>
+
+      {/* M278 — channel/language-specific job postings (PRD §8) */}
+      <JobPostingsPanel vacancyId={vacancy.id} canEdit={canEdit} />
 
       <Card title="Pipeline">
         <div
