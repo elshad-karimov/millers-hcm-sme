@@ -69,6 +69,12 @@ public class SecurityConfig {
                         // returns only non-PII fields (status, request_no,
                         // issued date) so it's safe for third parties.
                         .requestMatchers("/api/public/letters/verify/**").permitAll()
+                        // M279 — public career portal: the jobs API serves
+                        // only live EXTERNAL postings of non-confidential
+                        // requisitions with public-safe fields; /careers/**
+                        // is the anonymous server-hosted job board page.
+                        .requestMatchers("/api/public/careers/**").permitAll()
+                        .requestMatchers("/careers", "/careers/**").permitAll()
                         // M170 — Swagger UI + OpenAPI JSON; unauthenticated access is
                         // acceptable because the spec reveals no sensitive data and the
                         // Authorize button in the UI accepts a Keycloak Bearer token.
@@ -96,7 +102,7 @@ public class SecurityConfig {
                                         .ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'none'; frame-ancestors 'none'")));
+                                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")));
         return http.build();
     }
 

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Millers — Karyera / Careers</title>
+<style>
+  :root { --brand:#1f3a5f; --accent:#2e75b6; --bg:#f5f7fa; --card:#fff; --muted:#6b7a90; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:#1a2433; }
+  header { background:var(--brand); color:#fff; padding:28px 20px; }
+  header .wrap, main { max-width:880px; margin:0 auto; }
+  header h1 { font-size:26px; font-weight:700; }
+  header p { opacity:.85; margin-top:4px; font-size:14px; }
+  main { padding:24px 20px 60px; }
+  .filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+  .filters input, .filters select {
+    padding:9px 12px; border:1px solid #d4dbe5; border-radius:8px; font-size:14px; background:#fff; }
+  .filters input { flex:1; min-width:200px; }
+  .job { background:var(--card); border:1px solid #e3e8ef; border-radius:10px;
+         padding:18px 20px; margin-bottom:12px; cursor:pointer; transition:box-shadow .15s; }
+  .job:hover { box-shadow:0 4px 14px rgba(31,58,95,.12); }
+  .job h3 { font-size:17px; color:var(--brand); }
+  .meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:13px; color:var(--muted); }
+  .badge { background:#e8f0fb; color:var(--accent); border-radius:5px; padding:2px 8px; font-size:12px; font-weight:600; }
+  .empty { text-align:center; color:var(--muted); padding:60px 0; }
+  /* detail */
+  #detail { display:none; }
+  #detail .card { background:var(--card); border:1px solid #e3e8ef; border-radius:10px; padding:26px; }
+  #detail h2 { color:var(--brand); margin-bottom:6px; }
+  #detail section { margin-top:18px; }
+  #detail section h4 { font-size:14px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:6px; }
+  #detail p { font-size:15px; line-height:1.55; white-space:pre-wrap; }
+  .back { display:inline-block; margin-bottom:14px; color:var(--accent); cursor:pointer; font-size:14px; }
+  .apply-note { margin-top:24px; padding:14px 16px; background:#eef6ee; border:1px solid #cde3cd;
+                border-radius:8px; font-size:14px; color:#2c5f2d; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Millers — Karyera</h1>
+    <p>Open positions · Vakansiyalar</p>
+  </div>
+</header>
+<main>
+  <div id="list">
+    <div class="filters">
+      <input id="q" type="search" placeholder="Axtar / Search jobs…">
+      <select id="lang">
+        <option value="">All languages</option>
+        <option value="az">Azərbaycan</option>
+        <option value="en">English</option>
+        <option value="ru">Русский</option>
+        <option value="tr">Türkçe</option>
+      </select>
+    </div>
+    <div id="jobs"></div>
+  </div>
+
+  <div id="detail">
+    <span class="back" onclick="showList()">← Bütün vakansiyalar / All jobs</span>
+    <div class="card" id="detailCard"></div>
+  </div>
+</main>
+
+<script>
+let allJobs = [];
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s ?? '';
+  return d.innerHTML;
+}
+
+function salary(j) {
+  if (j.salaryMin == null && j.salaryMax == null) return null;
+  const min = j.salaryMin != null ? j.salaryMin : '';
+  const max = j.salaryMax != null ? j.salaryMax : '';
+  return `${min}${min && max ? '–' : ''}${max} ${j.currency ?? ''}`.trim();
+}
+
+function render() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const lang = document.getElementById('lang').value;
+  const jobs = allJobs.filter(j =>
+    (!q || j.title.toLowerCase().includes(q)
+        || (j.department ?? '').toLowerCase().includes(q)
+        || (j.location ?? '').toLowerCase().includes(q))
+    && (!lang || j.language === lang));
+  const root = document.getElementById('jobs');
+  if (!jobs.length) {
+    root.innerHTML = '<div class="empty">Hazırda açıq vakansiya yoxdur.<br>No open positions right now.</div>';
+    return;
+  }
+  root.innerHTML = jobs.map(j => `
+    <div class="job" onclick="showDetail('${j.id}')">
+      <h3>${esc(j.title)}</h3>
+      <div class="meta">
+        ${j.department ? `<span>🏢 ${esc(j.department)}</span>` : ''}
+        ${j.location ? `<span>📍 ${esc(j.location)}</span>` : ''}
+        ${j.employmentType ? `<span>${esc(j.employmentType.replace(/_/g,' '))}</span>` : ''}
+        ${salary(j) ? `<span class="badge">${esc(salary(j))}</span>` : ''}
+        <span class="badge">${j.language.toUpperCase()}</span>
+        ${j.applicationDeadline ? `<span>⏰ ${j.applicationDeadline}</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function showDetail(id) {
+  const res = await fetch(`/api/public/careers/jobs/${id}`);
+  if (!res.ok) return;
+  const j = await res.json();
+  document.getElementById('detailCard').innerHTML = `
+    <h2>${esc(j.title)}</h2>
+    <div class="meta">
+      ${j.department ? `<span>🏢 ${esc(j.department)}</span>` : ''}
+      ${j.location ? `<span>📍 ${esc(j.location)}</span>` : ''}
+      ${salary(j) ? `<span class="badge">${esc(salary(j))}</span>` : ''}
+      ${j.applicationDeadline ? `<span>⏰ Son müraciət / Deadline: ${j.applicationDeadline}</span>` : ''}
+    </div>
+    ${j.description ? `<section><h4>Təsvir / Description</h4><p>${esc(j.description)}</p></section>` : ''}
+    ${j.requirements ? `<section><h4>Tələblər / Requirements</h4><p>${esc(j.requirements)}</p></section>` : ''}
+    ${j.benefits ? `<section><h4>Üstünlüklər / Benefits</h4><p>${esc(j.benefits)}</p></section>` : ''}
+    <div class="apply-note">
+      Müraciət üçün CV-nizi <strong>hr@millers.az</strong> ünvanına göndərin
+      (mövzu sətrində vakansiya adını qeyd edin).<br>
+      To apply, email your CV to <strong>hr@millers.az</strong> with the job title in the subject line.
+    </div>`;
+  document.getElementById('list').style.display = 'none';
+  document.getElementById('detail').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function showList() {
+  document.getElementById('detail').style.display = 'none';
+  document.getElementById('list').style.display = 'block';
+}
+
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('lang').addEventListener('change', render);
+
+fetch('/api/public/careers/jobs')
+  .then(r => r.json())
+  .then(jobs => { allJobs = jobs; render(); })
+  .catch(() => { allJobs = []; render(); });
+</script>
+</body>
+</html>
