@@ -626,6 +626,36 @@ export function VacancyDetailPage() {
             Awaiting approval — see the Approvals inbox
           </Tag>
         )}
+        {/* M283 — offer letter PDF, available once approved */}
+        {currentOffer &&
+          ['APPROVED', 'SENT', 'ACCEPTED'].includes(currentOffer.status) && (
+            <Space style={{ marginTop: 8 }}>
+              {(['az', 'en'] as const).map((lang) => (
+                <Button
+                  key={lang}
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      const blob = await recruitmentApi.downloadOfferLetter(
+                        currentOffer.id,
+                        lang,
+                      )
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `${currentOffer.offerNo}-${lang}.pdf`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    } catch {
+                      message.error('Letter download failed')
+                    }
+                  }}
+                >
+                  Letter ({lang.toUpperCase()})
+                </Button>
+              ))}
+            </Space>
+          )}
         {currentOffer && currentOffer.status === 'APPROVED' && (
           <Space style={{ marginTop: 8 }}>
             <Button

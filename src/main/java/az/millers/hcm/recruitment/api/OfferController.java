@@ -24,9 +24,12 @@ import jakarta.validation.Valid;
 public class OfferController {
 
     private final OfferService service;
+    private final az.millers.hcm.recruitment.service.OfferLetterService offerLetterService;
 
-    public OfferController(OfferService service) {
+    public OfferController(OfferService service,
+                            az.millers.hcm.recruitment.service.OfferLetterService offerLetterService) {
         this.service = service;
+        this.offerLetterService = offerLetterService;
     }
 
     @GetMapping
@@ -57,5 +60,18 @@ public class OfferController {
     @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
     public OfferResponse submitForApproval(@PathVariable UUID id) {
         return OfferResponse.from(service.submitForApproval(id));
+    }
+
+    /** M283 — Recruitment PRD §31: render the offer letter PDF (AZ default). */
+    @GetMapping("/{id}/letter")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public org.springframework.http.ResponseEntity<byte[]> letter(
+            @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String lang) {
+        var letter = offerLetterService.render(id, lang);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + letter.filename() + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(letter.pdf());
     }
 }

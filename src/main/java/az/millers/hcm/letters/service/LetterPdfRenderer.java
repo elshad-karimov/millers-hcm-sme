@@ -73,6 +73,30 @@ public class LetterPdfRenderer {
      * to upload to MinIO + serve via the download endpoint.
      */
     public byte[] render(LetterRequest req, LetterTemplate template, String renderedBody) {
+        return renderDocument(
+                template.getName(),
+                req.getRequestNo(),
+                req.getIssuedAt() == null
+                        ? LocalDate.now() : req.getIssuedAt().toLocalDate(),
+                template.getLanguage(),
+                renderedBody,
+                req.getSignedBy() == null ? "Human Resources Department" : req.getSignedBy(),
+                req.getSignedAt() == null
+                        ? LocalDate.now() : req.getSignedAt().toLocalDate(),
+                req.getVerificationToken());
+    }
+
+    /**
+     * M283 — generic document layout (letterhead / body / signature /
+     * optional verify-QR). One layout shared by HR letters (M139) and
+     * offer letters (M283) so a branding change lands in ONE place.
+     *
+     * @param verifyToken nullable — QR omitted when null
+     */
+    public byte[] renderDocument(String title, String referenceNo, LocalDate issuedOn,
+                                  String language, String renderedBody,
+                                  String signerName, LocalDate signedOn,
+                                  String verifyToken) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (Document doc = new Document(PageSize.A4, 56, 56, 72, 72)) {
             PdfWriter.getInstance(doc, out);
@@ -81,15 +105,12 @@ public class LetterPdfRenderer {
             // ── Letterhead ────────────────────────────────────────────
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, Color.BLACK);
             Font metaFont = FontFactory.getFont(FontFactory.HELVETICA, 9, Color.GRAY);
-            Paragraph title = new Paragraph(template.getName(), titleFont);
-            title.setAlignment(Element.ALIGN_CENTER);
-            doc.add(title);
+            Paragraph titleP = new Paragraph(title, titleFont);
+            titleP.setAlignment(Element.ALIGN_CENTER);
+            doc.add(titleP);
             Paragraph meta = new Paragraph(
-                    req.getRequestNo() + "  •  Issued " + (req.getIssuedAt() == null
-                            ? LocalDate.now().format(ISO)
-                            : req.getIssuedAt().toLocalDate().format(ISO))
-                            + (template.getLanguage() == null ? ""
-                                    : "  •  Locale: " + template.getLanguage()),
+                    referenceNo + "  •  Issued " + issuedOn.format(ISO)
+                            + (language == null ? "" : "  •  Locale: " + language),
                     metaFont);
             meta.setAlignment(Element.ALIGN_CENTER);
             meta.setSpacingAfter(18);
@@ -111,25 +132,19 @@ public class LetterPdfRenderer {
 
             Font sigLabel = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.DARK_GRAY);
             Font sigName = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.BLACK);
-            String signerName = req.getSignedBy() == null
-                    ? "Human Resources Department"
-                    : req.getSignedBy();
-            String signedOn = req.getSignedAt() == null
-                    ? LocalDate.now().format(ISO)
-                    : req.getSignedAt().toLocalDate().format(ISO);
 
             PdfPCell sigCell = new PdfPCell();
             sigCell.setBorder(0);
             sigCell.addElement(new Paragraph("\n_________________________", body));
             sigCell.addElement(new Paragraph(signerName, sigName));
-            sigCell.addElement(new Paragraph("Signed on " + signedOn, sigLabel));
+            sigCell.addElement(new Paragraph("Signed on " + signedOn.format(ISO), sigLabel));
             footer.addCell(sigCell);
 
             PdfPCell qrCell = new PdfPCell();
             qrCell.setBorder(0);
             qrCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            if (req.getVerificationToken() != null) {
-                String payload = verifyBaseUrl + "/" + req.getVerificationToken();
+            if (verifyToken != null) {
+                String payload = verifyBaseUrl + "/" + verifyToken;
                 byte[] qr = EmployeeQrCodeService.encode(payload, 110);
                 Image qrImg = Image.getInstance(qr);
                 qrImg.scaleAbsolute(80, 80);

@@ -336,6 +336,14 @@ export const recruitmentApi = {
   // M276 — kick off the offer approval workflow (salary-exception routed)
   submitOfferApproval: (id: string) =>
     api.post<Offer>(`/recruitment/offers/${id}/submit-approval`).then((r) => r.data),
+  // M283 — render the offer letter PDF (lang: az | en)
+  downloadOfferLetter: (id: string, lang: string) =>
+    api
+      .get<Blob>(`/recruitment/offers/${id}/letter`, {
+        params: { lang },
+        responseType: 'blob',
+      })
+      .then((r) => r.data),
 
   // M278 — job postings (Recruitment PRD §8)
   postingsForVacancy: (vacancyId: string) =>

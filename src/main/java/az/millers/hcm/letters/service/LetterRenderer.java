@@ -39,6 +39,20 @@ public class LetterRenderer {
         return substitute(body, ctx);
     }
 
+    /**
+     * M283 — raw-context variant: the caller supplies the full key set
+     * (e.g. {@code offer.salary}, {@code candidate.fullName}) without the
+     * employee-shaped prefixing. {@code today} is always available.
+     * Used by offer letters, whose subject is a candidate, not an employee.
+     */
+    public String render(String body, Map<String, Object> context) {
+        if (body == null) return "";
+        Map<String, Object> ctx = new HashMap<>();
+        ctx.put("today", LocalDate.now().format(ISO_DATE));
+        if (context != null) ctx.putAll(context);
+        return substitute(body, ctx);
+    }
+
     private String substitute(String body, Map<String, Object> ctx) {
         Matcher m = MARKER.matcher(body);
         StringBuilder sb = new StringBuilder();
