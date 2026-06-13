@@ -37,6 +37,7 @@ import {
   type StaleReport,
   type TimeToHireReport,
 } from '../api/recruitmentAnalytics'
+import { recruitmentApi, type SlaBreachReport, type SlaBreachRow } from '../api/recruitment'
 
 export function RecruitmentAnalyticsPage() {
   const { message } = AntdApp.useApp()
@@ -48,6 +49,8 @@ export function RecruitmentAnalyticsPage() {
   const [tth, setTth] = useState<TimeToHireReport | null>(null)
   const [sources, setSources] = useState<SourceReport | null>(null)
   const [stale, setStale] = useState<StaleReport | null>(null)
+  // M288 — pipeline SLA breaches (PRD §43)
+  const [sla, setSla] = useState<SlaBreachReport | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -59,12 +62,14 @@ export function RecruitmentAnalyticsPage() {
       recruitmentAnalyticsApi.timeToHire(f, t),
       recruitmentAnalyticsApi.sources(f, t),
       recruitmentAnalyticsApi.stale(staleDays),
+      recruitmentApi.slaBreaches(),
     ])
-      .then(([fn, th, src, st]) => {
+      .then(([fn, th, src, st, sl]) => {
         setFunnel(fn)
         setTth(th)
         setSources(src)
         setStale(st)
+        setSla(sl)
       })
       .catch((e) =>
         message.error(e?.response?.data?.message ?? 'Failed to load analytics'),
@@ -271,6 +276,70 @@ export function RecruitmentAnalyticsPage() {
           locale={{ emptyText: <Empty description="No stale candidates" /> }}
         />
       </Card>
+
+      {/* M288 — pipeline SLA breaches (PRD §43) */}
+      {sla && (
+        <Card
+          title={
+            <Space>
+              <span>Pipeline SLA</span>
+              <Tag color={sla.overdueCount > 0 ? 'red' : 'green'}>
+                {sla.overdueCount} overdue
+              </Tag>
+              {sla.dueSoonCount > 0 && <Tag color="gold">{sla.dueSoonCount} due soon</Tag>}
+            </Space>
+          }
+        >
+          <Table<SlaBreachRow>
+            rowKey="applicationId"
+            size="small"
+            dataSource={sla.rows}
+            pagination={{ pageSize: 25 }}
+            locale={{ emptyText: <Empty description="No applications over SLA" /> }}
+            columns={[
+              {
+                title: 'Application',
+                dataIndex: 'applicationNo',
+                width: 120,
+                render: (no: string, r: SlaBreachRow) => (
+                  <Link to={`/recruitment/candidates/${r.candidateId}`}>{no}</Link>
+                ),
+              },
+              { title: 'Candidate', dataIndex: 'candidateName', ellipsis: true },
+              { title: 'Position', dataIndex: 'vacancyTitle', ellipsis: true },
+              {
+                title: 'Stage',
+                dataIndex: 'stage',
+                width: 150,
+                render: (s: string) => s.replace(/_/g, ' '),
+              },
+              {
+                title: 'Owner',
+                dataIndex: 'ownerRole',
+                width: 150,
+                render: (o?: string | null) => (o ? o.replace(/_/g, ' ') : '—'),
+              },
+              {
+                title: 'In stage',
+                dataIndex: 'daysInStage',
+                width: 110,
+                render: (d: number, r: SlaBreachRow) => `${d}d / ${r.slaDays}d SLA`,
+              },
+              {
+                title: 'Status',
+                dataIndex: 'severity',
+                width: 120,
+                render: (s: string, r: SlaBreachRow) =>
+                  s === 'OVERDUE' ? (
+                    <Tag color="red">{r.daysOver}d over</Tag>
+                  ) : (
+                    <Tag color="gold">Due today</Tag>
+                  ),
+              },
+            ]}
+          />
+        </Card>
+      )}
     </Space>
   )
 }

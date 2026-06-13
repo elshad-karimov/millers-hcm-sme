@@ -204,6 +204,35 @@ export interface StageTransitionRequest {
   comment?: string
 }
 
+// M288 — stage SLA + overdue tracking (Recruitment PRD §14/§43)
+export interface SlaConfig {
+  id: string
+  stage: ApplicationStage
+  slaDays: number
+  ownerRole?: string | null
+  active: boolean
+}
+
+export interface SlaBreachRow {
+  applicationId: string
+  applicationNo: string
+  candidateId: string
+  candidateName: string
+  vacancyTitle: string
+  stage: ApplicationStage
+  ownerRole?: string | null
+  daysInStage: number
+  slaDays: number
+  daysOver: number
+  severity: 'OVERDUE' | 'DUE_SOON'
+}
+
+export interface SlaBreachReport {
+  overdueCount: number
+  dueSoonCount: number
+  rows: SlaBreachRow[]
+}
+
 // M287 — assessments (Recruitment PRD §22)
 export type AssessmentType =
   | 'TECHNICAL' | 'LANGUAGE' | 'COGNITIVE' | 'PERSONALITY' | 'JOB_SIMULATION'
@@ -507,6 +536,13 @@ export const recruitmentApi = {
       .then((r) => r.data),
   updateAssessment: (id: string, payload: AssessmentUpdate) =>
     api.put<Assessment>(`/recruitment/assessments/${id}`, payload).then((r) => r.data),
+
+  // M288 — stage SLA + overdue tracking (Recruitment PRD §14/§43)
+  slaConfig: () => api.get<SlaConfig[]>('/recruitment/sla/config').then((r) => r.data),
+  updateSlaConfig: (id: string, payload: { slaDays: number; ownerRole?: string; active?: boolean }) =>
+    api.put<SlaConfig>(`/recruitment/sla/config/${id}`, payload).then((r) => r.data),
+  slaBreaches: () =>
+    api.get<SlaBreachReport>('/recruitment/sla/breaches').then((r) => r.data),
   transitionOffer: (id: string, status: OfferStatus, notes?: string) =>
     api
       .post<Offer>(`/recruitment/offers/${id}/status/${status}`, null, {

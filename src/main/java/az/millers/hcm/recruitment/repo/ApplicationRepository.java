@@ -25,4 +25,7 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
 
     /** M282 — anonymous tracking lookup; the token is the credential. */
     java.util.Optional<Application> findByTrackingToken(String trackingToken);
+
+    /** M288 — SLA evaluation walks the in-flight applications. */
+    List<Application> findByStatus(ApplicationStatus status);
 }
