@@ -91,6 +91,31 @@ public class CareersPublicController {
                 publicStage(a));
     }
 
+    /**
+     * M285 — the SENT offer a candidate can act on, behind their
+     * tracking token. 204 No Content when there's nothing to respond
+     * to yet (still in pipeline, already responded, etc.).
+     */
+    @GetMapping("/track/{token}/offer")
+    @Transactional(readOnly = true)
+    public org.springframework.http.ResponseEntity<PublicCareersApplyService.CandidateOffer> offer(
+            @PathVariable String token) {
+        return applyService.offerForToken(token)
+                .map(org.springframework.http.ResponseEntity::ok)
+                .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
+    public record OfferResponseRequest(boolean accept, String declineReason) {}
+    public record OfferResponseResult(String message) {}
+
+    /** M285 — candidate accepts or declines their offer (PRD §32). */
+    @PostMapping("/track/{token}/offer/respond")
+    public OfferResponseResult respondToOffer(@PathVariable String token,
+                                               @RequestBody OfferResponseRequest req) {
+        return new OfferResponseResult(applyService.respondToOffer(
+                token, req.accept(), req.declineReason(), currentRequest.ipAddress()));
+    }
+
     /** Collapse the internal pipeline to candidate-safe phases. */
     private static String publicStage(az.millers.hcm.recruitment.domain.Application a) {
         return switch (a.getCurrentStage()) {

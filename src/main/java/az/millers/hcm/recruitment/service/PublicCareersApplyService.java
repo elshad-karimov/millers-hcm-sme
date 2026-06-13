@@ -84,6 +84,9 @@ public class PublicCareersApplyService {
     private final CandidateService candidateService;
     private final ApplicationService applicationService;
     private final AuditService audit;
+    // M285 — candidate-portal offer accept / decline (PRD §32).
+    private final az.millers.hcm.recruitment.repo.OfferRepository offers;
+    private final OfferService offerService;
 
     /** ip → (windowStartMillis, count). Fixed-window; resets per window. */
     private final ConcurrentHashMap<String, long[]> windows = new ConcurrentHashMap<>();
@@ -95,7 +98,9 @@ public class PublicCareersApplyService {
                                       ApplicationRepository applications,
                                       CandidateService candidateService,
                                       ApplicationService applicationService,
-                                      AuditService audit) {
+                                      AuditService audit,
+                                      az.millers.hcm.recruitment.repo.OfferRepository offers,
+                                      OfferService offerService) {
         this.postings = postings;
         this.vacancies = vacancies;
         this.candidates = candidates;
@@ -103,6 +108,8 @@ public class PublicCareersApplyService {
         this.candidateService = candidateService;
         this.applicationService = applicationService;
         this.audit = audit;
+        this.offers = offers;
+        this.offerService = offerService;
     }
 
     @Transactional
@@ -185,6 +192,76 @@ public class PublicCareersApplyService {
         }
         return applications.findByTrackingToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+    }
+
+    // ── M285 — candidate-portal offer accept / decline (PRD §32) ───────
+
+    /** Candidate-safe view of a SENT offer they can act on. */
+    public record CandidateOffer(
+            String offerNo,
+            String jobTitle,
+            BigDecimal salary,
+            String currency,
+            LocalDate startDate,
+            String benefits) {}
+
+    /**
+     * The SENT offer behind a tracking token, or empty when there's no
+     * offer the candidate may act on yet (still in pipeline, already
+     * responded, withdrawn, …). The token is the credential — only the
+     * owning candidate's own offer is ever reachable.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<CandidateOffer> offerForToken(String token) {
+        Application a = findByTrackingToken(token);
+        var offer = offers.findByApplicationId(a.getId()).orElse(null);
+        if (offer == null
+                || offer.getStatus() != az.millers.hcm.recruitment.domain.OfferStatus.SENT) {
+            return java.util.Optional.empty();
+        }
+        Vacancy v = vacancies.findById(a.getVacancyId()).orElse(null);
+        String title = v == null ? "—" : v.getTitle();
+        return java.util.Optional.of(new CandidateOffer(
+                offer.getOfferNo(), title,
+                offer.getProposedSalary(), offer.getCurrency(),
+                offer.getProposedStartDate(), offer.getBenefits()));
+    }
+
+    /**
+     * Candidate accepts or declines their offer from the portal (PRD
+     * §32). Requires a SENT offer behind the token. Accept delegates
+     * to {@code OfferService.transition(ACCEPTED)} — which re-runs the
+     * M268 position-fillable gate and the downstream accept handling;
+     * decline → REJECTED with the candidate's reason.
+     */
+    @Transactional
+    public String respondToOffer(String token, boolean accept, String declineReason, String ip) {
+        Application a = findByTrackingToken(token);
+        var offer = offers.findByApplicationId(a.getId())
+                .filter(o -> o.getStatus() == az.millers.hcm.recruitment.domain.OfferStatus.SENT)
+                .orElseThrow(() -> new BadRequestException(
+                        "There is no offer awaiting your response."));
+
+        var target = accept
+                ? az.millers.hcm.recruitment.domain.OfferStatus.ACCEPTED
+                : az.millers.hcm.recruitment.domain.OfferStatus.REJECTED;
+        String note = accept
+                ? "Accepted by candidate via portal"
+                : "Declined by candidate via portal"
+                        + (declineReason == null || declineReason.isBlank()
+                                ? "" : ": " + declineReason);
+        offerService.transition(offer.getId(), target, note);
+
+        audit.record(MODULE, "Offer", offer.getId().toString(), "PORTAL_RESPONSE",
+                Map.of("status", "SENT"),
+                Map.of("status", target.name(),
+                        "applicationNo", a.getApplicationNo(),
+                        "sourceIp", ip == null ? "" : ip));
+        log.info("Portal offer response: {} -> {} (app {})",
+                offer.getOfferNo(), target, a.getApplicationNo());
+        return accept
+                ? "Offer accepted — congratulations! HR will be in touch about your start date."
+                : "Offer declined. Thank you for letting us know.";
     }
 
     /** 32-hex-char SecureRandom token (128 bits) — the tracking credential. */

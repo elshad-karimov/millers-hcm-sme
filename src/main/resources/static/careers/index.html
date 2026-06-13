@@ -250,7 +250,69 @@ async function showTracking(token) {
     <section><h4>Müraciət / Reference</h4><p>${esc(s.applicationNo)}</p></section>
     <section><h4>Vakansiya / Position</h4><p>${esc(s.jobTitle)}</p></section>
     ${s.submittedOn ? `<section><h4>Göndərilib / Submitted</h4><p>${s.submittedOn}</p></section>` : ''}
-    <section><h4>Status</h4><p><span class="badge">${esc(s.status)}</span></p></section>`;
+    <section><h4>Status</h4><p><span class="badge">${esc(s.status)}</span></p></section>
+    <div id="offerPanel"></div>`;
+  // M285 — if there's a SENT offer, show the accept/decline panel
+  showOffer(token);
+}
+
+function salaryText(o) {
+  if (o.salary == null) return null;
+  return `${o.salary} ${o.currency ?? ''}`.trim();
+}
+
+async function showOffer(token) {
+  const res = await fetch(`/api/public/careers/track/${encodeURIComponent(token)}/offer`);
+  if (res.status !== 200) return; // 204 = nothing to respond to
+  const o = await res.json();
+  const panel = document.getElementById('offerPanel');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="apply-note" style="background:#eef4fb;border-color:#cfe0f3;color:#1f3a5f">
+      <h4 style="margin-bottom:8px">🎉 Sizə təklif var / You have an offer</h4>
+      <div>${o.jobTitle ? esc(o.jobTitle) : ''}</div>
+      ${salaryText(o) ? `<div>Əməkhaqqı / Salary: <strong>${esc(salaryText(o))}</strong></div>` : ''}
+      ${o.startDate ? `<div>Başlama / Start: ${o.startDate}</div>` : ''}
+      ${o.benefits ? `<div>Üstünlüklər / Benefits: ${esc(o.benefits)}</div>` : ''}
+      <div style="margin-top:12px">
+        <button id="acceptBtn" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 18px;cursor:pointer;font-weight:600">
+          Qəbul et / Accept
+        </button>
+        <button id="declineBtn" style="background:#fff;color:#b23;border:1px solid #e0b4b4;border-radius:8px;padding:9px 18px;cursor:pointer;margin-left:8px">
+          İmtina et / Decline
+        </button>
+      </div>
+    </div>`;
+  document.getElementById('acceptBtn').onclick = () => respondOffer(token, true);
+  document.getElementById('declineBtn').onclick = () => {
+    const reason = prompt('İmtina səbəbi (könüllü) / Reason for declining (optional):') ?? '';
+    respondOffer(token, false, reason);
+  };
+}
+
+async function respondOffer(token, accept, declineReason) {
+  const res = await fetch(`/api/public/careers/track/${encodeURIComponent(token)}/offer/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accept, declineReason: declineReason ?? null }),
+  });
+  const panel = document.getElementById('offerPanel');
+  if (res.ok) {
+    const body = await res.json();
+    if (panel) {
+      panel.innerHTML = `<div class="apply-note">${esc(body.message ?? 'Response recorded')}</div>`;
+    }
+    showTracking(token); // refresh status (re-renders panel as resolved)
+  } else {
+    const body = await res.json().catch(() => ({}));
+    if (panel) {
+      panel.querySelectorAll('button').forEach((b) => (b.disabled = false));
+      const err = document.createElement('div');
+      err.style.cssText = 'color:#b23;margin-top:8px';
+      err.textContent = body.message ?? 'Could not record your response — please try again.';
+      panel.appendChild(err);
+    }
+  }
 }
 
 const trackToken = new URLSearchParams(location.search).get('track');
