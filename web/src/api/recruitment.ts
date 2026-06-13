@@ -266,6 +266,31 @@ export interface OfferRequest {
   notes?: string
 }
 
+// M284 — counteroffer / revision (PRD §33)
+export interface OfferReviseRequest {
+  proposedSalary: number
+  currency?: string
+  proposedStartDate?: string
+  benefits?: string
+  reason: 'CANDIDATE_COUNTER' | 'HR_REVISION'
+  notes?: string
+}
+
+export interface OfferRevision {
+  id: string
+  offerId: string
+  revisionNo: number
+  prevSalary?: number | null
+  prevCurrency?: string | null
+  prevStartDate?: string | null
+  prevBenefits?: string | null
+  prevStatus: string
+  reason: 'CANDIDATE_COUNTER' | 'HR_REVISION'
+  notes?: string | null
+  createdAt: string
+  createdBy?: string | null
+}
+
 export const recruitmentApi = {
   // Vacancies
   vacancies: (params: { status?: VacancyStatus; page?: number; size?: number }) =>
@@ -336,6 +361,11 @@ export const recruitmentApi = {
   // M276 — kick off the offer approval workflow (salary-exception routed)
   submitOfferApproval: (id: string) =>
     api.post<Offer>(`/recruitment/offers/${id}/submit-approval`).then((r) => r.data),
+  // M284 — counteroffer / revision (PRD §33)
+  reviseOffer: (id: string, payload: OfferReviseRequest) =>
+    api.post<Offer>(`/recruitment/offers/${id}/revise`, payload).then((r) => r.data),
+  offerRevisions: (id: string) =>
+    api.get<OfferRevision[]>(`/recruitment/offers/${id}/revisions`).then((r) => r.data),
   // M283 — render the offer letter PDF (lang: az | en)
   downloadOfferLetter: (id: string, lang: string) =>
     api

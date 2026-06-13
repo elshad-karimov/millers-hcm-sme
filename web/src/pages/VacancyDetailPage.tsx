@@ -26,6 +26,7 @@ import {
   type ApplicationStage,
   type Candidate,
   type Offer,
+  type OfferRevision,
   type Vacancy,
   type VacancyStatus,
 } from '../api/recruitment'
@@ -94,6 +95,11 @@ export function VacancyDetailPage() {
   const [offerOpen, setOfferOpen] = useState<Application | null>(null)
   const [currentOffer, setCurrentOffer] = useState<Offer | null>(null)
   const [oForm] = Form.useForm()
+
+  // M284 — counteroffer / revision (PRD §33)
+  const [reviseOpen, setReviseOpen] = useState(false)
+  const [revisions, setRevisions] = useState<OfferRevision[]>([])
+  const [rForm] = Form.useForm()
 
   const load = async () => {
     setLoading(true)
@@ -626,6 +632,29 @@ export function VacancyDetailPage() {
             Awaiting approval — see the Approvals inbox
           </Tag>
         )}
+        {/* M284 — counteroffer / revision, for APPROVED or SENT offers */}
+        {currentOffer && ['APPROVED', 'SENT'].includes(currentOffer.status) && (
+          <Space style={{ marginTop: 8 }}>
+            <Button
+              size="small"
+              onClick={async () => {
+                rForm.setFieldsValue({
+                  proposedSalary: currentOffer.proposedSalary,
+                  currency: currentOffer.currency,
+                  reason: 'CANDIDATE_COUNTER',
+                })
+                try {
+                  setRevisions(await recruitmentApi.offerRevisions(currentOffer.id))
+                } catch {
+                  setRevisions([])
+                }
+                setReviseOpen(true)
+              }}
+            >
+              Revise / counteroffer
+            </Button>
+          </Space>
+        )}
         {/* M283 — offer letter PDF, available once approved */}
         {currentOffer &&
           ['APPROVED', 'SENT', 'ACCEPTED'].includes(currentOffer.status) && (
@@ -700,6 +729,86 @@ export function VacancyDetailPage() {
               Mark rejected
             </Button>
           </Space>
+        )}
+      </Modal>
+
+      {/* M284 — revision modal (PRD §33). Submitting drops the offer
+          back to DRAFT for re-approval through the M276 workflow. */}
+      <Modal
+        open={reviseOpen}
+        title="Revise offer / record counteroffer"
+        onCancel={() => setReviseOpen(false)}
+        okText="Apply revision"
+        onOk={async () => {
+          const v = await rForm.validateFields()
+          if (!currentOffer) return
+          try {
+            await recruitmentApi.reviseOffer(currentOffer.id, {
+              proposedSalary: v.proposedSalary,
+              currency: v.currency,
+              proposedStartDate: v.proposedStartDate?.format('YYYY-MM-DD'),
+              benefits: v.benefits,
+              reason: v.reason,
+              notes: v.notes,
+            })
+            message.success(
+              'Revision applied — offer is back in DRAFT and needs re-approval',
+            )
+            setReviseOpen(false)
+            if (offerOpen) openOffer(offerOpen)
+          } catch (err) {
+            message.error(
+              (err as { response?: { data?: { message?: string } } }).response?.data
+                ?.message ?? 'Revision failed',
+            )
+          }
+        }}
+        width={520}
+      >
+        <Form form={rForm} layout="vertical">
+          <Space.Compact block>
+            <Form.Item
+              name="proposedSalary"
+              label="New monthly salary"
+              rules={[{ required: true }]}
+              style={{ flex: 1, marginRight: 8 }}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="currency" label="Currency" style={{ width: 100 }}>
+              <Input maxLength={3} />
+            </Form.Item>
+          </Space.Compact>
+          <Form.Item name="proposedStartDate" label="New start date (optional)">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="benefits" label="Benefits (optional — replaces current)">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'CANDIDATE_COUNTER', label: 'Candidate counteroffer' },
+                { value: 'HR_REVISION', label: 'HR revision' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="notes" label="Negotiation notes">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+        {revisions.length > 0 && (
+          <>
+            <Typography.Text type="secondary">Previous terms:</Typography.Text>
+            {revisions.map((r) => (
+              <div key={r.id} style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                #{r.revisionNo} · {r.prevSalary} {r.prevCurrency} · start{' '}
+                {r.prevStartDate ?? '—'} · was {r.prevStatus} ·{' '}
+                {r.reason === 'CANDIDATE_COUNTER' ? 'candidate counter' : 'HR revision'}
+                {r.notes ? ` — ${r.notes}` : ''}
+              </div>
+            ))}
+          </>
         )}
       </Modal>
     </Space>

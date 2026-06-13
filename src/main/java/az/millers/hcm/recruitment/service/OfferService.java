@@ -58,6 +58,8 @@ public class OfferService {
     // M276 — salary-range validation against the position + approval workflow.
     private final PositionRepository positions;
     private final WorkflowService workflowService;
+    // M284 — counteroffer / revision history (PRD §33).
+    private final az.millers.hcm.recruitment.repo.OfferRevisionRepository revisions;
 
     public OfferService(OfferRepository offers,
                          ApplicationRepository applications,
@@ -66,7 +68,8 @@ public class OfferService {
                          VacancyRepository vacancies,
                          PositionHeadcountService headcountGate,
                          PositionRepository positions,
-                         WorkflowService workflowService) {
+                         WorkflowService workflowService,
+                         az.millers.hcm.recruitment.repo.OfferRevisionRepository revisions) {
         this.offers = offers;
         this.applications = applications;
         this.audit = audit;
@@ -75,6 +78,7 @@ public class OfferService {
         this.headcountGate = headcountGate;
         this.positions = positions;
         this.workflowService = workflowService;
+        this.revisions = revisions;
     }
 
     @Transactional(readOnly = true)
@@ -270,6 +274,80 @@ public class OfferService {
                         "comment", event.comment() == null ? "" : event.comment()));
         log.info("Offer {} approval outcome: {} → {} (by {})",
                 o.getOfferNo(), event.status(), target, event.actor());
+    }
+
+    // ── M284 — counteroffer + revision (Recruitment PRD §33) ───────────
+
+    public record ReviseRequest(
+            java.math.BigDecimal proposedSalary,
+            String currency,
+            java.time.LocalDate proposedStartDate,
+            String benefits,
+            az.millers.hcm.recruitment.domain.OfferRevision.Reason reason,
+            String notes) {}
+
+    /**
+     * Apply revised terms to an APPROVED or SENT offer. The previous
+     * terms are snapshotted into offer_revision, then PRD §33's rule
+     * fires: "any material change after approval should trigger
+     * re-approval" — the offer drops to DRAFT and goes back through
+     * the M276 approval workflow (salary-exception routing included,
+     * so a counter ABOVE the range escalates to the longer chain).
+     */
+    @Transactional
+    public Offer revise(UUID offerId, ReviseRequest req) {
+        Offer o = offers.findById(offerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Offer not found: " + offerId));
+        if (o.getStatus() != OfferStatus.APPROVED && o.getStatus() != OfferStatus.SENT) {
+            throw new BadRequestException(
+                    "Only APPROVED or SENT offers can be revised (current: " + o.getStatus()
+                    + "). DRAFT offers are edited directly.");
+        }
+        if (req.reason() == null) {
+            throw new BadRequestException("Revision reason is required");
+        }
+        if (req.proposedSalary() == null) {
+            throw new BadRequestException("Revised salary is required");
+        }
+
+        // Snapshot the terms BEFORE applying the change.
+        var rev = new az.millers.hcm.recruitment.domain.OfferRevision();
+        rev.setOfferId(o.getId());
+        rev.setRevisionNo(revisions.countByOfferId(o.getId()) + 1);
+        rev.setPrevSalary(o.getProposedSalary());
+        rev.setPrevCurrency(o.getCurrency());
+        rev.setPrevStartDate(o.getProposedStartDate());
+        rev.setPrevBenefits(o.getBenefits());
+        rev.setPrevStatus(o.getStatus().name());
+        rev.setReason(req.reason());
+        rev.setNotes(req.notes());
+        rev.setCreatedBy(currentRequest.username());
+        revisions.save(rev);
+
+        OfferStatus old = o.getStatus();
+        o.setProposedSalary(req.proposedSalary());
+        if (req.currency() != null && !req.currency().isBlank()) {
+            o.setCurrency(req.currency().toUpperCase());
+        }
+        if (req.proposedStartDate() != null) o.setProposedStartDate(req.proposedStartDate());
+        if (req.benefits() != null) o.setBenefits(req.benefits());
+        o.setStatus(OfferStatus.DRAFT); // §33 — re-approval required
+        o.setSalaryException(false);    // re-evaluated on next submit
+        Offer saved = offers.save(o);
+
+        audit.record(MODULE, ENTITY, offerId.toString(), "REVISE",
+                Map.of("status", old.name(),
+                        "salary", rev.getPrevSalary() == null ? "" : rev.getPrevSalary().toPlainString()),
+                Map.of("status", saved.getStatus().name(),
+                        "salary", saved.getProposedSalary().toPlainString(),
+                        "revisionNo", rev.getRevisionNo(),
+                        "reason", req.reason().name()));
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<az.millers.hcm.recruitment.domain.OfferRevision> revisions(UUID offerId) {
+        return revisions.findByOfferIdOrderByRevisionNoDesc(offerId);
     }
 
     /** Position range first (source of truth), vacancy range as fallback. */

@@ -62,6 +62,25 @@ public class OfferController {
         return OfferResponse.from(service.submitForApproval(id));
     }
 
+    /**
+     * M284 — Recruitment PRD §33: apply revised terms (counteroffer /
+     * HR revision). Snapshots previous terms, drops the offer to DRAFT
+     * for re-approval through the M276 workflow.
+     */
+    @PostMapping("/{id}/revise")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public OfferResponse revise(@PathVariable UUID id,
+                                 @RequestBody az.millers.hcm.recruitment.service.OfferService.ReviseRequest req) {
+        return OfferResponse.from(service.revise(id, req));
+    }
+
+    /** M284 — negotiation history, newest first. */
+    @GetMapping("/{id}/revisions")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public java.util.List<az.millers.hcm.recruitment.domain.OfferRevision> revisions(@PathVariable UUID id) {
+        return service.revisions(id);
+    }
+
     /** M283 — Recruitment PRD §31: render the offer letter PDF (AZ default). */
     @GetMapping("/{id}/letter")
     @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
