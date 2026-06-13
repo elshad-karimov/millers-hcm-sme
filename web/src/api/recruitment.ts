@@ -204,6 +204,50 @@ export interface StageTransitionRequest {
   comment?: string
 }
 
+// M286 — pre-hire checks (Recruitment PRD §25-§27)
+export type CheckType =
+  | 'BACKGROUND' | 'IDENTITY' | 'EDUCATION' | 'EMPLOYMENT' | 'REFERENCE'
+  | 'CRIMINAL' | 'CREDIT' | 'LICENSE' | 'WORK_AUTHORIZATION' | 'MEDICAL'
+export type CheckStatus =
+  | 'NOT_REQUIRED' | 'REQUIRED' | 'REQUESTED' | 'IN_PROGRESS'
+  | 'COMPLETED' | 'PASSED' | 'FAILED' | 'REQUIRES_REVIEW' | 'CANCELLED'
+export type CheckResult = 'PASS' | 'FAIL' | 'CONDITIONAL'
+
+export interface PreHireCheck {
+  id: string
+  checkNo: string
+  applicationId: string
+  checkType: CheckType
+  status: CheckStatus
+  provider?: string | null
+  subjectName?: string | null
+  subjectContact?: string | null
+  result?: CheckResult | null
+  resultNotes?: string | null
+  resultRedacted: boolean
+  attachmentId?: string | null
+  blocksHire: boolean
+  requestedAt?: string | null
+  completedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PreHireCheckRequest {
+  checkType: CheckType
+  provider?: string
+  subjectName?: string
+  subjectContact?: string
+  blocksHire?: boolean
+}
+
+export interface PreHireCheckUpdate {
+  status: CheckStatus
+  result?: CheckResult
+  resultNotes?: string
+  attachmentId?: string
+}
+
 // M278 — job postings (Recruitment PRD §8)
 export type PostingChannel = 'INTERNAL' | 'EXTERNAL' | 'JOB_BOARD' | 'AGENCY' | 'SOCIAL'
 export type PostingStatus = 'DRAFT' | 'PUBLISHED' | 'PAUSED' | 'EXPIRED' | 'CLOSED'
@@ -392,6 +436,18 @@ export const recruitmentApi = {
     api.post<JobPosting>(`/recruitment/postings/${id}/pause`).then((r) => r.data),
   closePosting: (id: string) =>
     api.post<JobPosting>(`/recruitment/postings/${id}/close`).then((r) => r.data),
+
+  // M286 — pre-hire checks (Recruitment PRD §25-§27)
+  checksForApplication: (applicationId: string) =>
+    api
+      .get<PreHireCheck[]>(`/recruitment/applications/${applicationId}/checks`)
+      .then((r) => r.data),
+  createCheck: (applicationId: string, payload: PreHireCheckRequest) =>
+    api
+      .post<PreHireCheck>(`/recruitment/applications/${applicationId}/checks`, payload)
+      .then((r) => r.data),
+  updateCheck: (id: string, payload: PreHireCheckUpdate) =>
+    api.put<PreHireCheck>(`/recruitment/checks/${id}`, payload).then((r) => r.data),
   transitionOffer: (id: string, status: OfferStatus, notes?: string) =>
     api
       .post<Offer>(`/recruitment/offers/${id}/status/${status}`, null, {

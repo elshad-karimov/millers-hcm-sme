@@ -33,6 +33,7 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 import { JobPostingsPanel } from '../components/JobPostingsPanel'
+import { PreHireChecksPanel } from '../components/PreHireChecksPanel'
 
 const STAGE_ORDER: ApplicationStage[] = [
   'CV_SCREENING',
@@ -100,6 +101,9 @@ export function VacancyDetailPage() {
   const [reviseOpen, setReviseOpen] = useState(false)
   const [revisions, setRevisions] = useState<OfferRevision[]>([])
   const [rForm] = Form.useForm()
+
+  // M286 — pre-hire checks (PRD §25-§27)
+  const [checksOf, setChecksOf] = useState<Application | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -296,6 +300,10 @@ export function VacancyDetailPage() {
             </Button>
             <Button size="small" onClick={() => beginTransition(a, 'WITHDRAWN')}>
               Withdraw
+            </Button>
+            {/* M286 — pre-hire checks (background / reference / medical) */}
+            <Button size="small" onClick={() => setChecksOf(a)}>
+              Checks
             </Button>
           </Space>
         )}
@@ -730,6 +738,24 @@ export function VacancyDetailPage() {
             </Button>
           </Space>
         )}
+      </Modal>
+
+      {/* M286 — pre-hire checks modal (PRD §25-§27) */}
+      <Modal
+        open={!!checksOf}
+        title={
+          checksOf
+            ? `Pre-hire checks — ${candidateMap.get(checksOf.candidateId)?.firstName ?? ''} ${
+                candidateMap.get(checksOf.candidateId)?.lastName ?? ''
+              }`
+            : ''
+        }
+        onCancel={() => setChecksOf(null)}
+        footer={null}
+        width={820}
+        destroyOnClose
+      >
+        {checksOf && <PreHireChecksPanel applicationId={checksOf.id} canEdit={canEdit} />}
       </Modal>
 
       {/* M284 — revision modal (PRD §33). Submitting drops the offer

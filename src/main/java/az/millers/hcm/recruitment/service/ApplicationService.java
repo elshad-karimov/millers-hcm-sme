@@ -75,6 +75,8 @@ public class ApplicationService {
     private final CurrentRequest currentRequest;
     private final String preboardingBaseUrl;
     private final int preboardingAutoExpiryDays;
+    // M286 — pre-hire check gate (PRD §25): block hire on a FAILED check.
+    private final PreHireCheckService preHireCheckService;
 
     public ApplicationService(ApplicationRepository applications,
                                ApplicationEventRepository events,
@@ -87,6 +89,7 @@ public class ApplicationService {
                                EmailService emailService,
                                AuditService audit,
                                CurrentRequest currentRequest,
+                               PreHireCheckService preHireCheckService,
                                @Value("${hcm.preboarding.base-url}") String preboardingBaseUrl,
                                @Value("${hcm.preboarding.auto-invite-expiry-days:30}") int preboardingAutoExpiryDays) {
         this.applications = applications;
@@ -100,6 +103,7 @@ public class ApplicationService {
         this.emailService = emailService;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.preHireCheckService = preHireCheckService;
         this.preboardingBaseUrl = preboardingBaseUrl;
         this.preboardingAutoExpiryDays = preboardingAutoExpiryDays;
     }
@@ -205,6 +209,8 @@ public class ApplicationService {
                     + "use Position Transfer or Contract Change (POSITION) instead of hire, "
                     + "then mark this application REJECTED with reason 'internal move'");
         }
+        // M286 — PRD §25: a FAILED blocks-hire pre-hire check stops the hire.
+        preHireCheckService.assertNoBlockingFailures(a.getId());
         Offer offer = offers.findByApplicationId(a.getId()).orElse(null);
 
         LocalDate hireDate = offer != null && offer.getProposedStartDate() != null
