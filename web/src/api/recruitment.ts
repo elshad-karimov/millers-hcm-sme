@@ -204,6 +204,53 @@ export interface StageTransitionRequest {
   comment?: string
 }
 
+// M287 — assessments (Recruitment PRD §22)
+export type AssessmentType =
+  | 'TECHNICAL' | 'LANGUAGE' | 'COGNITIVE' | 'PERSONALITY' | 'JOB_SIMULATION'
+  | 'PRACTICAL' | 'CASE_STUDY' | 'TYPING' | 'OTHER'
+export type AssessmentStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED'
+export type AssessmentResult = 'PASS' | 'FAIL'
+
+export interface Assessment {
+  id: string
+  assessmentNo: string
+  applicationId: string
+  assessmentType: AssessmentType
+  name: string
+  provider?: string | null
+  status: AssessmentStatus
+  score?: number | null
+  maxScore?: number | null
+  passingScore?: number | null
+  result?: AssessmentResult | null
+  notes?: string | null
+  attachmentId?: string | null
+  blocksHire: boolean
+  assignedAt?: string | null
+  completedAt?: string | null
+  validUntil?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AssessmentRequest {
+  assessmentType: AssessmentType
+  name: string
+  provider?: string
+  maxScore?: number
+  passingScore?: number
+  validUntil?: string
+  blocksHire?: boolean
+}
+
+export interface AssessmentUpdate {
+  status: AssessmentStatus
+  score?: number
+  result?: AssessmentResult
+  notes?: string
+  attachmentId?: string
+}
+
 // M286 — pre-hire checks (Recruitment PRD §25-§27)
 export type CheckType =
   | 'BACKGROUND' | 'IDENTITY' | 'EDUCATION' | 'EMPLOYMENT' | 'REFERENCE'
@@ -448,6 +495,18 @@ export const recruitmentApi = {
       .then((r) => r.data),
   updateCheck: (id: string, payload: PreHireCheckUpdate) =>
     api.put<PreHireCheck>(`/recruitment/checks/${id}`, payload).then((r) => r.data),
+
+  // M287 — assessments (Recruitment PRD §22)
+  assessmentsForApplication: (applicationId: string) =>
+    api
+      .get<Assessment[]>(`/recruitment/applications/${applicationId}/assessments`)
+      .then((r) => r.data),
+  createAssessment: (applicationId: string, payload: AssessmentRequest) =>
+    api
+      .post<Assessment>(`/recruitment/applications/${applicationId}/assessments`, payload)
+      .then((r) => r.data),
+  updateAssessment: (id: string, payload: AssessmentUpdate) =>
+    api.put<Assessment>(`/recruitment/assessments/${id}`, payload).then((r) => r.data),
   transitionOffer: (id: string, status: OfferStatus, notes?: string) =>
     api
       .post<Offer>(`/recruitment/offers/${id}/status/${status}`, null, {

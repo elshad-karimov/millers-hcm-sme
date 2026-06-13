@@ -77,6 +77,8 @@ public class ApplicationService {
     private final int preboardingAutoExpiryDays;
     // M286 — pre-hire check gate (PRD §25): block hire on a FAILED check.
     private final PreHireCheckService preHireCheckService;
+    // M287 — assessment gate (PRD §22): block hire on a FAILED assessment.
+    private final AssessmentService assessmentService;
 
     public ApplicationService(ApplicationRepository applications,
                                ApplicationEventRepository events,
@@ -90,6 +92,7 @@ public class ApplicationService {
                                AuditService audit,
                                CurrentRequest currentRequest,
                                PreHireCheckService preHireCheckService,
+                               AssessmentService assessmentService,
                                @Value("${hcm.preboarding.base-url}") String preboardingBaseUrl,
                                @Value("${hcm.preboarding.auto-invite-expiry-days:30}") int preboardingAutoExpiryDays) {
         this.applications = applications;
@@ -104,6 +107,7 @@ public class ApplicationService {
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.preHireCheckService = preHireCheckService;
+        this.assessmentService = assessmentService;
         this.preboardingBaseUrl = preboardingBaseUrl;
         this.preboardingAutoExpiryDays = preboardingAutoExpiryDays;
     }
@@ -211,6 +215,8 @@ public class ApplicationService {
         }
         // M286 — PRD §25: a FAILED blocks-hire pre-hire check stops the hire.
         preHireCheckService.assertNoBlockingFailures(a.getId());
+        // M287 — PRD §22: a FAILED blocks-hire assessment stops the hire too.
+        assessmentService.assertNoBlockingFailures(a.getId());
         Offer offer = offers.findByApplicationId(a.getId()).orElse(null);
 
         LocalDate hireDate = offer != null && offer.getProposedStartDate() != null

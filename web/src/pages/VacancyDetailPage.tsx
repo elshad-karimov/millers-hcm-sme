@@ -34,6 +34,7 @@ import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 import { JobPostingsPanel } from '../components/JobPostingsPanel'
 import { PreHireChecksPanel } from '../components/PreHireChecksPanel'
+import { AssessmentsPanel } from '../components/AssessmentsPanel'
 
 const STAGE_ORDER: ApplicationStage[] = [
   'CV_SCREENING',
@@ -104,6 +105,8 @@ export function VacancyDetailPage() {
 
   // M286 — pre-hire checks (PRD §25-§27)
   const [checksOf, setChecksOf] = useState<Application | null>(null)
+  // M287 — assessments (PRD §22)
+  const [assessmentsOf, setAssessmentsOf] = useState<Application | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -304,6 +307,10 @@ export function VacancyDetailPage() {
             {/* M286 — pre-hire checks (background / reference / medical) */}
             <Button size="small" onClick={() => setChecksOf(a)}>
               Checks
+            </Button>
+            {/* M287 — assessments / tests */}
+            <Button size="small" onClick={() => setAssessmentsOf(a)}>
+              Assessments
             </Button>
           </Space>
         )}
@@ -756,6 +763,26 @@ export function VacancyDetailPage() {
         destroyOnClose
       >
         {checksOf && <PreHireChecksPanel applicationId={checksOf.id} canEdit={canEdit} />}
+      </Modal>
+
+      {/* M287 — assessments modal (PRD §22) */}
+      <Modal
+        open={!!assessmentsOf}
+        title={
+          assessmentsOf
+            ? `Assessments — ${candidateMap.get(assessmentsOf.candidateId)?.firstName ?? ''} ${
+                candidateMap.get(assessmentsOf.candidateId)?.lastName ?? ''
+              }`
+            : ''
+        }
+        onCancel={() => setAssessmentsOf(null)}
+        footer={null}
+        width={860}
+        destroyOnClose
+      >
+        {assessmentsOf && (
+          <AssessmentsPanel applicationId={assessmentsOf.id} canEdit={canEdit} />
+        )}
       </Modal>
 
       {/* M284 — revision modal (PRD §33). Submitting drops the offer
