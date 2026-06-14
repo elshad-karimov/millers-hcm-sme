@@ -17,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.recruitment.domain.JobPosting;
 import az.millers.hcm.recruitment.domain.Vacancy;
+import az.millers.hcm.recruitment.api.dto.ScreeningDtos.PublicQuestion;
 import az.millers.hcm.recruitment.repo.JobPostingRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.recruitment.service.PublicCareersApplyService;
+import az.millers.hcm.recruitment.service.ScreeningQuestionService;
 import az.millers.hcm.security.CurrentRequest;
 
 /**
@@ -39,15 +41,18 @@ public class CareersPublicController {
     private final JobPostingRepository postings;
     private final VacancyRepository vacancies;
     private final PublicCareersApplyService applyService;
+    private final ScreeningQuestionService screeningQuestionService;
     private final CurrentRequest currentRequest;
 
     public CareersPublicController(JobPostingRepository postings,
                                     VacancyRepository vacancies,
                                     PublicCareersApplyService applyService,
+                                    ScreeningQuestionService screeningQuestionService,
                                     CurrentRequest currentRequest) {
         this.postings = postings;
         this.vacancies = vacancies;
         this.applyService = applyService;
+        this.screeningQuestionService = screeningQuestionService;
         this.currentRequest = currentRequest;
     }
 
@@ -157,7 +162,9 @@ public class CareersPublicController {
             LocalDate publishedOn,
             String description,
             String requirements,
-            String benefits) {}
+            String benefits,
+            /** M289 — knockout / screening questions to answer at apply (PRD §15). */
+            List<PublicQuestion> screeningQuestions) {}
 
     @GetMapping("/jobs")
     @Transactional(readOnly = true)
@@ -201,7 +208,8 @@ public class CareersPublicController {
                 p.isSalaryVisible() ? v.getCurrency() : null,
                 p.getApplicationDeadline(),
                 p.getPublishedAt() == null ? null : p.getPublishedAt().toLocalDate(),
-                p.getDescription(), p.getRequirements(), p.getBenefitsDescription());
+                p.getDescription(), p.getRequirements(), p.getBenefitsDescription(),
+                screeningQuestionService.publicQuestionsForPosting(p.getId()));
     }
 
     private PublicJob toCard(JobPosting p, Vacancy v) {

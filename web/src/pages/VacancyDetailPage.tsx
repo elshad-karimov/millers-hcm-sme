@@ -35,6 +35,7 @@ import { RoleSets } from '../auth/roleSets'
 import { JobPostingsPanel } from '../components/JobPostingsPanel'
 import { PreHireChecksPanel } from '../components/PreHireChecksPanel'
 import { AssessmentsPanel } from '../components/AssessmentsPanel'
+import { ScreeningAnswersPanel } from '../components/ScreeningAnswersPanel'
 
 const STAGE_ORDER: ApplicationStage[] = [
   'CV_SCREENING',
@@ -107,6 +108,8 @@ export function VacancyDetailPage() {
   const [checksOf, setChecksOf] = useState<Application | null>(null)
   // M287 — assessments (PRD §22)
   const [assessmentsOf, setAssessmentsOf] = useState<Application | null>(null)
+  // M289 — screening answers / knockout outcome (PRD §15)
+  const [answersOf, setAnswersOf] = useState<Application | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -269,9 +272,15 @@ export function VacancyDetailPage() {
           </Space>
         }
         extra={
-          <Button size="small" onClick={() => showHistory(a)}>
-            History
-          </Button>
+          <Space size={4}>
+            {/* M289 — screening answers / knockout outcome (visible on rejected cards too) */}
+            <Button size="small" onClick={() => setAnswersOf(a)}>
+              Screening
+            </Button>
+            <Button size="small" onClick={() => showHistory(a)}>
+              History
+            </Button>
+          </Space>
         }
       >
         {c && (
@@ -783,6 +792,24 @@ export function VacancyDetailPage() {
         {assessmentsOf && (
           <AssessmentsPanel applicationId={assessmentsOf.id} canEdit={canEdit} />
         )}
+      </Modal>
+
+      {/* M289 — screening answers / knockout outcome modal (PRD §15) */}
+      <Modal
+        open={!!answersOf}
+        title={
+          answersOf
+            ? `Screening answers — ${candidateMap.get(answersOf.candidateId)?.firstName ?? ''} ${
+                candidateMap.get(answersOf.candidateId)?.lastName ?? ''
+              }`
+            : ''
+        }
+        onCancel={() => setAnswersOf(null)}
+        footer={null}
+        width={780}
+        destroyOnClose
+      >
+        {answersOf && <ScreeningAnswersPanel applicationId={answersOf.id} />}
       </Modal>
 
       {/* M284 — revision modal (PRD §33). Submitting drops the offer

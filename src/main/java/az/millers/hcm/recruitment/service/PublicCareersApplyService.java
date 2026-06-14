@@ -3,6 +3,7 @@ package az.millers.hcm.recruitment.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +18,7 @@ import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.recruitment.api.dto.CandidateRequest;
+import az.millers.hcm.recruitment.api.dto.ScreeningDtos;
 import az.millers.hcm.recruitment.domain.Application;
 import az.millers.hcm.recruitment.domain.Candidate;
 import az.millers.hcm.recruitment.domain.CandidateSource;
@@ -70,6 +72,8 @@ public class PublicCareersApplyService {
             BigDecimal expectedSalary,
             String coverNote,
             boolean consent,
+            /** M289 — answers to the posting's knockout questions (PRD §15). */
+            List<ScreeningDtos.ScreeningAnswer> answers,
             /** Honeypot — rendered invisible on the page; humans leave it blank. */
             String website) {}
 
@@ -87,6 +91,8 @@ public class PublicCareersApplyService {
     // M285 — candidate-portal offer accept / decline (PRD §32).
     private final az.millers.hcm.recruitment.repo.OfferRepository offers;
     private final OfferService offerService;
+    // M289 — knockout / screening questions (PRD §15).
+    private final ScreeningQuestionService screeningQuestionService;
 
     /** ip → (windowStartMillis, count). Fixed-window; resets per window. */
     private final ConcurrentHashMap<String, long[]> windows = new ConcurrentHashMap<>();
@@ -100,7 +106,8 @@ public class PublicCareersApplyService {
                                       ApplicationService applicationService,
                                       AuditService audit,
                                       az.millers.hcm.recruitment.repo.OfferRepository offers,
-                                      OfferService offerService) {
+                                      OfferService offerService,
+                                      ScreeningQuestionService screeningQuestionService) {
         this.postings = postings;
         this.vacancies = vacancies;
         this.candidates = candidates;
@@ -110,6 +117,7 @@ public class PublicCareersApplyService {
         this.audit = audit;
         this.offers = offers;
         this.offerService = offerService;
+        this.screeningQuestionService = screeningQuestionService;
     }
 
     @Transactional
@@ -171,6 +179,17 @@ public class PublicCareersApplyService {
         a.setPostingId(p.getId()); // PRD §44 — channel attribution
         a.setTrackingToken(newToken()); // M282 — anonymous status tracking
         applications.save(a);
+
+        // M289 — PRD §15: store the candidate's screening answers and, if a
+        // knockout question failed, auto-reject. The candidate still gets a
+        // normal acknowledgement + tracking token (no screening logic leaked);
+        // the rejection surfaces only on later status tracking.
+        var screening = screeningQuestionService.evaluate(a.getId(), p.getId(), req.answers());
+        if (screening.knockedOut()) {
+            applicationService.autoReject(a.getId(),
+                    "Did not meet the pre-screening requirements ("
+                            + screening.failedKnockouts().size() + " knockout question(s))");
+        }
 
         audit.record(MODULE, "Application", a.getId().toString(), "PUBLIC_APPLY",
                 null,

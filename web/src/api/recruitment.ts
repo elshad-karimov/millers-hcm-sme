@@ -358,6 +358,47 @@ export interface JobPostingRequest {
   applicationDeadline?: string
 }
 
+// M289 — knockout / screening questions (Recruitment PRD §15)
+export type ScreeningQuestionType = 'BOOLEAN' | 'SINGLE_CHOICE' | 'NUMERIC'
+
+export interface ScreeningQuestion {
+  id: string
+  postingId: string
+  ordinal: number
+  questionText: string
+  questionType: ScreeningQuestionType
+  options?: string | null
+  knockout: boolean
+  required: boolean
+  expectedBoolean?: boolean | null
+  acceptableOptions?: string | null
+  minValue?: number | null
+  maxValue?: number | null
+  active: boolean
+}
+
+export interface ScreeningQuestionRequest {
+  ordinal: number
+  questionText: string
+  questionType: ScreeningQuestionType
+  options?: string | null
+  knockout: boolean
+  required: boolean
+  expectedBoolean?: boolean | null
+  acceptableOptions?: string | null
+  minValue?: number | null
+  maxValue?: number | null
+  active?: boolean
+}
+
+export interface ScreeningAnswer {
+  questionId: string
+  questionText: string
+  answerText?: string | null
+  passed: boolean
+  knockout: boolean
+}
+
 export interface Offer {
   id: string
   offerNo: string
@@ -512,6 +553,24 @@ export const recruitmentApi = {
     api.post<JobPosting>(`/recruitment/postings/${id}/pause`).then((r) => r.data),
   closePosting: (id: string) =>
     api.post<JobPosting>(`/recruitment/postings/${id}/close`).then((r) => r.data),
+
+  // M289 — knockout / screening questions (Recruitment PRD §15)
+  screeningQuestions: (postingId: string) =>
+    api
+      .get<ScreeningQuestion[]>(`/recruitment/postings/${postingId}/screening-questions`)
+      .then((r) => r.data),
+  createScreeningQuestion: (postingId: string, payload: ScreeningQuestionRequest) =>
+    api
+      .post<ScreeningQuestion>(`/recruitment/postings/${postingId}/screening-questions`, payload)
+      .then((r) => r.data),
+  updateScreeningQuestion: (id: string, payload: ScreeningQuestionRequest) =>
+    api.put<ScreeningQuestion>(`/recruitment/screening-questions/${id}`, payload).then((r) => r.data),
+  deleteScreeningQuestion: (id: string) =>
+    api.delete(`/recruitment/screening-questions/${id}`).then((r) => r.data),
+  screeningAnswers: (applicationId: string) =>
+    api
+      .get<ScreeningAnswer[]>(`/recruitment/applications/${applicationId}/screening-answers`)
+      .then((r) => r.data),
 
   // M286 — pre-hire checks (Recruitment PRD §25-§27)
   checksForApplication: (applicationId: string) =>

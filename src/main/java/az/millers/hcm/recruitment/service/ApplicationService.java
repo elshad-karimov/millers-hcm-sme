@@ -198,6 +198,30 @@ public class ApplicationService {
         return saved;
     }
 
+    /**
+     * M289 — system auto-reject (PRD §15): close an application without a
+     * human transition, used by the screening-knockout path. Idempotent —
+     * an already-terminal application is left untouched. Records a
+     * STAGE_CHANGE event + audit so the recruiter sees why.
+     */
+    @Transactional
+    public void autoReject(UUID applicationId, String reason) {
+        Application a = get(applicationId);
+        if (a.getStatus() != ApplicationStatus.IN_PROGRESS) {
+            return; // already HIRED / REJECTED / WITHDRAWN — nothing to do
+        }
+        ApplicationStage from = a.getCurrentStage();
+        a.setCurrentStage(ApplicationStage.REJECTED);
+        a.setStatus(ApplicationStatus.REJECTED);
+        applications.save(a);
+        recordEvent(applicationId, EventType.STAGE_CHANGE, from,
+                ApplicationStage.REJECTED, null, null, reason);
+        audit.record(MODULE, ENTITY, applicationId.toString(), "AUTO_REJECT",
+                Map.of("from", from.name()),
+                Map.of("reason", reason == null ? "" : reason));
+        log.info("Application {} auto-rejected: {}", a.getApplicationNo(), reason);
+    }
+
     private Application hire(Application a, StageTransitionRequest req) {
         Vacancy v = vacancies.findById(a.getVacancyId())
                 .orElseThrow(() -> new BadRequestException("Vacancy missing"));

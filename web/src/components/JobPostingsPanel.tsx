@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   DatePicker,
+  Drawer,
   Form,
   Input,
   Modal,
@@ -22,6 +23,7 @@ import {
   type PostingChannel,
   type PostingStatus,
 } from '../api/recruitment'
+import { ScreeningQuestionsPanel } from './ScreeningQuestionsPanel'
 
 /**
  * M278 — Recruitment PRD §8: per-vacancy job postings panel.
@@ -69,6 +71,8 @@ export function JobPostingsPanel({ vacancyId, canEdit }: { vacancyId: string; ca
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<JobPosting | null>(null)
   const [saving, setSaving] = useState(false)
+  // M289 — knockout / screening questions per posting (PRD §15).
+  const [questionsFor, setQuestionsFor] = useState<JobPosting | null>(null)
   const [form] = Form.useForm<FormValues>()
 
   const load = useCallback(() => {
@@ -197,9 +201,12 @@ export function JobPostingsPanel({ vacancyId, canEdit }: { vacancyId: string; ca
             ? [
                 {
                   title: 'Actions',
-                  width: 230,
+                  width: 330,
                   render: (_: unknown, p: JobPosting) => (
-                    <Space size={4}>
+                    <Space size={4} wrap>
+                      <Button size="small" onClick={() => setQuestionsFor(p)}>
+                        Questions
+                      </Button>
                       {(p.status === 'DRAFT' || p.status === 'PAUSED') && (
                         <>
                           <Button size="small" onClick={() => openEdit(p)}>
@@ -300,6 +307,19 @@ export function JobPostingsPanel({ vacancyId, canEdit }: { vacancyId: string; ca
           </Space>
         </Form>
       </Modal>
+
+      {/* M289 — knockout / screening questions for the selected posting (PRD §15) */}
+      <Drawer
+        title={questionsFor ? `Screening questions — ${questionsFor.postingNo}` : 'Screening questions'}
+        open={!!questionsFor}
+        onClose={() => setQuestionsFor(null)}
+        width={760}
+        destroyOnClose
+      >
+        {questionsFor && (
+          <ScreeningQuestionsPanel postingId={questionsFor.id} canEdit={canEdit} />
+        )}
+      </Drawer>
     </Card>
   )
 }
