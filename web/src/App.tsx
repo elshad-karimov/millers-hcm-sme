@@ -52,6 +52,7 @@ import { CandidatesPage } from './pages/CandidatesPage'
 import { CandidateFormPage } from './pages/CandidateFormPage'
 import { CandidateDuplicatesPage } from './pages/CandidateDuplicatesPage'
 import { CandidateRetentionPage } from './pages/CandidateRetentionPage'
+import { ReferralsPage } from './pages/ReferralsPage'
 import { TerminationsPage } from './pages/TerminationsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
 import { TerminationFormPage } from './pages/TerminationFormPage'
@@ -355,6 +356,8 @@ export default function App() {
           <Route path="recruitment/candidates/duplicates" element={<CandidateDuplicatesPage />} />
           {/* M294 — consent retention + anonymisation */}
           <Route path="recruitment/candidates/retention" element={<CandidateRetentionPage />} />
+          {/* M295 — employee referral program */}
+          <Route path="recruitment/referrals" element={<ReferralsPage />} />
           <Route path="recruitment/candidates/:id/edit" element={<CandidateFormPage />} />
           {/* M85 — interview kit admin */}
           <Route path="recruitment/interview-kits" element={<InterviewKitsPage />} />

@@ -79,6 +79,8 @@ export function CandidatesPage() {
           </Button>
           {/* M294 — consent retention + anonymisation */}
           <Button onClick={() => navigate('/recruitment/candidates/retention')}>Retention</Button>
+          {/* M295 — employee referral program */}
+          <Button onClick={() => navigate('/recruitment/referrals')}>Referrals</Button>
           {canEdit && (
             <Button type="primary" onClick={() => navigate('/recruitment/candidates/new')}>
               New candidate

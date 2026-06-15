@@ -79,6 +79,8 @@ public class ApplicationService {
     private final PreHireCheckService preHireCheckService;
     // M287 — assessment gate (PRD §22): block hire on a FAILED assessment.
     private final AssessmentService assessmentService;
+    // M295 — referral program (PRD Phase F): start the qualifying clock on hire.
+    private final ReferralService referralService;
 
     public ApplicationService(ApplicationRepository applications,
                                ApplicationEventRepository events,
@@ -93,6 +95,7 @@ public class ApplicationService {
                                CurrentRequest currentRequest,
                                PreHireCheckService preHireCheckService,
                                AssessmentService assessmentService,
+                               ReferralService referralService,
                                @Value("${hcm.preboarding.base-url}") String preboardingBaseUrl,
                                @Value("${hcm.preboarding.auto-invite-expiry-days:30}") int preboardingAutoExpiryDays) {
         this.applications = applications;
@@ -108,6 +111,7 @@ public class ApplicationService {
         this.currentRequest = currentRequest;
         this.preHireCheckService = preHireCheckService;
         this.assessmentService = assessmentService;
+        this.referralService = referralService;
         this.preboardingBaseUrl = preboardingBaseUrl;
         this.preboardingAutoExpiryDays = preboardingAutoExpiryDays;
     }
@@ -360,6 +364,15 @@ public class ApplicationService {
         } catch (Exception ex) {
             log.error("Failed to auto-issue pre-boarding invite for employee {}: {}",
                     created.getEmployeeNo(), ex.getMessage(), ex);
+        }
+
+        // M295 — if this candidate was referred, start the referral qualifying
+        // clock. Non-fatal: never block the hire.
+        try {
+            referralService.markHiredForCandidate(c.getId(), hireDate);
+        } catch (Exception ex) {
+            log.error("Failed to mark referral hired for candidate {}: {}",
+                    c.getId(), ex.getMessage(), ex);
         }
 
         return saved;

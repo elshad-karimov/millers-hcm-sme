@@ -305,6 +305,41 @@ export interface SweepResult {
   candidateNos: string[]
 }
 
+// M295 — employee referral program (Recruitment PRD Phase F)
+export type ReferralStatus = 'SUBMITTED' | 'HIRED' | 'QUALIFIED' | 'PAID' | 'REJECTED'
+
+export interface Referral {
+  id: string
+  referralNo: string
+  referrerEmployeeId: string
+  referrerName: string
+  candidateId: string
+  candidateName: string
+  vacancyId?: string | null
+  vacancyTitle?: string | null
+  status: ReferralStatus
+  bonusAmount: number
+  currency: string
+  qualifyingDays: number
+  hiredAt?: string | null
+  qualifiedAt?: string | null
+  paidAt?: string | null
+  payrollRunId?: string | null
+  payrollBonusId?: string | null
+  notes?: string | null
+  createdAt: string
+}
+
+export interface ReferralRequest {
+  referrerEmployeeId: string
+  candidateId: string
+  vacancyId?: string
+  bonusAmount?: number
+  qualifyingDays?: number
+  currency?: string
+  notes?: string
+}
+
 export interface Application {
   id: string
   applicationNo: string
@@ -688,6 +723,18 @@ export const recruitmentApi = {
   anonymizeCandidate: (id: string, reason?: string) =>
     api
       .post(`/recruitment/candidates/${id}/anonymize`, null, { params: { reason } })
+      .then((r) => r.data),
+
+  // M295 — employee referral program (Recruitment PRD Phase F)
+  referrals: (status?: ReferralStatus) =>
+    api.get<Referral[]>('/recruitment/referrals', { params: { status } }).then((r) => r.data),
+  createReferral: (payload: ReferralRequest) =>
+    api.post<Referral>('/recruitment/referrals', payload).then((r) => r.data),
+  rejectReferral: (id: string, reason?: string) =>
+    api.post<Referral>(`/recruitment/referrals/${id}/reject`, null, { params: { reason } }).then((r) => r.data),
+  payReferral: (id: string, payrollRunId: string) =>
+    api
+      .post<Referral>(`/recruitment/referrals/${id}/pay`, null, { params: { payrollRunId } })
       .then((r) => r.data),
 
   // Applications
