@@ -87,6 +87,14 @@ public class Candidate {
     @Column(name = "merged_into_id")
     private UUID mergedIntoId;
 
+    /**
+     * M294 — set when this candidate's PII was scrubbed under the consent
+     * retention policy (PRD §46/§47). Non-null = anonymised; excluded from
+     * future sweeps and the duplicate scan.
+     */
+    @Column(name = "anonymized_at")
+    private OffsetDateTime anonymizedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

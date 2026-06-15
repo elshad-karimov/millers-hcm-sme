@@ -77,6 +77,8 @@ export function CandidatesPage() {
           <Button onClick={() => navigate('/recruitment/candidates/duplicates')}>
             Find duplicates
           </Button>
+          {/* M294 — consent retention + anonymisation */}
+          <Button onClick={() => navigate('/recruitment/candidates/retention')}>Retention</Button>
           {canEdit && (
             <Button type="primary" onClick={() => navigate('/recruitment/candidates/new')}>
               New candidate

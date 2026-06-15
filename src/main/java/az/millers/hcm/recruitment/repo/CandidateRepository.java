@@ -56,8 +56,14 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
 
     // ── M293 — duplicate detection + merge ─────────────────────────────
 
-    /** All live (non-merged) candidates — input to the duplicate scan. */
+    /** All live (non-merged) candidates. */
     List<Candidate> findByMergedIntoIdIsNull();
+
+    /**
+     * Live candidates that still hold PII — input to the duplicate scan
+     * (M293) and the retention sweep (M294).
+     */
+    List<Candidate> findByMergedIntoIdIsNullAndAnonymizedAtIsNull();
 
     /** Default candidate list, excluding merged-away records. */
     Page<Candidate> findByMergedIntoIdIsNullOrderByCreatedAtDesc(Pageable pageable);

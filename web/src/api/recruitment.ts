@@ -279,6 +279,32 @@ export interface MergeResult {
   documentsMoved: number
 }
 
+// M294 — consent retention + anonymization (Recruitment PRD §46/§47)
+export interface RetentionRow {
+  id: string
+  candidateNo: string
+  fullName: string
+  email?: string | null
+  anchorDate: string
+  retentionDate: string
+  daysUntilDue: number
+  overdue: boolean
+}
+
+export interface RetentionReport {
+  retentionMonths: number
+  dueCount: number
+  upcomingCount: number
+  due: RetentionRow[]
+  upcoming: RetentionRow[]
+}
+
+export interface SweepResult {
+  dryRun: boolean
+  count: number
+  candidateNos: string[]
+}
+
 export interface Application {
   id: string
   applicationNo: string
@@ -650,6 +676,18 @@ export const recruitmentApi = {
   mergeCandidates: (primaryId: string, duplicateId: string) =>
     api
       .post<MergeResult>('/recruitment/candidates/merge', { primaryId, duplicateId })
+      .then((r) => r.data),
+
+  // M294 — consent retention + anonymization (Recruitment PRD §46/§47)
+  retentionReport: () =>
+    api.get<RetentionReport>('/recruitment/retention/report').then((r) => r.data),
+  retentionSweep: (dryRun: boolean) =>
+    api
+      .post<SweepResult>('/recruitment/retention/sweep', null, { params: { dryRun } })
+      .then((r) => r.data),
+  anonymizeCandidate: (id: string, reason?: string) =>
+    api
+      .post(`/recruitment/candidates/${id}/anonymize`, null, { params: { reason } })
       .then((r) => r.data),
 
   // Applications

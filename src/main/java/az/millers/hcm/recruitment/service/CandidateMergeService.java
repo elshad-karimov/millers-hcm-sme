@@ -64,7 +64,7 @@ public class CandidateMergeService {
 
     @Transactional(readOnly = true)
     public List<DuplicateGroup> findDuplicates() {
-        List<Candidate> live = candidates.findByMergedIntoIdIsNull();
+        List<Candidate> live = candidates.findByMergedIntoIdIsNullAndAnonymizedAtIsNull();
         Map<String, List<Candidate>> byEmail = new LinkedHashMap<>();
         Map<String, List<Candidate>> byPhone = new LinkedHashMap<>();
         Map<String, List<Candidate>> byName = new LinkedHashMap<>();
