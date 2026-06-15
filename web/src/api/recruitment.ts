@@ -214,6 +214,40 @@ export interface CandidateProfile {
   skills: CandidateSkillRow[]
 }
 
+// M292 — candidate document checklist (Recruitment PRD §12)
+export type DocumentStatus = 'PENDING' | 'RECEIVED' | 'VERIFIED' | 'REJECTED' | 'WAIVED'
+
+export interface DocumentType {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  defaultRequired: boolean
+  ordinal: number
+  active: boolean
+}
+
+export interface CandidateDocumentItem {
+  id: string
+  documentTypeId: string
+  typeCode: string
+  typeName: string
+  required: boolean
+  status: DocumentStatus
+  notes?: string | null
+  receivedAt?: string | null
+  verifiedAt?: string | null
+  verifiedBy?: string | null
+}
+
+export interface CandidateChecklist {
+  items: CandidateDocumentItem[]
+  total: number
+  requiredCount: number
+  verifiedCount: number
+  outstandingRequired: number
+}
+
 export interface Application {
   id: string
   applicationNo: string
@@ -554,6 +588,30 @@ export const recruitmentApi = {
     api.put<CandidateSkillRow>(`/recruitment/candidates/skills/${id}`, p).then((r) => r.data),
   deleteCandidateSkill: (id: string) =>
     api.delete(`/recruitment/candidates/skills/${id}`).then((r) => r.data),
+
+  // M292 — document checklist (Recruitment PRD §12)
+  documentTypes: (activeOnly = true) =>
+    api
+      .get<DocumentType[]>('/recruitment/document-types', { params: { activeOnly } })
+      .then((r) => r.data),
+  candidateDocuments: (candidateId: string) =>
+    api
+      .get<CandidateChecklist>(`/recruitment/candidates/${candidateId}/documents`)
+      .then((r) => r.data),
+  addCandidateDocument: (candidateId: string, p: { documentTypeId: string; required?: boolean }) =>
+    api
+      .post<CandidateDocumentItem>(`/recruitment/candidates/${candidateId}/documents`, p)
+      .then((r) => r.data),
+  seedCandidateDocuments: (candidateId: string) =>
+    api
+      .post<CandidateChecklist>(`/recruitment/candidates/${candidateId}/documents/seed-defaults`)
+      .then((r) => r.data),
+  updateCandidateDocument: (
+    id: string,
+    p: { status: DocumentStatus; notes?: string; required?: boolean },
+  ) => api.put<CandidateDocumentItem>(`/recruitment/candidate-documents/${id}`, p).then((r) => r.data),
+  deleteCandidateDocument: (id: string) =>
+    api.delete(`/recruitment/candidate-documents/${id}`).then((r) => r.data),
 
   // Applications
   applicationsByVacancy: (vacancyId: string) =>

@@ -20,6 +20,7 @@ import {
 } from '../api/recruitment'
 import { FormPageShell } from '../components/FormPageShell'
 import { CandidateProfilePanels } from '../components/CandidateProfilePanels'
+import { CandidateDocumentsPanel } from '../components/CandidateDocumentsPanel'
 
 const LIST_PATH = '/recruitment/candidates'
 
@@ -182,6 +183,7 @@ export function CandidateFormPage() {
       {editing && !loading && (
         <div style={{ maxWidth: 720 }}>
           <CandidateProfilePanels candidateId={id!} />
+          <CandidateDocumentsPanel candidateId={id!} />
         </div>
       )}
     </FormPageShell>
