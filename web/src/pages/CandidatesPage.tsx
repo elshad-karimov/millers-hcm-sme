@@ -81,6 +81,8 @@ export function CandidatesPage() {
           <Button onClick={() => navigate('/recruitment/candidates/retention')}>Retention</Button>
           {/* M295 — employee referral program */}
           <Button onClick={() => navigate('/recruitment/referrals')}>Referrals</Button>
+          {/* M296 — recruitment agencies */}
+          <Button onClick={() => navigate('/recruitment/agencies')}>Agencies</Button>
           {canEdit && (
             <Button type="primary" onClick={() => navigate('/recruitment/candidates/new')}>
               New candidate

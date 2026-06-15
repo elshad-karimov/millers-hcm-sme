@@ -340,6 +340,88 @@ export interface ReferralRequest {
   notes?: string
 }
 
+// M296 — recruitment agency master + ownership + invoicing (Recruitment PRD Phase F)
+export type AgencyFeeType = 'PERCENT_SALARY' | 'FIXED'
+export type SubmissionStatus = 'ACTIVE' | 'EXPIRED' | 'HIRED' | 'WITHDRAWN'
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'CANCELLED'
+
+export interface Agency {
+  id: string
+  agencyNo: string
+  name: string
+  contactName?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  feeType: AgencyFeeType
+  feePercent?: number | null
+  feeFixed?: number | null
+  ownershipDays: number
+  currency: string
+  active: boolean
+  notes?: string | null
+}
+
+export interface AgencyRequest {
+  name: string
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  feeType: AgencyFeeType
+  feePercent?: number | null
+  feeFixed?: number | null
+  ownershipDays?: number
+  currency?: string
+  active?: boolean
+  notes?: string
+}
+
+export interface AgencySubmission {
+  id: string
+  submissionNo: string
+  agencyId: string
+  agencyName: string
+  candidateId: string
+  candidateName: string
+  vacancyId?: string | null
+  vacancyTitle?: string | null
+  status: SubmissionStatus
+  submittedAt: string
+  ownershipUntil: string
+  hireEmployeeId?: string | null
+  notes?: string | null
+}
+
+export interface SubmissionRequest {
+  agencyId: string
+  candidateId: string
+  vacancyId?: string
+  notes?: string
+}
+
+export interface AgencyInvoice {
+  id: string
+  invoiceNo: string
+  agencyId: string
+  agencyName: string
+  submissionId: string
+  candidateId: string
+  candidateName: string
+  hireEmployeeId?: string | null
+  feeAmount: number
+  currency: string
+  status: InvoiceStatus
+  issuedAt: string
+  sentAt?: string | null
+  paidAt?: string | null
+  notes?: string | null
+}
+
+export interface InvoiceUpdate {
+  status?: InvoiceStatus
+  feeAmount?: number
+  notes?: string
+}
+
 export interface Application {
   id: string
   applicationNo: string
@@ -736,6 +818,30 @@ export const recruitmentApi = {
     api
       .post<Referral>(`/recruitment/referrals/${id}/pay`, null, { params: { payrollRunId } })
       .then((r) => r.data),
+
+  // M296 — recruitment agency master + ownership + invoicing (PRD Phase F)
+  agencies: (activeOnly = false) =>
+    api.get<Agency[]>('/recruitment/agencies', { params: { activeOnly } }).then((r) => r.data),
+  createAgency: (payload: AgencyRequest) =>
+    api.post<Agency>('/recruitment/agencies', payload).then((r) => r.data),
+  updateAgency: (id: string, payload: AgencyRequest) =>
+    api.put<Agency>(`/recruitment/agencies/${id}`, payload).then((r) => r.data),
+  agencySubmissions: (status?: SubmissionStatus) =>
+    api
+      .get<AgencySubmission[]>('/recruitment/agency-submissions', { params: { status } })
+      .then((r) => r.data),
+  createSubmission: (payload: SubmissionRequest) =>
+    api.post<AgencySubmission>('/recruitment/agency-submissions', payload).then((r) => r.data),
+  withdrawSubmission: (id: string) =>
+    api
+      .post<AgencySubmission>(`/recruitment/agency-submissions/${id}/withdraw`)
+      .then((r) => r.data),
+  agencyInvoices: (status?: InvoiceStatus) =>
+    api
+      .get<AgencyInvoice[]>('/recruitment/agency-invoices', { params: { status } })
+      .then((r) => r.data),
+  updateAgencyInvoice: (id: string, payload: InvoiceUpdate) =>
+    api.put<AgencyInvoice>(`/recruitment/agency-invoices/${id}`, payload).then((r) => r.data),
 
   // Applications
   applicationsByVacancy: (vacancyId: string) =>

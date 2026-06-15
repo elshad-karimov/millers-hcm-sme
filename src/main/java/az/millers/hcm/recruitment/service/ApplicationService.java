@@ -81,6 +81,8 @@ public class ApplicationService {
     private final AssessmentService assessmentService;
     // M295 — referral program (PRD Phase F): start the qualifying clock on hire.
     private final ReferralService referralService;
+    // M296 — agency placement (PRD Phase F): close the ownership window + invoice on hire.
+    private final AgencyService agencyService;
 
     public ApplicationService(ApplicationRepository applications,
                                ApplicationEventRepository events,
@@ -96,6 +98,7 @@ public class ApplicationService {
                                PreHireCheckService preHireCheckService,
                                AssessmentService assessmentService,
                                ReferralService referralService,
+                               AgencyService agencyService,
                                @Value("${hcm.preboarding.base-url}") String preboardingBaseUrl,
                                @Value("${hcm.preboarding.auto-invite-expiry-days:30}") int preboardingAutoExpiryDays) {
         this.applications = applications;
@@ -112,6 +115,7 @@ public class ApplicationService {
         this.preHireCheckService = preHireCheckService;
         this.assessmentService = assessmentService;
         this.referralService = referralService;
+        this.agencyService = agencyService;
         this.preboardingBaseUrl = preboardingBaseUrl;
         this.preboardingAutoExpiryDays = preboardingAutoExpiryDays;
     }
@@ -372,6 +376,16 @@ public class ApplicationService {
             referralService.markHiredForCandidate(c.getId(), hireDate);
         } catch (Exception ex) {
             log.error("Failed to mark referral hired for candidate {}: {}",
+                    c.getId(), ex.getMessage(), ex);
+        }
+
+        // M296 — if this candidate is under an agency ownership window, close
+        // the submission + raise a placement invoice. Non-fatal.
+        try {
+            agencyService.onCandidateHired(c.getId(), created.getId(),
+                    offer == null ? null : offer.getProposedSalary());
+        } catch (Exception ex) {
+            log.error("Failed to process agency placement for candidate {}: {}",
                     c.getId(), ex.getMessage(), ex);
         }
 
