@@ -19,6 +19,7 @@ import {
   type CandidateSource,
 } from '../api/recruitment'
 import { FormPageShell } from '../components/FormPageShell'
+import { CandidateProfilePanels } from '../components/CandidateProfilePanels'
 
 const LIST_PATH = '/recruitment/candidates'
 
@@ -176,6 +177,12 @@ export function CandidateFormPage() {
             </Space>
           </Form.Item>
         </Form>
+      )}
+      {/* M291 — structured profile (education / experience / skills); edit only */}
+      {editing && !loading && (
+        <div style={{ maxWidth: 720 }}>
+          <CandidateProfilePanels candidateId={id!} />
+        </div>
       )}
     </FormPageShell>
   )

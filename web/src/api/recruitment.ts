@@ -171,6 +171,49 @@ export interface CandidateRequest {
   notes?: string
 }
 
+// M291 — structured candidate profile (Recruitment PRD §11)
+export type SkillProficiency = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT'
+
+export interface CandidateEducation {
+  id: string
+  ordinal: number
+  institution: string
+  degree?: string | null
+  fieldOfStudy?: string | null
+  startYear?: number | null
+  endYear?: number | null
+  grade?: string | null
+}
+export type CandidateEducationRequest = Omit<CandidateEducation, 'id'>
+
+export interface CandidateExperience {
+  id: string
+  ordinal: number
+  company: string
+  title: string
+  location?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  current: boolean
+  description?: string | null
+}
+export type CandidateExperienceRequest = Omit<CandidateExperience, 'id'>
+
+export interface CandidateSkillRow {
+  id: string
+  ordinal: number
+  name: string
+  proficiency?: SkillProficiency | null
+  yearsExperience?: number | null
+}
+export type CandidateSkillRequest = Omit<CandidateSkillRow, 'id'>
+
+export interface CandidateProfile {
+  education: CandidateEducation[]
+  experience: CandidateExperience[]
+  skills: CandidateSkillRow[]
+}
+
 export interface Application {
   id: string
   applicationNo: string
@@ -485,6 +528,32 @@ export const recruitmentApi = {
     api.post<Candidate>('/recruitment/candidates', payload).then((r) => r.data),
   updateCandidate: (id: string, payload: CandidateRequest) =>
     api.put<Candidate>(`/recruitment/candidates/${id}`, payload).then((r) => r.data),
+
+  // M291 — structured candidate profile (Recruitment PRD §11)
+  candidateProfile: (candidateId: string) =>
+    api.get<CandidateProfile>(`/recruitment/candidates/${candidateId}/profile`).then((r) => r.data),
+  addCandidateEducation: (candidateId: string, p: CandidateEducationRequest) =>
+    api
+      .post<CandidateEducation>(`/recruitment/candidates/${candidateId}/education`, p)
+      .then((r) => r.data),
+  updateCandidateEducation: (id: string, p: CandidateEducationRequest) =>
+    api.put<CandidateEducation>(`/recruitment/candidates/education/${id}`, p).then((r) => r.data),
+  deleteCandidateEducation: (id: string) =>
+    api.delete(`/recruitment/candidates/education/${id}`).then((r) => r.data),
+  addCandidateExperience: (candidateId: string, p: CandidateExperienceRequest) =>
+    api
+      .post<CandidateExperience>(`/recruitment/candidates/${candidateId}/experience`, p)
+      .then((r) => r.data),
+  updateCandidateExperience: (id: string, p: CandidateExperienceRequest) =>
+    api.put<CandidateExperience>(`/recruitment/candidates/experience/${id}`, p).then((r) => r.data),
+  deleteCandidateExperience: (id: string) =>
+    api.delete(`/recruitment/candidates/experience/${id}`).then((r) => r.data),
+  addCandidateSkill: (candidateId: string, p: CandidateSkillRequest) =>
+    api.post<CandidateSkillRow>(`/recruitment/candidates/${candidateId}/skills`, p).then((r) => r.data),
+  updateCandidateSkill: (id: string, p: CandidateSkillRequest) =>
+    api.put<CandidateSkillRow>(`/recruitment/candidates/skills/${id}`, p).then((r) => r.data),
+  deleteCandidateSkill: (id: string) =>
+    api.delete(`/recruitment/candidates/skills/${id}`).then((r) => r.data),
 
   // Applications
   applicationsByVacancy: (vacancyId: string) =>
