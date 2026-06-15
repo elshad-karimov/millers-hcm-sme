@@ -79,6 +79,14 @@ public class Candidate {
     @Column(name = "consent_version", length = 20)
     private String consentVersion;
 
+    /**
+     * M293 — set when this candidate has been merged into another (the
+     * surviving master). Non-null = retired; excluded from active lists
+     * and the duplicate scan.
+     */
+    @Column(name = "merged_into_id")
+    private UUID mergedIntoId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

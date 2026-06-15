@@ -72,11 +72,17 @@ export function CandidatesPage() {
     <Card
       title={<Typography.Title level={4} style={{ margin: 0 }}>Candidates</Typography.Title>}
       extra={
-        canEdit && (
-          <Button type="primary" onClick={() => navigate('/recruitment/candidates/new')}>
-            New candidate
+        <Space>
+          {/* M293 — duplicate detection + merge */}
+          <Button onClick={() => navigate('/recruitment/candidates/duplicates')}>
+            Find duplicates
           </Button>
-        )
+          {canEdit && (
+            <Button type="primary" onClick={() => navigate('/recruitment/candidates/new')}>
+              New candidate
+            </Button>
+          )}
+        </Space>
       }
     >
       <Space style={{ marginBottom: 12 }} wrap>

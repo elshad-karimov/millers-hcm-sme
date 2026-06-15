@@ -53,4 +53,24 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
 
     /** Look up candidates by id batch — used to hydrate the tag-only path. */
     List<Candidate> findByIdIn(Collection<UUID> ids);
+
+    // ── M293 — duplicate detection + merge ─────────────────────────────
+
+    /** All live (non-merged) candidates — input to the duplicate scan. */
+    List<Candidate> findByMergedIntoIdIsNull();
+
+    /** Default candidate list, excluding merged-away records. */
+    Page<Candidate> findByMergedIntoIdIsNullOrderByCreatedAtDesc(Pageable pageable);
+
+    /** Free-text candidate search, excluding merged-away records. */
+    @Query("""
+            select c from Candidate c
+            where c.mergedIntoId is null
+              and (
+                lower(c.firstName) like lower(concat('%', :q, '%'))
+                or lower(c.lastName) like lower(concat('%', :q, '%'))
+                or lower(coalesce(c.email, '')) like lower(concat('%', :q, '%'))
+              )
+            """)
+    Page<Candidate> searchActive(String q, Pageable pageable);
 }

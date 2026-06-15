@@ -248,6 +248,37 @@ export interface CandidateChecklist {
   outstandingRequired: number
 }
 
+// M293 — duplicate detection + merge (Recruitment PRD §12)
+export interface DuplicateCandidate {
+  id: string
+  candidateNo: string
+  fullName: string
+  email?: string | null
+  phone?: string | null
+  source?: string | null
+  applicationCount: number
+  createdAt: string
+}
+
+export interface DuplicateGroup {
+  matchType: 'EMAIL' | 'PHONE' | 'NAME'
+  matchValue: string
+  candidates: DuplicateCandidate[]
+}
+
+export interface MergeResult {
+  primaryId: string
+  mergedId: string
+  applicationsMoved: number
+  applicationsConflicted: number
+  notesMoved: number
+  tagsMoved: number
+  educationMoved: number
+  experienceMoved: number
+  skillsMoved: number
+  documentsMoved: number
+}
+
 export interface Application {
   id: string
   applicationNo: string
@@ -612,6 +643,14 @@ export const recruitmentApi = {
   ) => api.put<CandidateDocumentItem>(`/recruitment/candidate-documents/${id}`, p).then((r) => r.data),
   deleteCandidateDocument: (id: string) =>
     api.delete(`/recruitment/candidate-documents/${id}`).then((r) => r.data),
+
+  // M293 — duplicate detection + merge (Recruitment PRD §12)
+  candidateDuplicates: () =>
+    api.get<DuplicateGroup[]>('/recruitment/candidates/duplicates').then((r) => r.data),
+  mergeCandidates: (primaryId: string, duplicateId: string) =>
+    api
+      .post<MergeResult>('/recruitment/candidates/merge', { primaryId, duplicateId })
+      .then((r) => r.data),
 
   // Applications
   applicationsByVacancy: (vacancyId: string) =>

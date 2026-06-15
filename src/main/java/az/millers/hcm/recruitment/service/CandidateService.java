@@ -41,12 +41,11 @@ public class CandidateService {
 
     @Transactional(readOnly = true)
     public Page<Candidate> list(String search, Pageable pageable) {
+        // M293 — merged-away candidates drop out of the active list.
         if (StringUtils.hasText(search)) {
-            return repository
-                    .findByLastNameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
-                            search, search, search, pageable);
+            return repository.searchActive(search, pageable);
         }
-        return repository.findAllByOrderByCreatedAtDesc(pageable);
+        return repository.findByMergedIntoIdIsNullOrderByCreatedAtDesc(pageable);
     }
 
     @Transactional

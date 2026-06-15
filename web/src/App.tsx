@@ -50,6 +50,7 @@ import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
 import { CandidatesPage } from './pages/CandidatesPage'
 import { CandidateFormPage } from './pages/CandidateFormPage'
+import { CandidateDuplicatesPage } from './pages/CandidateDuplicatesPage'
 import { TerminationsPage } from './pages/TerminationsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
 import { TerminationFormPage } from './pages/TerminationFormPage'
@@ -349,6 +350,8 @@ export default function App() {
           <Route path="recruitment/vacancies/:id/edit" element={<VacancyFormPage />} />
           <Route path="recruitment/candidates" element={<CandidatesPage />} />
           <Route path="recruitment/candidates/new" element={<CandidateFormPage />} />
+          {/* M293 — duplicate detection + merge (static path before :id) */}
+          <Route path="recruitment/candidates/duplicates" element={<CandidateDuplicatesPage />} />
           <Route path="recruitment/candidates/:id/edit" element={<CandidateFormPage />} />
           {/* M85 — interview kit admin */}
           <Route path="recruitment/interview-kits" element={<InterviewKitsPage />} />
