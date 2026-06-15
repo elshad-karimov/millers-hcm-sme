@@ -68,6 +68,10 @@ export interface Interview {
   kitId: string
   interviewerEmployeeId: string
   scheduledAt: string
+  // M290 — calendar invite detail (PRD §20)
+  durationMinutes: number
+  location?: string | null
+  inviteSentAt?: string | null
   status: InterviewStatus
   overallScore?: number | null
   recommendation?: InterviewRecommendation | null
@@ -84,6 +88,9 @@ export interface InterviewSchedule {
   kitId: string
   interviewerEmployeeId: string
   scheduledAt: string
+  // M290 — invite detail (PRD §20)
+  durationMinutes?: number
+  location?: string
 }
 
 export interface InterviewFinalize {
@@ -187,4 +194,7 @@ export const interviewsApi = {
         params: { reason },
       })
       .then((r) => r.data),
+  // M290 — (re)send the calendar invite (PRD §20)
+  sendInvite: (id: string) =>
+    api.post<Interview>(`/recruitment/interviews/${id}/send-invite`).then((r) => r.data),
 }

@@ -106,4 +106,11 @@ public class InterviewController {
                                          @Valid @RequestBody InterviewReschedule req) {
         return InterviewResponse.from(service.reschedule(id, req));
     }
+
+    /** M290 — (re)send the calendar invite for a live interview (PRD §20). */
+    @PostMapping("/{id}/send-invite")
+    @PreAuthorize(WRITE_ROLES)
+    public InterviewResponse sendInvite(@PathVariable UUID id) {
+        return InterviewResponse.from(service.resendInvite(id));
+    }
 }

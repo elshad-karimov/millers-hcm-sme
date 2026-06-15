@@ -78,12 +78,18 @@ public final class InterviewDtos {
             @NotNull UUID applicationId,
             @NotNull UUID kitId,
             @NotNull UUID interviewerEmployeeId,
-            @NotNull OffsetDateTime scheduledAt) {}
+            @NotNull OffsetDateTime scheduledAt,
+            // M290 — invite detail (PRD §20). Null duration defaults to 60 min.
+            @Min(5) @Max(600) Integer durationMinutes,
+            @Size(max = 500) String location) {}
 
     public record InterviewReschedule(
             @NotNull OffsetDateTime scheduledAt,
             UUID interviewerEmployeeId,
-            UUID kitId) {}
+            UUID kitId,
+            // M290 — optional updated invite detail.
+            @Min(5) @Max(600) Integer durationMinutes,
+            @Size(max = 500) String location) {}
 
     public record InterviewFinalize(
             @NotNull InterviewRecommendation recommendation,
@@ -99,6 +105,10 @@ public final class InterviewDtos {
             UUID applicationId, UUID kitId,
             UUID interviewerEmployeeId,
             OffsetDateTime scheduledAt,
+            // M290 — invite detail (PRD §20).
+            int durationMinutes,
+            String location,
+            OffsetDateTime inviteSentAt,
             InterviewStatus status,
             BigDecimal overallScore,
             InterviewRecommendation recommendation,
@@ -112,7 +122,9 @@ public final class InterviewDtos {
                     i.getId(), i.getInterviewNo(),
                     i.getApplicationId(), i.getKitId(),
                     i.getInterviewerEmployeeId(),
-                    i.getScheduledAt(), i.getStatus(),
+                    i.getScheduledAt(),
+                    i.getDurationMinutes(), i.getLocation(), i.getInviteSentAt(),
+                    i.getStatus(),
                     i.getOverallScore(), i.getRecommendation(),
                     i.getOverallComment(), i.getCompletedAt(),
                     i.getCreatedAt(), i.getCreatedBy(),

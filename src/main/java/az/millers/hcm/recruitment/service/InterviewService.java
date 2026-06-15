@@ -60,6 +60,8 @@ public class InterviewService {
     private final ApplicationRepository applications;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    // M290 — calendar invites (PRD §20).
+    private final InterviewInviteService inviteService;
 
     public InterviewService(InterviewRepository interviews,
                              InterviewKitRepository kits,
@@ -67,7 +69,8 @@ public class InterviewService {
                              InterviewScoreRepository scores,
                              ApplicationRepository applications,
                              AuditService audit,
-                             CurrentRequest currentRequest) {
+                             CurrentRequest currentRequest,
+                             InterviewInviteService inviteService) {
         this.interviews = interviews;
         this.kits = kits;
         this.questions = questions;
@@ -75,6 +78,7 @@ public class InterviewService {
         this.applications = applications;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.inviteService = inviteService;
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -131,12 +135,16 @@ public class InterviewService {
         iv.setKitId(req.kitId());
         iv.setInterviewerEmployeeId(req.interviewerEmployeeId());
         iv.setScheduledAt(req.scheduledAt());
+        if (req.durationMinutes() != null) iv.setDurationMinutes(req.durationMinutes());
+        iv.setLocation(req.location());
         iv.setStatus(InterviewStatus.SCHEDULED);
         iv.setCreatedBy(currentRequest.username());
         iv.setUpdatedBy(currentRequest.username());
         Interview saved = interviews.save(iv);
         audit.record(MODULE, ENTITY, saved.getId().toString(),
                 "CREATE", null, InterviewResponse.from(saved));
+        // M290 — auto-send the calendar invite (PRD §20); non-fatal.
+        inviteService.send(saved, false);
         return saved;
     }
 
@@ -260,16 +268,41 @@ public class InterviewService {
         if (req.kitId() != null) {
             iv.setKitId(req.kitId());
         }
+        if (req.durationMinutes() != null) iv.setDurationMinutes(req.durationMinutes());
+        if (req.location() != null) iv.setLocation(req.location());
+        // M290 — bump the iCalendar SEQUENCE so clients accept the update.
+        iv.setCalendarSequence(iv.getCalendarSequence() + 1);
         iv.setUpdatedBy(currentRequest.username());
         Interview saved = interviews.save(iv);
         audit.record(MODULE, ENTITY, interviewId.toString(),
                 "RESCHEDULE", before, InterviewResponse.from(saved));
+        // M290 — re-send the updated invite (PRD §20); non-fatal.
+        inviteService.send(saved, false);
         return saved;
     }
 
     @Transactional
     public Interview cancel(UUID interviewId, String reason) {
-        return transition(interviewId, InterviewStatus.CANCELLED, reason, "CANCEL");
+        Interview saved = transition(interviewId, InterviewStatus.CANCELLED, reason, "CANCEL");
+        // M290 — bump SEQUENCE + e-mail a cancellation (PRD §20); non-fatal.
+        saved.setCalendarSequence(saved.getCalendarSequence() + 1);
+        interviews.save(saved);
+        inviteService.send(saved, true);
+        return saved;
+    }
+
+    /** M290 — manually (re)send the calendar invite for a live interview. */
+    @Transactional
+    public Interview resendInvite(UUID interviewId) {
+        Interview iv = get(interviewId);
+        if (iv.getStatus() == InterviewStatus.CANCELLED
+                || iv.getStatus() == InterviewStatus.NO_SHOW
+                || iv.getStatus() == InterviewStatus.COMPLETED) {
+            throw new BadRequestException(
+                    "Cannot send an invite for a " + iv.getStatus() + " interview");
+        }
+        inviteService.send(iv, false);
+        return iv;
     }
 
     @Transactional

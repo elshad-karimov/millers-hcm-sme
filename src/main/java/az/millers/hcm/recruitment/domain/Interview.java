@@ -47,6 +47,22 @@ public class Interview {
     @Column(name = "scheduled_at", nullable = false)
     private OffsetDateTime scheduledAt;
 
+    /** M290 — invite duration in minutes (PRD §20). */
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes = 60;
+
+    /** M290 — free-text room name or video-meeting URL for the invite. */
+    @Column(length = 500)
+    private String location;
+
+    /** M290 — iCalendar SEQUENCE; bumped on each reschedule / cancel. */
+    @Column(name = "calendar_sequence", nullable = false)
+    private int calendarSequence = 0;
+
+    /** M290 — last time a calendar invite was emailed for this interview. */
+    @Column(name = "invite_sent_at")
+    private OffsetDateTime inviteSentAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private InterviewStatus status = InterviewStatus.SCHEDULED;

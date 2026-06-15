@@ -9,6 +9,7 @@ import {
   DatePicker,
   Form,
   Input,
+  InputNumber,
   Select,
   Space,
   Typography,
@@ -31,6 +32,8 @@ export function InterviewScheduleFormPage() {
     kitId: string
     interviewerEmployeeId: string
     scheduledAt: ReturnType<typeof dayjs>
+    durationMinutes: number
+    location?: string
   }>()
 
   useEffect(() => {
@@ -51,6 +54,8 @@ export function InterviewScheduleFormPage() {
     kitId: string
     interviewerEmployeeId: string
     scheduledAt: ReturnType<typeof dayjs>
+    durationMinutes: number
+    location?: string
   }) => {
     setSubmitting(true)
     try {
@@ -59,8 +64,10 @@ export function InterviewScheduleFormPage() {
         kitId: values.kitId,
         interviewerEmployeeId: values.interviewerEmployeeId,
         scheduledAt: values.scheduledAt.toISOString(),
+        durationMinutes: values.durationMinutes,
+        location: values.location,
       })
-      message.success(`Scheduled ${created.interviewNo}`)
+      message.success(`Scheduled ${created.interviewNo} — calendar invite sent`)
       navigate(`/recruitment/interviews/${created.id}`)
     } catch (e) {
       message.error(
@@ -118,6 +125,22 @@ export function InterviewScheduleFormPage() {
           rules={[{ required: true, message: 'Pick a time' }]}
         >
           <DatePicker showTime style={{ width: 320 }} />
+        </Form.Item>
+        {/* M290 — calendar invite detail (PRD §20) */}
+        <Form.Item
+          label="Duration (minutes)"
+          name="durationMinutes"
+          initialValue={60}
+          rules={[{ required: true, message: 'Required' }]}
+        >
+          <InputNumber min={5} max={600} style={{ width: 160 }} />
+        </Form.Item>
+        <Form.Item
+          label="Location / meeting link"
+          name="location"
+          extra="Room name or a video-meeting URL — included in the calendar invite"
+        >
+          <Input placeholder="e.g. Room 4B, or https://meet.example.com/abc-defg" />
         </Form.Item>
         <Space>
           <Button type="primary" htmlType="submit" loading={submitting}>

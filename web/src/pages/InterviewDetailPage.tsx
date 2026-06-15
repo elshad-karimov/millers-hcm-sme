@@ -226,6 +226,20 @@ export function InterviewDetailPage() {
     }
   }
 
+  // M290 — (re)send the calendar invite (PRD §20).
+  const sendInvite = async () => {
+    try {
+      await interviewsApi.sendInvite(id)
+      message.success('Calendar invite sent')
+      load()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Send invite failed',
+      )
+    }
+  }
+
   if (loading || !detail) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
@@ -256,6 +270,9 @@ export function InterviewDetailPage() {
         extra={
           editable && (
             <Space>
+              <Button onClick={sendInvite}>
+                {iv.inviteSentAt ? 'Resend invite' : 'Send invite'}
+              </Button>
               <Popconfirm title="Cancel this interview?" onConfirm={cancel}>
                 <Button>Cancel interview</Button>
               </Popconfirm>
@@ -273,6 +290,21 @@ export function InterviewDetailPage() {
           </Col>
           <Col xs={12} md={6}>
             <Statistic title="Scheduled" value={new Date(iv.scheduledAt).toLocaleString()} />
+            <Typography.Text type="secondary">
+              {iv.durationMinutes} min{iv.location ? ` · ${iv.location}` : ''}
+            </Typography.Text>
+          </Col>
+          <Col xs={12} md={6}>
+            <Statistic
+              title="Calendar invite"
+              value={iv.inviteSentAt ? 'Sent' : 'Not sent'}
+              valueStyle={iv.inviteSentAt ? { color: '#52c41a' } : { color: '#fa8c16' }}
+            />
+            {iv.inviteSentAt && (
+              <Typography.Text type="secondary">
+                {new Date(iv.inviteSentAt).toLocaleString()}
+              </Typography.Text>
+            )}
           </Col>
           <Col xs={12} md={6}>
             <Statistic
