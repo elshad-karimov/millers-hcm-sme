@@ -11,11 +11,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgeRequest;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgementResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.FulfillRequest;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ResourceRequestResponse;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.UpdateStatusRequest;
+import az.millers.hcm.lifecycle.service.OnboardingAcknowledgementService;
 import az.millers.hcm.lifecycle.service.OnboardingResourceRequestService;
 import az.millers.hcm.lifecycle.service.OnboardingService;
 import az.millers.hcm.security.SecurityRoles;
@@ -34,11 +37,14 @@ public class OnboardingController {
 
     private final OnboardingService service;
     private final OnboardingResourceRequestService requests;
+    private final OnboardingAcknowledgementService acknowledgements;
 
     public OnboardingController(OnboardingService service,
-                               OnboardingResourceRequestService requests) {
+                               OnboardingResourceRequestService requests,
+                               OnboardingAcknowledgementService acknowledgements) {
         this.service = service;
         this.requests = requests;
+        this.acknowledgements = acknowledgements;
     }
 
     /** HR console: active onboardings + stats + pending-by-type / by-department. */
@@ -83,5 +89,19 @@ public class OnboardingController {
     public ResourceRequestResponse fulfillRequest(@PathVariable UUID id,
                                                   @RequestBody FulfillRequest req) {
         return requests.fulfill(id, req);
+    }
+
+    // ── M304 — policy / contract / document acknowledgements ─────────────────
+
+    @PostMapping("/acknowledgements")
+    @PreAuthorize(WRITE)
+    public AcknowledgementResponse acknowledge(@RequestBody AcknowledgeRequest req) {
+        return acknowledgements.acknowledge(req.taskStatusId(), req.statement(), req.reference());
+    }
+
+    @GetMapping("/acknowledgements/employees/{employeeId}")
+    @PreAuthorize(READ)
+    public List<AcknowledgementResponse> acknowledgementsForEmployee(@PathVariable UUID employeeId) {
+        return acknowledgements.listForEmployee(employeeId);
     }
 }

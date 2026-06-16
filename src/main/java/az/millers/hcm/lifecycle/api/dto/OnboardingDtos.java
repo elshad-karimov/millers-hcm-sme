@@ -1,6 +1,7 @@
 package az.millers.hcm.lifecycle.api.dto;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,4 +72,23 @@ public final class OnboardingDtos {
             Long daysToJoin,
             boolean hasActiveOnboarding,
             AssignmentResponse assignment) {}
+
+    // ── M304 — policy / contract / document acknowledgement (Phase B.4) ──
+
+    /** Record an acknowledgement against a checklist task; marks it DONE. */
+    public record AcknowledgeRequest(
+            UUID taskStatusId,
+            String statement,
+            String reference) {}
+
+    public record AcknowledgementResponse(
+            UUID id,
+            UUID employeeId,
+            UUID assignmentId,
+            UUID taskStatusId,
+            String kind,
+            String statement,
+            String reference,
+            String acknowledgedBy,
+            OffsetDateTime acknowledgedAt) {}
 }

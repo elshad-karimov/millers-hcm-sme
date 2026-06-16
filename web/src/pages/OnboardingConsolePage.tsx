@@ -7,11 +7,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   App as AntdApp,
+  Button,
   Card,
   Checkbox,
   Col,
   Empty,
   Drawer,
+  Form,
+  Input,
+  Modal,
   Progress,
   Row,
   Segmented,
@@ -34,13 +38,25 @@ import {
   type ChecklistTaskStatusValue,
   type TaskStatusResponse,
 } from '../api/checklists'
-import { onboardingApi, type OnboardingJourney, type OnboardingRow } from '../api/onboarding'
+import {
+  onboardingApi,
+  type Acknowledgement,
+  type OnboardingJourney,
+  type OnboardingRow,
+} from '../api/onboarding'
 import {
   onboardingRequestsApi,
   REQUEST_CATEGORY_COLOR,
   REQUEST_STATUS_COLOR,
   type ResourceRequest,
 } from '../api/onboardingRequests'
+import { AttachmentUploader } from '../components/AttachmentUploader'
+import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
+
+// M304 — task types whose evidence is a file upload vs a signed acknowledgement.
+const DOC_TYPES = ['DOCUMENT_COLLECTION', 'CONTRACT_SIGNING']
+const ACK_TYPES = ['POLICY_ACKNOWLEDGEMENT', 'CONTRACT_SIGNING']
 
 const { Title, Text } = Typography
 
@@ -225,19 +241,30 @@ function JourneyDrawer({
   onChanged: () => void
 }) {
   const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canWrite = hasRole(...RoleSets.HR_WRITE)
   const [journey, setJourney] = useState<OnboardingJourney | null>(null)
   const [requests, setRequests] = useState<ResourceRequest[]>([])
+  const [acks, setAcks] = useState<Acknowledgement[]>([])
   const [loading, setLoading] = useState(false)
   const [groupBy, setGroupBy] = useState<'category' | 'owner'>('category')
+  const [ackFor, setAckFor] = useState<TaskStatusResponse | null>(null)
+  const [ackForm] = Form.useForm<{ statement?: string; reference?: string }>()
+  const [acking, setAcking] = useState(false)
 
-  useEffect(() => {
-    if (!row) { setJourney(null); setRequests([]); return }
-    setLoading(true)
-    Promise.all([
+  const reload = () => {
+    if (!row) return Promise.resolve()
+    return Promise.all([
       onboardingApi.journey(row.employeeId),
       onboardingRequestsApi.forEmployee(row.employeeId),
-    ])
-      .then(([j, rr]) => { setJourney(j); setRequests(rr) })
+      onboardingApi.acknowledgementsForEmployee(row.employeeId),
+    ]).then(([j, rr, ak]) => { setJourney(j); setRequests(rr); setAcks(ak) })
+  }
+
+  useEffect(() => {
+    if (!row) { setJourney(null); setRequests([]); setAcks([]); return }
+    setLoading(true)
+    reload()
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load journey'))
       .finally(() => setLoading(false))
     /* eslint-disable-next-line */
@@ -246,13 +273,32 @@ function JourneyDrawer({
   const updateTask = async (task: TaskStatusResponse, status: ChecklistTaskStatusValue) => {
     try {
       await checklistsApi.updateTask(task.id, { status })
-      const fresh = await onboardingApi.journey(row!.employeeId)
-      setJourney(fresh)
+      await reload()
       onChanged()
     } catch (e) {
       message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Update failed')
     }
   }
+
+  const submitAck = async () => {
+    const v = await ackForm.validateFields()
+    setAcking(true)
+    try {
+      await onboardingApi.acknowledge(ackFor!.id, v.statement, v.reference)
+      message.success('Acknowledged')
+      setAckFor(null)
+      await reload()
+      onChanged()
+    } catch (e) {
+      message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed')
+    } finally { setAcking(false) }
+  }
+
+  const ackByTask = useMemo(() => {
+    const m = new Map<string, Acknowledgement>()
+    for (const a of acks) m.set(a.taskStatusId, a)
+    return m
+  }, [acks])
 
   const tasks = journey?.assignment?.tasks ?? []
   const groups = useMemo(() => {
@@ -365,6 +411,33 @@ function JourneyDrawer({
                                 </Checkbox>
                               ))}
                             </Space>
+
+                            {/* M304 — document/contract evidence: file upload */}
+                            {DOC_TYPES.includes(task.taskType) && (
+                              <AttachmentUploader
+                                ownerModule="lifecycle"
+                                ownerEntity="checklisttaskstatus"
+                                ownerId={task.id}
+                              />
+                            )}
+
+                            {/* M304 — policy/contract acknowledgement */}
+                            {ACK_TYPES.includes(task.taskType) && (
+                              ackByTask.has(task.id) ? (
+                                <Text type="success" style={{ fontSize: 12 }}>
+                                  ✓ {prettyEnum(ackByTask.get(task.id)!.kind)} acknowledged by{' '}
+                                  {ackByTask.get(task.id)!.acknowledgedBy ?? '—'} on{' '}
+                                  {dayjs(ackByTask.get(task.id)!.acknowledgedAt).format('YYYY-MM-DD')}
+                                  {ackByTask.get(task.id)!.reference ? ` · ${ackByTask.get(task.id)!.reference}` : ''}
+                                </Text>
+                              ) : canWrite ? (
+                                <Button size="small" type="primary" ghost onClick={() => {
+                                  setAckFor(task); ackForm.resetFields()
+                                }}>
+                                  Acknowledge / sign…
+                                </Button>
+                              ) : null
+                            )}
                           </Space>
                         </Card>
                       )
@@ -376,6 +449,24 @@ function JourneyDrawer({
           )}
         </Space>
       )}
+
+      <Modal
+        open={!!ackFor}
+        title={ackFor ? `Acknowledge — ${ackFor.title}` : ''}
+        onCancel={() => setAckFor(null)}
+        onOk={submitAck}
+        confirmLoading={acking}
+        okText="Acknowledge"
+      >
+        <Form form={ackForm} layout="vertical">
+          <Form.Item name="statement" label="Statement" extra="What the employee agreed to (recorded for compliance).">
+            <Input.TextArea rows={2} placeholder="I have read and agree to the Code of Conduct." />
+          </Form.Item>
+          <Form.Item name="reference" label="Reference (optional)" extra="Policy code, document name, or contract reference.">
+            <Input placeholder="e.g. POL-COC-v3 · Employment contract 2026" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Drawer>
   )
 }

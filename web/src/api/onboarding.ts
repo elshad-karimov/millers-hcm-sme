@@ -56,8 +56,28 @@ export interface OnboardingJourney {
   assignment?: AssignmentResponse | null
 }
 
+// M304 — policy/contract/document acknowledgement (compliance audit).
+export type AcknowledgementKind = 'POLICY' | 'CONTRACT' | 'DOCUMENT'
+
+export interface Acknowledgement {
+  id: string
+  employeeId: string
+  assignmentId?: string | null
+  taskStatusId: string
+  kind: AcknowledgementKind
+  statement?: string | null
+  reference?: string | null
+  acknowledgedBy?: string | null
+  acknowledgedAt: string
+}
+
 export const onboardingApi = {
   overview: () => api.get<OnboardingOverview>('/onboarding/overview').then((r) => r.data),
   journey: (employeeId: string) =>
     api.get<OnboardingJourney>(`/onboarding/journey/${employeeId}`).then((r) => r.data),
+  acknowledgementsForEmployee: (employeeId: string) =>
+    api.get<Acknowledgement[]>(`/onboarding/acknowledgements/employees/${employeeId}`).then((r) => r.data),
+  acknowledge: (taskStatusId: string, statement?: string, reference?: string) =>
+    api.post<Acknowledgement>('/onboarding/acknowledgements', { taskStatusId, statement, reference })
+      .then((r) => r.data),
 }
