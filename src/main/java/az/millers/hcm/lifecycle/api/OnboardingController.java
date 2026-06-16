@@ -9,16 +9,20 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgeRequest;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgementResponse;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyAssignRequest;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.FulfillRequest;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ResourceRequestResponse;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.UpdateStatusRequest;
 import az.millers.hcm.lifecycle.service.OnboardingAcknowledgementService;
+import az.millers.hcm.lifecycle.service.OnboardingBuddyService;
 import az.millers.hcm.lifecycle.service.OnboardingResourceRequestService;
 import az.millers.hcm.lifecycle.service.OnboardingService;
 import az.millers.hcm.security.SecurityRoles;
@@ -38,13 +42,16 @@ public class OnboardingController {
     private final OnboardingService service;
     private final OnboardingResourceRequestService requests;
     private final OnboardingAcknowledgementService acknowledgements;
+    private final OnboardingBuddyService buddies;
 
     public OnboardingController(OnboardingService service,
                                OnboardingResourceRequestService requests,
-                               OnboardingAcknowledgementService acknowledgements) {
+                               OnboardingAcknowledgementService acknowledgements,
+                               OnboardingBuddyService buddies) {
         this.service = service;
         this.requests = requests;
         this.acknowledgements = acknowledgements;
+        this.buddies = buddies;
     }
 
     /** HR console: active onboardings + stats + pending-by-type / by-department. */
@@ -103,5 +110,33 @@ public class OnboardingController {
     @PreAuthorize(READ)
     public List<AcknowledgementResponse> acknowledgementsForEmployee(@PathVariable UUID employeeId) {
         return acknowledgements.listForEmployee(employeeId);
+    }
+
+    // ── M305 — buddy / mentor assignment ─────────────────────────────────────
+
+    @PostMapping("/buddies")
+    @PreAuthorize(WRITE)
+    public BuddyResponse assignBuddy(@RequestBody BuddyAssignRequest req) {
+        return buddies.assign(req.employeeId(), req.buddyEmployeeId(), req.role(),
+                req.taskStatusId(), req.notes());
+    }
+
+    @PostMapping("/buddies/{id}/end")
+    @PreAuthorize(WRITE)
+    public BuddyResponse endBuddy(@PathVariable UUID id,
+                                  @RequestParam(required = false) String reason) {
+        return buddies.end(id, reason);
+    }
+
+    @GetMapping("/buddies/employees/{employeeId}")
+    @PreAuthorize(READ)
+    public List<BuddyResponse> buddiesForEmployee(@PathVariable UUID employeeId) {
+        return buddies.forEmployee(employeeId);
+    }
+
+    @GetMapping("/buddies/mentees/{buddyEmployeeId}")
+    @PreAuthorize(READ)
+    public List<BuddyResponse> mentees(@PathVariable UUID buddyEmployeeId) {
+        return buddies.mentees(buddyEmployeeId);
     }
 }

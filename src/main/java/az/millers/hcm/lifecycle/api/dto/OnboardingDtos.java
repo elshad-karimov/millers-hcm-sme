@@ -91,4 +91,29 @@ public final class OnboardingDtos {
             String reference,
             String acknowledgedBy,
             OffsetDateTime acknowledgedAt) {}
+
+    // ── M305 — buddy / mentor assignment (Phase C.1) ──
+
+    /** Assign a buddy/mentor to a hire; if taskStatusId is set, closes that BUDDY_TASK. */
+    public record BuddyAssignRequest(
+            UUID employeeId,
+            UUID buddyEmployeeId,
+            String role,
+            UUID taskStatusId,
+            String notes) {}
+
+    public record BuddyResponse(
+            UUID id,
+            UUID employeeId,
+            String employeeName,
+            UUID buddyEmployeeId,
+            String buddyName,
+            String buddyNo,
+            String role,
+            String status,
+            String notes,
+            String assignedBy,
+            OffsetDateTime assignedAt,
+            OffsetDateTime endedAt,
+            UUID taskStatusId) {}
 }

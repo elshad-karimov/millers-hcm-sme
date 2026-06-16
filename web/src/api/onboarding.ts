@@ -71,6 +71,26 @@ export interface Acknowledgement {
   acknowledgedAt: string
 }
 
+// M305 — buddy / mentor assignment.
+export type BuddyRole = 'BUDDY' | 'MENTOR'
+export type BuddyStatus = 'ACTIVE' | 'ENDED' | 'CANCELLED'
+
+export interface Buddy {
+  id: string
+  employeeId: string
+  employeeName?: string | null
+  buddyEmployeeId: string
+  buddyName?: string | null
+  buddyNo?: string | null
+  role: BuddyRole
+  status: BuddyStatus
+  notes?: string | null
+  assignedBy?: string | null
+  assignedAt: string
+  endedAt?: string | null
+  taskStatusId?: string | null
+}
+
 export const onboardingApi = {
   overview: () => api.get<OnboardingOverview>('/onboarding/overview').then((r) => r.data),
   journey: (employeeId: string) =>
@@ -80,4 +100,10 @@ export const onboardingApi = {
   acknowledge: (taskStatusId: string, statement?: string, reference?: string) =>
     api.post<Acknowledgement>('/onboarding/acknowledgements', { taskStatusId, statement, reference })
       .then((r) => r.data),
+  buddiesForEmployee: (employeeId: string) =>
+    api.get<Buddy[]>(`/onboarding/buddies/employees/${employeeId}`).then((r) => r.data),
+  assignBuddy: (req: { employeeId: string; buddyEmployeeId: string; role: BuddyRole; taskStatusId?: string; notes?: string }) =>
+    api.post<Buddy>('/onboarding/buddies', req).then((r) => r.data),
+  endBuddy: (id: string, reason?: string) =>
+    api.post<Buddy>(`/onboarding/buddies/${id}/end`, null, { params: reason ? { reason } : {} }).then((r) => r.data),
 }

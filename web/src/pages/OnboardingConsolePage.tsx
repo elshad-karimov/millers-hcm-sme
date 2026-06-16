@@ -41,9 +41,12 @@ import {
 import {
   onboardingApi,
   type Acknowledgement,
+  type Buddy,
+  type BuddyRole,
   type OnboardingJourney,
   type OnboardingRow,
 } from '../api/onboarding'
+import { employeesApi } from '../api/employees'
 import {
   onboardingRequestsApi,
   REQUEST_CATEGORY_COLOR,
@@ -57,6 +60,8 @@ import { RoleSets } from '../auth/roleSets'
 // M304 — task types whose evidence is a file upload vs a signed acknowledgement.
 const DOC_TYPES = ['DOCUMENT_COLLECTION', 'CONTRACT_SIGNING']
 const ACK_TYPES = ['POLICY_ACKNOWLEDGEMENT', 'CONTRACT_SIGNING']
+// M305 — buddy/mentor assignment task.
+const BUDDY_TYPE = 'BUDDY_TASK'
 
 const { Title, Text } = Typography
 
@@ -246,11 +251,16 @@ function JourneyDrawer({
   const [journey, setJourney] = useState<OnboardingJourney | null>(null)
   const [requests, setRequests] = useState<ResourceRequest[]>([])
   const [acks, setAcks] = useState<Acknowledgement[]>([])
+  const [buddies, setBuddies] = useState<Buddy[]>([])
   const [loading, setLoading] = useState(false)
   const [groupBy, setGroupBy] = useState<'category' | 'owner'>('category')
   const [ackFor, setAckFor] = useState<TaskStatusResponse | null>(null)
   const [ackForm] = Form.useForm<{ statement?: string; reference?: string }>()
   const [acking, setAcking] = useState(false)
+  const [buddyFor, setBuddyFor] = useState<TaskStatusResponse | null>(null)
+  const [buddyForm] = Form.useForm<{ buddyEmployeeId?: string; role: BuddyRole; notes?: string }>()
+  const [buddying, setBuddying] = useState(false)
+  const [empOptions, setEmpOptions] = useState<{ value: string; label: string }[]>([])
 
   const reload = () => {
     if (!row) return Promise.resolve()
@@ -258,11 +268,20 @@ function JourneyDrawer({
       onboardingApi.journey(row.employeeId),
       onboardingRequestsApi.forEmployee(row.employeeId),
       onboardingApi.acknowledgementsForEmployee(row.employeeId),
-    ]).then(([j, rr, ak]) => { setJourney(j); setRequests(rr); setAcks(ak) })
+      onboardingApi.buddiesForEmployee(row.employeeId),
+    ]).then(([j, rr, ak, bd]) => { setJourney(j); setRequests(rr); setAcks(ak); setBuddies(bd) })
+  }
+
+  const searchEmployees = (q: string) => {
+    employeesApi.list({ search: q || undefined, size: 20, status: 'ACTIVE' })
+      .then((p) => setEmpOptions(p.content
+        .filter((e) => e.id !== row?.employeeId)
+        .map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName} · ${e.employeeNo}` }))))
+      .catch(() => {})
   }
 
   useEffect(() => {
-    if (!row) { setJourney(null); setRequests([]); setAcks([]); return }
+    if (!row) { setJourney(null); setRequests([]); setAcks([]); setBuddies([]); return }
     setLoading(true)
     reload()
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load journey'))
@@ -294,11 +313,39 @@ function JourneyDrawer({
     } finally { setAcking(false) }
   }
 
+  const submitBuddy = async () => {
+    const v = await buddyForm.validateFields()
+    setBuddying(true)
+    try {
+      await onboardingApi.assignBuddy({
+        employeeId: row!.employeeId,
+        buddyEmployeeId: v.buddyEmployeeId!,
+        role: v.role,
+        taskStatusId: buddyFor?.id,
+        notes: v.notes,
+      })
+      message.success(`${prettyEnum(v.role)} assigned`)
+      setBuddyFor(null)
+      await reload()
+      onChanged()
+    } catch (e) {
+      message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed')
+    } finally { setBuddying(false) }
+  }
+
   const ackByTask = useMemo(() => {
     const m = new Map<string, Acknowledgement>()
     for (const a of acks) m.set(a.taskStatusId, a)
     return m
   }, [acks])
+
+  const buddyByTask = useMemo(() => {
+    const m = new Map<string, Buddy>()
+    for (const b of buddies) {
+      if (b.status === 'ACTIVE' && b.taskStatusId) m.set(b.taskStatusId, b)
+    }
+    return m
+  }, [buddies])
 
   const tasks = journey?.assignment?.tasks ?? []
   const groups = useMemo(() => {
@@ -438,6 +485,24 @@ function JourneyDrawer({
                                 </Button>
                               ) : null
                             )}
+
+                            {/* M305 — buddy/mentor assignment */}
+                            {task.taskType === BUDDY_TYPE && (
+                              buddyByTask.has(task.id) ? (
+                                <Text type="success" style={{ fontSize: 12 }}>
+                                  ✓ {prettyEnum(buddyByTask.get(task.id)!.role)} assigned:{' '}
+                                  <b>{buddyByTask.get(task.id)!.buddyName ?? buddyByTask.get(task.id)!.buddyNo ?? '—'}</b>
+                                  {buddyByTask.get(task.id)!.buddyNo ? ` (${buddyByTask.get(task.id)!.buddyNo})` : ''}{' '}
+                                  on {dayjs(buddyByTask.get(task.id)!.assignedAt).format('YYYY-MM-DD')}
+                                </Text>
+                              ) : canWrite ? (
+                                <Button size="small" type="primary" ghost onClick={() => {
+                                  setBuddyFor(task); buddyForm.resetFields(); searchEmployees('')
+                                }}>
+                                  Assign buddy / mentor…
+                                </Button>
+                              ) : null
+                            )}
                           </Space>
                         </Card>
                       )
@@ -464,6 +529,34 @@ function JourneyDrawer({
           </Form.Item>
           <Form.Item name="reference" label="Reference (optional)" extra="Policy code, document name, or contract reference.">
             <Input placeholder="e.g. POL-COC-v3 · Employment contract 2026" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={!!buddyFor}
+        title={buddyFor ? `Assign buddy / mentor — ${buddyFor.title}` : ''}
+        onCancel={() => setBuddyFor(null)}
+        onOk={submitBuddy}
+        confirmLoading={buddying}
+        okText="Assign"
+      >
+        <Form form={buddyForm} layout="vertical" initialValues={{ role: 'BUDDY' }}>
+          <Form.Item name="buddyEmployeeId" label="Buddy / mentor" rules={[{ required: true, message: 'Select an employee' }]}>
+            <Select
+              showSearch
+              filterOption={false}
+              onSearch={searchEmployees}
+              placeholder="Search by name or employee number…"
+              options={empOptions}
+              notFoundContent="Type to search active employees"
+            />
+          </Form.Item>
+          <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+            <Select options={[{ value: 'BUDDY', label: 'Buddy (peer support)' }, { value: 'MENTOR', label: 'Mentor (career guidance)' }]} />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes (optional)">
+            <Input.TextArea rows={2} placeholder="Any context for this pairing…" />
           </Form.Item>
         </Form>
       </Modal>
