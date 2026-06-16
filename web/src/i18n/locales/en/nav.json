@@ -79,6 +79,7 @@
       "analytics": "Analytics"
     },
     "lifecycle": {
+      "onboarding": "Onboarding",
       "terminations": "Terminations",
       "contractChanges": "Contract changes",
       "checklists": "Checklists"

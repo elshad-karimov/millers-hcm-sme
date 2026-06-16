@@ -39,6 +39,7 @@ import {
   ONBOARDING_CATEGORIES,
   prettyEnum,
   TASK_STATUS_COLOR,
+  TASK_TYPE_COLOR,
   TASK_TYPES,
   type AssignmentResponse,
   type ChecklistFlowType,
@@ -73,15 +74,6 @@ const OWNER_ROLE_OPTIONS = ['HR', 'IT', 'MANAGER', 'FINANCE', 'FACILITIES', 'SEC
 // M299 — typed onboarding tasks + categories (PRD §2).
 const TASK_TYPE_OPTIONS = TASK_TYPES.map((v) => ({ value: v, label: prettyEnum(v) }))
 const CATEGORY_OPTIONS = ONBOARDING_CATEGORIES.map((v) => ({ value: v, label: prettyEnum(v) }))
-
-// Colour the type tag by the persona/stream that typically owns it.
-const TASK_TYPE_COLOR: Record<ChecklistTaskType, string> = {
-  DOCUMENT_COLLECTION: 'blue', CONTRACT_SIGNING: 'blue', POLICY_ACKNOWLEDGEMENT: 'blue',
-  EQUIPMENT_REQUEST: 'geekblue', IT_ACCOUNT_REQUEST: 'geekblue', WORKSPACE_REQUEST: 'orange',
-  TRAINING_ASSIGNMENT: 'purple', MEETING_SCHEDULE: 'cyan', MANAGER_TASK: 'green',
-  HR_TASK: 'blue', PAYROLL_TASK: 'gold', SECURITY_ACCESS_TASK: 'volcano',
-  BUDDY_TASK: 'green', MANUAL_TASK: 'default', APPROVAL_TASK: 'magenta',
-}
 
 function ChecklistPanel({ flow }: { flow: ChecklistFlowType }) {
   const { message } = AntdApp.useApp()

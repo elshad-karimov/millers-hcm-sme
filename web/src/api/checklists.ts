@@ -29,6 +29,15 @@ export type ChecklistOnboardingCategory = (typeof ONBOARDING_CATEGORIES)[number]
 export const prettyEnum = (v?: string | null) =>
   !v ? '' : v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ')
 
+/** Colour the task-type tag by the persona/stream that typically owns it. */
+export const TASK_TYPE_COLOR: Record<string, string> = {
+  DOCUMENT_COLLECTION: 'blue', CONTRACT_SIGNING: 'blue', POLICY_ACKNOWLEDGEMENT: 'blue',
+  EQUIPMENT_REQUEST: 'geekblue', IT_ACCOUNT_REQUEST: 'geekblue', WORKSPACE_REQUEST: 'orange',
+  TRAINING_ASSIGNMENT: 'purple', MEETING_SCHEDULE: 'cyan', MANAGER_TASK: 'green',
+  HR_TASK: 'blue', PAYROLL_TASK: 'gold', SECURITY_ACCESS_TASK: 'volcano',
+  BUDDY_TASK: 'green', MANUAL_TASK: 'default', APPROVAL_TASK: 'magenta',
+}
+
 export interface TemplateTaskRequest {
   stepOrder: number
   title: string

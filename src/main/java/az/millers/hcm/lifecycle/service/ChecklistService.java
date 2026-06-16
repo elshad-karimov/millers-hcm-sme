@@ -112,8 +112,12 @@ public class ChecklistService {
         if (req.priority() != null) t.setPriority(req.priority());
         templates.save(t);
 
-        // Replace template tasks atomically.
+        // Replace template tasks atomically. Flush the delete before re-inserting
+        // so re-saving a template with the same step orders doesn't trip the
+        // (template_id, step_order) unique index — Hibernate would otherwise
+        // order the inserts ahead of the delete within a single flush.
         templateTasks.deleteByTemplateId(t.getId());
+        templateTasks.flush();
         if (req.tasks() != null) {
             for (TemplateTaskRequest tr : req.tasks()) {
                 ChecklistTemplateTask task = new ChecklistTemplateTask();
@@ -130,8 +134,10 @@ public class ChecklistService {
             }
         }
 
-        // Replace match rules atomically (M298).
+        // Replace match rules atomically (M298). Flush the delete first for the
+        // same reason as the tasks above.
         templateRules.deleteByTemplateId(t.getId());
+        templateRules.flush();
         if (req.rules() != null) {
             for (TemplateRuleRequest rr : req.rules()) {
                 ChecklistTemplateRule rule = new ChecklistTemplateRule();
