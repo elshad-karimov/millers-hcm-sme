@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplate;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateRule;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateTask;
+import az.millers.hcm.lifecycle.event.ChecklistStartedEvent;
 import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTemplateRepository;
@@ -71,6 +73,7 @@ public class ChecklistService {
     private final ChecklistTemplateMatcher matcher;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher events;
 
     public ChecklistService(ChecklistTemplateRepository templates,
                              ChecklistTemplateTaskRepository templateTasks,
@@ -80,7 +83,8 @@ public class ChecklistService {
                              EmployeeRepository employees,
                              ChecklistTemplateMatcher matcher,
                              AuditService audit,
-                             CurrentRequest currentRequest) {
+                             CurrentRequest currentRequest,
+                             ApplicationEventPublisher events) {
         this.templates = templates;
         this.templateTasks = templateTasks;
         this.templateRules = templateRules;
@@ -90,6 +94,7 @@ public class ChecklistService {
         this.matcher = matcher;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.events = events;
     }
 
     // ── Templates ───────────────────────────────────────────────────────────
@@ -246,6 +251,11 @@ public class ChecklistService {
                         "employeeId", req.employeeId().toString(),
                         "flow", tpl.getFlowType().name(),
                         "taskCount", tplTasks.size()));
+        // M301 — let onboarding cross-functional wiring (equipment/workspace
+        // provisioning requests, …) react to the typed tasks just snapshotted,
+        // without this engine depending on those services. One-way + no cycle.
+        events.publishEvent(new ChecklistStartedEvent(
+                a.getId(), a.getEmployeeId(), tpl.getFlowType()));
         return toResponse(a, tpl);
     }
 

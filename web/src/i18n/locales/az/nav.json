@@ -80,6 +80,7 @@
     },
     "lifecycle": {
       "onboarding": "Adaptasiya",
+      "provisioning": "Təchizat",
       "terminations": "İşdən azad",
       "contractChanges": "Müqavilə dəyişiklikləri",
       "checklists": "Yoxlama siyahıları"

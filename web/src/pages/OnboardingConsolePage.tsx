@@ -35,6 +35,12 @@ import {
   type TaskStatusResponse,
 } from '../api/checklists'
 import { onboardingApi, type OnboardingJourney, type OnboardingRow } from '../api/onboarding'
+import {
+  onboardingRequestsApi,
+  REQUEST_CATEGORY_COLOR,
+  REQUEST_STATUS_COLOR,
+  type ResourceRequest,
+} from '../api/onboardingRequests'
 
 const { Title, Text } = Typography
 
@@ -220,14 +226,18 @@ function JourneyDrawer({
 }) {
   const { message } = AntdApp.useApp()
   const [journey, setJourney] = useState<OnboardingJourney | null>(null)
+  const [requests, setRequests] = useState<ResourceRequest[]>([])
   const [loading, setLoading] = useState(false)
   const [groupBy, setGroupBy] = useState<'category' | 'owner'>('category')
 
   useEffect(() => {
-    if (!row) { setJourney(null); return }
+    if (!row) { setJourney(null); setRequests([]); return }
     setLoading(true)
-    onboardingApi.journey(row.employeeId)
-      .then(setJourney)
+    Promise.all([
+      onboardingApi.journey(row.employeeId),
+      onboardingRequestsApi.forEmployee(row.employeeId),
+    ])
+      .then(([j, rr]) => { setJourney(j); setRequests(rr) })
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load journey'))
       .finally(() => setLoading(false))
     /* eslint-disable-next-line */
@@ -278,6 +288,23 @@ function JourneyDrawer({
               </Tag>
             )}
           </Space>
+
+          {requests.length > 0 && (
+            <Card size="small" title="Provisioning requests" styles={{ body: { paddingBlock: 8 } }}>
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                {requests.map((rr) => (
+                  <Space key={rr.id} style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+                    <Space size={6} wrap>
+                      <Text style={{ fontSize: 12 }}>{rr.title}</Text>
+                      <Tag color={REQUEST_CATEGORY_COLOR[rr.category]}>{prettyEnum(rr.category)}</Tag>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{rr.requestNo}</Text>
+                    </Space>
+                    <Tag color={REQUEST_STATUS_COLOR[rr.status]}>{prettyEnum(rr.status)}</Tag>
+                  </Space>
+                ))}
+              </Space>
+            </Card>
+          )}
 
           {!journey.hasActiveOnboarding || !journey.assignment ? (
             <Empty description="No active onboarding checklist for this employee." />

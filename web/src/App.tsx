@@ -57,6 +57,7 @@ import { AgenciesPage } from './pages/AgenciesPage'
 import { TerminationsPage } from './pages/TerminationsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
 import { OnboardingConsolePage } from './pages/OnboardingConsolePage'
+import { OnboardingRequestsPage } from './pages/OnboardingRequestsPage'
 import { TerminationFormPage } from './pages/TerminationFormPage'
 import { TerminationDetailPage } from './pages/TerminationDetailPage'
 import { ContractChangesPage } from './pages/ContractChangesPage'
@@ -384,6 +385,8 @@ export default function App() {
           <Route path="lifecycle/checklists" element={<ChecklistsPage />} />
           {/* M300 — onboarding journey hub + HR console */}
           <Route path="lifecycle/onboarding" element={<OnboardingConsolePage />} />
+          {/* M301 — equipment/workspace provisioning queue */}
+          <Route path="lifecycle/onboarding/requests" element={<OnboardingRequestsPage />} />
 
           {/* Comp & Benefits */}
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />

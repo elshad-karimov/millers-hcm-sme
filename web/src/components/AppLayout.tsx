@@ -106,6 +106,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/recruitment/analytics', module: 'recruitment', screen: 'recruitment-analytics' },
   { prefix: '/lifecycle/terminations', module: 'lifecycle', screen: 'lifecycle-terminations' },
   { prefix: '/lifecycle/contract-changes', module: 'lifecycle', screen: 'lifecycle-contract-changes' },
+  { prefix: '/lifecycle/onboarding/requests', module: 'lifecycle', screen: 'lifecycle-onboarding-requests' },
   { prefix: '/lifecycle/onboarding', module: 'lifecycle', screen: 'lifecycle-onboarding' },
   { prefix: '/lifecycle/checklists', module: 'lifecycle', screen: 'lifecycle-checklists' },
   { prefix: '/performance/cycles', module: 'performance', screen: 'performance-cycles' },
@@ -555,6 +556,11 @@ export function AppLayout() {
                 key: 'lifecycle-onboarding',
                 icon: <RocketOutlined />,
                 label: <Link to="/lifecycle/onboarding">{tNav('sub.lifecycle.onboarding')}</Link>,
+              },
+              {
+                key: 'lifecycle-onboarding-requests',
+                icon: <RocketOutlined />,
+                label: <Link to="/lifecycle/onboarding/requests">{tNav('sub.lifecycle.provisioning')}</Link>,
               },
               {
                 key: 'lifecycle-checklists',

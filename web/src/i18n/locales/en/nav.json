@@ -80,6 +80,7 @@
     },
     "lifecycle": {
       "onboarding": "Onboarding",
+      "provisioning": "Provisioning",
       "terminations": "Terminations",
       "contractChanges": "Contract changes",
       "checklists": "Checklists"
