@@ -38,6 +38,7 @@ import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplate;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateRule;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateTask;
+import az.millers.hcm.lifecycle.domain.TrainingTargetKind;
 import az.millers.hcm.lifecycle.event.ChecklistStartedEvent;
 import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
@@ -133,6 +134,8 @@ public class ChecklistService {
                 task.setDefaultOwnerRole(tr.defaultOwnerRole());
                 task.setTaskType(parseTaskType(tr.taskType()));
                 task.setCategory(parseCategory(tr.category()));
+                task.setTrainingTargetKind(parseTrainingKind(tr.trainingTargetKind()));
+                task.setTrainingTargetId(tr.trainingTargetId());
                 task.setDueOffsetDays(tr.dueOffsetDays());
                 if (tr.required() != null) task.setRequired(tr.required());
                 templateTasks.save(task);
@@ -172,6 +175,8 @@ public class ChecklistService {
                         task.getDescription(), task.getDefaultOwnerRole(),
                         task.getTaskType().name(),
                         task.getCategory() == null ? null : task.getCategory().name(),
+                        task.getTrainingTargetKind() == null ? null : task.getTrainingTargetKind().name(),
+                        task.getTrainingTargetId(),
                         task.getDueOffsetDays(), task.isRequired()))
                 .toList();
         List<TemplateRuleResponse> rules = templateRules.findByTemplateId(id).stream()
@@ -233,6 +238,8 @@ public class ChecklistService {
             s.setDescription(tt.getDescription());
             s.setTaskType(tt.getTaskType());
             s.setCategory(tt.getCategory());
+            s.setTrainingTargetKind(tt.getTrainingTargetKind());
+            s.setTrainingTargetId(tt.getTrainingTargetId());
             // Owner defaults to the task type's natural owner when the template
             // didn't set one explicitly (M299), so typed tasks route to the
             // right persona's dashboard out of the box.
@@ -436,6 +443,8 @@ public class ChecklistService {
                     t.getDescription(), t.getOwnerRole(),
                     t.getTaskType().name(),
                     t.getCategory() == null ? null : t.getCategory().name(),
+                    t.getTrainingTargetKind() == null ? null : t.getTrainingTargetKind().name(),
+                    t.getTrainingTargetId(),
                     t.getAssignedToUsername(),
                     t.getDueDate(), t.isRequired(), t.getStatus(),
                     t.getCompletedAt(), t.getCompletedBy(), t.getNotes()));
@@ -484,6 +493,15 @@ public class ChecklistService {
             return ChecklistOnboardingCategory.valueOf(s.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Unknown onboarding category: " + s);
+        }
+    }
+
+    private static TrainingTargetKind parseTrainingKind(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return TrainingTargetKind.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Unknown training target kind: " + s);
         }
     }
 }

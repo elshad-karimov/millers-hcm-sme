@@ -49,6 +49,15 @@ public class ChecklistTemplateTask {
     @Column(name = "category", length = 40)
     private ChecklistOnboardingCategory category;
 
+    /** For TRAINING_ASSIGNMENT tasks (M303): COURSE or PATH the hire is auto-enrolled in. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "training_target_kind", length = 8)
+    private TrainingTargetKind trainingTargetKind;
+
+    /** LMS course id (kind COURSE) or learning-path id (kind PATH). */
+    @Column(name = "training_target_id")
+    private UUID trainingTargetId;
+
     @Column(name = "due_offset_days")
     private Integer dueOffsetDays;
 

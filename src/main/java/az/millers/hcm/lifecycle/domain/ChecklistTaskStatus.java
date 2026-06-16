@@ -54,6 +54,14 @@ public class ChecklistTaskStatus {
     @Column(name = "category", length = 40)
     private ChecklistOnboardingCategory category;
 
+    /** Snapshot of the training target (M303) — drives auto-enrol on start + close-on-pass. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "training_target_kind", length = 8)
+    private TrainingTargetKind trainingTargetKind;
+
+    @Column(name = "training_target_id")
+    private UUID trainingTargetId;
+
     @Column(name = "assigned_to_username", length = 80)
     private String assignedToUsername;
 

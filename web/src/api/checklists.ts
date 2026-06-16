@@ -25,6 +25,9 @@ export const ONBOARDING_CATEGORIES = [
 ] as const
 export type ChecklistOnboardingCategory = (typeof ONBOARDING_CATEGORIES)[number]
 
+// M303 — a TRAINING_ASSIGNMENT task can target an LMS course or a learning path.
+export type TrainingTargetKind = 'COURSE' | 'PATH'
+
 /** Human label for an enum-ish constant: TITLE_CASE → "Title case". */
 export const prettyEnum = (v?: string | null) =>
   !v ? '' : v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ')
@@ -45,6 +48,8 @@ export interface TemplateTaskRequest {
   defaultOwnerRole?: string
   taskType?: ChecklistTaskType
   category?: ChecklistOnboardingCategory | null
+  trainingTargetKind?: TrainingTargetKind | null
+  trainingTargetId?: string | null
   dueOffsetDays?: number
   required?: boolean
 }
@@ -93,6 +98,8 @@ export interface TemplateTaskResponse {
   defaultOwnerRole?: string | null
   taskType: ChecklistTaskType
   category?: ChecklistOnboardingCategory | null
+  trainingTargetKind?: TrainingTargetKind | null
+  trainingTargetId?: string | null
   dueOffsetDays?: number | null
   required: boolean
 }
@@ -143,6 +150,8 @@ export interface TaskStatusResponse {
   ownerRole?: string | null
   taskType: ChecklistTaskType
   category?: ChecklistOnboardingCategory | null
+  trainingTargetKind?: TrainingTargetKind | null
+  trainingTargetId?: string | null
   assignedToUsername?: string | null
   dueDate?: string | null
   required: boolean

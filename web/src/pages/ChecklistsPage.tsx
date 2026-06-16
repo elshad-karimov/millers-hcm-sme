@@ -50,7 +50,10 @@ import {
   type TemplateMatchResult,
   type TemplateRequest,
   type TemplateResponse,
+  type TrainingTargetKind,
 } from '../api/checklists'
+import { learningApi } from '../api/learning'
+import { learningPathsApi } from '../api/learningPaths'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -497,6 +500,8 @@ interface EditorForm {
     defaultOwnerRole?: string
     taskType?: ChecklistTaskType
     category?: ChecklistOnboardingCategory
+    trainingTargetKind?: TrainingTargetKind
+    trainingTargetId?: string
     dueOffsetDays?: number
     required: boolean
   }[]
@@ -524,6 +529,20 @@ function TemplateEditor({
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<EditorForm>()
   const [saving, setSaving] = useState(false)
+  const [courseOpts, setCourseOpts] = useState<{ value: string; label: string }[]>([])
+  const [pathOpts, setPathOpts] = useState<{ value: string; label: string }[]>([])
+
+  // Load published courses + active paths once for the training-target pickers.
+  useEffect(() => {
+    if (!open) return
+    Promise.all([
+      learningApi.courses({ status: 'PUBLISHED', size: 200 }).catch(() => null),
+      learningPathsApi.list(true).catch(() => null),
+    ]).then(([courses, paths]) => {
+      if (courses) setCourseOpts(courses.content.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` })))
+      if (paths) setPathOpts(paths.map((p) => ({ value: p.id, label: `${p.pathNo} — ${p.name}` })))
+    })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -542,6 +561,8 @@ function TemplateEditor({
           defaultOwnerRole: t.defaultOwnerRole ?? undefined,
           taskType: t.taskType,
           category: t.category ?? undefined,
+          trainingTargetKind: t.trainingTargetKind ?? undefined,
+          trainingTargetId: t.trainingTargetId ?? undefined,
           dueOffsetDays: t.dueOffsetDays ?? undefined,
           required: t.required,
         })),
@@ -578,6 +599,8 @@ function TemplateEditor({
         defaultOwnerRole: t.defaultOwnerRole,
         taskType: t.taskType ?? 'MANUAL_TASK',
         category: t.category ?? null,
+        trainingTargetKind: t.taskType === 'TRAINING_ASSIGNMENT' ? (t.trainingTargetKind ?? null) : null,
+        trainingTargetId: t.taskType === 'TRAINING_ASSIGNMENT' ? (t.trainingTargetId ?? null) : null,
         dueOffsetDays: t.dueOffsetDays,
         required: t.required ?? true,
       })),
@@ -676,6 +699,44 @@ function TemplateEditor({
                   </Space>
                   <Form.Item name={[field.name, 'description']} label="Description" style={{ marginBottom: 0 }}>
                     <Input.TextArea rows={1} />
+                  </Form.Item>
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(p, c) =>
+                      p.tasks?.[field.name]?.taskType !== c.tasks?.[field.name]?.taskType ||
+                      p.tasks?.[field.name]?.trainingTargetKind !== c.tasks?.[field.name]?.trainingTargetKind}
+                  >
+                    {({ getFieldValue }) => {
+                      if (getFieldValue(['tasks', field.name, 'taskType']) !== 'TRAINING_ASSIGNMENT') return null
+                      const kind = getFieldValue(['tasks', field.name, 'trainingTargetKind'])
+                      return (
+                        <Space wrap style={{ marginTop: 8 }}>
+                          <Form.Item
+                            name={[field.name, 'trainingTargetKind']}
+                            label="Training target"
+                            style={{ minWidth: 140, marginBottom: 0 }}
+                            tooltip="Auto-enrols the new hire on start; a passed course ticks the task off."
+                          >
+                            <Select allowClear placeholder="—" options={[
+                              { value: 'COURSE', label: 'Course' },
+                              { value: 'PATH', label: 'Learning path' },
+                            ]} />
+                          </Form.Item>
+                          <Form.Item
+                            name={[field.name, 'trainingTargetId']}
+                            label={kind === 'PATH' ? 'Learning path' : 'Course'}
+                            style={{ minWidth: 300, marginBottom: 0 }}
+                          >
+                            <Select
+                              allowClear showSearch optionFilterProp="label"
+                              disabled={!kind}
+                              placeholder={kind ? 'Pick…' : 'pick a kind first'}
+                              options={kind === 'PATH' ? pathOpts : courseOpts}
+                            />
+                          </Form.Item>
+                        </Space>
+                      )
+                    }}
                   </Form.Item>
                 </Card>
               ))}
