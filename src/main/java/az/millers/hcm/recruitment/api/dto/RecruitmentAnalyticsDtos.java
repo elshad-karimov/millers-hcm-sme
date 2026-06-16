@@ -74,4 +74,37 @@ public final class RecruitmentAnalyticsDtos {
             long bucket60to89,
             long bucket90plus,
             long neverContacted) {}
+
+    // ── M297 — cost-per-hire + recruitment finance (PRD Phase F finale) ──
+
+    /** Per-agency spend in the window. */
+    public record AgencySpendRow(
+            String agencyName,
+            long invoices,
+            BigDecimal total,
+            BigDecimal paid) {}
+
+    /**
+     * Recruitment cost & finance over a window. Committed cost = agency
+     * placement fees (all invoices) + referral bonuses (HIRED/QUALIFIED/PAID);
+     * paid cost is the subset actually disbursed. Cost-per-hire divides
+     * committed cost by hires in the window.
+     */
+    public record CostReport(
+            LocalDate from,
+            LocalDate to,
+            long hires,
+            long agencyHires,
+            long referralHires,
+            long directHires,
+            BigDecimal agencyTotal,
+            BigDecimal agencyPaid,
+            BigDecimal agencyOutstanding,
+            BigDecimal referralTotal,
+            BigDecimal referralPaid,
+            BigDecimal referralAccrued,
+            BigDecimal totalCommitted,
+            BigDecimal totalPaid,
+            BigDecimal costPerHire,
+            List<AgencySpendRow> byAgency) {}
 }

@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.common.DateWindow;
+import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.AgencySpendRow;
+import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.CostReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelRow;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceReport;
@@ -27,10 +29,18 @@ import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.TimeToHireRow
 import az.millers.hcm.recruitment.domain.Application;
 import az.millers.hcm.recruitment.domain.ApplicationEvent;
 import az.millers.hcm.recruitment.domain.ApplicationStage;
+import az.millers.hcm.recruitment.domain.Agency;
+import az.millers.hcm.recruitment.domain.AgencyInvoice;
 import az.millers.hcm.recruitment.domain.Candidate;
+import az.millers.hcm.recruitment.domain.InvoiceStatus;
+import az.millers.hcm.recruitment.domain.Referral;
+import az.millers.hcm.recruitment.domain.ReferralStatus;
+import az.millers.hcm.recruitment.repo.AgencyInvoiceRepository;
+import az.millers.hcm.recruitment.repo.AgencyRepository;
 import az.millers.hcm.recruitment.repo.ApplicationEventRepository;
 import az.millers.hcm.recruitment.repo.ApplicationRepository;
 import az.millers.hcm.recruitment.repo.CandidateRepository;
+import az.millers.hcm.recruitment.repo.ReferralRepository;
 
 /**
  * Recruitment funnel + source + stale-pool analytics (M88).
@@ -54,13 +64,23 @@ public class RecruitmentAnalyticsService {
     private final ApplicationRepository applications;
     private final ApplicationEventRepository events;
     private final CandidateRepository candidates;
+    // M297 — cost-per-hire sources.
+    private final ReferralRepository referrals;
+    private final AgencyInvoiceRepository agencyInvoices;
+    private final AgencyRepository agencies;
 
     public RecruitmentAnalyticsService(ApplicationRepository applications,
                                         ApplicationEventRepository events,
-                                        CandidateRepository candidates) {
+                                        CandidateRepository candidates,
+                                        ReferralRepository referrals,
+                                        AgencyInvoiceRepository agencyInvoices,
+                                        AgencyRepository agencies) {
         this.applications = applications;
         this.events = events;
         this.candidates = candidates;
+        this.referrals = referrals;
+        this.agencyInvoices = agencyInvoices;
+        this.agencies = agencies;
     }
 
     // ── Funnel ───────────────────────────────────────────────────────────────
@@ -210,6 +230,85 @@ public class RecruitmentAnalyticsService {
 
         return new TimeToHireReport(windowFrom, windowTo,
                 avgOverall, medianOverall, rows);
+    }
+
+    // ── Cost per hire + recruitment finance (M297) ──────────────────────────
+
+    @Transactional(readOnly = true)
+    public CostReport costReport(LocalDate from, LocalDate to) {
+        DateWindow window = DateWindow.ofOrDefault(from, to, java.time.Period.ofYears(1));
+
+        // Hires in window = STAGE_CHANGE events landing on HIRED in the window.
+        long hires = events.findAll().stream()
+                .filter(e -> e.getToStage() == ApplicationStage.HIRED
+                        && e.getCreatedAt() != null && window.contains(e.getCreatedAt()))
+                .count();
+
+        // Agency placement fees — one invoice per placement.
+        Map<java.util.UUID, String> agencyNames = new LinkedHashMap<>();
+        for (Agency a : agencies.findAll()) agencyNames.put(a.getId(), a.getName());
+        List<AgencyInvoice> windowInvoices = agencyInvoices.findAll().stream()
+                .filter(i -> i.getIssuedAt() != null && window.contains(i.getIssuedAt()))
+                .filter(i -> i.getStatus() != InvoiceStatus.CANCELLED)
+                .toList();
+        long agencyHires = windowInvoices.size();
+        BigDecimal agencyTotal = sum(windowInvoices, AgencyInvoice::getFeeAmount);
+        BigDecimal agencyPaid = sum(windowInvoices.stream()
+                .filter(i -> i.getStatus() == InvoiceStatus.PAID).toList(), AgencyInvoice::getFeeAmount);
+        BigDecimal agencyOutstanding = agencyTotal.subtract(agencyPaid);
+
+        Map<java.util.UUID, long[]> agencyCounts = new LinkedHashMap<>(); // id -> [count]
+        Map<java.util.UUID, BigDecimal[]> agencySums = new LinkedHashMap<>(); // id -> [total, paid]
+        for (AgencyInvoice i : windowInvoices) {
+            agencyCounts.computeIfAbsent(i.getAgencyId(), k -> new long[1])[0]++;
+            BigDecimal[] s = agencySums.computeIfAbsent(i.getAgencyId(),
+                    k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            s[0] = s[0].add(nz(i.getFeeAmount()));
+            if (i.getStatus() == InvoiceStatus.PAID) s[1] = s[1].add(nz(i.getFeeAmount()));
+        }
+        List<AgencySpendRow> byAgency = new ArrayList<>();
+        for (var e : agencyCounts.entrySet()) {
+            BigDecimal[] s = agencySums.get(e.getKey());
+            byAgency.add(new AgencySpendRow(
+                    agencyNames.getOrDefault(e.getKey(), "—"),
+                    e.getValue()[0], s[0], s[1]));
+        }
+        byAgency.sort(Comparator.comparing(AgencySpendRow::total).reversed());
+
+        // Referral bonuses — count those whose hire landed in the window.
+        List<Referral> windowReferrals = referrals.findAll().stream()
+                .filter(r -> r.getStatus() == ReferralStatus.HIRED
+                        || r.getStatus() == ReferralStatus.QUALIFIED
+                        || r.getStatus() == ReferralStatus.PAID)
+                .filter(r -> r.getHiredAt() != null && window.contains(r.getHiredAt()))
+                .toList();
+        long referralHires = windowReferrals.size();
+        BigDecimal referralTotal = sum(windowReferrals, Referral::getBonusAmount);
+        BigDecimal referralPaid = sum(windowReferrals.stream()
+                .filter(r -> r.getStatus() == ReferralStatus.PAID).toList(), Referral::getBonusAmount);
+        BigDecimal referralAccrued = referralTotal.subtract(referralPaid);
+
+        long directHires = Math.max(0, hires - agencyHires - referralHires);
+        BigDecimal totalCommitted = agencyTotal.add(referralTotal);
+        BigDecimal totalPaid = agencyPaid.add(referralPaid);
+        BigDecimal costPerHire = hires > 0
+                ? totalCommitted.divide(BigDecimal.valueOf(hires), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        return new CostReport(window.from(), window.to(), hires,
+                agencyHires, referralHires, directHires,
+                agencyTotal, agencyPaid, agencyOutstanding,
+                referralTotal, referralPaid, referralAccrued,
+                totalCommitted, totalPaid, costPerHire, byAgency);
+    }
+
+    private static <T> BigDecimal sum(List<T> rows, java.util.function.Function<T, BigDecimal> f) {
+        return rows.stream().map(f).map(RecruitmentAnalyticsService::nz)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
     }
 
     // ── Source effectiveness ────────────────────────────────────────────────

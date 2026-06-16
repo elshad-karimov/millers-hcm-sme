@@ -31,6 +31,8 @@ import {
 } from 'recharts'
 import {
   recruitmentAnalyticsApi,
+  type AgencySpendRow,
+  type CostReport,
   type FunnelReport,
   type SourceReport,
   type StaleCandidateRow,
@@ -51,6 +53,8 @@ export function RecruitmentAnalyticsPage() {
   const [stale, setStale] = useState<StaleReport | null>(null)
   // M288 — pipeline SLA breaches (PRD §43)
   const [sla, setSla] = useState<SlaBreachReport | null>(null)
+  // M297 — cost-per-hire + recruitment finance (PRD Phase F finale)
+  const [cost, setCost] = useState<CostReport | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -63,13 +67,15 @@ export function RecruitmentAnalyticsPage() {
       recruitmentAnalyticsApi.sources(f, t),
       recruitmentAnalyticsApi.stale(staleDays),
       recruitmentApi.slaBreaches(),
+      recruitmentAnalyticsApi.cost(f, t),
     ])
-      .then(([fn, th, src, st, sl]) => {
+      .then(([fn, th, src, st, sl, cs]) => {
         setFunnel(fn)
         setTth(th)
         setSources(src)
         setStale(st)
         setSla(sl)
+        setCost(cs)
       })
       .catch((e) =>
         message.error(e?.response?.data?.message ?? 'Failed to load analytics'),
@@ -335,6 +341,86 @@ export function RecruitmentAnalyticsPage() {
                   ) : (
                     <Tag color="gold">Due today</Tag>
                   ),
+              },
+            ]}
+          />
+        </Card>
+      )}
+
+      {/* M297 — recruitment cost & finance (PRD Phase F finale) */}
+      {cost && (
+        <Card title="Recruitment cost & finance">
+          <Row gutter={[16, 16]}>
+            <Col xs={12} md={6}>
+              <Statistic title="Hires" value={cost.hires} />
+              <Typography.Text type="secondary">
+                {cost.agencyHires} agency · {cost.referralHires} referral · {cost.directHires} direct
+              </Typography.Text>
+            </Col>
+            <Col xs={12} md={6}>
+              <Statistic
+                title="Cost per hire"
+                value={cost.costPerHire}
+                precision={2}
+                valueStyle={{ color: '#722ed1' }}
+              />
+            </Col>
+            <Col xs={12} md={6}>
+              <Statistic title="Total committed" value={cost.totalCommitted} precision={2} />
+              <Typography.Text type="secondary">paid {cost.totalPaid.toFixed(2)}</Typography.Text>
+            </Col>
+            <Col xs={12} md={6}>
+              <Statistic
+                title="Outstanding"
+                value={cost.agencyOutstanding + cost.referralAccrued}
+                precision={2}
+                valueStyle={
+                  cost.agencyOutstanding + cost.referralAccrued > 0 ? { color: '#fa8c16' } : {}
+                }
+              />
+            </Col>
+          </Row>
+          <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
+            <Col xs={24} md={12}>
+              <Card size="small" type="inner" title="Agency placement fees">
+                <Space size="large">
+                  <Statistic title="Total" value={cost.agencyTotal} precision={2} />
+                  <Statistic title="Paid" value={cost.agencyPaid} precision={2} />
+                  <Statistic title="Outstanding" value={cost.agencyOutstanding} precision={2} />
+                </Space>
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card size="small" type="inner" title="Referral bonuses">
+                <Space size="large">
+                  <Statistic title="Total" value={cost.referralTotal} precision={2} />
+                  <Statistic title="Paid" value={cost.referralPaid} precision={2} />
+                  <Statistic title="Accrued" value={cost.referralAccrued} precision={2} />
+                </Space>
+              </Card>
+            </Col>
+          </Row>
+          <Table<AgencySpendRow>
+            style={{ marginTop: 12 }}
+            rowKey="agencyName"
+            size="small"
+            dataSource={cost.byAgency}
+            pagination={false}
+            locale={{ emptyText: <Empty description="No agency spend in window" /> }}
+            columns={[
+              { title: 'Agency', dataIndex: 'agencyName', ellipsis: true },
+              { title: 'Placements', dataIndex: 'invoices', width: 110 },
+              {
+                title: 'Total',
+                dataIndex: 'total',
+                width: 130,
+                render: (v: number) => v.toFixed(2),
+              },
+              {
+                title: 'Paid',
+                dataIndex: 'paid',
+                width: 130,
+                render: (v: number) => v.toFixed(2),
               },
             ]}
           />

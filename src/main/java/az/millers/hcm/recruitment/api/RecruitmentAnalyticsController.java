@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.security.SecurityRoles;
+import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.CostReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.FunnelReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.SourceReport;
 import az.millers.hcm.recruitment.api.dto.RecruitmentAnalyticsDtos.StaleReport;
@@ -57,6 +58,15 @@ public class RecruitmentAnalyticsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return service.sourceEffectiveness(from, to);
+    }
+
+    /** M297 — cost-per-hire + recruitment finance (PRD Phase F finale). */
+    @GetMapping("/cost")
+    @PreAuthorize(READ_ROLES)
+    public CostReport cost(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.costReport(from, to);
     }
 
     @GetMapping("/stale")

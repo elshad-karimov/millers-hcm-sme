@@ -74,6 +74,33 @@ export interface StaleSummary {
   neverContacted: number
 }
 
+// M297 — cost-per-hire + recruitment finance (PRD Phase F finale)
+export interface AgencySpendRow {
+  agencyName: string
+  invoices: number
+  total: number
+  paid: number
+}
+
+export interface CostReport {
+  from: string
+  to: string
+  hires: number
+  agencyHires: number
+  referralHires: number
+  directHires: number
+  agencyTotal: number
+  agencyPaid: number
+  agencyOutstanding: number
+  referralTotal: number
+  referralPaid: number
+  referralAccrued: number
+  totalCommitted: number
+  totalPaid: number
+  costPerHire: number
+  byAgency: AgencySpendRow[]
+}
+
 export const recruitmentAnalyticsApi = {
   funnel: (from?: string, to?: string) =>
     api
@@ -98,5 +125,9 @@ export const recruitmentAnalyticsApi = {
       .get<StaleSummary>('/reports/recruitment/stale/summary', {
         params: { thresholdDays },
       })
+      .then((r) => r.data),
+  cost: (from?: string, to?: string) =>
+    api
+      .get<CostReport>('/reports/recruitment/cost', { params: { from, to } })
       .then((r) => r.data),
 }
