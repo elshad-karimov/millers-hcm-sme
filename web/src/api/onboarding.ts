@@ -91,6 +91,39 @@ export interface Buddy {
   taskStatusId?: string | null
 }
 
+// M306 — first-day meeting / calendar invites (Phase C.2).
+export type MeetingStatus = 'SCHEDULED' | 'CANCELLED'
+
+export interface Meeting {
+  id: string
+  meetingNo: string
+  employeeId: string
+  taskStatusId?: string | null
+  title: string
+  description?: string | null
+  location?: string | null
+  startsAt: string
+  durationMinutes: number
+  attendeeEmails?: string | null
+  calendarSequence: number
+  inviteSentAt?: string | null
+  status: MeetingStatus
+  cancelledReason?: string | null
+  scheduledBy?: string | null
+  createdAt: string
+}
+
+export interface ScheduleMeetingRequest {
+  employeeId: string
+  taskStatusId?: string | null
+  title: string
+  description?: string | null
+  location?: string | null
+  startsAt: string
+  durationMinutes: number
+  attendeeEmails?: string | null
+}
+
 export const onboardingApi = {
   overview: () => api.get<OnboardingOverview>('/onboarding/overview').then((r) => r.data),
   journey: (employeeId: string) =>
@@ -106,4 +139,12 @@ export const onboardingApi = {
     api.post<Buddy>('/onboarding/buddies', req).then((r) => r.data),
   endBuddy: (id: string, reason?: string) =>
     api.post<Buddy>(`/onboarding/buddies/${id}/end`, null, { params: reason ? { reason } : {} }).then((r) => r.data),
+  meetingsForEmployee: (employeeId: string) =>
+    api.get<Meeting[]>(`/onboarding/meetings/employees/${employeeId}`).then((r) => r.data),
+  scheduleMeeting: (req: ScheduleMeetingRequest) =>
+    api.post<Meeting>('/onboarding/meetings', req).then((r) => r.data),
+  rescheduleMeeting: (id: string, req: ScheduleMeetingRequest) =>
+    api.put<Meeting>(`/onboarding/meetings/${id}`, req).then((r) => r.data),
+  cancelMeeting: (id: string, reason?: string) =>
+    api.post<Meeting>(`/onboarding/meetings/${id}/cancel`, null, { params: reason ? { reason } : {} }).then((r) => r.data),
 }

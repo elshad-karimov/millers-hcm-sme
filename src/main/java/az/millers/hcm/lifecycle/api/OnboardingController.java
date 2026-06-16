@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,13 +17,16 @@ import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgeRequest;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgementResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyAssignRequest;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyResponse;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.MeetingResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.ScheduleMeetingRequest;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.FulfillRequest;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ResourceRequestResponse;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.UpdateStatusRequest;
 import az.millers.hcm.lifecycle.service.OnboardingAcknowledgementService;
 import az.millers.hcm.lifecycle.service.OnboardingBuddyService;
+import az.millers.hcm.lifecycle.service.OnboardingMeetingService;
 import az.millers.hcm.lifecycle.service.OnboardingResourceRequestService;
 import az.millers.hcm.lifecycle.service.OnboardingService;
 import az.millers.hcm.security.SecurityRoles;
@@ -43,15 +47,18 @@ public class OnboardingController {
     private final OnboardingResourceRequestService requests;
     private final OnboardingAcknowledgementService acknowledgements;
     private final OnboardingBuddyService buddies;
+    private final OnboardingMeetingService meetings;
 
     public OnboardingController(OnboardingService service,
                                OnboardingResourceRequestService requests,
                                OnboardingAcknowledgementService acknowledgements,
-                               OnboardingBuddyService buddies) {
+                               OnboardingBuddyService buddies,
+                               OnboardingMeetingService meetings) {
         this.service = service;
         this.requests = requests;
         this.acknowledgements = acknowledgements;
         this.buddies = buddies;
+        this.meetings = meetings;
     }
 
     /** HR console: active onboardings + stats + pending-by-type / by-department. */
@@ -138,5 +145,33 @@ public class OnboardingController {
     @PreAuthorize(READ)
     public List<BuddyResponse> mentees(@PathVariable UUID buddyEmployeeId) {
         return buddies.mentees(buddyEmployeeId);
+    }
+
+    // ── M306 — first-day meeting scheduling / calendar invites ───────────────
+
+    @PostMapping("/meetings")
+    @PreAuthorize(WRITE)
+    public MeetingResponse scheduleMeeting(@RequestBody ScheduleMeetingRequest req) {
+        return meetings.schedule(req);
+    }
+
+    @PutMapping("/meetings/{id}")
+    @PreAuthorize(WRITE)
+    public MeetingResponse rescheduleMeeting(@PathVariable UUID id,
+                                              @RequestBody ScheduleMeetingRequest req) {
+        return meetings.reschedule(id, req);
+    }
+
+    @PostMapping("/meetings/{id}/cancel")
+    @PreAuthorize(WRITE)
+    public MeetingResponse cancelMeeting(@PathVariable UUID id,
+                                          @RequestParam(required = false) String reason) {
+        return meetings.cancel(id, reason);
+    }
+
+    @GetMapping("/meetings/employees/{employeeId}")
+    @PreAuthorize(READ)
+    public List<MeetingResponse> meetingsForEmployee(@PathVariable UUID employeeId) {
+        return meetings.forEmployee(employeeId);
     }
 }

@@ -15,6 +15,7 @@ import {
   Drawer,
   Form,
   Input,
+  InputNumber,
   Modal,
   Progress,
   Row,
@@ -28,6 +29,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
+import { DatePicker } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
@@ -43,6 +45,7 @@ import {
   type Acknowledgement,
   type Buddy,
   type BuddyRole,
+  type Meeting,
   type OnboardingJourney,
   type OnboardingRow,
 } from '../api/onboarding'
@@ -62,6 +65,8 @@ const DOC_TYPES = ['DOCUMENT_COLLECTION', 'CONTRACT_SIGNING']
 const ACK_TYPES = ['POLICY_ACKNOWLEDGEMENT', 'CONTRACT_SIGNING']
 // M305 — buddy/mentor assignment task.
 const BUDDY_TYPE = 'BUDDY_TASK'
+// M306 — meeting scheduling task.
+const MEETING_TYPE = 'MEETING_SCHEDULE'
 
 const { Title, Text } = Typography
 
@@ -252,6 +257,7 @@ function JourneyDrawer({
   const [requests, setRequests] = useState<ResourceRequest[]>([])
   const [acks, setAcks] = useState<Acknowledgement[]>([])
   const [buddies, setBuddies] = useState<Buddy[]>([])
+  const [meetings, setMeetings] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(false)
   const [groupBy, setGroupBy] = useState<'category' | 'owner'>('category')
   const [ackFor, setAckFor] = useState<TaskStatusResponse | null>(null)
@@ -260,6 +266,9 @@ function JourneyDrawer({
   const [buddyFor, setBuddyFor] = useState<TaskStatusResponse | null>(null)
   const [buddyForm] = Form.useForm<{ buddyEmployeeId?: string; role: BuddyRole; notes?: string }>()
   const [buddying, setBuddying] = useState(false)
+  const [meetingFor, setMeetingFor] = useState<TaskStatusResponse | null>(null)
+  const [meetingForm] = Form.useForm<{ title: string; startsAt: ReturnType<typeof dayjs>; durationMinutes: number; location?: string; attendeeEmails?: string; description?: string }>()
+  const [scheduling, setScheduling] = useState(false)
   const [empOptions, setEmpOptions] = useState<{ value: string; label: string }[]>([])
 
   const reload = () => {
@@ -269,7 +278,10 @@ function JourneyDrawer({
       onboardingRequestsApi.forEmployee(row.employeeId),
       onboardingApi.acknowledgementsForEmployee(row.employeeId),
       onboardingApi.buddiesForEmployee(row.employeeId),
-    ]).then(([j, rr, ak, bd]) => { setJourney(j); setRequests(rr); setAcks(ak); setBuddies(bd) })
+      onboardingApi.meetingsForEmployee(row.employeeId),
+    ]).then(([j, rr, ak, bd, mt]) => {
+      setJourney(j); setRequests(rr); setAcks(ak); setBuddies(bd); setMeetings(mt)
+    })
   }
 
   const searchEmployees = (q: string) => {
@@ -281,7 +293,7 @@ function JourneyDrawer({
   }
 
   useEffect(() => {
-    if (!row) { setJourney(null); setRequests([]); setAcks([]); setBuddies([]); return }
+    if (!row) { setJourney(null); setRequests([]); setAcks([]); setBuddies([]); setMeetings([]); return }
     setLoading(true)
     reload()
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load journey'))
@@ -346,6 +358,44 @@ function JourneyDrawer({
     }
     return m
   }, [buddies])
+
+  const meetingByTask = useMemo(() => {
+    const m = new Map<string, Meeting>()
+    for (const mt of meetings) {
+      if (mt.taskStatusId) m.set(mt.taskStatusId, mt)
+    }
+    return m
+  }, [meetings])
+
+  const submitMeeting = async () => {
+    const v = await meetingForm.validateFields()
+    setScheduling(true)
+    try {
+      const existing = meetingFor ? meetingByTask.get(meetingFor.id) : null
+      const req = {
+        employeeId: row!.employeeId,
+        taskStatusId: meetingFor?.id ?? null,
+        title: v.title,
+        startsAt: v.startsAt.toISOString(),
+        durationMinutes: v.durationMinutes ?? 60,
+        location: v.location,
+        attendeeEmails: v.attendeeEmails,
+        description: v.description,
+      }
+      if (existing && existing.status === 'SCHEDULED') {
+        await onboardingApi.rescheduleMeeting(existing.id, req)
+        message.success('Meeting rescheduled — updated .ics sent')
+      } else {
+        await onboardingApi.scheduleMeeting(req)
+        message.success('Meeting scheduled — .ics invite sent')
+      }
+      setMeetingFor(null)
+      await reload()
+      onChanged()
+    } catch (e) {
+      message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed')
+    } finally { setScheduling(false) }
+  }
 
   const tasks = journey?.assignment?.tasks ?? []
   const groups = useMemo(() => {
@@ -503,6 +553,50 @@ function JourneyDrawer({
                                 </Button>
                               ) : null
                             )}
+
+                            {/* M306 — meeting scheduling / calendar invite */}
+                            {task.taskType === MEETING_TYPE && (() => {
+                              const mt = meetingByTask.get(task.id)
+                              if (mt) {
+                                return (
+                                  <Space direction="vertical" size={2}>
+                                    <Text type={mt.status === 'CANCELLED' ? 'secondary' : 'success'} style={{ fontSize: 12 }}>
+                                      {mt.status === 'CANCELLED' ? '✗ Cancelled: ' : '✓ '}
+                                      <b>{mt.title}</b> — {dayjs(mt.startsAt).format('YYYY-MM-DD HH:mm')}{' '}
+                                      ({mt.durationMinutes} min){mt.location ? ` · ${mt.location}` : ''}{' '}
+                                      <Text type="secondary" style={{ fontSize: 11 }}>{mt.meetingNo}</Text>
+                                      {mt.inviteSentAt && (
+                                        <> · invite sent {dayjs(mt.inviteSentAt).format('YYYY-MM-DD')}</>
+                                      )}
+                                    </Text>
+                                    {canWrite && mt.status === 'SCHEDULED' && (
+                                      <Button size="small" ghost onClick={() => {
+                                        setMeetingFor(task)
+                                        meetingForm.setFieldsValue({
+                                          title: mt.title,
+                                          startsAt: dayjs(mt.startsAt),
+                                          durationMinutes: mt.durationMinutes,
+                                          location: mt.location ?? undefined,
+                                          attendeeEmails: mt.attendeeEmails ?? undefined,
+                                          description: mt.description ?? undefined,
+                                        })
+                                      }}>
+                                        Reschedule…
+                                      </Button>
+                                    )}
+                                  </Space>
+                                )
+                              }
+                              return canWrite ? (
+                                <Button size="small" type="primary" ghost onClick={() => {
+                                  setMeetingFor(task)
+                                  meetingForm.resetFields()
+                                  meetingForm.setFieldsValue({ title: task.title, durationMinutes: 60 })
+                                }}>
+                                  Schedule meeting…
+                                </Button>
+                              ) : null
+                            })()}
                           </Space>
                         </Card>
                       )
@@ -557,6 +651,42 @@ function JourneyDrawer({
           </Form.Item>
           <Form.Item name="notes" label="Notes (optional)">
             <Input.TextArea rows={2} placeholder="Any context for this pairing…" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* M306 — schedule / reschedule meeting modal */}
+      <Modal
+        open={!!meetingFor}
+        title={meetingFor
+          ? (meetingByTask.get(meetingFor.id)?.status === 'SCHEDULED'
+              ? `Reschedule — ${meetingFor.title}`
+              : `Schedule meeting — ${meetingFor.title}`)
+          : ''}
+        onCancel={() => setMeetingFor(null)}
+        onOk={submitMeeting}
+        confirmLoading={scheduling}
+        okText={meetingFor && meetingByTask.get(meetingFor.id)?.status === 'SCHEDULED' ? 'Reschedule' : 'Schedule'}
+        width={520}
+      >
+        <Form form={meetingForm} layout="vertical">
+          <Form.Item name="title" label="Meeting title" rules={[{ required: true, message: 'Title is required' }]}>
+            <Input placeholder="e.g. First-day orientation, Meet the team…" />
+          </Form.Item>
+          <Form.Item name="startsAt" label="Date & time" rules={[{ required: true, message: 'Select a date and time' }]}>
+            <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} minuteStep={15} />
+          </Form.Item>
+          <Form.Item name="durationMinutes" label="Duration (minutes)" rules={[{ required: true }]}>
+            <InputNumber min={15} max={480} step={15} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="location" label="Location (optional)">
+            <Input placeholder="e.g. Meeting room 3B, Zoom link…" />
+          </Form.Item>
+          <Form.Item name="attendeeEmails" label="Additional attendees (optional)" extra="Comma-separated e-mails. The new hire is always included.">
+            <Input.TextArea rows={2} placeholder="manager@millers.az, buddy@millers.az" />
+          </Form.Item>
+          <Form.Item name="description" label="Notes (optional)">
+            <Input.TextArea rows={2} placeholder="Agenda, instructions…" />
           </Form.Item>
         </Form>
       </Modal>

@@ -116,4 +116,39 @@ public final class OnboardingDtos {
             OffsetDateTime assignedAt,
             OffsetDateTime endedAt,
             UUID taskStatusId) {}
+
+    // ── M306 — first-day meeting / calendar invites (Phase C.2) ──
+
+    /**
+     * Schedule (or reschedule) a meeting for a new hire. attendeeEmails is
+     * comma-separated; the hire's own email is always included automatically.
+     */
+    public record ScheduleMeetingRequest(
+            UUID employeeId,
+            UUID taskStatusId,
+            String title,
+            String description,
+            String location,
+            OffsetDateTime startsAt,
+            int durationMinutes,
+            /** Comma-separated extra attendee e-mails beyond the new hire. */
+            String attendeeEmails) {}
+
+    public record MeetingResponse(
+            UUID id,
+            String meetingNo,
+            UUID employeeId,
+            UUID taskStatusId,
+            String title,
+            String description,
+            String location,
+            OffsetDateTime startsAt,
+            int durationMinutes,
+            String attendeeEmails,
+            int calendarSequence,
+            OffsetDateTime inviteSentAt,
+            String status,
+            String cancelledReason,
+            String scheduledBy,
+            OffsetDateTime createdAt) {}
 }
