@@ -42,6 +42,13 @@ public class ChecklistTemplate {
     @Column(nullable = false)
     private boolean active = true;
 
+    /**
+     * Tie-breaker weight used by {@code ChecklistTemplateMatcher} when two
+     * templates match a hire with equal rule specificity (M298). Higher wins.
+     */
+    @Column(nullable = false)
+    private int priority = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

@@ -29,7 +29,35 @@ public final class ChecklistDtos {
             String description,
             ChecklistFlowType flowType,
             Boolean active,
-            List<TemplateTaskRequest> tasks) {}
+            Integer priority,
+            List<TemplateTaskRequest> tasks,
+            List<TemplateRuleRequest> rules) {}
+
+    /**
+     * One match rule for a template (M298). Every non-null field is an AND-ed
+     * filter against the new hire's Employee attributes; all-null = catch-all.
+     */
+    public record TemplateRuleRequest(
+            String departmentName,
+            UUID positionId,
+            UUID orgUnitId,
+            UUID workLocationId,
+            String employmentType,
+            String employeeCategory,
+            String nationality,
+            Boolean active) {}
+
+    public record TemplateRuleResponse(
+            UUID id,
+            String departmentName,
+            UUID positionId,
+            UUID orgUnitId,
+            UUID workLocationId,
+            String employmentType,
+            String employeeCategory,
+            String nationality,
+            boolean active,
+            int specificity) {}
 
     public record TemplateTaskResponse(
             UUID id,
@@ -47,7 +75,22 @@ public final class ChecklistDtos {
             String description,
             ChecklistFlowType flowType,
             boolean active,
-            List<TemplateTaskResponse> tasks) {}
+            int priority,
+            List<TemplateTaskResponse> tasks,
+            List<TemplateRuleResponse> rules) {}
+
+    /**
+     * One row of a match preview (M298): how a given template ranks for a
+     * given employee. {@code selected} marks the single winning template.
+     */
+    public record TemplateMatchResult(
+            UUID templateId,
+            String code,
+            String name,
+            int priority,
+            int specificity,
+            boolean isDefault,
+            boolean selected) {}
 
     // ── Assignment ──────────────────────────────────────────────────────────
 

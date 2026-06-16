@@ -19,8 +19,11 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.AssignmentResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.StartAssignmentRequest;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TaskStatusResponse;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateMatchResult;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateRequest;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateResponse;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateRuleRequest;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateRuleResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateTaskRequest;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateTaskResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.UpdateTaskRequest;
@@ -30,11 +33,14 @@ import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplate;
+import az.millers.hcm.lifecycle.domain.ChecklistTemplateRule;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateTask;
 import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTemplateRepository;
+import az.millers.hcm.lifecycle.repo.ChecklistTemplateRuleRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTemplateTaskRepository;
+import az.millers.hcm.lifecycle.service.ChecklistTemplateMatcher.MatchOutcome;
 import az.millers.hcm.security.CurrentRequest;
 
 /**
@@ -56,24 +62,30 @@ public class ChecklistService {
 
     private final ChecklistTemplateRepository templates;
     private final ChecklistTemplateTaskRepository templateTasks;
+    private final ChecklistTemplateRuleRepository templateRules;
     private final ChecklistAssignmentRepository assignments;
     private final ChecklistTaskStatusRepository taskStatuses;
     private final EmployeeRepository employees;
+    private final ChecklistTemplateMatcher matcher;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public ChecklistService(ChecklistTemplateRepository templates,
                              ChecklistTemplateTaskRepository templateTasks,
+                             ChecklistTemplateRuleRepository templateRules,
                              ChecklistAssignmentRepository assignments,
                              ChecklistTaskStatusRepository taskStatuses,
                              EmployeeRepository employees,
+                             ChecklistTemplateMatcher matcher,
                              AuditService audit,
                              CurrentRequest currentRequest) {
         this.templates = templates;
         this.templateTasks = templateTasks;
+        this.templateRules = templateRules;
         this.assignments = assignments;
         this.taskStatuses = taskStatuses;
         this.employees = employees;
+        this.matcher = matcher;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -95,6 +107,7 @@ public class ChecklistService {
         t.setDescription(req.description());
         t.setFlowType(req.flowType());
         if (req.active() != null) t.setActive(req.active());
+        if (req.priority() != null) t.setPriority(req.priority());
         templates.save(t);
 
         // Replace template tasks atomically.
@@ -112,6 +125,24 @@ public class ChecklistService {
                 templateTasks.save(task);
             }
         }
+
+        // Replace match rules atomically (M298).
+        templateRules.deleteByTemplateId(t.getId());
+        if (req.rules() != null) {
+            for (TemplateRuleRequest rr : req.rules()) {
+                ChecklistTemplateRule rule = new ChecklistTemplateRule();
+                rule.setTemplateId(t.getId());
+                rule.setDepartmentName(blankToNull(rr.departmentName()));
+                rule.setPositionId(rr.positionId());
+                rule.setOrgUnitId(rr.orgUnitId());
+                rule.setWorkLocationId(rr.workLocationId());
+                rule.setEmploymentType(blankToNull(rr.employmentType()));
+                rule.setEmployeeCategory(blankToNull(rr.employeeCategory()));
+                rule.setNationality(blankToNull(rr.nationality()));
+                if (rr.active() != null) rule.setActive(rr.active());
+                templateRules.save(rule);
+            }
+        }
         return getTemplate(t.getId());
     }
 
@@ -126,8 +157,16 @@ public class ChecklistService {
                         task.getDescription(), task.getDefaultOwnerRole(),
                         task.getDueOffsetDays(), task.isRequired()))
                 .toList();
+        List<TemplateRuleResponse> rules = templateRules.findByTemplateId(id).stream()
+                .map(r -> new TemplateRuleResponse(
+                        r.getId(), r.getDepartmentName(), r.getPositionId(),
+                        r.getOrgUnitId(), r.getWorkLocationId(), r.getEmploymentType(),
+                        r.getEmployeeCategory(), r.getNationality(), r.isActive(),
+                        r.specificity()))
+                .toList();
         return new TemplateResponse(t.getId(), t.getCode(), t.getName(),
-                t.getDescription(), t.getFlowType(), t.isActive(), tasks);
+                t.getDescription(), t.getFlowType(), t.isActive(), t.getPriority(),
+                tasks, rules);
     }
 
     @Transactional(readOnly = true)
@@ -189,6 +228,49 @@ public class ChecklistService {
                         "flow", tpl.getFlowType().name(),
                         "taskCount", tplTasks.size()));
         return toResponse(a, tpl);
+    }
+
+    /**
+     * Start the single best-matching template for an employee + flow (M298).
+     *
+     * <p>Used by the hire pipeline to auto-start onboarding: the
+     * {@link ChecklistTemplateMatcher} picks the template whose rules fit the
+     * new hire most specifically. Idempotent — returns empty (does nothing) if
+     * the employee already has an active checklist for this flow, or if no
+     * template matches at all.
+     */
+    @Transactional
+    public Optional<AssignmentResponse> startMatched(UUID employeeId, ChecklistFlowType flow,
+                                                     LocalDate anchorDate, String notes) {
+        Employee emp = employees.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + employeeId));
+        if (assignments.findByEmployeeIdAndFlowTypeAndStatus(
+                employeeId, flow, ChecklistAssignmentStatus.IN_PROGRESS).isPresent()) {
+            return Optional.empty();
+        }
+        return matcher.bestMatch(emp, flow)
+                .map(tpl -> start(new StartAssignmentRequest(
+                        tpl.getId(), employeeId, anchorDate, notes)));
+    }
+
+    /**
+     * Preview how each active template ranks for an employee + flow (M298),
+     * best fit first with the winner flagged. Lets HR see which onboarding
+     * template a hire would auto-receive before the hire happens.
+     */
+    @Transactional(readOnly = true)
+    public List<TemplateMatchResult> matchPreview(UUID employeeId, ChecklistFlowType flow) {
+        Employee emp = employees.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + employeeId));
+        List<MatchOutcome> ranked = matcher.rank(emp, flow);
+        List<TemplateMatchResult> out = new ArrayList<>(ranked.size());
+        for (int i = 0; i < ranked.size(); i++) {
+            MatchOutcome m = ranked.get(i);
+            out.add(new TemplateMatchResult(
+                    m.template().getId(), m.template().getCode(), m.template().getName(),
+                    m.template().getPriority(), m.specificity(), m.isDefault(), i == 0));
+        }
+        return out;
     }
 
     @Transactional
@@ -349,5 +431,9 @@ public class ChecklistService {
     private ChecklistAssignment mustFind(UUID id) {
         return assignments.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + id));
+    }
+
+    private static String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
     }
 }

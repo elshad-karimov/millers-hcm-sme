@@ -19,8 +19,6 @@ import az.millers.hcm.corehr.api.dto.EmployeeRequest;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.service.EmployeeService;
 import az.millers.hcm.email.EmailService;
-import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.StartAssignmentRequest;
-import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateResponse;
 import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
 import az.millers.hcm.lifecycle.service.ChecklistService;
 import az.millers.hcm.preboarding.api.PreboardingDtos.IssueRequest;
@@ -324,18 +322,20 @@ public class ApplicationService {
                         "employeeNo", created.getEmployeeNo(),
                         "hireDate", hireDate.toString()));
 
-        // M159 — auto-start ONBOARDING checklist(s) for the new hire (§8.10.6).
-        // Non-fatal: if no active ONBOARDING template is configured the hire still
-        // succeeds; an error is logged and the HR team can start the checklist manually.
+        // M159 + M298 — auto-start the best-matching ONBOARDING checklist for the
+        // new hire (§8.10.6). The ChecklistTemplateMatcher picks the template whose
+        // rules fit this hire most specifically (department / position / org unit /
+        // location / employment type / category / nationality), falling back to a
+        // rule-less default template. Non-fatal: if nothing matches the hire still
+        // succeeds and HR can start a checklist manually.
         try {
-            List<TemplateResponse> onboardingTemplates =
-                    checklistService.templatesByFlow(ChecklistFlowType.ONBOARDING);
-            for (TemplateResponse tpl : onboardingTemplates) {
-                checklistService.start(new StartAssignmentRequest(
-                        tpl.id(), created.getId(), hireDate, "Auto-started on hire"));
-                log.info("Onboarding checklist '{}' started for employee {}",
-                        tpl.name(), created.getEmployeeNo());
-            }
+            checklistService.startMatched(
+                    created.getId(), ChecklistFlowType.ONBOARDING, hireDate, "Auto-started on hire")
+                .ifPresentOrElse(
+                    asg -> log.info("Onboarding checklist '{}' auto-started for employee {}",
+                            asg.templateName(), created.getEmployeeNo()),
+                    () -> log.info("No matching onboarding template for employee {} — none started",
+                            created.getEmployeeNo()));
         } catch (Exception ex) {
             log.error("Failed to auto-start onboarding checklist for employee {}: {}",
                     created.getEmployeeNo(), ex.getMessage(), ex);

@@ -15,13 +15,40 @@ export interface TemplateTaskRequest {
   required?: boolean
 }
 
+/** M298 — one match rule for a template. Non-null fields are AND-ed filters. */
+export interface TemplateRuleRequest {
+  departmentName?: string | null
+  positionId?: string | null
+  orgUnitId?: string | null
+  workLocationId?: string | null
+  employmentType?: string | null
+  employeeCategory?: string | null
+  nationality?: string | null
+  active?: boolean
+}
+
+export interface TemplateRuleResponse {
+  id: string
+  departmentName?: string | null
+  positionId?: string | null
+  orgUnitId?: string | null
+  workLocationId?: string | null
+  employmentType?: string | null
+  employeeCategory?: string | null
+  nationality?: string | null
+  active: boolean
+  specificity: number
+}
+
 export interface TemplateRequest {
   code: string
   name: string
   description?: string
   flowType: ChecklistFlowType
   active?: boolean
+  priority?: number
   tasks: TemplateTaskRequest[]
+  rules?: TemplateRuleRequest[]
 }
 
 export interface TemplateTaskResponse {
@@ -41,7 +68,20 @@ export interface TemplateResponse {
   description?: string | null
   flowType: ChecklistFlowType
   active: boolean
+  priority: number
   tasks: TemplateTaskResponse[]
+  rules: TemplateRuleResponse[]
+}
+
+/** M298 — one row of a match preview for an employee + flow. */
+export interface TemplateMatchResult {
+  templateId: string
+  code: string
+  name: string
+  priority: number
+  specificity: number
+  isDefault: boolean
+  selected: boolean
 }
 
 export interface StartAssignmentRequest {
@@ -110,6 +150,10 @@ export const checklistsApi = {
     api.get<TemplateResponse>(`/checklists/templates/${id}`).then((r) => r.data),
   templatesByFlow: (flow: ChecklistFlowType) =>
     api.get<TemplateResponse[]>('/checklists/templates', { params: { flow } }).then((r) => r.data),
+  matchPreview: (employeeId: string, flow: ChecklistFlowType) =>
+    api
+      .get<TemplateMatchResult[]>('/checklists/templates/match', { params: { employeeId, flow } })
+      .then((r) => r.data),
   start: (req: StartAssignmentRequest) =>
     api.post<AssignmentResponse>('/checklists/assignments', req).then((r) => r.data),
   updateTask: (taskStatusId: string, req: UpdateTaskRequest) =>

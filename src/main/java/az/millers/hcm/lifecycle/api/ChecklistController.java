@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.AssignmentResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.StartAssignmentRequest;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateMatchResult;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateRequest;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TemplateResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.UpdateTaskRequest;
@@ -65,6 +66,17 @@ public class ChecklistController {
     @PreAuthorize(READ)
     public List<TemplateResponse> templatesByFlow(@RequestParam ChecklistFlowType flow) {
         return service.templatesByFlow(flow);
+    }
+
+    /**
+     * M298 — preview which template an employee would auto-receive for a flow,
+     * with every candidate template ranked by rule specificity (winner flagged).
+     */
+    @GetMapping("/templates/match")
+    @PreAuthorize(READ)
+    public List<TemplateMatchResult> matchPreview(@RequestParam UUID employeeId,
+                                                  @RequestParam ChecklistFlowType flow) {
+        return service.matchPreview(employeeId, flow);
     }
 
     // ── Assignments ─────────────────────────────────────────────────────────
