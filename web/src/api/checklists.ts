@@ -6,11 +6,36 @@ export type ChecklistFlowType = 'ONBOARDING' | 'OFFBOARDING'
 export type ChecklistAssignmentStatus = 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type ChecklistTaskStatusValue = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'SKIPPED'
 
+// M299 — task types (PRD §2) + onboarding categories (PRD §2). Mirrors the
+// backend ChecklistTaskType / ChecklistOnboardingCategory enums.
+export const TASK_TYPES = [
+  'DOCUMENT_COLLECTION', 'CONTRACT_SIGNING', 'POLICY_ACKNOWLEDGEMENT',
+  'EQUIPMENT_REQUEST', 'IT_ACCOUNT_REQUEST', 'WORKSPACE_REQUEST',
+  'TRAINING_ASSIGNMENT', 'MEETING_SCHEDULE', 'MANAGER_TASK', 'HR_TASK',
+  'PAYROLL_TASK', 'SECURITY_ACCESS_TASK', 'BUDDY_TASK', 'MANUAL_TASK',
+  'APPROVAL_TASK',
+] as const
+export type ChecklistTaskType = (typeof TASK_TYPES)[number]
+
+export const ONBOARDING_CATEGORIES = [
+  'PRE_BOARDING', 'HR_ONBOARDING', 'MANAGER_ONBOARDING', 'IT_ONBOARDING',
+  'PAYROLL_ONBOARDING', 'FACILITIES_ONBOARDING', 'SECURITY_ONBOARDING',
+  'TRAINING_ONBOARDING', 'COMPLIANCE_ONBOARDING', 'FIRST_DAY_ONBOARDING',
+  'PROBATION_ONBOARDING',
+] as const
+export type ChecklistOnboardingCategory = (typeof ONBOARDING_CATEGORIES)[number]
+
+/** Human label for an enum-ish constant: TITLE_CASE → "Title case". */
+export const prettyEnum = (v?: string | null) =>
+  !v ? '' : v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ')
+
 export interface TemplateTaskRequest {
   stepOrder: number
   title: string
   description?: string
   defaultOwnerRole?: string
+  taskType?: ChecklistTaskType
+  category?: ChecklistOnboardingCategory | null
   dueOffsetDays?: number
   required?: boolean
 }
@@ -57,6 +82,8 @@ export interface TemplateTaskResponse {
   title: string
   description?: string | null
   defaultOwnerRole?: string | null
+  taskType: ChecklistTaskType
+  category?: ChecklistOnboardingCategory | null
   dueOffsetDays?: number | null
   required: boolean
 }
@@ -105,6 +132,8 @@ export interface TaskStatusResponse {
   title: string
   description?: string | null
   ownerRole?: string | null
+  taskType: ChecklistTaskType
+  category?: ChecklistOnboardingCategory | null
   assignedToUsername?: string | null
   dueDate?: string | null
   required: boolean

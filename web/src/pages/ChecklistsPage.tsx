@@ -36,10 +36,15 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
   checklistsApi,
+  ONBOARDING_CATEGORIES,
+  prettyEnum,
   TASK_STATUS_COLOR,
+  TASK_TYPES,
   type AssignmentResponse,
   type ChecklistFlowType,
+  type ChecklistOnboardingCategory,
   type ChecklistTaskStatusValue,
+  type ChecklistTaskType,
   type TaskStatusResponse,
   type TemplateMatchResult,
   type TemplateRequest,
@@ -64,6 +69,19 @@ const EMPLOYMENT_TYPE_OPTIONS = [
 
 const OWNER_ROLE_OPTIONS = ['HR', 'IT', 'MANAGER', 'FINANCE', 'FACILITIES', 'SECURITY', 'EMPLOYEE']
   .map((v) => ({ value: v, label: v }))
+
+// M299 — typed onboarding tasks + categories (PRD §2).
+const TASK_TYPE_OPTIONS = TASK_TYPES.map((v) => ({ value: v, label: prettyEnum(v) }))
+const CATEGORY_OPTIONS = ONBOARDING_CATEGORIES.map((v) => ({ value: v, label: prettyEnum(v) }))
+
+// Colour the type tag by the persona/stream that typically owns it.
+const TASK_TYPE_COLOR: Record<ChecklistTaskType, string> = {
+  DOCUMENT_COLLECTION: 'blue', CONTRACT_SIGNING: 'blue', POLICY_ACKNOWLEDGEMENT: 'blue',
+  EQUIPMENT_REQUEST: 'geekblue', IT_ACCOUNT_REQUEST: 'geekblue', WORKSPACE_REQUEST: 'orange',
+  TRAINING_ASSIGNMENT: 'purple', MEETING_SCHEDULE: 'cyan', MANAGER_TASK: 'green',
+  HR_TASK: 'blue', PAYROLL_TASK: 'gold', SECURITY_ACCESS_TASK: 'volcano',
+  BUDDY_TASK: 'green', MANUAL_TASK: 'default', APPROVAL_TASK: 'magenta',
+}
 
 function ChecklistPanel({ flow }: { flow: ChecklistFlowType }) {
   const { message } = AntdApp.useApp()
@@ -277,6 +295,10 @@ function ChecklistPanel({ flow }: { flow: ChecklistFlowType }) {
                       <Tag>{task.stepOrder}</Tag>
                       <Text strong>{task.title}</Text>
                       {task.required && <Tag color="red">required</Tag>}
+                      {task.taskType && task.taskType !== 'MANUAL_TASK' && (
+                        <Tag color={TASK_TYPE_COLOR[task.taskType]}>{prettyEnum(task.taskType)}</Tag>
+                      )}
+                      {task.category && <Tag>{prettyEnum(task.category)}</Tag>}
                       {task.ownerRole && <Tag>{task.ownerRole}</Tag>}
                     </Space>
                     <Tag color={TASK_STATUS_COLOR[task.status]}>{task.status.replace(/_/g, ' ')}</Tag>
@@ -481,6 +503,8 @@ interface EditorForm {
     title: string
     description?: string
     defaultOwnerRole?: string
+    taskType?: ChecklistTaskType
+    category?: ChecklistOnboardingCategory
     dueOffsetDays?: number
     required: boolean
   }[]
@@ -524,6 +548,8 @@ function TemplateEditor({
           title: t.title,
           description: t.description ?? undefined,
           defaultOwnerRole: t.defaultOwnerRole ?? undefined,
+          taskType: t.taskType,
+          category: t.category ?? undefined,
           dueOffsetDays: t.dueOffsetDays ?? undefined,
           required: t.required,
         })),
@@ -558,6 +584,8 @@ function TemplateEditor({
         title: t.title,
         description: t.description,
         defaultOwnerRole: t.defaultOwnerRole,
+        taskType: t.taskType ?? 'MANUAL_TASK',
+        category: t.category ?? null,
         dueOffsetDays: t.dueOffsetDays,
         required: t.required ?? true,
       })),
@@ -629,13 +657,24 @@ function TemplateEditor({
                     <Form.Item name={[field.name, 'stepOrder']} label="#" style={{ width: 70 }}>
                       <InputNumber min={1} />
                     </Form.Item>
-                    <Form.Item name={[field.name, 'title']} label="Title" rules={[{ required: true }]} style={{ minWidth: 220 }}>
+                    <Form.Item name={[field.name, 'title']} label="Title" rules={[{ required: true }]} style={{ minWidth: 200 }}>
                       <Input />
                     </Form.Item>
-                    <Form.Item name={[field.name, 'defaultOwnerRole']} label="Owner" style={{ minWidth: 140 }}>
-                      <Select allowClear options={OWNER_ROLE_OPTIONS} placeholder="—" />
+                    <Form.Item name={[field.name, 'taskType']} label="Type" style={{ minWidth: 180 }}>
+                      <Select options={TASK_TYPE_OPTIONS} placeholder="Manual task" />
                     </Form.Item>
-                    <Form.Item name={[field.name, 'dueOffsetDays']} label="Due +days" style={{ width: 100 }}>
+                    <Form.Item name={[field.name, 'category']} label="Category" style={{ minWidth: 170 }}>
+                      <Select allowClear options={CATEGORY_OPTIONS} placeholder="—" />
+                    </Form.Item>
+                    <Form.Item
+                      name={[field.name, 'defaultOwnerRole']}
+                      label="Owner"
+                      style={{ minWidth: 130 }}
+                      tooltip="Defaults from the task type if left blank."
+                    >
+                      <Select allowClear options={OWNER_ROLE_OPTIONS} placeholder="(by type)" />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'dueOffsetDays']} label="Due +days" style={{ width: 95 }}>
                       <InputNumber />
                     </Form.Item>
                     <Form.Item name={[field.name, 'required']} label="Required" valuePropName="checked">
@@ -649,7 +688,11 @@ function TemplateEditor({
                 </Card>
               ))}
               {!readOnly && (
-                <Button type="dashed" onClick={() => add({ stepOrder: fields.length + 1, required: true })} block>
+                <Button
+                  type="dashed"
+                  onClick={() => add({ stepOrder: fields.length + 1, required: true, taskType: 'MANUAL_TASK' })}
+                  block
+                >
                   + Add task
                 </Button>
               )}

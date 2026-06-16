@@ -20,6 +20,8 @@ public final class ChecklistDtos {
             String title,
             String description,
             String defaultOwnerRole,
+            String taskType,
+            String category,
             Integer dueOffsetDays,
             Boolean required) {}
 
@@ -65,6 +67,8 @@ public final class ChecklistDtos {
             String title,
             String description,
             String defaultOwnerRole,
+            String taskType,
+            String category,
             Integer dueOffsetDays,
             boolean required) {}
 
@@ -113,6 +117,8 @@ public final class ChecklistDtos {
             String title,
             String description,
             String ownerRole,
+            String taskType,
+            String category,
             String assignedToUsername,
             LocalDate dueDate,
             boolean required,

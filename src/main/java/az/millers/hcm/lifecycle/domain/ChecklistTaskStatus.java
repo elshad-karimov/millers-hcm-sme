@@ -44,6 +44,16 @@ public class ChecklistTaskStatus {
     @Column(name = "owner_role", length = 40)
     private String ownerRole;
 
+    /** Snapshot of the template task's type (M299) — drives persona dashboards. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type", nullable = false, length = 40)
+    private ChecklistTaskType taskType = ChecklistTaskType.MANUAL_TASK;
+
+    /** Snapshot of the template task's onboarding category (M299) — optional. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 40)
+    private ChecklistOnboardingCategory category;
+
     @Column(name = "assigned_to_username", length = 80)
     private String assignedToUsername;
 

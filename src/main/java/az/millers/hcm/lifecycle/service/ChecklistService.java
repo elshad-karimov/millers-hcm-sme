@@ -30,6 +30,8 @@ import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.UpdateTaskRequest;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignment;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignmentStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
+import az.millers.hcm.lifecycle.domain.ChecklistOnboardingCategory;
+import az.millers.hcm.lifecycle.domain.ChecklistTaskType;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplate;
@@ -120,6 +122,8 @@ public class ChecklistService {
                 task.setTitle(tr.title());
                 task.setDescription(tr.description());
                 task.setDefaultOwnerRole(tr.defaultOwnerRole());
+                task.setTaskType(parseTaskType(tr.taskType()));
+                task.setCategory(parseCategory(tr.category()));
                 task.setDueOffsetDays(tr.dueOffsetDays());
                 if (tr.required() != null) task.setRequired(tr.required());
                 templateTasks.save(task);
@@ -155,6 +159,8 @@ public class ChecklistService {
                 .map(task -> new TemplateTaskResponse(
                         task.getId(), task.getStepOrder(), task.getTitle(),
                         task.getDescription(), task.getDefaultOwnerRole(),
+                        task.getTaskType().name(),
+                        task.getCategory() == null ? null : task.getCategory().name(),
                         task.getDueOffsetDays(), task.isRequired()))
                 .toList();
         List<TemplateRuleResponse> rules = templateRules.findByTemplateId(id).stream()
@@ -214,7 +220,14 @@ public class ChecklistService {
             s.setStepOrder(tt.getStepOrder());
             s.setTitle(tt.getTitle());
             s.setDescription(tt.getDescription());
-            s.setOwnerRole(tt.getDefaultOwnerRole());
+            s.setTaskType(tt.getTaskType());
+            s.setCategory(tt.getCategory());
+            // Owner defaults to the task type's natural owner when the template
+            // didn't set one explicitly (M299), so typed tasks route to the
+            // right persona's dashboard out of the box.
+            s.setOwnerRole(tt.getDefaultOwnerRole() != null
+                    ? tt.getDefaultOwnerRole()
+                    : tt.getTaskType().defaultOwnerRole());
             s.setRequired(tt.isRequired());
             if (tt.getDueOffsetDays() != null) {
                 s.setDueDate(a.getAnchorDate().plusDays(tt.getDueOffsetDays()));
@@ -404,7 +417,10 @@ public class ChecklistService {
             }
             taskDtos.add(new TaskStatusResponse(
                     t.getId(), t.getTemplateTaskId(), t.getStepOrder(), t.getTitle(),
-                    t.getDescription(), t.getOwnerRole(), t.getAssignedToUsername(),
+                    t.getDescription(), t.getOwnerRole(),
+                    t.getTaskType().name(),
+                    t.getCategory() == null ? null : t.getCategory().name(),
+                    t.getAssignedToUsername(),
                     t.getDueDate(), t.isRequired(), t.getStatus(),
                     t.getCompletedAt(), t.getCompletedBy(), t.getNotes()));
         }
@@ -435,5 +451,23 @@ public class ChecklistService {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    private static ChecklistTaskType parseTaskType(String s) {
+        if (s == null || s.isBlank()) return ChecklistTaskType.MANUAL_TASK;
+        try {
+            return ChecklistTaskType.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Unknown task type: " + s);
+        }
+    }
+
+    private static ChecklistOnboardingCategory parseCategory(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return ChecklistOnboardingCategory.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Unknown onboarding category: " + s);
+        }
     }
 }

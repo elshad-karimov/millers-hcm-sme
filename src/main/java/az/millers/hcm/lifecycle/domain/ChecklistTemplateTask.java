@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -36,6 +38,16 @@ public class ChecklistTemplateTask {
 
     @Column(name = "default_owner_role", length = 40)
     private String defaultOwnerRole;
+
+    /** What the task is (M299) — drives default owner + Phase B downstream action. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type", nullable = false, length = 40)
+    private ChecklistTaskType taskType = ChecklistTaskType.MANUAL_TASK;
+
+    /** Onboarding stream/persona grouping (M299) — optional. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 40)
+    private ChecklistOnboardingCategory category;
 
     @Column(name = "due_offset_days")
     private Integer dueOffsetDays;
