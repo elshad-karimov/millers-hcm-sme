@@ -19,14 +19,16 @@ public enum ResourceRequestCategory {
 
     /**
      * The request category a checklist task type auto-spawns, or empty if the
-     * type isn't a provisioning request. Phase B.1 maps EQUIPMENT_REQUEST and
-     * WORKSPACE_REQUEST; B.2 will add IT_ACCOUNT_REQUEST / SECURITY_ACCESS_TASK.
+     * type isn't a provisioning request. Phase B.1 mapped EQUIPMENT_REQUEST /
+     * WORKSPACE_REQUEST; B.2 adds IT_ACCOUNT_REQUEST / SECURITY_ACCESS_TASK.
      */
     public static Optional<ResourceRequestCategory> forTaskType(ChecklistTaskType type) {
         if (type == null) return Optional.empty();
         return switch (type) {
             case EQUIPMENT_REQUEST -> Optional.of(EQUIPMENT);
             case WORKSPACE_REQUEST -> Optional.of(WORKSPACE);
+            case IT_ACCOUNT_REQUEST -> Optional.of(IT_ACCOUNT);
+            case SECURITY_ACCESS_TASK -> Optional.of(ACCESS_CARD);
             default -> Optional.empty();
         };
     }

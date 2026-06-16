@@ -24,18 +24,24 @@ public final class ResourceRequestDtos {
             String details,
             String status,
             UUID assetId,
+            /** M302 — IT sub-kind + what was provisioned (request-tracking). */
+            String provisioningKind,
+            String provisionedRef,
             OffsetDateTime requestedAt,
             OffsetDateTime fulfilledAt) {}
 
-    /** Move a request between REQUESTED / IN_PROGRESS / CANCELLED. */
+    /** Move a request between REQUESTED / IN_PROGRESS / CANCELLED; optionally classify (M302). */
     public record UpdateStatusRequest(
             String status,
-            String details) {}
+            String details,
+            String provisioningKind) {}
 
     /**
-     * Fulfil a request. When {@code createAsset} is true (equipment/workspace),
-     * an {@code EmployeeAsset} is created for the hire and linked; either way
-     * the request is marked FULFILLED and the originating checklist task DONE.
+     * Fulfil a request. When {@code createAsset} is true (equipment/workspace/
+     * access card), an {@code EmployeeAsset} is created for the hire and linked.
+     * For IT requests, {@code provisioningKind} + {@code provisionedRef} record
+     * what was set up (request-tracking only). Either way the request is marked
+     * FULFILLED and the originating checklist task DONE.
      */
     public record FulfillRequest(
             boolean createAsset,
@@ -43,5 +49,7 @@ public final class ResourceRequestDtos {
             String assetName,
             String assetIdentifier,
             LocalDate assignedAt,
+            String provisioningKind,
+            String provisionedRef,
             String notes) {}
 }

@@ -75,7 +75,7 @@ public class OnboardingController {
     @PreAuthorize(WRITE)
     public ResourceRequestResponse updateRequestStatus(@PathVariable UUID id,
                                                        @RequestBody UpdateStatusRequest req) {
-        return requests.updateStatus(id, req.status(), req.details());
+        return requests.updateStatus(id, req.status(), req.details(), req.provisioningKind());
     }
 
     @PostMapping("/requests/{id}/fulfill")

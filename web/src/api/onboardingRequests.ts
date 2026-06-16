@@ -8,6 +8,12 @@ export type ResourceRequestCategory =
 export type ResourceRequestStatus =
   | 'REQUESTED' | 'IN_PROGRESS' | 'FULFILLED' | 'CANCELLED'
 
+// M302 — IT/access provisioning sub-kind (request-tracking).
+export const IT_PROVISIONING_KINDS = [
+  'EMAIL_ACCOUNT', 'SYSTEM_ACCESS', 'SOFTWARE_LICENSE', 'ACCESS_CARD', 'NETWORK_VPN', 'OTHER',
+] as const
+export type ItProvisioningKind = (typeof IT_PROVISIONING_KINDS)[number]
+
 export interface ResourceRequest {
   id: string
   requestNo: string
@@ -20,6 +26,8 @@ export interface ResourceRequest {
   details?: string | null
   status: ResourceRequestStatus
   assetId?: string | null
+  provisioningKind?: ItProvisioningKind | null
+  provisionedRef?: string | null
   requestedAt: string
   fulfilledAt?: string | null
 }
@@ -30,6 +38,8 @@ export interface FulfillRequest {
   assetName?: string
   assetIdentifier?: string
   assignedAt?: string
+  provisioningKind?: ItProvisioningKind
+  provisionedRef?: string
   notes?: string
 }
 
@@ -52,8 +62,8 @@ export const onboardingRequestsApi = {
   open: () => api.get<ResourceRequest[]>('/onboarding/requests').then((r) => r.data),
   forEmployee: (employeeId: string) =>
     api.get<ResourceRequest[]>(`/onboarding/requests/employees/${employeeId}`).then((r) => r.data),
-  updateStatus: (id: string, status: ResourceRequestStatus, details?: string) =>
-    api.post<ResourceRequest>(`/onboarding/requests/${id}/status`, { status, details }).then((r) => r.data),
+  updateStatus: (id: string, status: ResourceRequestStatus, details?: string, provisioningKind?: ItProvisioningKind) =>
+    api.post<ResourceRequest>(`/onboarding/requests/${id}/status`, { status, details, provisioningKind }).then((r) => r.data),
   fulfill: (id: string, req: FulfillRequest) =>
     api.post<ResourceRequest>(`/onboarding/requests/${id}/fulfill`, req).then((r) => r.data),
 }

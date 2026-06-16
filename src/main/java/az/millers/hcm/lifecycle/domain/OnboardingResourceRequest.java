@@ -63,6 +63,15 @@ public class OnboardingResourceRequest {
     @Column(name = "asset_id")
     private UUID assetId;
 
+    /** IT/access sub-classification (M302) — email/system/license/access-card/VPN. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provisioning_kind", length = 24)
+    private ItProvisioningKind provisioningKind;
+
+    /** What IT set up at fulfilment (M302) — account name, ticket no, systems granted. */
+    @Column(name = "provisioned_ref", length = 300)
+    private String provisionedRef;
+
     @Column(name = "requested_at", nullable = false)
     private OffsetDateTime requestedAt;
 

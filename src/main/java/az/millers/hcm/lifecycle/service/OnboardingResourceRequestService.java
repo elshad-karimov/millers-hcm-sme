@@ -25,6 +25,7 @@ import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ResourceRequestRespo
 import az.millers.hcm.lifecycle.domain.ChecklistAssignment;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
+import az.millers.hcm.lifecycle.domain.ItProvisioningKind;
 import az.millers.hcm.lifecycle.domain.OnboardingResourceRequest;
 import az.millers.hcm.lifecycle.domain.ResourceRequestCategory;
 import az.millers.hcm.lifecycle.domain.ResourceRequestStatus;
@@ -128,7 +129,7 @@ public class OnboardingResourceRequestService {
     // ── Transitions ───────────────────────────────────────────────────────────
 
     @Transactional
-    public ResourceRequestResponse updateStatus(UUID id, String status, String details) {
+    public ResourceRequestResponse updateStatus(UUID id, String status, String details, String provisioningKind) {
         OnboardingResourceRequest r = mustFind(id);
         ResourceRequestStatus next = parseStatus(status);
         if (next == ResourceRequestStatus.FULFILLED) {
@@ -140,6 +141,9 @@ public class OnboardingResourceRequestService {
         r.setStatus(next);
         if (details != null && !details.isBlank()) {
             r.setDetails(appendNote(r.getDetails(), details));
+        }
+        if (provisioningKind != null && !provisioningKind.isBlank()) {
+            r.setProvisioningKind(parseKind(provisioningKind));
         }
         r.setUpdatedBy(currentRequest.username());
         requests.save(r);
@@ -172,6 +176,13 @@ public class OnboardingResourceRequestService {
                     r.getTitle(), req.assignedAt() != null ? req.assignedAt() : LocalDate.now(),
                     null, null, null, req.notes()));
             r.setAssetId(asset.id());
+        }
+        // M302 — IT/access request-tracking: record what was provisioned.
+        if (req.provisioningKind() != null && !req.provisioningKind().isBlank()) {
+            r.setProvisioningKind(parseKind(req.provisioningKind()));
+        }
+        if (req.provisionedRef() != null && !req.provisionedRef().isBlank()) {
+            r.setProvisionedRef(req.provisionedRef().trim());
         }
         r.setStatus(ResourceRequestStatus.FULFILLED);
         r.setFulfilledAt(OffsetDateTime.now());
@@ -217,6 +228,14 @@ public class OnboardingResourceRequestService {
         return (existing == null || existing.isBlank()) ? note : existing + "\n---\n" + note;
     }
 
+    private ItProvisioningKind parseKind(String s) {
+        try {
+            return ItProvisioningKind.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Unknown provisioning kind: " + s);
+        }
+    }
+
     private ResourceRequestResponse toResponse(OnboardingResourceRequest r) {
         String name = null;
         Optional<Employee> emp = employees.findById(r.getEmployeeId());
@@ -230,6 +249,8 @@ public class OnboardingResourceRequestService {
                 r.getAssignmentId(), r.getTaskStatusId(),
                 r.getCategory().name(), r.getTitle(), r.getDetails(),
                 r.getStatus().name(), r.getAssetId(),
+                r.getProvisioningKind() == null ? null : r.getProvisioningKind().name(),
+                r.getProvisionedRef(),
                 r.getRequestedAt(), r.getFulfilledAt());
     }
 }

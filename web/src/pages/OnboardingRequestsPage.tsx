@@ -29,9 +29,11 @@ import dayjs from 'dayjs'
 import { prettyEnum } from '../api/checklists'
 import type { AssetType } from '../api/assetsNotesRewards'
 import {
+  IT_PROVISIONING_KINDS,
   onboardingRequestsApi,
   REQUEST_CATEGORY_COLOR,
   REQUEST_STATUS_COLOR,
+  type ItProvisioningKind,
   type ResourceRequest,
   type ResourceRequestCategory,
 } from '../api/onboardingRequests'
@@ -51,6 +53,12 @@ const SUGGESTED_ASSET: Record<ResourceRequestCategory, AssetType> = {
   EQUIPMENT: 'LAPTOP', WORKSPACE: 'LOCKER', ACCESS_CARD: 'ACCESS_CARD',
   IT_ACCOUNT: 'OTHER', OTHER: 'OTHER',
 }
+const KIND_OPTIONS = IT_PROVISIONING_KINDS.map((v) => ({ value: v, label: prettyEnum(v) }))
+// Suggested IT kind by category (only IT_ACCOUNT / ACCESS_CARD are IT-tracked).
+const SUGGESTED_KIND: Partial<Record<ResourceRequestCategory, ItProvisioningKind>> = {
+  IT_ACCOUNT: 'EMAIL_ACCOUNT', ACCESS_CARD: 'ACCESS_CARD',
+}
+const isItCategory = (c: ResourceRequestCategory) => c === 'IT_ACCOUNT' || c === 'ACCESS_CARD'
 
 export function OnboardingRequestsPage() {
   const { message } = AntdApp.useApp()
@@ -67,6 +75,8 @@ export function OnboardingRequestsPage() {
     assetName: string
     assetIdentifier?: string
     assignedAt: ReturnType<typeof dayjs>
+    provisioningKind?: ItProvisioningKind
+    provisionedRef?: string
     notes?: string
   }>()
   const [saving, setSaving] = useState(false)
@@ -97,6 +107,7 @@ export function OnboardingRequestsPage() {
 
   const openFulfill = (r: ResourceRequest) => {
     setFulfilling(r)
+    // Equipment/workspace default to creating an asset; IT accounts don't.
     const createAsset = r.category === 'EQUIPMENT' || r.category === 'WORKSPACE' || r.category === 'ACCESS_CARD'
     form.setFieldsValue({
       createAsset,
@@ -104,12 +115,15 @@ export function OnboardingRequestsPage() {
       assetName: r.title,
       assetIdentifier: undefined,
       assignedAt: dayjs(),
+      provisioningKind: r.provisioningKind ?? SUGGESTED_KIND[r.category],
+      provisionedRef: undefined,
       notes: undefined,
     })
   }
 
   const submitFulfill = async () => {
     const v = await form.validateFields()
+    const it = isItCategory(fulfilling!.category)
     setSaving(true)
     try {
       await onboardingRequestsApi.fulfill(fulfilling!.id, {
@@ -118,6 +132,8 @@ export function OnboardingRequestsPage() {
         assetName: v.createAsset ? v.assetName : undefined,
         assetIdentifier: v.createAsset ? v.assetIdentifier : undefined,
         assignedAt: v.assignedAt?.format('YYYY-MM-DD'),
+        provisioningKind: it ? v.provisioningKind : undefined,
+        provisionedRef: it ? v.provisionedRef : undefined,
         notes: v.notes,
       })
       message.success(`${fulfilling!.requestNo} fulfilled`)
@@ -142,9 +158,14 @@ export function OnboardingRequestsPage() {
     {
       title: 'Category',
       dataIndex: 'category',
-      width: 130,
-      render: (v: ResourceRequestCategory) => (
-        <Tag color={REQUEST_CATEGORY_COLOR[v]}>{prettyEnum(v)}</Tag>
+      width: 150,
+      render: (v: ResourceRequestCategory, r) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={REQUEST_CATEGORY_COLOR[v]} style={{ marginInlineEnd: 0 }}>{prettyEnum(v)}</Tag>
+          {r.provisioningKind && (
+            <Text type="secondary" style={{ fontSize: 11 }}>{prettyEnum(r.provisioningKind)}</Text>
+          )}
+        </Space>
       ),
     },
     {
@@ -199,6 +220,7 @@ export function OnboardingRequestsPage() {
             { label: 'All', value: 'ALL' },
             { label: 'Equipment', value: 'EQUIPMENT' },
             { label: 'Workspace', value: 'WORKSPACE' },
+            { label: 'IT account', value: 'IT_ACCOUNT' },
             { label: 'Access card', value: 'ACCESS_CARD' },
           ]}
         />
@@ -245,6 +267,20 @@ export function OnboardingRequestsPage() {
               </>
             )}
           </Form.Item>
+          {fulfilling && isItCategory(fulfilling.category) && (
+            <>
+              <Form.Item name="provisioningKind" label="Provisioning kind">
+                <Select allowClear options={KIND_OPTIONS} placeholder="—" />
+              </Form.Item>
+              <Form.Item
+                name="provisionedRef"
+                label="What was provisioned"
+                extra="Account/email created, systems granted, ticket no — request-tracking only; no live account is created."
+              >
+                <Input placeholder="e.g. j.doe@company.com · JIRA-1234 · CRM + VPN" />
+              </Form.Item>
+            </>
+          )}
           <Form.Item name="notes" label="Notes (optional)">
             <Input.TextArea rows={2} />
           </Form.Item>
