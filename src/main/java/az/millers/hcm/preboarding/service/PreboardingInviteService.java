@@ -24,11 +24,19 @@ import az.millers.hcm.corehr.domain.MaritalStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.corehr.service.EmployeeDependentService;
 import az.millers.hcm.corehr.service.EmployeeEmergencyContactService;
+import az.millers.hcm.lifecycle.domain.ChecklistAssignmentStatus;
+import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
+import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
+import az.millers.hcm.lifecycle.domain.ChecklistTaskType;
+import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
+import az.millers.hcm.lifecycle.service.OnboardingAcknowledgementService;
+import az.millers.hcm.lifecycle.service.OnboardingBuddyService;
 import az.millers.hcm.preboarding.api.PreboardingDtos.CompleteRequest;
 import az.millers.hcm.preboarding.api.PreboardingDtos.InviteDetail;
 import az.millers.hcm.preboarding.api.PreboardingDtos.InviteSummary;
 import az.millers.hcm.preboarding.api.PreboardingDtos.IssueRequest;
 import az.millers.hcm.preboarding.api.PreboardingDtos.IssueResponse;
+import az.millers.hcm.preboarding.api.PreboardingDtos.PolicyTask;
 import az.millers.hcm.preboarding.api.PreboardingDtos.PublicInfo;
 import az.millers.hcm.preboarding.api.PreboardingDtos.SubmitResponse;
 import az.millers.hcm.preboarding.domain.PreboardingInvite;
@@ -57,19 +65,29 @@ public class PreboardingInviteService {
     private final EmployeeDependentService dependents;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    // M307 — portal enrichment (lifecycle → preboarding is a one-way read dependency)
+    private final ChecklistTaskStatusRepository policyTaskRepo;
+    private final OnboardingBuddyService buddyService;
+    private final OnboardingAcknowledgementService ackService;
 
     public PreboardingInviteService(PreboardingInviteRepository repo,
                                     EmployeeRepository employees,
                                     EmployeeEmergencyContactService emergencyContacts,
                                     EmployeeDependentService dependents,
                                     AuditService audit,
-                                    CurrentRequest currentRequest) {
+                                    CurrentRequest currentRequest,
+                                    ChecklistTaskStatusRepository policyTaskRepo,
+                                    OnboardingBuddyService buddyService,
+                                    OnboardingAcknowledgementService ackService) {
         this.repo = repo;
         this.employees = employees;
         this.emergencyContacts = emergencyContacts;
         this.dependents = dependents;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.policyTaskRepo = policyTaskRepo;
+        this.buddyService = buddyService;
+        this.ackService = ackService;
     }
 
     // ── Issue / revoke ──────────────────────────────────────────────────────
@@ -185,14 +203,61 @@ public class PreboardingInviteService {
     }
 
     public PublicInfo publicInfo(PreboardingInvite invite, Employee employee) {
+        String joinDate = (employee != null && employee.getHireDate() != null)
+                ? employee.getHireDate().toString() : null;
+        String role = employee != null ? employee.getPositionTitle() : null;
+
+        String managerName = null;
+        if (employee != null && employee.getManagerId() != null) {
+            managerName = employees.findById(employee.getManagerId())
+                    .map(m -> trim(m.getFirstName()) + " " + trim(m.getLastName()))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .orElse(null);
+        }
+
+        String buddyName = null;
+        String buddyRole = null;
+        if (employee != null) {
+            var activeBuddy = buddyService.forEmployee(employee.getId()).stream()
+                    .filter(b -> "ACTIVE".equals(b.status()))
+                    .findFirst().orElse(null);
+            if (activeBuddy != null) {
+                buddyName = activeBuddy.buddyName();
+                buddyRole = activeBuddy.role();
+            }
+        }
+
+        List<PolicyTask> pendingPolicies = List.of();
+        if (employee != null) {
+            pendingPolicies = policyTaskRepo.findPendingPolicyTasks(
+                    employee.getId(),
+                    ChecklistFlowType.ONBOARDING,
+                    List.of(ChecklistAssignmentStatus.COMPLETED, ChecklistAssignmentStatus.CANCELLED),
+                    List.of(ChecklistTaskType.POLICY_ACKNOWLEDGEMENT, ChecklistTaskType.CONTRACT_SIGNING),
+                    List.of(ChecklistTaskStatusValue.DONE, ChecklistTaskStatusValue.SKIPPED)
+            ).stream()
+                    .map(t -> new PolicyTask(t.getId().toString(), t.getTitle(), t.getTaskType().name()))
+                    .toList();
+        }
+
         return new PublicInfo(
-                employee == null
-                        ? "—"
-                        : (employee.getFirstName() + " " + employee.getLastName()),
+                employee == null ? "—" : trim(employee.getFirstName()) + " " + trim(employee.getLastName()),
                 employee == null ? "—" : employee.getEmployeeNo(),
                 invite.getStatus(),
                 invite.getExpiresAt(),
+                joinDate,
+                role,
+                managerName,
+                buddyName,
+                buddyRole,
+                invite.getNote(),
+                pendingPolicies,
                 PreboardingFormSchema.SCHEMA);
+    }
+
+    private static String trim(String s) {
+        return s == null ? "" : s.trim();
     }
 
     public Optional<Employee> loadEmployee(PreboardingInvite invite) {

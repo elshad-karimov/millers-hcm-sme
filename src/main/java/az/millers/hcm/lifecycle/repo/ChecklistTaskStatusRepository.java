@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import az.millers.hcm.lifecycle.domain.ChecklistAssignmentStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
@@ -40,4 +41,26 @@ public interface ChecklistTaskStatusRepository
             ChecklistTaskType taskType,
             UUID targetId,
             Collection<ChecklistTaskStatusValue> openStatuses);
+
+    /**
+     * M307 — pending policy / contract tasks for the pre-boarding portal.
+     * Returns tasks belonging to an active (non-terminal) ONBOARDING assignment
+     * that match the given types and have not yet reached a terminal task status.
+     */
+    @Query("""
+            select ts from ChecklistTaskStatus ts, ChecklistAssignment a
+            where a.id = ts.assignmentId
+              and a.employeeId = :employeeId
+              and a.flowType = :flowType
+              and a.status not in :excludedAssignmentStatuses
+              and ts.taskType in :taskTypes
+              and ts.status not in :excludedTaskStatuses
+            order by ts.stepOrder asc
+            """)
+    List<ChecklistTaskStatus> findPendingPolicyTasks(
+            @Param("employeeId") UUID employeeId,
+            @Param("flowType") ChecklistFlowType flowType,
+            @Param("excludedAssignmentStatuses") Collection<ChecklistAssignmentStatus> excludedAssignmentStatuses,
+            @Param("taskTypes") Collection<ChecklistTaskType> taskTypes,
+            @Param("excludedTaskStatuses") Collection<ChecklistTaskStatusValue> excludedTaskStatuses);
 }

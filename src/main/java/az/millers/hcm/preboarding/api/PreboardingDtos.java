@@ -1,6 +1,7 @@
 package az.millers.hcm.preboarding.api;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -58,11 +59,22 @@ public final class PreboardingDtos {
 
     // ── Public (candidate-facing) DTOs ─────────────────────────────────────
 
+    /** A policy / contract task the candidate must acknowledge before their start date. */
+    public record PolicyTask(String taskStatusId, String title, String taskType) {}
+
     public record PublicInfo(
             String employeeName,
             String employeeNo,
             PreboardingStatus status,
             OffsetDateTime expiresAt,
+            // M307 — enriched context for the welcome portal
+            String joinDate,
+            String role,
+            String managerName,
+            String buddyName,
+            String buddyRole,
+            String welcomeMessage,
+            List<PolicyTask> pendingPolicies,
             /** Read-only form schema descriptor so the SPA can render. */
             Map<String, Object> schema) {}
 

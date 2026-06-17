@@ -14,20 +14,25 @@ import {
   Card,
   Checkbox,
   DatePicker,
+  Divider,
   Form,
   Input,
+  Modal,
   Result,
   Select,
   Space,
   Spin,
   Steps,
+  Tag,
   Typography,
 } from 'antd'
+import { CheckCircleFilled, UserOutlined, TeamOutlined } from '@ant-design/icons'
 import { useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   publicPreboardingApi,
   type FormSection,
+  type PolicyTask,
   type PublicInfo,
 } from '../api/preboarding'
 
@@ -42,8 +47,11 @@ export function PublicPreboardingPage() {
   const [step, setStep] = useState(0)
   const [done, setDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  // payload accumulator — keyed by section.key
   const [data, setData] = useState<Record<string, unknown>>({})
+  // M307 — track in-session acknowledgements
+  const [acknowledgedIds, setAcknowledgedIds] = useState<string[]>([])
+  const [ackingId, setAckingId] = useState<string | null>(null)
+  const [ackModal, setAckModal] = useState<PolicyTask | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -82,29 +90,21 @@ export function PublicPreboardingPage() {
   const sections = info.schema.sections
   const currentSection: FormSection = sections[step]
 
-  const next = (values: Record<string, unknown>) => {
-    setData((prev) => ({ ...prev, [currentSection.key]: values }))
-    if (step < sections.length - 1) setStep(step + 1)
-  }
+  const pendingPolicies = info.pendingPolicies ?? []
+  const unacknowledged = pendingPolicies.filter((p) => !acknowledgedIds.includes(p.taskStatusId))
+  const justAcknowledged = pendingPolicies.filter((p) => acknowledgedIds.includes(p.taskStatusId))
 
-  const submit = async () => {
+  const doAcknowledge = async (policy: PolicyTask) => {
     if (!token) return
-    setSubmitting(true)
+    setAckingId(policy.taskStatusId)
     try {
-      // Trim out empty top-level sections.
-      const payload: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(data)) {
-        if (v == null) continue
-        if (Array.isArray(v) && v.length === 0) continue
-        if (typeof v === 'object' && Object.keys(v as object).length === 0) continue
-        payload[k] = v
-      }
-      await publicPreboardingApi.submit(token, payload)
-      setDone(true)
+      await publicPreboardingApi.acknowledge(token, policy.taskStatusId)
+      setAcknowledgedIds((prev) => [...prev, policy.taskStatusId])
+      setAckModal(null)
     } catch (e: any) {
-      message.error(e?.response?.data?.message ?? 'Submit failed')
+      message.error(e?.response?.data?.message ?? 'Acknowledgement failed')
     } finally {
-      setSubmitting(false)
+      setAckingId(null)
     }
   }
 
@@ -112,7 +112,121 @@ export function PublicPreboardingPage() {
     <div style={{ maxWidth: 720, margin: '24px auto', padding: 16 }}>
       <Card>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Title level={3} style={{ margin: 0 }}>Welcome, {info.employeeName}</Title>
+
+          {/* ── Welcome hero ── */}
+          <div>
+            <Title level={3} style={{ margin: 0 }}>Welcome, {info.employeeName}</Title>
+            {(info.joinDate || info.role) && (
+              <Space size="large" style={{ marginTop: 4 }}>
+                {info.joinDate && (
+                  <Text type="secondary">
+                    Start date: <Text strong>{dayjs(info.joinDate).format('MMMM D, YYYY')}</Text>
+                  </Text>
+                )}
+                {info.role && (
+                  <Text type="secondary">
+                    Role: <Text strong>{info.role}</Text>
+                  </Text>
+                )}
+              </Space>
+            )}
+            {info.welcomeMessage && (
+              <Paragraph style={{ marginTop: 8, marginBottom: 0, fontStyle: 'italic', color: '#555' }}>
+                "{info.welcomeMessage}"
+              </Paragraph>
+            )}
+          </div>
+
+          {/* ── Manager / buddy intro cards ── */}
+          {(info.managerName || info.buddyName) && (
+            <Space size="middle" wrap>
+              {info.managerName && (
+                <Card size="small" style={{ minWidth: 200 }}>
+                  <Space>
+                    <UserOutlined style={{ fontSize: 20, color: '#1677ff' }} />
+                    <div>
+                      <div style={{ fontSize: 11, color: '#888' }}>Your manager</div>
+                      <Text strong>{info.managerName}</Text>
+                    </div>
+                  </Space>
+                </Card>
+              )}
+              {info.buddyName && (
+                <Card size="small" style={{ minWidth: 200 }}>
+                  <Space>
+                    <TeamOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                    <div>
+                      <div style={{ fontSize: 11, color: '#888' }}>
+                        Your {info.buddyRole?.toLowerCase() ?? 'buddy'}
+                      </div>
+                      <Text strong>{info.buddyName}</Text>
+                    </div>
+                  </Space>
+                </Card>
+              )}
+            </Space>
+          )}
+
+          {/* ── Policy acknowledgement section ── */}
+          {pendingPolicies.length > 0 && (
+            <>
+              <Divider style={{ margin: '4px 0' }} />
+              <div>
+                <Title level={5} style={{ margin: '0 0 8px' }}>
+                  Policies to acknowledge
+                  {unacknowledged.length > 0 && (
+                    <Tag color="orange" style={{ marginLeft: 8, fontWeight: 'normal' }}>
+                      {unacknowledged.length} pending
+                    </Tag>
+                  )}
+                </Title>
+                <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                  {pendingPolicies.map((policy) => {
+                    const isAcked = acknowledgedIds.includes(policy.taskStatusId)
+                    return (
+                      <div
+                        key={policy.taskStatusId}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '6px 0',
+                          opacity: isAcked ? 0.6 : 1,
+                        }}
+                      >
+                        {isAcked ? (
+                          <CheckCircleFilled style={{ color: '#52c41a', fontSize: 18, flexShrink: 0 }} />
+                        ) : (
+                          <Button
+                            size="small"
+                            type="primary"
+                            loading={ackingId === policy.taskStatusId}
+                            onClick={() => setAckModal(policy)}
+                            style={{ flexShrink: 0 }}
+                          >
+                            Acknowledge
+                          </Button>
+                        )}
+                        <Text style={{ flex: 1 }}>{policy.title}</Text>
+                        <Tag color={policy.taskType === 'POLICY_ACKNOWLEDGEMENT' ? 'blue' : 'orange'}>
+                          {policy.taskType === 'POLICY_ACKNOWLEDGEMENT' ? 'Policy' : 'Contract'}
+                        </Tag>
+                      </div>
+                    )
+                  })}
+                </Space>
+                {justAcknowledged.length > 0 && unacknowledged.length === 0 && (
+                  <Alert
+                    type="success"
+                    message="All policies acknowledged — thank you!"
+                    style={{ marginTop: 8 }}
+                    showIcon
+                  />
+                )}
+              </div>
+              <Divider style={{ margin: '4px 0' }} />
+            </>
+          )}
+
+          {/* ── Form intro ── */}
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
             We need a few details before your first day. Your responses go
             straight to HR — they'll review and finalise your record.
@@ -131,7 +245,6 @@ export function PublicPreboardingPage() {
               if (step < sections.length - 1) {
                 setStep(step + 1)
               } else {
-                // Submit on the last section.
                 const payload: Record<string, unknown> = {}
                 for (const [k, v] of Object.entries(collected)) {
                   if (v == null) continue
@@ -152,11 +265,35 @@ export function PublicPreboardingPage() {
           />
         </Space>
       </Card>
+
+      {/* ── Acknowledgement confirmation modal ── */}
+      <Modal
+        open={ackModal != null}
+        title="Acknowledge policy"
+        okText="I acknowledge"
+        cancelText="Cancel"
+        confirmLoading={ackingId != null}
+        onOk={() => ackModal && doAcknowledge(ackModal)}
+        onCancel={() => setAckModal(null)}
+      >
+        {ackModal && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Paragraph>
+              Please confirm that you have read and understood the following:
+            </Paragraph>
+            <Text strong>{ackModal.title}</Text>
+            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              By clicking <Text strong>I acknowledge</Text>, you confirm you have read and accept
+              this {ackModal.taskType === 'POLICY_ACKNOWLEDGEMENT' ? 'policy' : 'contract'}.
+            </Paragraph>
+          </Space>
+        )}
+      </Modal>
     </div>
   )
 
-  // unused locals — silence TS
-  void next; void submit
+  // silence unused
+  void justAcknowledged
 }
 
 // ────────────────────────────────────────────────────────────────────────────

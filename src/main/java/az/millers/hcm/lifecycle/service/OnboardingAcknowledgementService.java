@@ -56,6 +56,22 @@ public class OnboardingAcknowledgementService {
 
     @Transactional
     public AcknowledgementResponse acknowledge(UUID taskStatusId, String statement, String reference) {
+        return doAcknowledge(null, taskStatusId, statement, reference, currentRequest.username());
+    }
+
+    /**
+     * M307 — public-portal variant: validates that the task belongs to
+     * {@code employeeId} (token = credential) and records the ack as
+     * "candidate-token" (no Keycloak session on the public portal).
+     */
+    @Transactional
+    public AcknowledgementResponse acknowledgePublic(UUID employeeId, UUID taskStatusId,
+                                                      String statement, String reference) {
+        return doAcknowledge(employeeId, taskStatusId, statement, reference, "candidate-token");
+    }
+
+    private AcknowledgementResponse doAcknowledge(UUID expectedEmployeeId, UUID taskStatusId,
+                                                   String statement, String reference, String actor) {
         ChecklistTaskStatus ts = taskStatuses.findById(taskStatusId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found: " + taskStatusId));
         AcknowledgementKind kind = AcknowledgementKind.forTaskType(ts.getTaskType())
@@ -66,6 +82,9 @@ public class OnboardingAcknowledgementService {
         }
         ChecklistAssignment a = assignments.findById(ts.getAssignmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found"));
+        if (expectedEmployeeId != null && !expectedEmployeeId.equals(a.getEmployeeId())) {
+            throw new BadRequestException("Task does not belong to this employee");
+        }
 
         OnboardingAcknowledgement ack = new OnboardingAcknowledgement();
         ack.setEmployeeId(a.getEmployeeId());
@@ -74,10 +93,9 @@ public class OnboardingAcknowledgementService {
         ack.setKind(kind);
         ack.setStatement(blankToNull(statement));
         ack.setReference(blankToNull(reference));
-        ack.setAcknowledgedBy(currentRequest.username());
+        ack.setAcknowledgedBy(actor);
         acks.save(ack);
 
-        // The acknowledgement completes the task.
         checklistService.updateTask(taskStatusId, new UpdateTaskRequest(
                 ChecklistTaskStatusValue.DONE, null, null,
                 kind + " acknowledged" + (reference == null || reference.isBlank() ? "" : ": " + reference)));

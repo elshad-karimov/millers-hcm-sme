@@ -85,11 +85,26 @@ export interface PublicSchema {
   sections: FormSection[]
 }
 
+// M307 — a policy / contract task the candidate must acknowledge.
+export interface PolicyTask {
+  taskStatusId: string
+  title: string
+  taskType: string
+}
+
 export interface PublicInfo {
   employeeName: string
   employeeNo: string
   status: PreboardingStatus
   expiresAt: string
+  // M307 enrichments
+  joinDate?: string | null
+  role?: string | null
+  managerName?: string | null
+  buddyName?: string | null
+  buddyRole?: string | null
+  welcomeMessage?: string | null
+  pendingPolicies?: PolicyTask[] | null
   schema: PublicSchema
 }
 
@@ -121,5 +136,9 @@ export const publicPreboardingApi = {
   submit: (token: string, payload: Record<string, unknown>) =>
     publicAxios
       .post<SubmitResponse>(`/public/preboarding/${token}/submit`, { payload })
+      .then((r) => r.data),
+  acknowledge: (token: string, taskStatusId: string, statement?: string, reference?: string) =>
+    publicAxios
+      .post(`/public/preboarding/${token}/acknowledge`, { taskStatusId, statement, reference })
       .then((r) => r.data),
 }
