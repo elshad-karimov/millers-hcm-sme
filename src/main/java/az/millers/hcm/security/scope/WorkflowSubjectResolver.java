@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 
 import az.millers.hcm.businesstrip.repo.BusinessTripRequestRepository;
 import az.millers.hcm.leave.repo.LeaveRequestRepository;
+import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
+import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
 import az.millers.hcm.lifecycle.repo.ContractChangeRepository;
 import az.millers.hcm.lifecycle.repo.TerminationRequestRepository;
 import az.millers.hcm.performance.repo.PerformanceReviewRepository;
@@ -35,6 +37,8 @@ public class WorkflowSubjectResolver {
     private final TerminationRequestRepository termination;
     private final ContractChangeRepository contractChange;
     private final PerformanceReviewRepository performanceReview;
+    private final ChecklistTaskStatusRepository checklistTasks;
+    private final ChecklistAssignmentRepository checklistAssignments;
 
     public WorkflowSubjectResolver(LeaveRequestRepository leave,
                                     PermissionRequestRepository permission,
@@ -42,7 +46,9 @@ public class WorkflowSubjectResolver {
                                     TimesheetRepository timesheet,
                                     TerminationRequestRepository termination,
                                     ContractChangeRepository contractChange,
-                                    PerformanceReviewRepository performanceReview) {
+                                    PerformanceReviewRepository performanceReview,
+                                    ChecklistTaskStatusRepository checklistTasks,
+                                    ChecklistAssignmentRepository checklistAssignments) {
         this.leave = leave;
         this.permission = permission;
         this.businessTrip = businessTrip;
@@ -50,6 +56,8 @@ public class WorkflowSubjectResolver {
         this.termination = termination;
         this.contractChange = contractChange;
         this.performanceReview = performanceReview;
+        this.checklistTasks = checklistTasks;
+        this.checklistAssignments = checklistAssignments;
     }
 
     /**
@@ -73,6 +81,10 @@ public class WorkflowSubjectResolver {
             case "TerminationRequest"  -> termination.findById(subjectId).map(r -> r.getEmployeeId());
             case "ContractChange"      -> contractChange.findById(subjectId).map(r -> r.getEmployeeId());
             case "PerformanceReview"   -> performanceReview.findById(subjectId).map(r -> r.getEmployeeId());
+            // M309 — checklist task approval: task → assignment → employee.
+            case "ChecklistTaskStatus" -> checklistTasks.findById(subjectId)
+                    .flatMap(ts -> checklistAssignments.findById(ts.getAssignmentId()))
+                    .map(a -> a.getEmployeeId());
             // Org-wide / batch subjects (OrgVersion, PayrollRun, …) are
             // gated by role alone — no employee dimension to filter on.
             default                    -> Optional.empty();
@@ -84,7 +96,7 @@ public class WorkflowSubjectResolver {
         return entity != null && switch (entity) {
             case "LeaveRequest", "PermissionRequest", "BusinessTripRequest",
                  "Timesheet", "TerminationRequest", "ContractChange",
-                 "PerformanceReview" -> true;
+                 "PerformanceReview", "ChecklistTaskStatus" -> true;
             default -> false;
         };
     }

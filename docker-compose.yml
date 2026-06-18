@@ -25,7 +25,7 @@ services:
     # cache survives a container restart without a cold-start latency spike.
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - hcm-redisdata:/data
     healthcheck:
