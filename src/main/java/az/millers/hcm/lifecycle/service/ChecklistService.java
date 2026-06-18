@@ -39,6 +39,7 @@ import az.millers.hcm.lifecycle.domain.ChecklistTemplate;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateRule;
 import az.millers.hcm.lifecycle.domain.ChecklistTemplateTask;
 import az.millers.hcm.lifecycle.domain.TrainingTargetKind;
+import az.millers.hcm.lifecycle.event.ChecklistAssignmentCompletedEvent;
 import az.millers.hcm.lifecycle.event.ChecklistStartedEvent;
 import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
@@ -404,6 +405,8 @@ public class ChecklistService {
             assignments.save(a);
             audit.record(MODULE, ENTITY, a.getId().toString(), "AUTO_COMPLETE",
                     null, Map.of("requiredTotal", requiredTotal));
+            events.publishEvent(new ChecklistAssignmentCompletedEvent(
+                    a.getId(), a.getEmployeeId(), a.getFlowType()));
         }
     }
 

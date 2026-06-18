@@ -164,6 +164,13 @@ hcm:
     businesstrip:
       # Comma-separated Keycloak usernames notified when a trip advance is approved (M199).
       finance-recipients: ${HCM_NOTIFY_BT_FINANCE:}
+    onboarding:
+      # HR inbox address that receives onboarding start / complete / overdue digests (M308).
+      hr-email: ${HCM_NOTIFY_ONBOARDING_HR:}
+      # Days after assignment start before pending tasks are flagged as overdue (M308).
+      overdue-threshold-days: ${HCM_ONBOARDING_OVERDUE_DAYS:14}
+      # Cron for the weekday overdue digest (default: 09:00 Mon-Fri).
+      overdue-cron: ${HCM_ONBOARDING_OVERDUE_CRON:0 0 9 * * MON-FRI}
   preboarding:
     # Public-facing base URL for the pre-boarding portal (M193).
     # The hire flow appends ?token=<plaintext> and emails the link to the candidate.
