@@ -1,5 +1,6 @@
 package az.millers.hcm.lifecycle.api;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgeRequest;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingAnalyticsReport;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgementResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyAssignRequest;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyResponse;
@@ -82,6 +84,15 @@ public class OnboardingController {
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','AUDITOR')")
     public ManagerOnboardingView myTeam() {
         return service.managerView();
+    }
+
+    /** M312 — Onboarding analytics report: completion rates, avg duration, dept + template + task-type breakdown. */
+    @GetMapping("/analytics")
+    @PreAuthorize(READ)
+    public OnboardingAnalyticsReport analytics(
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
+        return service.analyticsReport(from, to);
     }
 
     // ── M301 — equipment / workspace provisioning requests ───────────────────

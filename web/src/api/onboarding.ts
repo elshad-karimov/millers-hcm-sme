@@ -124,6 +124,43 @@ export interface ScheduleMeetingRequest {
   attendeeEmails?: string | null
 }
 
+// M312 — onboarding analytics report (Phase E.3).
+export interface DeptAnalytics {
+  department: string
+  started: number
+  completed: number
+  completionRatePct: number
+  avgDaysToComplete: number
+}
+
+export interface TemplateAnalytics {
+  templateName: string
+  started: number
+  completed: number
+  completionRatePct: number
+  avgDaysToComplete: number
+}
+
+export interface TaskTypeAnalytics {
+  taskType: string
+  total: number
+  done: number
+  completionRatePct: number
+}
+
+export interface OnboardingAnalyticsReport {
+  from: string
+  to: string
+  totalStarted: number
+  totalCompleted: number
+  totalInProgress: number
+  completionRatePct: number
+  avgDaysToComplete: number
+  byDepartment: DeptAnalytics[]
+  byTemplate: TemplateAnalytics[]
+  taskBottlenecks: TaskTypeAnalytics[]
+}
+
 // M311 — manager's direct-report onboarding view (scoped to the caller's team).
 export interface ManagerOnboardingView {
   managerName: string
@@ -136,6 +173,8 @@ export interface ManagerOnboardingView {
 export const onboardingApi = {
   overview: () => api.get<OnboardingOverview>('/onboarding/overview').then((r) => r.data),
   myTeam: () => api.get<ManagerOnboardingView>('/onboarding/my-team').then((r) => r.data),
+  analytics: (from: string, to: string) =>
+    api.get<OnboardingAnalyticsReport>('/onboarding/analytics', { params: { from, to } }).then((r) => r.data),
   journey: (employeeId: string) =>
     api.get<OnboardingJourney>(`/onboarding/journey/${employeeId}`).then((r) => r.data),
   acknowledgementsForEmployee: (employeeId: string) =>

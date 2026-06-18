@@ -63,4 +63,7 @@ public interface ChecklistTaskStatusRepository
             @Param("excludedAssignmentStatuses") Collection<ChecklistAssignmentStatus> excludedAssignmentStatuses,
             @Param("taskTypes") Collection<ChecklistTaskType> taskTypes,
             @Param("excludedTaskStatuses") Collection<ChecklistTaskStatusValue> excludedTaskStatuses);
+
+    /** M312 — bulk task load for analytics: all tasks belonging to a set of assignments. */
+    List<ChecklistTaskStatus> findByAssignmentIdIn(Collection<UUID> assignmentIds);
 }

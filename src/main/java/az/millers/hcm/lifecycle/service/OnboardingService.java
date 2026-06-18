@@ -1,12 +1,15 @@
 package az.millers.hcm.lifecycle.service;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -20,18 +23,26 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.AssignmentResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TaskStatusResponse;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.DeptAnalytics;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.DeptCount;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.ManagerOnboardingView;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingAnalyticsReport;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingRow;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.TaskTypeAnalytics;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.TemplateAnalytics;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.TypeCount;
 import az.millers.hcm.selfservice.service.EmployeeContextService;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignment;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignmentStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
+import az.millers.hcm.lifecycle.domain.ChecklistTaskStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatusValue;
+import az.millers.hcm.lifecycle.domain.ChecklistTemplate;
 import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
+import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
+import az.millers.hcm.lifecycle.repo.ChecklistTemplateRepository;
 
 /**
  * Onboarding journey hub + HR console read models (M300 — Onboarding Phase A.3).
@@ -52,15 +63,21 @@ public class OnboardingService {
 
     private final ChecklistService checklistService;
     private final ChecklistAssignmentRepository assignments;
+    private final ChecklistTaskStatusRepository taskStatuses;
+    private final ChecklistTemplateRepository templates;
     private final EmployeeRepository employees;
     private final EmployeeContextService employeeContext;
 
     public OnboardingService(ChecklistService checklistService,
                              ChecklistAssignmentRepository assignments,
+                             ChecklistTaskStatusRepository taskStatuses,
+                             ChecklistTemplateRepository templates,
                              EmployeeRepository employees,
                              EmployeeContextService employeeContext) {
         this.checklistService = checklistService;
         this.assignments = assignments;
+        this.taskStatuses = taskStatuses;
+        this.templates = templates;
         this.employees = employees;
         this.employeeContext = employeeContext;
     }
@@ -211,5 +228,117 @@ public class OnboardingService {
         return new OnboardingJourney(
                 e.getId(), e.getEmployeeNo(), name, e.getDepartmentName(),
                 joinDate, daysToJoin, ar != null, ar);
+    }
+
+    /**
+     * M312 — Onboarding analytics report for a date window.
+     * 2-query design: bulk-load assignments, then bulk-load all their tasks — avoids N+1.
+     */
+    @Transactional(readOnly = true)
+    public OnboardingAnalyticsReport analyticsReport(LocalDate from, LocalDate to) {
+        OffsetDateTime fromDt = from.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+        OffsetDateTime toDt   = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+
+        List<ChecklistAssignment> asgns = assignments
+                .findByFlowTypeAndStartedAtBetweenOrderByStartedAtDesc(
+                        ChecklistFlowType.ONBOARDING, fromDt, toDt);
+
+        if (asgns.isEmpty()) {
+            return new OnboardingAnalyticsReport(from, to, 0, 0, 0, 0, 0.0,
+                    List.of(), List.of(), List.of());
+        }
+
+        Set<UUID> empIds = asgns.stream().map(ChecklistAssignment::getEmployeeId)
+                .collect(Collectors.toSet());
+        Map<UUID, Employee> empById = new LinkedHashMap<>();
+        employees.findAllById(empIds).forEach(e -> empById.put(e.getId(), e));
+
+        Set<UUID> templateIds = asgns.stream().map(ChecklistAssignment::getTemplateId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<UUID, ChecklistTemplate> tplById = new LinkedHashMap<>();
+        templates.findAllById(templateIds).forEach(t -> tplById.put(t.getId(), t));
+
+        List<UUID> asnIds = asgns.stream().map(ChecklistAssignment::getId).toList();
+        Map<UUID, List<ChecklistTaskStatus>> tasksByAssignment = taskStatuses
+                .findByAssignmentIdIn(asnIds).stream()
+                .collect(Collectors.groupingBy(ChecklistTaskStatus::getAssignmentId));
+
+        // dept → [started, completed, daysSum, daysCount]
+        Map<String, long[]> deptMap = new LinkedHashMap<>();
+        // templateId → [started, completed, daysSum, daysCount]
+        Map<UUID, long[]> tplMap = new LinkedHashMap<>();
+        // taskType → [total, done]
+        Map<String, long[]> typeMap = new LinkedHashMap<>();
+
+        int totalCompleted = 0;
+        double totalDaysSum = 0;
+        int totalDaysCount = 0;
+
+        for (ChecklistAssignment a : asgns) {
+            Employee emp = empById.get(a.getEmployeeId());
+            String dept = emp == null || emp.getDepartmentName() == null ? "—" : emp.getDepartmentName();
+            boolean completed = a.getStatus() == ChecklistAssignmentStatus.COMPLETED;
+
+            double daysToComplete = 0;
+            boolean hasDays = false;
+            if (completed && a.getCompletedAt() != null && a.getStartedAt() != null) {
+                daysToComplete = ChronoUnit.DAYS.between(a.getStartedAt(), a.getCompletedAt());
+                hasDays = true;
+                totalDaysSum += daysToComplete;
+                totalDaysCount++;
+                totalCompleted++;
+            }
+
+            long[] d = deptMap.computeIfAbsent(dept, k -> new long[4]);
+            d[0]++;
+            if (hasDays) { d[1]++; d[2] += (long) daysToComplete; d[3]++; }
+            else if (completed) d[1]++;
+
+            UUID tplId = a.getTemplateId();
+            if (tplId != null) {
+                long[] t = tplMap.computeIfAbsent(tplId, k -> new long[4]);
+                t[0]++;
+                if (hasDays) { t[1]++; t[2] += (long) daysToComplete; t[3]++; }
+                else if (completed) t[1]++;
+            }
+
+            for (ChecklistTaskStatus ts : tasksByAssignment.getOrDefault(a.getId(), List.of())) {
+                String type = ts.getTaskType() == null ? "MANUAL_TASK" : ts.getTaskType().name();
+                long[] tv = typeMap.computeIfAbsent(type, k -> new long[2]);
+                tv[0]++;
+                if (ts.getStatus() == ChecklistTaskStatusValue.DONE) tv[1]++;
+            }
+        }
+
+        int totalStarted = asgns.size();
+        int completionRatePct = (int) Math.round(100.0 * totalCompleted / totalStarted);
+        double avgDays = totalDaysCount == 0 ? 0.0
+                : Math.round(10.0 * totalDaysSum / totalDaysCount) / 10.0;
+
+        List<DeptAnalytics> byDept = deptMap.entrySet().stream().map(en -> {
+            long[] v = en.getValue();
+            int rate = v[0] == 0 ? 0 : (int) Math.round(100.0 * v[1] / v[0]);
+            double avg = v[3] == 0 ? 0.0 : Math.round(10.0 * v[2] / v[3]) / 10.0;
+            return new DeptAnalytics(en.getKey(), (int) v[0], (int) v[1], rate, avg);
+        }).sorted(Comparator.comparingInt(DeptAnalytics::started).reversed()).toList();
+
+        List<TemplateAnalytics> byTemplate = tplMap.entrySet().stream().map(en -> {
+            long[] v = en.getValue();
+            ChecklistTemplate tpl = tplById.get(en.getKey());
+            String name = tpl == null ? en.getKey().toString() : tpl.getName();
+            int rate = v[0] == 0 ? 0 : (int) Math.round(100.0 * v[1] / v[0]);
+            double avg = v[3] == 0 ? 0.0 : Math.round(10.0 * v[2] / v[3]) / 10.0;
+            return new TemplateAnalytics(name, (int) v[0], (int) v[1], rate, avg);
+        }).sorted(Comparator.comparingInt(TemplateAnalytics::started).reversed()).toList();
+
+        List<TaskTypeAnalytics> taskBottlenecks = typeMap.entrySet().stream().map(en -> {
+            long[] v = en.getValue();
+            int rate = v[0] == 0 ? 0 : (int) Math.round(100.0 * v[1] / v[0]);
+            return new TaskTypeAnalytics(en.getKey(), (int) v[0], (int) v[1], rate);
+        }).sorted(Comparator.comparingInt(TaskTypeAnalytics::completionRatePct)).toList();
+
+        return new OnboardingAnalyticsReport(from, to, totalStarted, totalCompleted,
+                totalStarted - totalCompleted, completionRatePct, avgDays,
+                byDept, byTemplate, taskBottlenecks);
     }
 }

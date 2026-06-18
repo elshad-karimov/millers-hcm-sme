@@ -59,6 +59,7 @@ import { ChecklistsPage } from './pages/ChecklistsPage'
 import { OnboardingConsolePage } from './pages/OnboardingConsolePage'
 import { OnboardingRequestsPage } from './pages/OnboardingRequestsPage'
 import { ManagerOnboardingPage } from './pages/ManagerOnboardingPage'
+import { OnboardingAnalyticsPage } from './pages/OnboardingAnalyticsPage'
 import { TerminationFormPage } from './pages/TerminationFormPage'
 import { TerminationDetailPage } from './pages/TerminationDetailPage'
 import { ContractChangesPage } from './pages/ContractChangesPage'
@@ -390,6 +391,8 @@ export default function App() {
           <Route path="lifecycle/onboarding/requests" element={<OnboardingRequestsPage />} />
           {/* M311 — manager onboarding dashboard */}
           <Route path="lifecycle/onboarding/my-team" element={<ManagerOnboardingPage />} />
+          {/* M312 — onboarding analytics report */}
+          <Route path="lifecycle/onboarding/analytics" element={<OnboardingAnalyticsPage />} />
 
           {/* Comp & Benefits */}
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />

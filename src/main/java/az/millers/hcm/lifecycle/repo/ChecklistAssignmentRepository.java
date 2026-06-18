@@ -1,5 +1,6 @@
 package az.millers.hcm.lifecycle.repo;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +15,10 @@ public interface ChecklistAssignmentRepository
         extends JpaRepository<ChecklistAssignment, UUID> {
 
     List<ChecklistAssignment> findByEmployeeIdOrderByStartedAtDesc(UUID employeeId);
+
+    /** M312 — date-range query for onboarding analytics. */
+    List<ChecklistAssignment> findByFlowTypeAndStartedAtBetweenOrderByStartedAtDesc(
+            ChecklistFlowType flowType, OffsetDateTime from, OffsetDateTime to);
 
     Optional<ChecklistAssignment> findByEmployeeIdAndFlowTypeAndStatus(
             UUID employeeId, ChecklistFlowType flowType, ChecklistAssignmentStatus status);

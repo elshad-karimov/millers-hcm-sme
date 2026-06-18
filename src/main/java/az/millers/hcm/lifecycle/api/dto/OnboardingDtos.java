@@ -84,6 +84,47 @@ public final class OnboardingDtos {
             boolean hasActiveOnboarding,
             AssignmentResponse assignment) {}
 
+    // ── M312 — onboarding analytics report (Phase E.3) ──────────────────────
+
+    /** Department-level completion stats within an analytics window. */
+    public record DeptAnalytics(
+            String department,
+            int started,
+            int completed,
+            int completionRatePct,
+            double avgDaysToComplete) {}
+
+    /** Per-template completion stats within an analytics window. */
+    public record TemplateAnalytics(
+            String templateName,
+            int started,
+            int completed,
+            int completionRatePct,
+            double avgDaysToComplete) {}
+
+    /** Per-task-type completion rate — sorted lowest-first to expose bottlenecks. */
+    public record TaskTypeAnalytics(
+            String taskType,
+            int total,
+            int done,
+            int completionRatePct) {}
+
+    /**
+     * Onboarding analytics report for a date window: completion rates, avg
+     * duration, department heatmap, template breakdown, and task-type bottlenecks.
+     */
+    public record OnboardingAnalyticsReport(
+            LocalDate from,
+            LocalDate to,
+            int totalStarted,
+            int totalCompleted,
+            int totalInProgress,
+            int completionRatePct,
+            double avgDaysToComplete,
+            List<DeptAnalytics> byDepartment,
+            List<TemplateAnalytics> byTemplate,
+            List<TaskTypeAnalytics> taskBottlenecks) {}
+
     // ── M304 — policy / contract / document acknowledgement (Phase B.4) ──
 
     /** Record an acknowledgement against a checklist task; marks it DONE. */
