@@ -60,6 +60,17 @@ public final class OnboardingDtos {
             List<DeptCount> byDepartment) {}
 
     /**
+     * M311 — Manager-scoped onboarding view: the caller's direct reports who are
+     * currently onboarding, with their progress and overdue-task signals.
+     */
+    public record ManagerOnboardingView(
+            String managerName,
+            int directReportCount,
+            long activeOnboardingCount,
+            long overdueCount,
+            List<OnboardingRow> rows) {}
+
+    /**
      * The new-hire onboarding journey: employee context + their single active
      * onboarding assignment (with its tasks), or null if none is running.
      */

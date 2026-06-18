@@ -124,8 +124,18 @@ export interface ScheduleMeetingRequest {
   attendeeEmails?: string | null
 }
 
+// M311 — manager's direct-report onboarding view (scoped to the caller's team).
+export interface ManagerOnboardingView {
+  managerName: string
+  directReportCount: number
+  activeOnboardingCount: number
+  overdueCount: number
+  rows: OnboardingRow[]
+}
+
 export const onboardingApi = {
   overview: () => api.get<OnboardingOverview>('/onboarding/overview').then((r) => r.data),
+  myTeam: () => api.get<ManagerOnboardingView>('/onboarding/my-team').then((r) => r.data),
   journey: (employeeId: string) =>
     api.get<OnboardingJourney>(`/onboarding/journey/${employeeId}`).then((r) => r.data),
   acknowledgementsForEmployee: (employeeId: string) =>

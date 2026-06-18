@@ -8,7 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +21,12 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.AssignmentResponse;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.TaskStatusResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.DeptCount;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.ManagerOnboardingView;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingRow;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.TypeCount;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignment;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignmentStatus;
 import az.millers.hcm.lifecycle.domain.ChecklistFlowType;
@@ -49,13 +53,16 @@ public class OnboardingService {
     private final ChecklistService checklistService;
     private final ChecklistAssignmentRepository assignments;
     private final EmployeeRepository employees;
+    private final EmployeeContextService employeeContext;
 
     public OnboardingService(ChecklistService checklistService,
                              ChecklistAssignmentRepository assignments,
-                             EmployeeRepository employees) {
+                             EmployeeRepository employees,
+                             EmployeeContextService employeeContext) {
         this.checklistService = checklistService;
         this.assignments = assignments;
         this.employees = employees;
+        this.employeeContext = employeeContext;
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +137,62 @@ public class OnboardingService {
         return new OnboardingOverview(
                 active.size(), joiningWeek, joiningMonth, withOverdue, totalOverdue,
                 rows, typeCounts, deptCounts);
+    }
+
+    @Transactional(readOnly = true)
+    public ManagerOnboardingView managerView() {
+        Employee manager = employeeContext.currentEmployee();
+        String managerName = ((manager.getFirstName() == null ? "" : manager.getFirstName()) + " "
+                + (manager.getLastName() == null ? "" : manager.getLastName())).trim();
+
+        List<Employee> directs = employees.findDirectReports(manager.getId());
+        Set<UUID> directIds = directs.stream().map(Employee::getId).collect(Collectors.toSet());
+        if (directIds.isEmpty()) {
+            return new ManagerOnboardingView(managerName, 0, 0, 0, List.of());
+        }
+
+        LocalDate today = LocalDate.now();
+        Map<UUID, Employee> empById = new LinkedHashMap<>();
+        directs.forEach(e -> empById.put(e.getId(), e));
+
+        List<AssignmentResponse> allActive = checklistService.activeByFlow(ChecklistFlowType.ONBOARDING);
+        List<OnboardingRow> rows = new ArrayList<>();
+        long overdueCount = 0;
+
+        for (AssignmentResponse a : allActive) {
+            if (!directIds.contains(a.employeeId())) continue;
+            Employee e = empById.get(a.employeeId());
+            String dept = e == null || e.getDepartmentName() == null ? "—" : e.getDepartmentName();
+            LocalDate joinDate = a.anchorDate();
+            Long daysToJoin = joinDate == null ? null : ChronoUnit.DAYS.between(today, joinDate);
+
+            int overdue = 0;
+            LocalDate nextDue = null;
+            for (TaskStatusResponse t : a.tasks()) {
+                boolean open = t.status() != ChecklistTaskStatusValue.DONE
+                        && t.status() != ChecklistTaskStatusValue.SKIPPED;
+                if (open && t.dueDate() != null) {
+                    if (t.dueDate().isBefore(today)) overdue++;
+                    if (nextDue == null || t.dueDate().isBefore(nextDue)) nextDue = t.dueDate();
+                }
+            }
+            if (overdue > 0) overdueCount++;
+
+            rows.add(new OnboardingRow(
+                    a.id(), a.employeeId(),
+                    e == null ? null : e.getEmployeeNo(),
+                    a.employeeName(), dept, a.templateName(),
+                    joinDate, daysToJoin, a.status(),
+                    a.totalTasks(), a.completedTasks(),
+                    a.requiredTotal(), a.requiredCompleted(),
+                    a.progressPercent(), overdue, nextDue));
+        }
+
+        rows.sort(Comparator
+                .comparingInt(OnboardingRow::overdueTaskCount).reversed()
+                .thenComparing(r -> r.nextDueDate() == null ? LocalDate.MAX : r.nextDueDate()));
+
+        return new ManagerOnboardingView(managerName, directs.size(), rows.size(), overdueCount, rows);
     }
 
     @Transactional(readOnly = true)

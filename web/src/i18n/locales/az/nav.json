@@ -81,6 +81,7 @@
     "lifecycle": {
       "onboarding": "Adaptasiya",
       "provisioning": "Təchizat",
+      "myTeamOnboarding": "Komandama",
       "terminations": "İşdən azad",
       "contractChanges": "Müqavilə dəyişiklikləri",
       "checklists": "Yoxlama siyahıları"

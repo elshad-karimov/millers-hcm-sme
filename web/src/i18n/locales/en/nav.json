@@ -81,6 +81,7 @@
     "lifecycle": {
       "onboarding": "Onboarding",
       "provisioning": "Provisioning",
+      "myTeamOnboarding": "My Team",
       "terminations": "Terminations",
       "contractChanges": "Contract changes",
       "checklists": "Checklists"

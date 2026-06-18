@@ -17,6 +17,7 @@ import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgeRequest;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.AcknowledgementResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyAssignRequest;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.BuddyResponse;
+import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.ManagerOnboardingView;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.MeetingResponse;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
@@ -74,6 +75,13 @@ public class OnboardingController {
     @PreAuthorize(READ)
     public OnboardingJourney journey(@PathVariable UUID employeeId) {
         return service.journey(employeeId);
+    }
+
+    /** M311 — Manager's direct-report onboarding view (scoped to the caller's team). */
+    @GetMapping("/my-team")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','DEPARTMENT_MANAGER','AUDITOR')")
+    public ManagerOnboardingView myTeam() {
+        return service.managerView();
     }
 
     // ── M301 — equipment / workspace provisioning requests ───────────────────
