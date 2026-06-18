@@ -58,8 +58,16 @@ export const REQUEST_CATEGORY_COLOR: Record<ResourceRequestCategory, string> = {
   OTHER: 'default',
 }
 
+export interface ProvisioningQueueSummary {
+  totalPending: number
+  totalInProgress: number
+  byCategory: Partial<Record<ResourceRequestCategory, number>>
+  itByKind: Partial<Record<ItProvisioningKind, number>>
+}
+
 export const onboardingRequestsApi = {
   open: () => api.get<ResourceRequest[]>('/onboarding/requests').then((r) => r.data),
+  summary: () => api.get<ProvisioningQueueSummary>('/onboarding/requests/summary').then((r) => r.data),
   forEmployee: (employeeId: string) =>
     api.get<ResourceRequest[]>(`/onboarding/requests/employees/${employeeId}`).then((r) => r.data),
   updateStatus: (id: string, status: ResourceRequestStatus, details?: string, provisioningKind?: ItProvisioningKind) =>

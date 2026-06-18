@@ -1,7 +1,5 @@
-// M301 — Onboarding equipment/workspace provisioning queue (Phase B.1).
-// IT / Facilities work the requests that onboarding equipment/workspace tasks
-// auto-spawned: REQUESTED → IN_PROGRESS → FULFILLED (or CANCELLED). Fulfilling
-// an equipment request can create an EmployeeAsset (handover) and links it back.
+// M301 — Onboarding provisioning queue (Phase B.1).
+// M310 — Dashboard summary cards per category + IT sub-breakdown by kind.
 
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -15,7 +13,6 @@ import {
   Input,
   Modal,
   Popconfirm,
-  Segmented,
   Select,
   Space,
   Spin,
@@ -34,6 +31,7 @@ import {
   REQUEST_CATEGORY_COLOR,
   REQUEST_STATUS_COLOR,
   type ItProvisioningKind,
+  type ProvisioningQueueSummary,
   type ResourceRequest,
   type ResourceRequestCategory,
 } from '../api/onboardingRequests'
@@ -48,17 +46,34 @@ const ASSET_TYPES: AssetType[] = [
 ]
 const ASSET_TYPE_OPTIONS = ASSET_TYPES.map((v) => ({ value: v, label: prettyEnum(v) }))
 
-// Suggested asset type when fulfilling a request, by category.
 const SUGGESTED_ASSET: Record<ResourceRequestCategory, AssetType> = {
   EQUIPMENT: 'LAPTOP', WORKSPACE: 'LOCKER', ACCESS_CARD: 'ACCESS_CARD',
   IT_ACCOUNT: 'OTHER', OTHER: 'OTHER',
 }
 const KIND_OPTIONS = IT_PROVISIONING_KINDS.map((v) => ({ value: v, label: prettyEnum(v) }))
-// Suggested IT kind by category (only IT_ACCOUNT / ACCESS_CARD are IT-tracked).
 const SUGGESTED_KIND: Partial<Record<ResourceRequestCategory, ItProvisioningKind>> = {
   IT_ACCOUNT: 'EMAIL_ACCOUNT', ACCESS_CARD: 'ACCESS_CARD',
 }
 const isItCategory = (c: ResourceRequestCategory) => c === 'IT_ACCOUNT' || c === 'ACCESS_CARD'
+
+// Hex equivalents of Ant Design tag colors used in REQUEST_CATEGORY_COLOR.
+const CATEGORY_COLOR_HEX: Record<ResourceRequestCategory, string> = {
+  EQUIPMENT: '#2f54eb',
+  WORKSPACE: '#fa8c16',
+  IT_ACCOUNT: '#531dab',
+  ACCESS_CARD: '#d4380d',
+  OTHER: '#8c8c8c',
+}
+
+// All filter options in display order.
+const CATEGORY_FILTERS: Array<{ label: string; value: 'ALL' | ResourceRequestCategory }> = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Equipment', value: 'EQUIPMENT' },
+  { label: 'Workspace', value: 'WORKSPACE' },
+  { label: 'IT Account', value: 'IT_ACCOUNT' },
+  { label: 'Access Card', value: 'ACCESS_CARD' },
+  { label: 'Other', value: 'OTHER' },
+]
 
 export function OnboardingRequestsPage() {
   const { message } = AntdApp.useApp()
@@ -66,6 +81,7 @@ export function OnboardingRequestsPage() {
   const canWrite = hasRole(...RoleSets.HR_WRITE)
 
   const [rows, setRows] = useState<ResourceRequest[]>([])
+  const [summary, setSummary] = useState<ProvisioningQueueSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [cat, setCat] = useState<'ALL' | ResourceRequestCategory>('ALL')
   const [fulfilling, setFulfilling] = useState<ResourceRequest | null>(null)
@@ -83,8 +99,8 @@ export function OnboardingRequestsPage() {
 
   const load = () => {
     setLoading(true)
-    onboardingRequestsApi.open()
-      .then(setRows)
+    Promise.all([onboardingRequestsApi.open(), onboardingRequestsApi.summary()])
+      .then(([r, s]) => { setRows(r); setSummary(s) })
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
   }
@@ -107,7 +123,6 @@ export function OnboardingRequestsPage() {
 
   const openFulfill = (r: ResourceRequest) => {
     setFulfilling(r)
-    // Equipment/workspace default to creating an asset; IT accounts don't.
     const createAsset = r.category === 'EQUIPMENT' || r.category === 'WORKSPACE' || r.category === 'ACCESS_CARD'
     form.setFieldsValue({
       createAsset,
@@ -205,26 +220,77 @@ export function OnboardingRequestsPage() {
       <div>
         <Title level={3} style={{ margin: 0 }}>Provisioning requests</Title>
         <Text type="secondary">
-          Equipment &amp; workspace requests raised automatically by onboarding tasks.
-          Fulfilling an equipment request can create the asset handover record and ticks
-          off the new hire's checklist task.
+          Equipment, workspace &amp; IT requests auto-raised by onboarding tasks.
+          Fulfilling an equipment request creates the asset handover record and ticks
+          the new hire's checklist task.
         </Text>
       </div>
 
-      <Space wrap>
-        <Statistic title="Open requests" value={rows.length} />
-        <Segmented
-          value={cat}
-          onChange={(v) => setCat(v as typeof cat)}
-          options={[
-            { label: 'All', value: 'ALL' },
-            { label: 'Equipment', value: 'EQUIPMENT' },
-            { label: 'Workspace', value: 'WORKSPACE' },
-            { label: 'IT account', value: 'IT_ACCOUNT' },
-            { label: 'Access card', value: 'ACCESS_CARD' },
-          ]}
-        />
-      </Space>
+      {/* M310 — Summary dashboard cards */}
+      {summary && (
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space wrap>
+            {CATEGORY_FILTERS.map((opt) => {
+              const count = opt.value === 'ALL'
+                ? summary.totalPending
+                : (summary.byCategory[opt.value as ResourceRequestCategory] ?? 0)
+              const active = cat === opt.value
+              return (
+                <Card
+                  key={opt.value}
+                  size="small"
+                  hoverable
+                  onClick={() => setCat(opt.value)}
+                  style={{
+                    cursor: 'pointer',
+                    minWidth: 110,
+                    borderColor: active ? '#1677ff' : undefined,
+                    boxShadow: active ? '0 0 0 2px rgba(22,119,255,0.15)' : undefined,
+                  }}
+                >
+                  <Statistic
+                    title={opt.value === 'ALL'
+                      ? <Text type="secondary" style={{ fontSize: 12 }}>All open</Text>
+                      : (
+                        <Tag
+                          color={REQUEST_CATEGORY_COLOR[opt.value as ResourceRequestCategory]}
+                          style={{ marginInlineEnd: 0, fontSize: 11 }}
+                        >
+                          {opt.label}
+                        </Tag>
+                      )
+                    }
+                    value={count}
+                    valueStyle={{
+                      fontSize: 22,
+                      color: opt.value === 'ALL'
+                        ? undefined
+                        : CATEGORY_COLOR_HEX[opt.value as ResourceRequestCategory],
+                    }}
+                  />
+                  {opt.value === 'ALL' && summary.totalInProgress > 0 && (
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {summary.totalInProgress} in progress
+                    </Text>
+                  )}
+                </Card>
+              )
+            })}
+          </Space>
+
+          {/* IT sub-breakdown by provisioning kind */}
+          {Object.keys(summary.itByKind).length > 0 && (
+            <Space wrap size="small">
+              <Text type="secondary" style={{ fontSize: 12 }}>IT by kind:</Text>
+              {(Object.entries(summary.itByKind) as Array<[ItProvisioningKind, number]>).map(
+                ([kind, count]) => (
+                  <Tag key={kind} color="purple">{prettyEnum(kind)}: {count}</Tag>
+                ),
+              )}
+            </Space>
+          )}
+        </Space>
+      )}
 
       <Card>
         <Table

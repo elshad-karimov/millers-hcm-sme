@@ -22,6 +22,7 @@ import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingJourney;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.OnboardingOverview;
 import az.millers.hcm.lifecycle.api.dto.OnboardingDtos.ScheduleMeetingRequest;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.FulfillRequest;
+import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ProvisioningQueueSummary;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ResourceRequestResponse;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.UpdateStatusRequest;
 import az.millers.hcm.lifecycle.service.OnboardingAcknowledgementService;
@@ -76,6 +77,13 @@ public class OnboardingController {
     }
 
     // ── M301 — equipment / workspace provisioning requests ───────────────────
+
+    /** M310 — Summary stat cards for the provisioning queue dashboard. */
+    @GetMapping("/requests/summary")
+    @PreAuthorize(READ)
+    public ProvisioningQueueSummary requestsSummary() {
+        return requests.queueSummary();
+    }
 
     /** Open IT/Facilities provisioning queue (REQUESTED + IN_PROGRESS). */
     @GetMapping("/requests")

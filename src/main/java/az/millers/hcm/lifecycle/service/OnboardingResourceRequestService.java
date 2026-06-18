@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.corehr.service.EmployeeAssetService;
 import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.UpdateTaskRequest;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.FulfillRequest;
+import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ProvisioningQueueSummary;
 import az.millers.hcm.lifecycle.api.dto.ResourceRequestDtos.ResourceRequestResponse;
 import az.millers.hcm.lifecycle.domain.ChecklistAssignment;
 import az.millers.hcm.lifecycle.domain.ChecklistTaskStatus;
@@ -118,6 +120,22 @@ public class OnboardingResourceRequestService {
         return requests.findByStatusInOrderByRequestedAtAsc(
                         List.of(ResourceRequestStatus.REQUESTED, ResourceRequestStatus.IN_PROGRESS))
                 .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProvisioningQueueSummary queueSummary() {
+        List<OnboardingResourceRequest> open = requests.findByStatusInOrderByRequestedAtAsc(
+                List.of(ResourceRequestStatus.REQUESTED, ResourceRequestStatus.IN_PROGRESS));
+        int totalPending = open.size();
+        int totalInProgress = (int) open.stream()
+                .filter(r -> r.getStatus() == ResourceRequestStatus.IN_PROGRESS).count();
+        Map<String, Long> byCategory = open.stream()
+                .collect(Collectors.groupingBy(r -> r.getCategory().name(), Collectors.counting()));
+        Map<String, Long> itByKind = open.stream()
+                .filter(r -> r.getCategory() == ResourceRequestCategory.IT_ACCOUNT
+                        && r.getProvisioningKind() != null)
+                .collect(Collectors.groupingBy(r -> r.getProvisioningKind().name(), Collectors.counting()));
+        return new ProvisioningQueueSummary(totalPending, totalInProgress, byCategory, itByKind);
     }
 
     @Transactional(readOnly = true)

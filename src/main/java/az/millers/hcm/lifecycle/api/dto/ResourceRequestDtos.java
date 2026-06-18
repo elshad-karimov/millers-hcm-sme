@@ -2,6 +2,7 @@ package az.millers.hcm.lifecycle.api.dto;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 import az.millers.hcm.corehr.domain.AssetType;
@@ -52,4 +53,11 @@ public final class ResourceRequestDtos {
             String provisioningKind,
             String provisionedRef,
             String notes) {}
+
+    /** M310 — Provisioning queue summary for the IT/Facilities dashboard. */
+    public record ProvisioningQueueSummary(
+            int totalPending,
+            int totalInProgress,
+            Map<String, Long> byCategory,
+            Map<String, Long> itByKind) {}
 }
