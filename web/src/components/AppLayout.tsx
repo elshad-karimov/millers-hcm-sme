@@ -36,6 +36,8 @@ import {
   FileSearchOutlined,
   KeyOutlined,
   AppstoreOutlined,
+  LogoutOutlined,
+  UserDeleteOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -111,6 +113,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/lifecycle/onboarding/analytics', module: 'lifecycle', screen: 'lifecycle-onboarding-analytics' },
   { prefix: '/lifecycle/onboarding', module: 'lifecycle', screen: 'lifecycle-onboarding' },
   { prefix: '/lifecycle/checklists', module: 'lifecycle', screen: 'lifecycle-checklists' },
+  { prefix: '/lifecycle/offboarding/resignations', module: 'lifecycle', screen: 'lifecycle-offboarding-resignations' },
+  { prefix: '/lifecycle/offboarding', module: 'lifecycle', screen: 'lifecycle-offboarding' },
   { prefix: '/performance/cycles', module: 'performance', screen: 'performance-cycles' },
   { prefix: '/performance/goals', module: 'performance', screen: 'performance-goals' },
   { prefix: '/performance/reviews', module: 'performance', screen: 'performance-reviews' },
@@ -578,6 +582,16 @@ export function AppLayout() {
                 key: 'lifecycle-checklists',
                 icon: <FileTextOutlined />,
                 label: <Link to="/lifecycle/checklists">{tNav('sub.lifecycle.checklists')}</Link>,
+              },
+              {
+                key: 'lifecycle-offboarding',
+                icon: <LogoutOutlined />,
+                label: <Link to="/lifecycle/offboarding">{tNav('sub.lifecycle.offboarding')}</Link>,
+              },
+              {
+                key: 'lifecycle-offboarding-resignations',
+                icon: <UserDeleteOutlined />,
+                label: <Link to="/lifecycle/offboarding/resignations">{tNav('sub.lifecycle.resignations')}</Link>,
               },
             ],
           } satisfies ItemType,

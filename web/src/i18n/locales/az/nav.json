@@ -85,7 +85,9 @@
       "onboardingAnalytics": "Analitika",
       "terminations": "İşdən azad",
       "contractChanges": "Müqavilə dəyişiklikləri",
-      "checklists": "Yoxlama siyahıları"
+      "checklists": "Yoxlama siyahıları",
+      "offboarding": "Ayrılma prosesi",
+      "resignations": "İstefa ərizələri"
     },
     "performance": {
       "cycles": "Qiymətləndirmə dövrləri",

@@ -86,6 +86,8 @@ public class TerminationService {
     // already revoked through occupancy close (M265); this closes
     // the account itself.
     private final az.millers.hcm.admin.KeycloakAdminService keycloakAdminService;
+    // M313 — create an offboarding case when termination is approved.
+    private final OffboardingCaseService offboardingCaseService;
 
     public TerminationService(TerminationRequestRepository terminations,
                               ExitInterviewRepository exitInterviews,
@@ -101,7 +103,8 @@ public class TerminationService {
                               EmployeeHistoryService historyService,
                               ApplicationEventPublisher eventPublisher,
                               az.millers.hcm.staffing.service.PositionOccupancyService occupancyService,
-                              az.millers.hcm.admin.KeycloakAdminService keycloakAdminService) {
+                              az.millers.hcm.admin.KeycloakAdminService keycloakAdminService,
+                              OffboardingCaseService offboardingCaseService) {
         this.terminations = terminations;
         this.exitInterviews = exitInterviews;
         this.employees = employees;
@@ -117,6 +120,7 @@ public class TerminationService {
         this.eventPublisher = eventPublisher;
         this.occupancyService = occupancyService;
         this.keycloakAdminService = keycloakAdminService;
+        this.offboardingCaseService = offboardingCaseService;
     }
 
     @Transactional(readOnly = true)
@@ -411,6 +415,12 @@ public class TerminationService {
         TerminationRequest saved = terminations.save(t);
         audit.record(MODULE, ENTITY, id.toString(), "APPROVED", null,
                 Map.of("comment", comment == null ? "" : comment));
+        // M313 — spin up the offboarding case; non-fatal so approval is never blocked.
+        try {
+            offboardingCaseService.createFromTermination(id);
+        } catch (Exception ex) {
+            log.warn("Failed to create offboarding case for termination {}: {}", id, ex.getMessage());
+        }
         return saved;
     }
 

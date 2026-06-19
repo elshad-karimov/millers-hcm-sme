@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import az.millers.hcm.lifecycle.service.ContractChangeService;
 import az.millers.hcm.lifecycle.service.DisciplinaryActionService;
+import az.millers.hcm.lifecycle.service.ResignationService;
 import az.millers.hcm.lifecycle.service.TerminationService;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 
@@ -20,13 +21,16 @@ public class LifecycleWorkflowListener {
     private final TerminationService termination;
     private final ContractChangeService contractChange;
     private final DisciplinaryActionService disciplinary;
+    private final ResignationService resignation;
 
     public LifecycleWorkflowListener(TerminationService termination,
                                       ContractChangeService contractChange,
-                                      DisciplinaryActionService disciplinary) {
+                                      DisciplinaryActionService disciplinary,
+                                      ResignationService resignation) {
         this.termination = termination;
         this.contractChange = contractChange;
         this.disciplinary = disciplinary;
+        this.resignation = resignation;
     }
 
     @EventListener
@@ -65,6 +69,19 @@ public class LifecycleWorkflowListener {
                 case REJECTED, RETURNED      -> disciplinary.onRejected(id, event.comment());
                 case CANCELLED               -> disciplinary.onCancelled(id, event.comment());
                 default -> log.warn("Unexpected terminal status {} for disciplinary workflow {}",
+                        event.status(), event.instanceId());
+            }
+            return;
+        }
+        // M313 — resignation approval.
+        if (ResignationService.WORKFLOW_DEFINITION.equals(event.definitionCode())
+                && "ResignationRequest".equals(event.subjectEntity())) {
+            UUID id = UUID.fromString(event.subjectId());
+            switch (event.status()) {
+                case APPROVED, AUTO_APPROVED -> resignation.onApproved(id, event.comment());
+                case REJECTED, RETURNED      -> resignation.onRejected(id, event.comment());
+                case CANCELLED               -> resignation.onCancelled(id, event.comment());
+                default -> log.warn("Unexpected terminal status {} for resignation workflow {}",
                         event.status(), event.instanceId());
             }
         }

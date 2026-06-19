@@ -58,6 +58,8 @@ import { TerminationsPage } from './pages/TerminationsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
 import { OnboardingConsolePage } from './pages/OnboardingConsolePage'
 import { OnboardingRequestsPage } from './pages/OnboardingRequestsPage'
+import { OffboardingConsolePage } from './pages/OffboardingConsolePage'
+import { ResignationRequestPage } from './pages/ResignationRequestPage'
 import { ManagerOnboardingPage } from './pages/ManagerOnboardingPage'
 import { OnboardingAnalyticsPage } from './pages/OnboardingAnalyticsPage'
 import { TerminationFormPage } from './pages/TerminationFormPage'
@@ -393,6 +395,10 @@ export default function App() {
           <Route path="lifecycle/onboarding/my-team" element={<ManagerOnboardingPage />} />
           {/* M312 — onboarding analytics report */}
           <Route path="lifecycle/onboarding/analytics" element={<OnboardingAnalyticsPage />} />
+          {/* M313 — offboarding console + resignation management */}
+          <Route path="lifecycle/offboarding" element={<OffboardingConsolePage />} />
+          <Route path="lifecycle/offboarding/resignations" element={<ResignationRequestPage />} />
+          <Route path="lifecycle/offboarding/resignations/new" element={<ResignationRequestPage />} />
 
           {/* Comp & Benefits */}
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />

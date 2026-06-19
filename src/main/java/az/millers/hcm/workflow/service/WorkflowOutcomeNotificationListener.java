@@ -95,6 +95,7 @@ public class WorkflowOutcomeNotificationListener {
         return switch (code) {
             case "LEAVE_REQUEST_APPROVAL"        -> "leave";
             case "BUSINESS_TRIP_APPROVAL"        -> "business trip";
+            case "RESIGNATION_APPROVAL"          -> "resignation";
             case "TERMINATION_APPROVAL"          -> "termination";
             case "CONTRACT_CHANGE_APPROVAL"      -> "contract change";
             case "PERFORMANCE_REVIEW_APPROVAL"   -> "performance review";

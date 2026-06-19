@@ -10,6 +10,7 @@ import az.millers.hcm.leave.repo.LeaveRequestRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
 import az.millers.hcm.lifecycle.repo.ContractChangeRepository;
+import az.millers.hcm.lifecycle.repo.ResignationRequestRepository;
 import az.millers.hcm.lifecycle.repo.TerminationRequestRepository;
 import az.millers.hcm.performance.repo.PerformanceReviewRepository;
 import az.millers.hcm.permission.repo.PermissionRequestRepository;
@@ -39,6 +40,7 @@ public class WorkflowSubjectResolver {
     private final PerformanceReviewRepository performanceReview;
     private final ChecklistTaskStatusRepository checklistTasks;
     private final ChecklistAssignmentRepository checklistAssignments;
+    private final ResignationRequestRepository resignations;
 
     public WorkflowSubjectResolver(LeaveRequestRepository leave,
                                     PermissionRequestRepository permission,
@@ -48,7 +50,8 @@ public class WorkflowSubjectResolver {
                                     ContractChangeRepository contractChange,
                                     PerformanceReviewRepository performanceReview,
                                     ChecklistTaskStatusRepository checklistTasks,
-                                    ChecklistAssignmentRepository checklistAssignments) {
+                                    ChecklistAssignmentRepository checklistAssignments,
+                                    ResignationRequestRepository resignations) {
         this.leave = leave;
         this.permission = permission;
         this.businessTrip = businessTrip;
@@ -58,6 +61,7 @@ public class WorkflowSubjectResolver {
         this.performanceReview = performanceReview;
         this.checklistTasks = checklistTasks;
         this.checklistAssignments = checklistAssignments;
+        this.resignations = resignations;
     }
 
     /**
@@ -79,6 +83,7 @@ public class WorkflowSubjectResolver {
             case "BusinessTripRequest" -> businessTrip.findById(subjectId).map(r -> r.getEmployeeId());
             case "Timesheet"           -> timesheet.findById(subjectId).map(r -> r.getEmployeeId());
             case "TerminationRequest"  -> termination.findById(subjectId).map(r -> r.getEmployeeId());
+            case "ResignationRequest"  -> resignations.findById(subjectId).map(r -> r.getEmployeeId());
             case "ContractChange"      -> contractChange.findById(subjectId).map(r -> r.getEmployeeId());
             case "PerformanceReview"   -> performanceReview.findById(subjectId).map(r -> r.getEmployeeId());
             // M309 — checklist task approval: task → assignment → employee.
@@ -95,8 +100,8 @@ public class WorkflowSubjectResolver {
     public boolean isEmployeeScoped(String entity) {
         return entity != null && switch (entity) {
             case "LeaveRequest", "PermissionRequest", "BusinessTripRequest",
-                 "Timesheet", "TerminationRequest", "ContractChange",
-                 "PerformanceReview", "ChecklistTaskStatus" -> true;
+                 "Timesheet", "TerminationRequest", "ResignationRequest",
+                 "ContractChange", "PerformanceReview", "ChecklistTaskStatus" -> true;
             default -> false;
         };
     }

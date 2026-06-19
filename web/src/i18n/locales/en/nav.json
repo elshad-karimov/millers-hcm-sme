@@ -85,7 +85,9 @@
       "onboardingAnalytics": "Analytics",
       "terminations": "Terminations",
       "contractChanges": "Contract changes",
-      "checklists": "Checklists"
+      "checklists": "Checklists",
+      "offboarding": "Offboarding",
+      "resignations": "Resignations"
     },
     "performance": {
       "cycles": "Review cycles",
