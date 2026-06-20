@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import az.millers.hcm.lifecycle.api.dto.OffboardingDtos.SettlementUpdateRequest;
 import az.millers.hcm.lifecycle.domain.OffboardingSettlement;
 import az.millers.hcm.lifecycle.domain.OffboardingSettlementComponent;
 import az.millers.hcm.lifecycle.domain.SettlementStatus;
+import az.millers.hcm.lifecycle.event.OffboardingSettlementApprovedEvent;
 import az.millers.hcm.lifecycle.repo.OffboardingCaseRepository;
 import az.millers.hcm.lifecycle.repo.OffboardingSettlementComponentRepository;
 import az.millers.hcm.lifecycle.repo.OffboardingSettlementRepository;
@@ -26,6 +28,7 @@ public class OffboardingSettlementService {
     private final OffboardingSettlementRepository settlementRepo;
     private final OffboardingSettlementComponentRepository componentRepo;
     private final OffboardingCaseRepository caseRepo;
+    private final ApplicationEventPublisher events;
 
     public Optional<OffboardingSettlement> findByCaseId(UUID caseId) {
         return settlementRepo.findByCaseId(caseId);
@@ -93,7 +96,14 @@ public class OffboardingSettlementService {
             s.setApprovedBy(actor);
             s.setApprovedAt(OffsetDateTime.now());
         }
-        return settlementRepo.save(s);
+        OffboardingSettlement saved = settlementRepo.save(s);
+        if (status == SettlementStatus.APPROVED) {
+            UUID caseId = saved.getCaseId();
+            caseRepo.findById(caseId).ifPresent(c ->
+                    events.publishEvent(new OffboardingSettlementApprovedEvent(
+                            caseId, c.getEmployeeId(), saved.getSettlementNo())));
+        }
+        return saved;
     }
 
     private void recalculate(OffboardingSettlement s) {

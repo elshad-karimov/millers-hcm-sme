@@ -33,6 +33,9 @@ public interface OffboardingCaseRepository extends JpaRepository<OffboardingCase
     List<OffboardingCase> findByLastWorkingDateBetweenAndCaseStatusIn(
             LocalDate from, LocalDate to, List<OffboardingCaseStatus> statuses);
 
+    List<OffboardingCase> findByLastWorkingDateBetweenAndCaseStatusNotIn(
+            LocalDate from, LocalDate to, List<OffboardingCaseStatus> excludedStatuses);
+
     /** Active = not yet completed/cancelled — used to guard duplicate case creation. */
     boolean existsByEmployeeIdAndCaseStatusNotIn(UUID employeeId, List<OffboardingCaseStatus> terminalStatuses);
 }
