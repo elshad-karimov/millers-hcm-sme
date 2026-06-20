@@ -1,18 +1,33 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, Card, Col, Drawer, Progress, Row, Select, Space, Statistic, Table, Tag, Typography, message
+  Button, Card, Col, Drawer, Progress, Row, Select, Space,
+  Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
-  getOffboardingCaseChecklist,
-  type AssignmentResponse, type OffboardingCaseResponse, type OffboardingCaseStatus,
+  getOffboardingCaseChecklist, listClearances, signOffClearance,
+  type AssignmentResponse, type ClearanceDepartment, type ClearanceResponse,
+  type ClearanceStatus, type OffboardingCaseResponse, type OffboardingCaseStatus,
   type OffboardingOverviewResponse, type PageResponse,
 } from '../api/offboarding'
 import { checklistsApi, TASK_STATUS_COLOR, type TaskStatusResponse } from '../api/checklists'
 
 const { Title } = Typography
+
+const CLEARANCE_STATUS_COLOR: Record<string, string> = {
+  NOT_STARTED: 'default',
+  IN_PROGRESS: 'processing',
+  CLEARED: 'green',
+  CLEARED_WITH_DEDUCTION: 'orange',
+  NOT_CLEARED: 'red',
+  WAIVED: 'purple',
+}
+
+const CLEARANCE_STATUSES: ClearanceStatus[] = [
+  'NOT_STARTED', 'IN_PROGRESS', 'CLEARED', 'CLEARED_WITH_DEDUCTION', 'NOT_CLEARED', 'WAIVED',
+]
 
 const STATUS_COLOR: Record<string, string> = {
   DRAFT: 'default',
@@ -61,6 +76,11 @@ export function OffboardingConsolePage() {
   const [checklistLoading, setChecklistLoading] = useState(false)
   const [updatingTask, setUpdatingTask] = useState<string | null>(null)
 
+  const [clearanceCase, setClearanceCase] = useState<OffboardingCaseResponse | null>(null)
+  const [clearances, setClearances] = useState<ClearanceResponse[]>([])
+  const [clearanceLoading, setClearanceLoading] = useState(false)
+  const [signingOff, setSigningOff] = useState<ClearanceDepartment | null>(null)
+
   const refresh = useCallback(() => setTick(t => t + 1), [])
 
   useEffect(() => {
@@ -74,6 +94,29 @@ export function OffboardingConsolePage() {
       .catch(() => message.error('Failed to load cases'))
       .finally(() => setLoading(false))
   }, [tick, page, statusFilter])
+
+  const openClearance = (c: OffboardingCaseResponse) => {
+    setClearanceCase(c)
+    setClearances([])
+    setClearanceLoading(true)
+    listClearances(c.id)
+      .then(setClearances)
+      .catch(() => message.error('Failed to load clearance data'))
+      .finally(() => setClearanceLoading(false))
+  }
+
+  const doSignOff = async (dept: ClearanceDepartment, status: ClearanceStatus, deductionAmount?: number, notes?: string) => {
+    if (!clearanceCase) return
+    setSigningOff(dept)
+    try {
+      const updated = await signOffClearance(clearanceCase.id, dept, { status, deductionAmount, notes })
+      setClearances(prev => prev.map(c => c.department === dept ? updated : c))
+    } catch {
+      message.error('Failed to update clearance')
+    } finally {
+      setSigningOff(null)
+    }
+  }
 
   const openChecklist = (c: OffboardingCaseResponse) => {
     setDrawerCase(c)
@@ -157,6 +200,13 @@ export function OffboardingConsolePage() {
               onClick={() => openChecklist(r)}
             >
               Checklist
+            </Button>
+            <Button
+              size="small"
+              icon={<ClearOutlined />}
+              onClick={() => openClearance(r)}
+            >
+              Clearance
             </Button>
             {next.map(s => (
               <Button
@@ -280,6 +330,65 @@ export function OffboardingConsolePage() {
         {!checklistLoading && !checklist && (
           <div style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>
             No exit checklist has been assigned to this case yet.
+          </div>
+        )}
+      </Drawer>
+
+      <Drawer
+        title={clearanceCase ? `Clearance — ${clearanceCase.caseNo}` : 'Clearance'}
+        open={clearanceCase !== null}
+        onClose={() => setClearanceCase(null)}
+        width={560}
+        loading={clearanceLoading}
+      >
+        {clearances.length > 0 && (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            {(() => {
+              const resolved = clearances.filter(c =>
+                ['CLEARED', 'CLEARED_WITH_DEDUCTION', 'WAIVED'].includes(c.status)).length
+              return (
+                <Progress
+                  percent={Math.round((resolved / clearances.length) * 100)}
+                  format={() => `${resolved}/${clearances.length}`}
+                  status={resolved === clearances.length ? 'success' : 'active'}
+                />
+              )
+            })()}
+            {clearances.map(row => (
+              <Card key={row.department} size="small"
+                style={{ borderLeft: `3px solid ${CLEARANCE_STATUS_COLOR[row.status] ?? '#d9d9d9'}` }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start">
+                  <Space direction="vertical" size={2}>
+                    <span style={{ fontWeight: 600 }}>{row.department}</span>
+                    <Tag color={CLEARANCE_STATUS_COLOR[row.status]}>{row.status.replace(/_/g, ' ')}</Tag>
+                    {row.clearedBy && (
+                      <span style={{ color: '#888', fontSize: 12 }}>
+                        by {row.clearedBy} · {row.clearedAt?.slice(0, 10)}
+                      </span>
+                    )}
+                    {row.deductionAmount != null && (
+                      <span style={{ color: '#fa541c', fontSize: 12 }}>
+                        Deduction: {row.deductionAmount} AZN
+                      </span>
+                    )}
+                    {row.notes && <span style={{ color: '#888', fontSize: 12 }}>{row.notes}</span>}
+                  </Space>
+                  <Select
+                    size="small"
+                    style={{ width: 160 }}
+                    value={row.status}
+                    loading={signingOff === row.department}
+                    onChange={status => doSignOff(row.department, status as ClearanceStatus)}
+                    options={CLEARANCE_STATUSES.map(s => ({ label: s.replace(/_/g, ' '), value: s }))}
+                  />
+                </Space>
+              </Card>
+            ))}
+          </Space>
+        )}
+        {!clearanceLoading && clearances.length === 0 && (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>
+            Clearance records will be created automatically when the case becomes active.
           </div>
         )}
       </Drawer>

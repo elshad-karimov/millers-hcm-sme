@@ -186,3 +186,44 @@ export async function updateNoticePeriodRule(id: string, req: NoticePeriodRuleRe
 export async function deleteNoticePeriodRule(id: string): Promise<void> {
   await api.delete(`/lifecycle/offboarding/notice-period-rules/${id}`)
 }
+
+// ── Clearance ─────────────────────────────────────────────────────────────────
+
+export type ClearanceDepartment =
+  | 'HR' | 'PAYROLL' | 'IT' | 'FINANCE' | 'ASSET' | 'FACILITIES' | 'LEGAL' | 'SECURITY' | 'MANAGER'
+
+export type ClearanceStatus =
+  | 'NOT_STARTED' | 'IN_PROGRESS' | 'CLEARED' | 'CLEARED_WITH_DEDUCTION' | 'NOT_CLEARED' | 'WAIVED'
+
+export interface ClearanceResponse {
+  id: string
+  caseId: string
+  department: ClearanceDepartment
+  status: ClearanceStatus
+  clearedBy?: string
+  clearedAt?: string
+  deductionAmount?: number
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ClearanceSignOffRequest {
+  status: ClearanceStatus
+  deductionAmount?: number
+  notes?: string
+}
+
+export async function listClearances(caseId: string): Promise<ClearanceResponse[]> {
+  const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/clearance`)
+  return res.data
+}
+
+export async function signOffClearance(
+  caseId: string,
+  department: ClearanceDepartment,
+  req: ClearanceSignOffRequest
+): Promise<ClearanceResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/clearance/${department}`, req)
+  return res.data
+}
