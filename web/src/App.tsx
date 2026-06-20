@@ -59,6 +59,7 @@ import { ChecklistsPage } from './pages/ChecklistsPage'
 import { OnboardingConsolePage } from './pages/OnboardingConsolePage'
 import { OnboardingRequestsPage } from './pages/OnboardingRequestsPage'
 import { OffboardingConsolePage } from './pages/OffboardingConsolePage'
+import { OffboardingAnalyticsPage } from './pages/OffboardingAnalyticsPage'
 import { ResignationRequestPage } from './pages/ResignationRequestPage'
 import { NoticePeriodRulesPage } from './pages/NoticePeriodRulesPage'
 import { ManagerOnboardingPage } from './pages/ManagerOnboardingPage'
@@ -402,6 +403,7 @@ export default function App() {
           <Route path="lifecycle/offboarding/resignations/new" element={<ResignationRequestPage />} />
           {/* M314 — notice period rules admin */}
           <Route path="lifecycle/offboarding/notice-period-rules" element={<NoticePeriodRulesPage />} />
+          <Route path="lifecycle/offboarding/analytics" element={<OffboardingAnalyticsPage />} />
 
           {/* Comp & Benefits */}
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />

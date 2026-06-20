@@ -228,4 +228,22 @@ public final class OffboardingDtos {
     public record RehireEligibilityRequest(
             Boolean rehireEligible, LocalDate rehireEligibleFrom, String rehireIneligibleReason
     ) {}
+
+    // ── Analytics (PRD §40) ───────────────────────────────────────────────────
+
+    public record CountByLabel(String label, long count) {}
+
+    public record MonthlyCount(String month, long count) {}
+
+    public record OffboardingReportResponse(
+            int totalCases,
+            int completedCases,
+            double avgNoticeDays,
+            double rehireEligiblePct,
+            java.math.BigDecimal totalGrossPaid,
+            java.math.BigDecimal totalNetPaid,
+            List<CountByLabel> bySource,
+            List<CountByLabel> byExitReason,
+            List<MonthlyCount> monthlyTrend
+    ) {}
 }
