@@ -44,6 +44,11 @@ export interface OffboardingCaseResponse {
   settlementDate?: string
   checklistAssignmentId?: string
   notes?: string
+  benefitsClosureStatus?: string
+  benefitsClosedAt?: string
+  rehireEligible?: boolean
+  rehireEligibleFrom?: string
+  rehireIneligibleReason?: string
   replacementRequired?: boolean
   replacementNotes?: string
   vacancyTriggeredAt?: string
@@ -434,5 +439,44 @@ export async function transitionSettlementStatus(
   const res = await api.post(`/lifecycle/offboarding/settlements/${settlementId}/status`, null, {
     params: { status }
   })
+  return res.data
+}
+
+// ── Benefits Closure + Rehire ─────────────────────────────────────────────────
+
+export interface BenefitsClosureResponse {
+  id: string; caseId: string; benefitType: string; description?: string
+  closureStatus: string; closedDate?: string; provider?: string
+  reference?: string; notes?: string
+  createdAt: string; updatedAt: string
+}
+
+export interface BenefitsClosureUpdateRequest {
+  closureStatus?: string; closedDate?: string; provider?: string
+  reference?: string; notes?: string
+}
+
+export interface RehireEligibilityRequest {
+  rehireEligible?: boolean
+  rehireEligibleFrom?: string
+  rehireIneligibleReason?: string
+}
+
+export async function listBenefitsClosure(caseId: string): Promise<BenefitsClosureResponse[]> {
+  const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/benefits`)
+  return res.data
+}
+
+export async function updateBenefitsClosure(
+  benefitId: string, req: BenefitsClosureUpdateRequest
+): Promise<BenefitsClosureResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/benefits/${benefitId}`, req)
+  return res.data
+}
+
+export async function updateRehireEligibility(
+  caseId: string, req: RehireEligibilityRequest
+): Promise<OffboardingCaseResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/rehire-eligibility`, req)
   return res.data
 }

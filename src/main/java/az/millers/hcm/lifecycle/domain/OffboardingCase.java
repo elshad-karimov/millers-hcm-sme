@@ -67,6 +67,24 @@ public class OffboardingCase {
     @Column(columnDefinition = "text")
     private String notes;
 
+    @Column(name = "benefits_closure_status", length = 30)
+    private String benefitsClosureStatus = "PENDING";
+
+    @Column(name = "benefits_closure_notes", columnDefinition = "text")
+    private String benefitsClosureNotes;
+
+    @Column(name = "benefits_closed_at")
+    private OffsetDateTime benefitsClosedAt;
+
+    @Column(name = "rehire_eligible")
+    private Boolean rehireEligible = true;
+
+    @Column(name = "rehire_eligible_from")
+    private java.time.LocalDate rehireEligibleFrom;
+
+    @Column(name = "rehire_ineligible_reason", columnDefinition = "text")
+    private String rehireIneligibleReason;
+
     @Column(name = "replacement_required")
     private Boolean replacementRequired = false;
 

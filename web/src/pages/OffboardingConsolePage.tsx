@@ -3,7 +3,7 @@ import {
   Button, Card, Col, Drawer, Input, Progress, Row, Select, Space,
   Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, ClearOutlined, CommentOutlined, DeploymentUnitOutlined, DollarOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, CommentOutlined, DeploymentUnitOutlined, DollarOutlined, GiftOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
@@ -12,9 +12,10 @@ import {
   listHandoverTasks, createHandoverTask, updateHandoverTask,
   getExitInterview, saveExitInterview,
   getOrCreateSettlement, addSettlementComponent, deleteSettlementComponent,
-  transitionSettlementStatus,
+  transitionSettlementStatus, listBenefitsClosure, updateBenefitsClosure,
   type AssignmentResponse, type AssetReturnResponse, type AssetReturnStatus,
-  type AssetReturnUpdateRequest, type ClearanceDepartment, type ClearanceResponse,
+  type AssetReturnUpdateRequest, type BenefitsClosureResponse, type BenefitsClosureUpdateRequest,
+  type ClearanceDepartment, type ClearanceResponse,
   type ClearanceStatus, type ExitInterviewRequest, type ExitInterviewResponse,
   type HandoverStatus, type HandoverTaskResponse,
   type ItAccessResponse, type ItAccessStatus, type ItAccessUpdateRequest,
@@ -101,6 +102,11 @@ export function OffboardingConsolePage() {
   const [itLoading, setItLoading] = useState(false)
   const [updatingIt, setUpdatingIt] = useState<string | null>(null)
 
+  const [benefitsCase, setBenefitsCase] = useState<OffboardingCaseResponse | null>(null)
+  const [benefits, setBenefits] = useState<BenefitsClosureResponse[]>([])
+  const [benefitsLoading, setBenefitsLoading] = useState(false)
+  const [updatingBenefit, setUpdatingBenefit] = useState<string | null>(null)
+
   const [settlementCase, setSettlementCase] = useState<OffboardingCaseResponse | null>(null)
   const [settlement, setSettlement] = useState<SettlementResponse | null>(null)
   const [settlementLoading, setSettlementLoading] = useState(false)
@@ -178,6 +184,28 @@ export function OffboardingConsolePage() {
       message.error('Failed to update IT access')
     } finally {
       setUpdatingIt(null)
+    }
+  }
+
+  const openBenefits = (c: OffboardingCaseResponse) => {
+    setBenefitsCase(c)
+    setBenefits([])
+    setBenefitsLoading(true)
+    listBenefitsClosure(c.id)
+      .then(setBenefits)
+      .catch(() => message.error('Failed to load benefits'))
+      .finally(() => setBenefitsLoading(false))
+  }
+
+  const doUpdateBenefit = async (benefitId: string, req: BenefitsClosureUpdateRequest) => {
+    setUpdatingBenefit(benefitId)
+    try {
+      const updated = await updateBenefitsClosure(benefitId, req)
+      setBenefits(prev => prev.map(b => b.id === benefitId ? updated : b))
+    } catch {
+      message.error('Failed to update benefit')
+    } finally {
+      setUpdatingBenefit(null)
     }
   }
 
@@ -423,6 +451,13 @@ export function OffboardingConsolePage() {
             </Button>
             <Button
               size="small"
+              icon={<GiftOutlined />}
+              onClick={() => openBenefits(r)}
+            >
+              Benefits
+            </Button>
+            <Button
+              size="small"
               icon={<DollarOutlined />}
               onClick={() => openSettlement(r)}
             >
@@ -520,6 +555,49 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={benefitsCase ? `Benefits Closure — ${benefitsCase.caseNo}` : 'Benefits Closure'}
+        open={benefitsCase !== null}
+        onClose={() => setBenefitsCase(null)}
+        width={520}
+        loading={benefitsLoading}
+      >
+        {benefits.length > 0 && (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {benefits.map(b => (
+              <Card key={b.id} size="small"
+                style={{ borderLeft: `3px solid ${b.closureStatus === 'CLOSED' ? '#52c41a' : b.closureStatus === 'NOT_APPLICABLE' ? '#d9d9d9' : '#faad14'}` }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start">
+                  <Space direction="vertical" size={2}>
+                    <span style={{ fontWeight: 600 }}>{b.benefitType.replace(/_/g, ' ')}</span>
+                    {b.closedDate && <span style={{ color: '#888', fontSize: 12 }}>Closed: {b.closedDate}</span>}
+                    {b.provider && <span style={{ color: '#888', fontSize: 12 }}>Provider: {b.provider}</span>}
+                    <Tag color={b.closureStatus === 'CLOSED' ? 'green' : b.closureStatus === 'NOT_APPLICABLE' ? 'default' : 'orange'}>
+                      {b.closureStatus.replace(/_/g, ' ')}
+                    </Tag>
+                  </Space>
+                  <Select
+                    size="small"
+                    style={{ width: 150 }}
+                    value={b.closureStatus}
+                    loading={updatingBenefit === b.id}
+                    onChange={v => doUpdateBenefit(b.id, { closureStatus: v })}
+                    options={['PENDING','IN_PROGRESS','CLOSED','NOT_APPLICABLE'].map(s => ({
+                      label: s.replace(/_/g, ' '), value: s
+                    }))}
+                  />
+                </Space>
+              </Card>
+            ))}
+          </Space>
+        )}
+        {!benefitsLoading && benefits.length === 0 && (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>
+            Benefits closure items are created automatically when the case becomes active.
+          </div>
+        )}
+      </Drawer>
+
       <Drawer
         title={settlementCase ? `Final Settlement — ${settlementCase.caseNo}` : 'Final Settlement'}
         open={settlementCase !== null}

@@ -9,6 +9,7 @@ import java.util.UUID;
 import az.millers.hcm.lifecycle.domain.AssetReturnStatus;
 import az.millers.hcm.lifecycle.domain.HandoverStatus;
 import az.millers.hcm.lifecycle.domain.ItAccessStatus;
+import az.millers.hcm.lifecycle.domain.OffboardingBenefitsClosure;
 import az.millers.hcm.lifecycle.domain.OffboardingHandoverTask;
 import az.millers.hcm.lifecycle.domain.OffboardingItAccess;
 import az.millers.hcm.lifecycle.domain.OffboardingSettlement;
@@ -26,26 +27,15 @@ public final class OffboardingDtos {
     private OffboardingDtos() {}
 
     public record OffboardingCaseResponse(
-            UUID id,
-            String caseNo,
-            UUID employeeId,
-            OffboardingSource source,
-            UUID resignationId,
-            UUID terminationId,
-            String exitReason,
-            OffboardingCaseStatus caseStatus,
-            String caseOwner,
-            LocalDate lastWorkingDate,
-            LocalDate accessRemovalDate,
-            LocalDate settlementDate,
-            UUID checklistAssignmentId,
-            String notes,
-            Boolean replacementRequired,
-            String replacementNotes,
-            OffsetDateTime vacancyTriggeredAt,
-            String createdBy,
-            OffsetDateTime createdAt,
-            OffsetDateTime updatedAt
+            UUID id, String caseNo, UUID employeeId, OffboardingSource source,
+            UUID resignationId, UUID terminationId, String exitReason,
+            OffboardingCaseStatus caseStatus, String caseOwner,
+            LocalDate lastWorkingDate, LocalDate accessRemovalDate, LocalDate settlementDate,
+            UUID checklistAssignmentId, String notes,
+            String benefitsClosureStatus, OffsetDateTime benefitsClosedAt,
+            Boolean rehireEligible, LocalDate rehireEligibleFrom, String rehireIneligibleReason,
+            Boolean replacementRequired, String replacementNotes, OffsetDateTime vacancyTriggeredAt,
+            String createdBy, OffsetDateTime createdAt, OffsetDateTime updatedAt
     ) {
         public static OffboardingCaseResponse from(OffboardingCase c) {
             return new OffboardingCaseResponse(
@@ -53,8 +43,10 @@ public final class OffboardingDtos {
                     c.getResignationId(), c.getTerminationId(), c.getExitReason(),
                     c.getCaseStatus(), c.getCaseOwner(), c.getLastWorkingDate(),
                     c.getAccessRemovalDate(), c.getSettlementDate(), c.getChecklistAssignmentId(),
-                    c.getNotes(), c.getReplacementRequired(), c.getReplacementNotes(),
-                    c.getVacancyTriggeredAt(), c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedAt());
+                    c.getNotes(), c.getBenefitsClosureStatus(), c.getBenefitsClosedAt(),
+                    c.getRehireEligible(), c.getRehireEligibleFrom(), c.getRehireIneligibleReason(),
+                    c.getReplacementRequired(), c.getReplacementNotes(), c.getVacancyTriggeredAt(),
+                    c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedAt());
         }
     }
 
@@ -213,5 +205,27 @@ public final class OffboardingDtos {
     public record SettlementComponentRequest(
             String componentType, String description,
             BigDecimal amount, Boolean isDeduction, String calculationBasis
+    ) {}
+
+    public record BenefitsClosureResponse(
+            UUID id, UUID caseId, String benefitType, String description,
+            String closureStatus, LocalDate closedDate, String provider,
+            String reference, String notes, OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        public static BenefitsClosureResponse from(OffboardingBenefitsClosure b) {
+            return new BenefitsClosureResponse(
+                    b.getId(), b.getCaseId(), b.getBenefitType(), b.getDescription(),
+                    b.getClosureStatus(), b.getClosedDate(), b.getProvider(),
+                    b.getReference(), b.getNotes(), b.getCreatedAt(), b.getUpdatedAt());
+        }
+    }
+
+    public record BenefitsClosureUpdateRequest(
+            String closureStatus, LocalDate closedDate, String provider,
+            String reference, String notes
+    ) {}
+
+    public record RehireEligibilityRequest(
+            Boolean rehireEligible, LocalDate rehireEligibleFrom, String rehireIneligibleReason
     ) {}
 }
