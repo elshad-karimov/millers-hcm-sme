@@ -3,16 +3,18 @@ import {
   Button, Card, Col, Drawer, Input, Progress, Row, Select, Space,
   Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, ClearOutlined, DeploymentUnitOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, CommentOutlined, DeploymentUnitOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
   getOffboardingCaseChecklist, listClearances, signOffClearance,
   listAssetReturns, updateAssetReturn, listItAccess, updateItAccess,
   listHandoverTasks, createHandoverTask, updateHandoverTask,
+  getExitInterview, saveExitInterview,
   type AssignmentResponse, type AssetReturnResponse, type AssetReturnStatus,
   type AssetReturnUpdateRequest, type ClearanceDepartment, type ClearanceResponse,
-  type ClearanceStatus, type HandoverStatus, type HandoverTaskResponse,
+  type ClearanceStatus, type ExitInterviewRequest, type ExitInterviewResponse,
+  type HandoverStatus, type HandoverTaskResponse,
   type ItAccessResponse, type ItAccessStatus, type ItAccessUpdateRequest,
   type OffboardingCaseResponse, type OffboardingCaseStatus,
   type OffboardingOverviewResponse, type PageResponse,
@@ -96,6 +98,12 @@ export function OffboardingConsolePage() {
   const [itLoading, setItLoading] = useState(false)
   const [updatingIt, setUpdatingIt] = useState<string | null>(null)
 
+  const [exitCase, setExitCase] = useState<OffboardingCaseResponse | null>(null)
+  const [exitInterview, setExitInterview] = useState<ExitInterviewResponse | null>(null)
+  const [exitLoading, setExitLoading] = useState(false)
+  const [savingExit, setSavingExit] = useState(false)
+  const [exitForm, setExitForm] = useState<ExitInterviewRequest>({})
+
   const [handoverCase, setHandoverCase] = useState<OffboardingCaseResponse | null>(null)
   const [handoverTasks, setHandoverTasks] = useState<HandoverTaskResponse[]>([])
   const [handoverLoading, setHandoverLoading] = useState(false)
@@ -160,6 +168,39 @@ export function OffboardingConsolePage() {
       message.error('Failed to update IT access')
     } finally {
       setUpdatingIt(null)
+    }
+  }
+
+  const openExitInterview = async (c: OffboardingCaseResponse) => {
+    setExitCase(c)
+    setExitInterview(null)
+    setExitForm({})
+    setExitLoading(true)
+    const ei = await getExitInterview(c.id)
+    if (ei) {
+      setExitInterview(ei)
+      setExitForm({
+        overallRating: ei.overallRating, wouldRecommend: ei.wouldRecommend,
+        reasonForLeaving: ei.reasonForLeaving, feedback: ei.feedback,
+        improvementSuggestions: ei.improvementSuggestions,
+        conductedBy: ei.conductedBy, interviewMode: ei.interviewMode,
+        followUpRequired: ei.followUpRequired, followUpNotes: ei.followUpNotes,
+      })
+    }
+    setExitLoading(false)
+  }
+
+  const doSaveExitInterview = async () => {
+    if (!exitCase) return
+    setSavingExit(true)
+    try {
+      const saved = await saveExitInterview(exitCase.id, exitForm)
+      setExitInterview(saved)
+      message.success('Exit interview saved')
+    } catch {
+      message.error('Failed to save exit interview')
+    } finally {
+      setSavingExit(false)
     }
   }
 
@@ -321,6 +362,13 @@ export function OffboardingConsolePage() {
             </Button>
             <Button
               size="small"
+              icon={<CommentOutlined />}
+              onClick={() => openExitInterview(r)}
+            >
+              Exit Interview
+            </Button>
+            <Button
+              size="small"
               icon={<DeploymentUnitOutlined />}
               onClick={() => openHandover(r)}
             >
@@ -404,6 +452,87 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={exitCase ? `Exit Interview — ${exitCase.caseNo}` : 'Exit Interview'}
+        open={exitCase !== null}
+        onClose={() => setExitCase(null)}
+        width={520}
+        loading={exitLoading}
+        extra={
+          <Button type="primary" loading={savingExit} onClick={doSaveExitInterview}>
+            Save
+          </Button>
+        }
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          {exitInterview && (
+            <Tag color="green">Recorded — {exitInterview.conductedAt?.slice(0, 10)}</Tag>
+          )}
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Conducted By</div>
+            <Input
+              value={exitForm.conductedBy ?? ''}
+              onChange={e => setExitForm(f => ({ ...f, conductedBy: e.target.value }))}
+              placeholder="Interviewer name"
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Interview Mode</div>
+            <Select
+              style={{ width: '100%' }}
+              value={exitForm.interviewMode}
+              onChange={v => setExitForm(f => ({ ...f, interviewMode: v }))}
+              allowClear
+              options={['IN_PERSON', 'VIDEO', 'PHONE', 'WRITTEN'].map(s => ({ label: s.replace(/_/g, ' '), value: s }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Overall Rating (1–5)</div>
+            <Select
+              style={{ width: '100%' }}
+              value={exitForm.overallRating}
+              onChange={v => setExitForm(f => ({ ...f, overallRating: v }))}
+              allowClear
+              options={[1, 2, 3, 4, 5].map(n => ({ label: `${n} — ${['Very Poor', 'Poor', 'Average', 'Good', 'Excellent'][n - 1]}`, value: n }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Would Recommend?</div>
+            <Select
+              style={{ width: '100%' }}
+              value={exitForm.wouldRecommend}
+              onChange={v => setExitForm(f => ({ ...f, wouldRecommend: v }))}
+              allowClear
+              options={[{ label: 'Yes', value: true }, { label: 'No', value: false }]}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Reason for Leaving</div>
+            <Input.TextArea
+              rows={3}
+              value={exitForm.reasonForLeaving ?? ''}
+              onChange={e => setExitForm(f => ({ ...f, reasonForLeaving: e.target.value }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Feedback</div>
+            <Input.TextArea
+              rows={3}
+              value={exitForm.feedback ?? ''}
+              onChange={e => setExitForm(f => ({ ...f, feedback: e.target.value }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, fontWeight: 500 }}>Improvement Suggestions</div>
+            <Input.TextArea
+              rows={3}
+              value={exitForm.improvementSuggestions ?? ''}
+              onChange={e => setExitForm(f => ({ ...f, improvementSuggestions: e.target.value }))}
+            />
+          </div>
+        </Space>
+      </Drawer>
+
       <Drawer
         title={handoverCase ? `Knowledge Handover — ${handoverCase.caseNo}` : 'Knowledge Handover'}
         open={handoverCase !== null}

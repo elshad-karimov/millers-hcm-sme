@@ -343,3 +343,37 @@ export async function updateReplacement(
   const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/replacement`, req)
   return res.data
 }
+
+// ── Exit Interview ────────────────────────────────────────────────────────────
+
+export interface ExitInterviewResponse {
+  id: string; terminationId?: string; caseId?: string
+  conductedAt?: string; conductedBy?: string
+  overallRating?: number; wouldRecommend?: boolean
+  reasonForLeaving?: string; feedback?: string; improvementSuggestions?: string
+  interviewMode?: string; interviewDate?: string
+  followUpRequired?: boolean; followUpNotes?: string
+}
+
+export interface ExitInterviewRequest {
+  overallRating?: number; wouldRecommend?: boolean
+  reasonForLeaving?: string; feedback?: string; improvementSuggestions?: string
+  conductedBy?: string; interviewMode?: string; interviewDate?: string
+  followUpRequired?: boolean; followUpNotes?: string
+}
+
+export async function getExitInterview(caseId: string): Promise<ExitInterviewResponse | null> {
+  try {
+    const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/exit-interview`)
+    return res.data
+  } catch {
+    return null
+  }
+}
+
+export async function saveExitInterview(
+  caseId: string, req: ExitInterviewRequest
+): Promise<ExitInterviewResponse> {
+  const res = await api.post(`/lifecycle/offboarding/cases/${caseId}/exit-interview`, req)
+  return res.data
+}

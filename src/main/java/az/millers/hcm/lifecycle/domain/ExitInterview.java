@@ -23,8 +23,23 @@ public class ExitInterview {
     @Id
     private UUID id;
 
-    @Column(name = "termination_id", nullable = false, unique = true)
+    @Column(name = "termination_id", unique = true)
     private UUID terminationId;
+
+    @Column(name = "case_id", unique = true)
+    private UUID caseId;
+
+    @Column(name = "interview_mode", length = 30)
+    private String interviewMode;
+
+    @Column(name = "interview_date")
+    private java.time.LocalDate interviewDate;
+
+    @Column(name = "follow_up_required")
+    private Boolean followUpRequired = false;
+
+    @Column(name = "follow_up_notes", columnDefinition = "text")
+    private String followUpNotes;
 
     @Column(name = "conducted_at")
     private OffsetDateTime conductedAt;

@@ -10,4 +10,6 @@ import az.millers.hcm.lifecycle.domain.ExitInterview;
 public interface ExitInterviewRepository extends JpaRepository<ExitInterview, UUID> {
 
     Optional<ExitInterview> findByTerminationId(UUID terminationId);
+
+    Optional<ExitInterview> findByCaseId(UUID caseId);
 }
