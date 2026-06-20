@@ -3,15 +3,16 @@ import {
   Button, Card, Col, Drawer, Progress, Row, Select, Space,
   Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, ClearOutlined, InboxOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
   getOffboardingCaseChecklist, listClearances, signOffClearance,
-  listAssetReturns, updateAssetReturn,
+  listAssetReturns, updateAssetReturn, listItAccess, updateItAccess,
   type AssignmentResponse, type AssetReturnResponse, type AssetReturnStatus,
   type AssetReturnUpdateRequest, type ClearanceDepartment, type ClearanceResponse,
-  type ClearanceStatus, type OffboardingCaseResponse, type OffboardingCaseStatus,
+  type ClearanceStatus, type ItAccessResponse, type ItAccessStatus,
+  type ItAccessUpdateRequest, type OffboardingCaseResponse, type OffboardingCaseStatus,
   type OffboardingOverviewResponse, type PageResponse,
 } from '../api/offboarding'
 import { checklistsApi, TASK_STATUS_COLOR, type TaskStatusResponse } from '../api/checklists'
@@ -88,6 +89,11 @@ export function OffboardingConsolePage() {
   const [assetLoading, setAssetLoading] = useState(false)
   const [updatingAsset, setUpdatingAsset] = useState<string | null>(null)
 
+  const [itCase, setItCase] = useState<OffboardingCaseResponse | null>(null)
+  const [itAccess, setItAccess] = useState<ItAccessResponse[]>([])
+  const [itLoading, setItLoading] = useState(false)
+  const [updatingIt, setUpdatingIt] = useState<string | null>(null)
+
   const refresh = useCallback(() => setTick(t => t + 1), [])
 
   useEffect(() => {
@@ -122,6 +128,29 @@ export function OffboardingConsolePage() {
       message.error('Failed to update asset return')
     } finally {
       setUpdatingAsset(null)
+    }
+  }
+
+  const openItAccess = (c: OffboardingCaseResponse) => {
+    setItCase(c)
+    setItAccess([])
+    setItLoading(true)
+    listItAccess(c.id)
+      .then(setItAccess)
+      .catch(() => message.error('Failed to load IT access data'))
+      .finally(() => setItLoading(false))
+  }
+
+  const doUpdateIt = async (accessId: string, req: ItAccessUpdateRequest) => {
+    if (!itCase) return
+    setUpdatingIt(accessId)
+    try {
+      const updated = await updateItAccess(itCase.id, accessId, req)
+      setItAccess(prev => prev.map(r => r.id === accessId ? updated : r))
+    } catch {
+      message.error('Failed to update IT access')
+    } finally {
+      setUpdatingIt(null)
     }
   }
 
@@ -240,6 +269,13 @@ export function OffboardingConsolePage() {
             </Button>
             <Button
               size="small"
+              icon={<LaptopOutlined />}
+              onClick={() => openItAccess(r)}
+            >
+              IT Access
+            </Button>
+            <Button
+              size="small"
               icon={<ClearOutlined />}
               onClick={() => openClearance(r)}
             >
@@ -316,6 +352,48 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={itCase ? `IT Access Removal — ${itCase.caseNo}` : 'IT Access Removal'}
+        open={itCase !== null}
+        onClose={() => setItCase(null)}
+        width={520}
+        loading={itLoading}
+      >
+        {itAccess.length > 0 && (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {itAccess.map(row => (
+              <Card key={row.id} size="small"
+                style={{ borderLeft: `3px solid ${row.accessStatus === 'REMOVED' ? '#52c41a' : row.accessStatus === 'IN_PROGRESS' ? '#1677ff' : '#d9d9d9'}` }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start">
+                  <Space direction="vertical" size={2}>
+                    <span style={{ fontWeight: 600 }}>{row.displayLabel}</span>
+                    <Tag color={row.accessStatus === 'REMOVED' ? 'green' : row.accessStatus === 'IN_PROGRESS' ? 'processing' : 'default'}>
+                      {row.accessStatus.replace(/_/g, ' ')}
+                    </Tag>
+                    {row.handledBy && <span style={{ color: '#888', fontSize: 12 }}>By: {row.handledBy}</span>}
+                    {row.reference && <span style={{ color: '#888', fontSize: 12 }}>Ref: {row.reference}</span>}
+                  </Space>
+                  <Select
+                    size="small"
+                    style={{ width: 150 }}
+                    value={row.accessStatus}
+                    loading={updatingIt === row.id}
+                    onChange={(status: ItAccessStatus) => doUpdateIt(row.id, { accessStatus: status })}
+                    options={(['PENDING','IN_PROGRESS','REMOVED','KEPT_TEMPORARILY','NOT_APPLICABLE','WAIVED'] as ItAccessStatus[])
+                      .map(s => ({ label: s.replace(/_/g, ' '), value: s }))}
+                  />
+                </Space>
+              </Card>
+            ))}
+          </Space>
+        )}
+        {!itLoading && itAccess.length === 0 && (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>
+            IT access rows are created automatically when the case becomes active.
+          </div>
+        )}
+      </Drawer>
+
       <Drawer
         title={assetCase ? `Asset Returns — ${assetCase.caseNo}` : 'Asset Returns'}
         open={assetCase !== null}

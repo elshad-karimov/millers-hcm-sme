@@ -258,3 +258,32 @@ export async function updateAssetReturn(
   const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/assets/${returnId}`, req)
   return res.data
 }
+
+// ── IT Access Removal ─────────────────────────────────────────────────────────
+
+export type ItAccessStatus =
+  | 'PENDING' | 'IN_PROGRESS' | 'REMOVED' | 'KEPT_TEMPORARILY' | 'NOT_APPLICABLE' | 'WAIVED'
+
+export interface ItAccessResponse {
+  id: string; caseId: string; accessType: string; displayLabel: string
+  accessStatus: ItAccessStatus; removalDate?: string
+  handledBy?: string; reference?: string; notes?: string
+  createdAt: string; updatedAt: string
+}
+
+export interface ItAccessUpdateRequest {
+  accessStatus?: ItAccessStatus; removalDate?: string
+  handledBy?: string; reference?: string; notes?: string
+}
+
+export async function listItAccess(caseId: string): Promise<ItAccessResponse[]> {
+  const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/it-access`)
+  return res.data
+}
+
+export async function updateItAccess(
+  caseId: string, accessId: string, req: ItAccessUpdateRequest
+): Promise<ItAccessResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/it-access/${accessId}`, req)
+  return res.data
+}

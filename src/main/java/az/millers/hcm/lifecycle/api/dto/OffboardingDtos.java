@@ -9,6 +9,8 @@ import java.util.UUID;
 import java.time.LocalDate;
 
 import az.millers.hcm.lifecycle.domain.AssetReturnStatus;
+import az.millers.hcm.lifecycle.domain.ItAccessStatus;
+import az.millers.hcm.lifecycle.domain.OffboardingItAccess;
 import az.millers.hcm.lifecycle.domain.ClearanceDepartment;
 import az.millers.hcm.lifecycle.domain.ClearanceStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingAssetReturn;
@@ -105,6 +107,29 @@ public final class OffboardingDtos {
             LocalDate returnDate,
             String conditionAtReturn,
             BigDecimal deductionAmount,
+            String notes
+    ) {}
+
+    public record ItAccessResponse(
+            UUID id, UUID caseId, String accessType, String displayLabel,
+            ItAccessStatus accessStatus, LocalDate removalDate,
+            String handledBy, String reference, String notes,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        public static ItAccessResponse from(OffboardingItAccess a) {
+            return new ItAccessResponse(
+                    a.getId(), a.getCaseId(), a.getAccessType(), a.getDisplayLabel(),
+                    a.getAccessStatus(), a.getRemovalDate(),
+                    a.getHandledBy(), a.getReference(), a.getNotes(),
+                    a.getCreatedAt(), a.getUpdatedAt());
+        }
+    }
+
+    public record ItAccessUpdateRequest(
+            ItAccessStatus accessStatus,
+            LocalDate removalDate,
+            String handledBy,
+            String reference,
             String notes
     ) {}
 }
