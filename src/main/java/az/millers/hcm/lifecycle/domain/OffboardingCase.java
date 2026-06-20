@@ -61,6 +61,9 @@ public class OffboardingCase {
     @Column(name = "settlement_date")
     private LocalDate settlementDate;
 
+    @Column(name = "checklist_assignment_id")
+    private UUID checklistAssignmentId;
+
     @Column(columnDefinition = "text")
     private String notes;
 

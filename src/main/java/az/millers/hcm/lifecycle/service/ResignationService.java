@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import az.millers.hcm.lifecycle.domain.OffboardingCaseStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingSource;
 import az.millers.hcm.lifecycle.domain.ResignationRequest;
 import az.millers.hcm.lifecycle.domain.ResignationStatus;
+import az.millers.hcm.lifecycle.event.OffboardingCaseActivatedEvent;
 import az.millers.hcm.lifecycle.repo.OffboardingCaseRepository;
 import az.millers.hcm.lifecycle.repo.ResignationRequestRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -52,6 +54,7 @@ public class ResignationService {
     private final NoticePeriodService noticePeriod;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher events;
 
     public ResignationService(ResignationRequestRepository resignations,
                                OffboardingCaseRepository offboardingCases,
@@ -59,7 +62,8 @@ public class ResignationService {
                                WorkflowService workflowService,
                                NoticePeriodService noticePeriod,
                                AuditService audit,
-                               CurrentRequest currentRequest) {
+                               CurrentRequest currentRequest,
+                               ApplicationEventPublisher events) {
         this.resignations = resignations;
         this.offboardingCases = offboardingCases;
         this.employees = employees;
@@ -67,6 +71,7 @@ public class ResignationService {
         this.noticePeriod = noticePeriod;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -164,7 +169,8 @@ public class ResignationService {
         offboardingCases.findByResignationId(id).ifPresent(c -> {
             c.setCaseStatus(OffboardingCaseStatus.IN_PROGRESS);
             c.setLastWorkingDate(saved.getApprovedLastWorkingDate());
-            offboardingCases.save(c);
+            OffboardingCase savedCase = offboardingCases.save(c);
+            events.publishEvent(new OffboardingCaseActivatedEvent(savedCase.getId(), savedCase.getEmployeeId()));
         });
         audit.record(MODULE, ENTITY, id.toString(), "APPROVED", null,
                 Map.of("comment", comment == null ? "" : comment));

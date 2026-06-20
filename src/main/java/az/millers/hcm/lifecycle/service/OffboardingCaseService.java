@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,7 @@ import az.millers.hcm.lifecycle.domain.OffboardingCase;
 import az.millers.hcm.lifecycle.domain.OffboardingCaseStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingSource;
 import az.millers.hcm.lifecycle.domain.TerminationRequest;
+import az.millers.hcm.lifecycle.event.OffboardingCaseActivatedEvent;
 import az.millers.hcm.lifecycle.repo.OffboardingCaseRepository;
 import az.millers.hcm.lifecycle.repo.TerminationRequestRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -39,15 +41,18 @@ public class OffboardingCaseService {
     private final TerminationRequestRepository terminations;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher events;
 
     public OffboardingCaseService(OffboardingCaseRepository cases,
                                    TerminationRequestRepository terminations,
                                    AuditService audit,
-                                   CurrentRequest currentRequest) {
+                                   CurrentRequest currentRequest,
+                                   ApplicationEventPublisher events) {
         this.cases = cases;
         this.terminations = terminations;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +118,8 @@ public class OffboardingCaseService {
         c.setLastWorkingDate(t.getLastWorkingDate());
         c.setCaseStatus(OffboardingCaseStatus.IN_PROGRESS);
         c.setCreatedBy("system");
-        cases.save(c);
+        OffboardingCase saved = cases.save(c);
+        events.publishEvent(new OffboardingCaseActivatedEvent(saved.getId(), saved.getEmployeeId()));
         log.info("Created offboarding case {} for termination {}", c.getCaseNo(), terminationId);
     }
 }

@@ -3,6 +3,7 @@ package az.millers.hcm.lifecycle.api;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -12,9 +13,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.common.PageResponse;
+import az.millers.hcm.lifecycle.api.dto.ChecklistDtos.AssignmentResponse;
 import az.millers.hcm.lifecycle.api.dto.OffboardingDtos.OffboardingCaseResponse;
 import az.millers.hcm.lifecycle.api.dto.OffboardingDtos.OffboardingOverviewResponse;
+import az.millers.hcm.lifecycle.domain.OffboardingCase;
 import az.millers.hcm.lifecycle.domain.OffboardingCaseStatus;
+import az.millers.hcm.lifecycle.service.ChecklistService;
 import az.millers.hcm.lifecycle.service.OffboardingCaseService;
 import az.millers.hcm.security.SecurityRoles;
 
@@ -23,9 +27,11 @@ import az.millers.hcm.security.SecurityRoles;
 public class OffboardingCaseController {
 
     private final OffboardingCaseService service;
+    private final ChecklistService checklists;
 
-    public OffboardingCaseController(OffboardingCaseService service) {
+    public OffboardingCaseController(OffboardingCaseService service, ChecklistService checklists) {
         this.service = service;
+        this.checklists = checklists;
     }
 
     @GetMapping("/overview")
@@ -49,6 +55,14 @@ public class OffboardingCaseController {
     @PreAuthorize(SecurityRoles.READ_HR)
     public OffboardingCaseResponse get(@PathVariable UUID id) {
         return OffboardingCaseResponse.from(service.get(id));
+    }
+
+    @GetMapping("/{id}/checklist")
+    @PreAuthorize(SecurityRoles.READ_HR)
+    public ResponseEntity<AssignmentResponse> getChecklist(@PathVariable UUID id) {
+        OffboardingCase c = service.get(id);
+        if (c.getChecklistAssignmentId() == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(checklists.getAssignment(c.getChecklistAssignmentId()));
     }
 
     @PatchMapping("/{id}/status")

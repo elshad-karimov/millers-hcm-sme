@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, Card, Col, Row, Select, Space, Statistic, Table, Tag, Typography, message
+  Button, Card, Col, Drawer, Progress, Row, Select, Space, Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
-  type OffboardingCaseResponse, type OffboardingCaseStatus, type OffboardingOverviewResponse,
-  type PageResponse,
+  getOffboardingCaseChecklist,
+  type AssignmentResponse, type OffboardingCaseResponse, type OffboardingCaseStatus,
+  type OffboardingOverviewResponse, type PageResponse,
 } from '../api/offboarding'
+import { checklistsApi, TASK_STATUS_COLOR, type TaskStatusResponse } from '../api/checklists'
 
 const { Title } = Typography
 
@@ -54,6 +56,10 @@ export function OffboardingConsolePage() {
   const [page, setPage] = useState(0)
   const [statusFilter, setStatusFilter] = useState<OffboardingCaseStatus | undefined>()
   const [tick, setTick] = useState(0)
+  const [drawerCase, setDrawerCase] = useState<OffboardingCaseResponse | null>(null)
+  const [checklist, setChecklist] = useState<AssignmentResponse | null>(null)
+  const [checklistLoading, setChecklistLoading] = useState(false)
+  const [updatingTask, setUpdatingTask] = useState<string | null>(null)
 
   const refresh = useCallback(() => setTick(t => t + 1), [])
 
@@ -68,6 +74,32 @@ export function OffboardingConsolePage() {
       .catch(() => message.error('Failed to load cases'))
       .finally(() => setLoading(false))
   }, [tick, page, statusFilter])
+
+  const openChecklist = (c: OffboardingCaseResponse) => {
+    setDrawerCase(c)
+    setChecklist(null)
+    setChecklistLoading(true)
+    getOffboardingCaseChecklist(c.id)
+      .then(setChecklist)
+      .catch(() => message.error('No exit checklist found for this case'))
+      .finally(() => setChecklistLoading(false))
+  }
+
+  const tickTask = async (task: TaskStatusResponse) => {
+    const next = task.status === 'PENDING' ? 'IN_PROGRESS'
+               : task.status === 'IN_PROGRESS' ? 'DONE'
+               : null
+    if (!next) return
+    setUpdatingTask(task.id)
+    try {
+      const updated = await checklistsApi.updateTask(task.id, { status: next })
+      setChecklist(updated)
+    } catch {
+      message.error('Failed to update task')
+    } finally {
+      setUpdatingTask(null)
+    }
+  }
 
   const advance = async (id: string, status: OffboardingCaseStatus) => {
     setAdvancing(id + status)
@@ -119,6 +151,13 @@ export function OffboardingConsolePage() {
         const next = TRANSITIONS[r.caseStatus] ?? []
         return (
           <Space>
+            <Button
+              size="small"
+              icon={<CheckSquareOutlined />}
+              onClick={() => openChecklist(r)}
+            >
+              Checklist
+            </Button>
             {next.map(s => (
               <Button
                 key={s}
@@ -190,6 +229,60 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={drawerCase ? `Exit Checklist — ${drawerCase.caseNo}` : 'Exit Checklist'}
+        open={drawerCase !== null}
+        onClose={() => setDrawerCase(null)}
+        width={520}
+        loading={checklistLoading}
+      >
+        {checklist && (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <div>
+              <Progress
+                percent={checklist.progressPercent}
+                status={checklist.status === 'COMPLETED' ? 'success' : 'active'}
+              />
+              <div style={{ color: '#888', fontSize: 12 }}>
+                {checklist.completedTasks}/{checklist.totalTasks} tasks done
+                {' · '}{checklist.requiredCompleted}/{checklist.requiredTotal} required
+              </div>
+            </div>
+            {checklist.tasks.map(task => (
+              <Card
+                key={task.id}
+                size="small"
+                style={{ borderLeft: `3px solid ${task.required ? '#1677ff' : '#d9d9d9'}` }}
+              >
+                <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start">
+                  <Space direction="vertical" size={2}>
+                    <span style={{ fontWeight: 600 }}>{task.title}</span>
+                    {task.description && <span style={{ color: '#888', fontSize: 12 }}>{task.description}</span>}
+                    <Space size={4}>
+                      <Tag color={TASK_STATUS_COLOR[task.status]}>{task.status}</Tag>
+                      {task.ownerRole && <Tag>{task.ownerRole}</Tag>}
+                    </Space>
+                  </Space>
+                  {task.status !== 'DONE' && task.status !== 'SKIPPED' && (
+                    <Button
+                      size="small"
+                      loading={updatingTask === task.id}
+                      onClick={() => tickTask(task)}
+                    >
+                      {task.status === 'PENDING' ? 'Start' : 'Done'}
+                    </Button>
+                  )}
+                </Space>
+              </Card>
+            ))}
+          </Space>
+        )}
+        {!checklistLoading && !checklist && (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>
+            No exit checklist has been assigned to this case yet.
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { api } from './client'
+import type { AssignmentResponse } from './checklists'
 
 export type ResignationStatus =
   | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'CANCELLED'
@@ -41,11 +42,14 @@ export interface OffboardingCaseResponse {
   lastWorkingDate?: string
   accessRemovalDate?: string
   settlementDate?: string
+  checklistAssignmentId?: string
   notes?: string
   createdBy?: string
   createdAt: string
   updatedAt: string
 }
+
+export { type AssignmentResponse }
 
 export interface OffboardingOverviewResponse {
   activeCases: number
@@ -128,6 +132,11 @@ export async function updateOffboardingCaseStatus(
   const res = await api.patch(`/lifecycle/offboarding/cases/${id}/status`, null, {
     params: { status, notes }
   })
+  return res.data
+}
+
+export async function getOffboardingCaseChecklist(id: string): Promise<AssignmentResponse> {
+  const res = await api.get(`/lifecycle/offboarding/cases/${id}/checklist`)
   return res.data
 }
 

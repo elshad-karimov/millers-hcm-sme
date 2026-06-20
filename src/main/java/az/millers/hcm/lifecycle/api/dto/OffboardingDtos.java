@@ -25,6 +25,7 @@ public final class OffboardingDtos {
             LocalDate lastWorkingDate,
             LocalDate accessRemovalDate,
             LocalDate settlementDate,
+            UUID checklistAssignmentId,
             String notes,
             String createdBy,
             OffsetDateTime createdAt,
@@ -35,8 +36,8 @@ public final class OffboardingDtos {
                     c.getId(), c.getCaseNo(), c.getEmployeeId(), c.getSource(),
                     c.getResignationId(), c.getTerminationId(), c.getExitReason(),
                     c.getCaseStatus(), c.getCaseOwner(), c.getLastWorkingDate(),
-                    c.getAccessRemovalDate(), c.getSettlementDate(), c.getNotes(),
-                    c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedAt());
+                    c.getAccessRemovalDate(), c.getSettlementDate(), c.getChecklistAssignmentId(),
+                    c.getNotes(), c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedAt());
         }
     }
 
