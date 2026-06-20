@@ -3,7 +3,7 @@ import {
   Button, Card, Col, Drawer, Input, Progress, Row, Select, Space,
   Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, ClearOutlined, CommentOutlined, DeploymentUnitOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, CommentOutlined, DeploymentUnitOutlined, DollarOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
@@ -11,6 +11,8 @@ import {
   listAssetReturns, updateAssetReturn, listItAccess, updateItAccess,
   listHandoverTasks, createHandoverTask, updateHandoverTask,
   getExitInterview, saveExitInterview,
+  getOrCreateSettlement, addSettlementComponent, deleteSettlementComponent,
+  transitionSettlementStatus,
   type AssignmentResponse, type AssetReturnResponse, type AssetReturnStatus,
   type AssetReturnUpdateRequest, type ClearanceDepartment, type ClearanceResponse,
   type ClearanceStatus, type ExitInterviewRequest, type ExitInterviewResponse,
@@ -18,6 +20,7 @@ import {
   type ItAccessResponse, type ItAccessStatus, type ItAccessUpdateRequest,
   type OffboardingCaseResponse, type OffboardingCaseStatus,
   type OffboardingOverviewResponse, type PageResponse,
+  type SettlementComponentRequest, type SettlementResponse, type SettlementStatus,
 } from '../api/offboarding'
 import { checklistsApi, TASK_STATUS_COLOR, type TaskStatusResponse } from '../api/checklists'
 
@@ -98,6 +101,13 @@ export function OffboardingConsolePage() {
   const [itLoading, setItLoading] = useState(false)
   const [updatingIt, setUpdatingIt] = useState<string | null>(null)
 
+  const [settlementCase, setSettlementCase] = useState<OffboardingCaseResponse | null>(null)
+  const [settlement, setSettlement] = useState<SettlementResponse | null>(null)
+  const [settlementLoading, setSettlementLoading] = useState(false)
+  const [newComp, setNewComp] = useState<SettlementComponentRequest>({ componentType: 'SALARY', description: '', amount: 0 })
+  const [addingComp, setAddingComp] = useState(false)
+  const [transitioningSettlement, setTransitioningSettlement] = useState(false)
+
   const [exitCase, setExitCase] = useState<OffboardingCaseResponse | null>(null)
   const [exitInterview, setExitInterview] = useState<ExitInterviewResponse | null>(null)
   const [exitLoading, setExitLoading] = useState(false)
@@ -169,6 +179,57 @@ export function OffboardingConsolePage() {
     } finally {
       setUpdatingIt(null)
     }
+  }
+
+  const openSettlement = async (c: OffboardingCaseResponse) => {
+    setSettlementCase(c)
+    setSettlement(null)
+    setSettlementLoading(true)
+    try {
+      const s = await getOrCreateSettlement(c.id)
+      setSettlement(s)
+    } catch {
+      message.error('Failed to load settlement')
+    }
+    setSettlementLoading(false)
+  }
+
+  const doAddComponent = async () => {
+    if (!settlement || !newComp.description.trim()) return
+    setAddingComp(true)
+    try {
+      const s2 = await addSettlementComponent(settlement.id, newComp)
+      setSettlement(prev => prev ? { ...prev, components: [...prev.components, s2] } : prev)
+      setNewComp({ componentType: 'SALARY', description: '', amount: 0 })
+      const fresh = await getOrCreateSettlement(settlementCase!.id)
+      setSettlement(fresh)
+    } catch {
+      message.error('Failed to add component')
+    }
+    setAddingComp(false)
+  }
+
+  const doDeleteComponent = async (compId: string) => {
+    if (!settlementCase) return
+    try {
+      await deleteSettlementComponent(compId)
+      const fresh = await getOrCreateSettlement(settlementCase.id)
+      setSettlement(fresh)
+    } catch {
+      message.error('Failed to delete component')
+    }
+  }
+
+  const doTransitionSettlement = async (status: SettlementStatus) => {
+    if (!settlement) return
+    setTransitioningSettlement(true)
+    try {
+      const updated = await transitionSettlementStatus(settlement.id, status)
+      setSettlement(updated)
+    } catch {
+      message.error('Failed to update settlement status')
+    }
+    setTransitioningSettlement(false)
   }
 
   const openExitInterview = async (c: OffboardingCaseResponse) => {
@@ -362,6 +423,13 @@ export function OffboardingConsolePage() {
             </Button>
             <Button
               size="small"
+              icon={<DollarOutlined />}
+              onClick={() => openSettlement(r)}
+            >
+              Settlement
+            </Button>
+            <Button
+              size="small"
               icon={<CommentOutlined />}
               onClick={() => openExitInterview(r)}
             >
@@ -452,6 +520,98 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={settlementCase ? `Final Settlement — ${settlementCase.caseNo}` : 'Final Settlement'}
+        open={settlementCase !== null}
+        onClose={() => setSettlementCase(null)}
+        width={600}
+        loading={settlementLoading}
+      >
+        {settlement && (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Row gutter={12}>
+              <Col span={8}><Statistic title="Gross" value={settlement.totalGross} suffix={settlement.currency} precision={2} /></Col>
+              <Col span={8}><Statistic title="Deductions" value={settlement.totalDeductions} suffix={settlement.currency} precision={2} valueStyle={{ color: '#fa541c' }} /></Col>
+              <Col span={8}><Statistic title="Net Payable" value={settlement.netPayable} suffix={settlement.currency} precision={2} valueStyle={{ color: '#52c41a' }} /></Col>
+            </Row>
+            <Space>
+              <Tag color={settlement.status === 'PAID' ? 'green' : settlement.status === 'APPROVED' ? 'cyan' : settlement.status === 'CANCELLED' ? 'red' : 'default'}>
+                {settlement.status}
+              </Tag>
+              {settlement.status === 'DRAFT' && (
+                <Button size="small" loading={transitioningSettlement} onClick={() => doTransitionSettlement('PENDING_APPROVAL')}>
+                  Submit for Approval
+                </Button>
+              )}
+              {settlement.status === 'PENDING_APPROVAL' && (
+                <Button size="small" type="primary" loading={transitioningSettlement} onClick={() => doTransitionSettlement('APPROVED')}>
+                  Approve
+                </Button>
+              )}
+              {settlement.status === 'APPROVED' && (
+                <Button size="small" type="primary" loading={transitioningSettlement} onClick={() => doTransitionSettlement('PAID')}>
+                  Mark Paid
+                </Button>
+              )}
+            </Space>
+            <Card size="small" title="Add Component">
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Select
+                    style={{ width: 160 }}
+                    value={newComp.componentType}
+                    onChange={v => setNewComp(c => ({ ...c, componentType: v }))}
+                    options={['SALARY','GRATUITY','LEAVE_ENCASHMENT','NOTICE_PAY','BONUS','ALLOWANCE','DEDUCTION','ASSET_DEDUCTION','OTHER']
+                      .map(s => ({ label: s.replace(/_/g, ' '), value: s }))}
+                  />
+                  <Input
+                    placeholder="Description"
+                    value={newComp.description}
+                    onChange={e => setNewComp(c => ({ ...c, description: e.target.value }))}
+                  />
+                </Space.Compact>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={newComp.amount}
+                    onChange={e => setNewComp(c => ({ ...c, amount: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <Select
+                    style={{ width: 130 }}
+                    value={newComp.isDeduction ? 'deduction' : 'earning'}
+                    onChange={v => setNewComp(c => ({ ...c, isDeduction: v === 'deduction' }))}
+                    options={[{ label: 'Earning', value: 'earning' }, { label: 'Deduction', value: 'deduction' }]}
+                  />
+                  <Button type="primary" loading={addingComp} onClick={doAddComponent}>Add</Button>
+                </Space.Compact>
+              </Space>
+            </Card>
+            {settlement.components.length > 0 && (
+              <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                {settlement.components.map(comp => (
+                  <Card key={comp.id} size="small"
+                    style={{ borderLeft: `3px solid ${comp.isDeduction ? '#fa541c' : '#52c41a'}` }}>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Space direction="vertical" size={0}>
+                        <span style={{ fontWeight: 600 }}>{comp.description}</span>
+                        <span style={{ color: '#888', fontSize: 12 }}>{comp.componentType.replace(/_/g, ' ')}</span>
+                      </Space>
+                      <Space>
+                        <span style={{ fontWeight: 600, color: comp.isDeduction ? '#fa541c' : '#52c41a' }}>
+                          {comp.isDeduction ? '-' : '+'}{comp.amount.toFixed(2)} {settlement.currency}
+                        </span>
+                        <Button size="small" danger onClick={() => doDeleteComponent(comp.id)}>✕</Button>
+                      </Space>
+                    </Space>
+                  </Card>
+                ))}
+              </Space>
+            )}
+          </Space>
+        )}
+      </Drawer>
+
       <Drawer
         title={exitCase ? `Exit Interview — ${exitCase.caseNo}` : 'Exit Interview'}
         open={exitCase !== null}

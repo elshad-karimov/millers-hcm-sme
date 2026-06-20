@@ -377,3 +377,62 @@ export async function saveExitInterview(
   const res = await api.post(`/lifecycle/offboarding/cases/${caseId}/exit-interview`, req)
   return res.data
 }
+
+// ── Settlement ────────────────────────────────────────────────────────────────
+
+export type SettlementStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PAID' | 'CANCELLED'
+
+export interface SettlementComponentResponse {
+  id: string; settlementId: string
+  componentType: string; description: string
+  amount: number; isDeduction: boolean; calculationBasis?: string
+  createdAt: string; updatedAt: string
+}
+
+export interface SettlementResponse {
+  id: string; caseId: string; settlementNo: string; status: SettlementStatus
+  currency: string; totalGross: number; totalDeductions: number; netPayable: number
+  paymentDate?: string; paymentMethod?: string; bankReference?: string
+  notes?: string; preparedBy?: string; approvedBy?: string; approvedAt?: string
+  components: SettlementComponentResponse[]
+  createdAt: string; updatedAt: string
+}
+
+export interface SettlementComponentRequest {
+  componentType: string; description: string
+  amount: number; isDeduction?: boolean; calculationBasis?: string
+}
+
+export async function getSettlement(caseId: string): Promise<SettlementResponse | null> {
+  try {
+    const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/settlement`)
+    return res.data
+  } catch {
+    return null
+  }
+}
+
+export async function getOrCreateSettlement(caseId: string): Promise<SettlementResponse> {
+  const res = await api.post(`/lifecycle/offboarding/cases/${caseId}/settlement`)
+  return res.data
+}
+
+export async function addSettlementComponent(
+  settlementId: string, req: SettlementComponentRequest
+): Promise<SettlementComponentResponse> {
+  const res = await api.post(`/lifecycle/offboarding/settlements/${settlementId}/components`, req)
+  return res.data
+}
+
+export async function deleteSettlementComponent(componentId: string): Promise<void> {
+  await api.delete(`/lifecycle/offboarding/settlements/components/${componentId}`)
+}
+
+export async function transitionSettlementStatus(
+  settlementId: string, status: SettlementStatus
+): Promise<SettlementResponse> {
+  const res = await api.post(`/lifecycle/offboarding/settlements/${settlementId}/status`, null, {
+    params: { status }
+  })
+  return res.data
+}

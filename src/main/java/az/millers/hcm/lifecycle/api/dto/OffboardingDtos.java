@@ -11,6 +11,9 @@ import az.millers.hcm.lifecycle.domain.HandoverStatus;
 import az.millers.hcm.lifecycle.domain.ItAccessStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingHandoverTask;
 import az.millers.hcm.lifecycle.domain.OffboardingItAccess;
+import az.millers.hcm.lifecycle.domain.OffboardingSettlement;
+import az.millers.hcm.lifecycle.domain.OffboardingSettlementComponent;
+import az.millers.hcm.lifecycle.domain.SettlementStatus;
 import az.millers.hcm.lifecycle.domain.ClearanceDepartment;
 import az.millers.hcm.lifecycle.domain.ClearanceStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingAssetReturn;
@@ -167,5 +170,48 @@ public final class OffboardingDtos {
     public record ReplacementUpdateRequest(
             Boolean replacementRequired,
             String replacementNotes
+    ) {}
+
+    public record SettlementComponentResponse(
+            UUID id, UUID settlementId,
+            String componentType, String description,
+            BigDecimal amount, Boolean isDeduction, String calculationBasis,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        public static SettlementComponentResponse from(OffboardingSettlementComponent c) {
+            return new SettlementComponentResponse(
+                    c.getId(), c.getSettlementId(), c.getComponentType(),
+                    c.getDescription(), c.getAmount(), c.getIsDeduction(),
+                    c.getCalculationBasis(), c.getCreatedAt(), c.getUpdatedAt());
+        }
+    }
+
+    public record SettlementResponse(
+            UUID id, UUID caseId, String settlementNo, SettlementStatus status,
+            String currency, BigDecimal totalGross, BigDecimal totalDeductions,
+            BigDecimal netPayable, LocalDate paymentDate, String paymentMethod,
+            String bankReference, String notes, String preparedBy, String approvedBy,
+            OffsetDateTime approvedAt, List<SettlementComponentResponse> components,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        public static SettlementResponse from(OffboardingSettlement s, List<OffboardingSettlementComponent> comps) {
+            return new SettlementResponse(
+                    s.getId(), s.getCaseId(), s.getSettlementNo(), s.getStatus(),
+                    s.getCurrency(), s.getTotalGross(), s.getTotalDeductions(), s.getNetPayable(),
+                    s.getPaymentDate(), s.getPaymentMethod(), s.getBankReference(), s.getNotes(),
+                    s.getPreparedBy(), s.getApprovedBy(), s.getApprovedAt(),
+                    comps.stream().map(SettlementComponentResponse::from).toList(),
+                    s.getCreatedAt(), s.getUpdatedAt());
+        }
+    }
+
+    public record SettlementUpdateRequest(
+            LocalDate paymentDate, String paymentMethod, String bankReference,
+            String notes, String preparedBy
+    ) {}
+
+    public record SettlementComponentRequest(
+            String componentType, String description,
+            BigDecimal amount, Boolean isDeduction, String calculationBasis
     ) {}
 }
