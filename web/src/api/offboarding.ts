@@ -44,6 +44,9 @@ export interface OffboardingCaseResponse {
   settlementDate?: string
   checklistAssignmentId?: string
   notes?: string
+  replacementRequired?: boolean
+  replacementNotes?: string
+  vacancyTriggeredAt?: string
   createdBy?: string
   createdAt: string
   updatedAt: string
@@ -285,5 +288,58 @@ export async function updateItAccess(
   caseId: string, accessId: string, req: ItAccessUpdateRequest
 ): Promise<ItAccessResponse> {
   const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/it-access/${accessId}`, req)
+  return res.data
+}
+
+// ── Handover Tasks ────────────────────────────────────────────────────────────
+
+export type HandoverStatus = 'PENDING' | 'IN_PROGRESS' | 'TRANSFERRED' | 'WAIVED'
+
+export interface HandoverTaskResponse {
+  id: string; caseId: string; title: string; category?: string
+  description?: string; handoverTo?: string
+  handoverStatus: HandoverStatus; dueDate?: string
+  completedAt?: string; notes?: string
+  createdAt: string; updatedAt: string
+}
+
+export interface HandoverTaskCreateRequest {
+  title: string; category?: string; description?: string
+  handoverTo?: string; dueDate?: string; notes?: string
+}
+
+export interface HandoverTaskUpdateRequest {
+  handoverStatus?: HandoverStatus; handoverTo?: string
+  dueDate?: string; notes?: string
+}
+
+export interface ReplacementUpdateRequest {
+  replacementRequired?: boolean
+  replacementNotes?: string
+}
+
+export async function listHandoverTasks(caseId: string): Promise<HandoverTaskResponse[]> {
+  const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/handover-tasks`)
+  return res.data
+}
+
+export async function createHandoverTask(
+  caseId: string, req: HandoverTaskCreateRequest
+): Promise<HandoverTaskResponse> {
+  const res = await api.post(`/lifecycle/offboarding/cases/${caseId}/handover-tasks`, req)
+  return res.data
+}
+
+export async function updateHandoverTask(
+  taskId: string, req: HandoverTaskUpdateRequest
+): Promise<HandoverTaskResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/handover-tasks/${taskId}`, req)
+  return res.data
+}
+
+export async function updateReplacement(
+  caseId: string, req: ReplacementUpdateRequest
+): Promise<OffboardingCaseResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/replacement`, req)
   return res.data
 }

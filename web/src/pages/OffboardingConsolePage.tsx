@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, Card, Col, Drawer, Progress, Row, Select, Space,
+  Button, Card, Col, Drawer, Input, Progress, Row, Select, Space,
   Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, ClearOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, DeploymentUnitOutlined, InboxOutlined, LaptopOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
   getOffboardingCaseChecklist, listClearances, signOffClearance,
   listAssetReturns, updateAssetReturn, listItAccess, updateItAccess,
+  listHandoverTasks, createHandoverTask, updateHandoverTask,
   type AssignmentResponse, type AssetReturnResponse, type AssetReturnStatus,
   type AssetReturnUpdateRequest, type ClearanceDepartment, type ClearanceResponse,
-  type ClearanceStatus, type ItAccessResponse, type ItAccessStatus,
-  type ItAccessUpdateRequest, type OffboardingCaseResponse, type OffboardingCaseStatus,
+  type ClearanceStatus, type HandoverStatus, type HandoverTaskResponse,
+  type ItAccessResponse, type ItAccessStatus, type ItAccessUpdateRequest,
+  type OffboardingCaseResponse, type OffboardingCaseStatus,
   type OffboardingOverviewResponse, type PageResponse,
 } from '../api/offboarding'
 import { checklistsApi, TASK_STATUS_COLOR, type TaskStatusResponse } from '../api/checklists'
@@ -94,6 +96,13 @@ export function OffboardingConsolePage() {
   const [itLoading, setItLoading] = useState(false)
   const [updatingIt, setUpdatingIt] = useState<string | null>(null)
 
+  const [handoverCase, setHandoverCase] = useState<OffboardingCaseResponse | null>(null)
+  const [handoverTasks, setHandoverTasks] = useState<HandoverTaskResponse[]>([])
+  const [handoverLoading, setHandoverLoading] = useState(false)
+  const [updatingHandover, setUpdatingHandover] = useState<string | null>(null)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [addingTask, setAddingTask] = useState(false)
+
   const refresh = useCallback(() => setTick(t => t + 1), [])
 
   useEffect(() => {
@@ -151,6 +160,42 @@ export function OffboardingConsolePage() {
       message.error('Failed to update IT access')
     } finally {
       setUpdatingIt(null)
+    }
+  }
+
+  const openHandover = (c: OffboardingCaseResponse) => {
+    setHandoverCase(c)
+    setHandoverTasks([])
+    setHandoverLoading(true)
+    listHandoverTasks(c.id)
+      .then(setHandoverTasks)
+      .catch(() => message.error('Failed to load handover tasks'))
+      .finally(() => setHandoverLoading(false))
+  }
+
+  const doUpdateHandover = async (taskId: string, status: HandoverStatus) => {
+    setUpdatingHandover(taskId)
+    try {
+      const updated = await updateHandoverTask(taskId, { handoverStatus: status })
+      setHandoverTasks(prev => prev.map(t => t.id === taskId ? updated : t))
+    } catch {
+      message.error('Failed to update handover task')
+    } finally {
+      setUpdatingHandover(null)
+    }
+  }
+
+  const doAddHandoverTask = async () => {
+    if (!handoverCase || !newTaskTitle.trim()) return
+    setAddingTask(true)
+    try {
+      const created = await createHandoverTask(handoverCase.id, { title: newTaskTitle.trim() })
+      setHandoverTasks(prev => [...prev, created])
+      setNewTaskTitle('')
+    } catch {
+      message.error('Failed to create handover task')
+    } finally {
+      setAddingTask(false)
     }
   }
 
@@ -276,6 +321,13 @@ export function OffboardingConsolePage() {
             </Button>
             <Button
               size="small"
+              icon={<DeploymentUnitOutlined />}
+              onClick={() => openHandover(r)}
+            >
+              Handover
+            </Button>
+            <Button
+              size="small"
               icon={<ClearOutlined />}
               onClick={() => openClearance(r)}
             >
@@ -352,6 +404,57 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={handoverCase ? `Knowledge Handover — ${handoverCase.caseNo}` : 'Knowledge Handover'}
+        open={handoverCase !== null}
+        onClose={() => setHandoverCase(null)}
+        width={540}
+        loading={handoverLoading}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Space.Compact style={{ width: '100%' }}>
+            <Input
+              placeholder="New handover task title…"
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              onPressEnter={doAddHandoverTask}
+            />
+            <Button type="primary" loading={addingTask} onClick={doAddHandoverTask}>
+              Add
+            </Button>
+          </Space.Compact>
+          {handoverTasks.map(task => (
+            <Card key={task.id} size="small"
+              style={{ borderLeft: `3px solid ${task.handoverStatus === 'TRANSFERRED' ? '#52c41a' : task.handoverStatus === 'IN_PROGRESS' ? '#1677ff' : '#d9d9d9'}` }}>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start">
+                <Space direction="vertical" size={2}>
+                  <span style={{ fontWeight: 600 }}>{task.title}</span>
+                  {task.handoverTo && <span style={{ color: '#888', fontSize: 12 }}>To: {task.handoverTo}</span>}
+                  {task.dueDate && <span style={{ color: '#888', fontSize: 12 }}>Due: {task.dueDate}</span>}
+                  <Tag color={task.handoverStatus === 'TRANSFERRED' ? 'green' : task.handoverStatus === 'IN_PROGRESS' ? 'processing' : task.handoverStatus === 'WAIVED' ? 'purple' : 'default'}>
+                    {task.handoverStatus.replace(/_/g, ' ')}
+                  </Tag>
+                </Space>
+                <Select
+                  size="small"
+                  style={{ width: 140 }}
+                  value={task.handoverStatus}
+                  loading={updatingHandover === task.id}
+                  onChange={(s: HandoverStatus) => doUpdateHandover(task.id, s)}
+                  options={(['PENDING','IN_PROGRESS','TRANSFERRED','WAIVED'] as HandoverStatus[])
+                    .map(s => ({ label: s.replace(/_/g, ' '), value: s }))}
+                />
+              </Space>
+            </Card>
+          ))}
+          {!handoverLoading && handoverTasks.length === 0 && (
+            <div style={{ color: '#888', textAlign: 'center', marginTop: 24 }}>
+              No handover tasks yet. Add tasks above.
+            </div>
+          )}
+        </Space>
+      </Drawer>
+
       <Drawer
         title={itCase ? `IT Access Removal — ${itCase.caseNo}` : 'IT Access Removal'}
         open={itCase !== null}

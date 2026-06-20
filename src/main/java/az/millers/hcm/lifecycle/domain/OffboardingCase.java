@@ -67,6 +67,15 @@ public class OffboardingCase {
     @Column(columnDefinition = "text")
     private String notes;
 
+    @Column(name = "replacement_required")
+    private Boolean replacementRequired = false;
+
+    @Column(name = "replacement_notes", columnDefinition = "text")
+    private String replacementNotes;
+
+    @Column(name = "vacancy_triggered_at")
+    private OffsetDateTime vacancyTriggeredAt;
+
     @Column(name = "created_by", length = 100)
     private String createdBy;
 

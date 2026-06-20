@@ -6,10 +6,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import java.time.LocalDate;
-
 import az.millers.hcm.lifecycle.domain.AssetReturnStatus;
+import az.millers.hcm.lifecycle.domain.HandoverStatus;
 import az.millers.hcm.lifecycle.domain.ItAccessStatus;
+import az.millers.hcm.lifecycle.domain.OffboardingHandoverTask;
 import az.millers.hcm.lifecycle.domain.OffboardingItAccess;
 import az.millers.hcm.lifecycle.domain.ClearanceDepartment;
 import az.millers.hcm.lifecycle.domain.ClearanceStatus;
@@ -37,6 +37,9 @@ public final class OffboardingDtos {
             LocalDate settlementDate,
             UUID checklistAssignmentId,
             String notes,
+            Boolean replacementRequired,
+            String replacementNotes,
+            OffsetDateTime vacancyTriggeredAt,
             String createdBy,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
@@ -47,7 +50,8 @@ public final class OffboardingDtos {
                     c.getResignationId(), c.getTerminationId(), c.getExitReason(),
                     c.getCaseStatus(), c.getCaseOwner(), c.getLastWorkingDate(),
                     c.getAccessRemovalDate(), c.getSettlementDate(), c.getChecklistAssignmentId(),
-                    c.getNotes(), c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedAt());
+                    c.getNotes(), c.getReplacementRequired(), c.getReplacementNotes(),
+                    c.getVacancyTriggeredAt(), c.getCreatedBy(), c.getCreatedAt(), c.getUpdatedAt());
         }
     }
 
@@ -131,5 +135,37 @@ public final class OffboardingDtos {
             String handledBy,
             String reference,
             String notes
+    ) {}
+
+    public record HandoverTaskResponse(
+            UUID id, UUID caseId, String title, String category,
+            String description, String handoverTo,
+            HandoverStatus handoverStatus, LocalDate dueDate,
+            OffsetDateTime completedAt, String notes,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        public static HandoverTaskResponse from(OffboardingHandoverTask t) {
+            return new HandoverTaskResponse(
+                    t.getId(), t.getCaseId(), t.getTitle(), t.getCategory(),
+                    t.getDescription(), t.getHandoverTo(),
+                    t.getHandoverStatus(), t.getDueDate(),
+                    t.getCompletedAt(), t.getNotes(),
+                    t.getCreatedAt(), t.getUpdatedAt());
+        }
+    }
+
+    public record HandoverTaskCreateRequest(
+            String title, String category, String description,
+            String handoverTo, LocalDate dueDate, String notes
+    ) {}
+
+    public record HandoverTaskUpdateRequest(
+            HandoverStatus handoverStatus, String handoverTo,
+            LocalDate dueDate, String notes
+    ) {}
+
+    public record ReplacementUpdateRequest(
+            Boolean replacementRequired,
+            String replacementNotes
     ) {}
 }
