@@ -227,3 +227,34 @@ export async function signOffClearance(
   const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/clearance/${department}`, req)
   return res.data
 }
+
+// ── Asset Return ──────────────────────────────────────────────────────────────
+
+export type AssetReturnStatus =
+  | 'PENDING_RETURN' | 'RETURNED' | 'RETURNED_DAMAGED'
+  | 'MISSING' | 'DEDUCTION_APPROVED' | 'WRITTEN_OFF' | 'WAIVED'
+
+export interface AssetReturnResponse {
+  id: string; caseId: string; employeeAssetId?: string
+  assetType: string; assetName: string; assetIdentifier?: string
+  returnStatus: AssetReturnStatus; returnDate?: string
+  conditionAtReturn?: string; deductionAmount?: number
+  notes?: string; createdAt: string; updatedAt: string
+}
+
+export interface AssetReturnUpdateRequest {
+  returnStatus?: AssetReturnStatus; returnDate?: string
+  conditionAtReturn?: string; deductionAmount?: number; notes?: string
+}
+
+export async function listAssetReturns(caseId: string): Promise<AssetReturnResponse[]> {
+  const res = await api.get(`/lifecycle/offboarding/cases/${caseId}/assets`)
+  return res.data
+}
+
+export async function updateAssetReturn(
+  caseId: string, returnId: string, req: AssetReturnUpdateRequest
+): Promise<AssetReturnResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/cases/${caseId}/assets/${returnId}`, req)
+  return res.data
+}

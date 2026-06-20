@@ -3,12 +3,14 @@ import {
   Button, Card, Col, Drawer, Progress, Row, Select, Space,
   Statistic, Table, Tag, Typography, message
 } from 'antd'
-import { CheckSquareOutlined, ClearOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, ClearOutlined, InboxOutlined, LogoutOutlined, UserDeleteOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import {
   getOffboardingOverview, listOffboardingCases, updateOffboardingCaseStatus,
   getOffboardingCaseChecklist, listClearances, signOffClearance,
-  type AssignmentResponse, type ClearanceDepartment, type ClearanceResponse,
+  listAssetReturns, updateAssetReturn,
+  type AssignmentResponse, type AssetReturnResponse, type AssetReturnStatus,
+  type AssetReturnUpdateRequest, type ClearanceDepartment, type ClearanceResponse,
   type ClearanceStatus, type OffboardingCaseResponse, type OffboardingCaseStatus,
   type OffboardingOverviewResponse, type PageResponse,
 } from '../api/offboarding'
@@ -81,6 +83,11 @@ export function OffboardingConsolePage() {
   const [clearanceLoading, setClearanceLoading] = useState(false)
   const [signingOff, setSigningOff] = useState<ClearanceDepartment | null>(null)
 
+  const [assetCase, setAssetCase] = useState<OffboardingCaseResponse | null>(null)
+  const [assetReturns, setAssetReturns] = useState<AssetReturnResponse[]>([])
+  const [assetLoading, setAssetLoading] = useState(false)
+  const [updatingAsset, setUpdatingAsset] = useState<string | null>(null)
+
   const refresh = useCallback(() => setTick(t => t + 1), [])
 
   useEffect(() => {
@@ -94,6 +101,29 @@ export function OffboardingConsolePage() {
       .catch(() => message.error('Failed to load cases'))
       .finally(() => setLoading(false))
   }, [tick, page, statusFilter])
+
+  const openAssets = (c: OffboardingCaseResponse) => {
+    setAssetCase(c)
+    setAssetReturns([])
+    setAssetLoading(true)
+    listAssetReturns(c.id)
+      .then(setAssetReturns)
+      .catch(() => message.error('Failed to load asset returns'))
+      .finally(() => setAssetLoading(false))
+  }
+
+  const doUpdateAsset = async (returnId: string, req: AssetReturnUpdateRequest) => {
+    if (!assetCase) return
+    setUpdatingAsset(returnId)
+    try {
+      const updated = await updateAssetReturn(assetCase.id, returnId, req)
+      setAssetReturns(prev => prev.map(r => r.id === returnId ? updated : r))
+    } catch {
+      message.error('Failed to update asset return')
+    } finally {
+      setUpdatingAsset(null)
+    }
+  }
 
   const openClearance = (c: OffboardingCaseResponse) => {
     setClearanceCase(c)
@@ -203,6 +233,13 @@ export function OffboardingConsolePage() {
             </Button>
             <Button
               size="small"
+              icon={<InboxOutlined />}
+              onClick={() => openAssets(r)}
+            >
+              Assets
+            </Button>
+            <Button
+              size="small"
               icon={<ClearOutlined />}
               onClick={() => openClearance(r)}
             >
@@ -279,6 +316,51 @@ export function OffboardingConsolePage() {
           }}
         />
       </Card>
+      <Drawer
+        title={assetCase ? `Asset Returns — ${assetCase.caseNo}` : 'Asset Returns'}
+        open={assetCase !== null}
+        onClose={() => setAssetCase(null)}
+        width={540}
+        loading={assetLoading}
+      >
+        {assetReturns.length > 0 && (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            {assetReturns.map(row => (
+              <Card key={row.id} size="small"
+                style={{ borderLeft: `3px solid ${row.returnStatus === 'RETURNED' ? '#52c41a' : row.returnStatus === 'MISSING' ? '#ff4d4f' : '#d9d9d9'}` }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }} align="start">
+                  <Space direction="vertical" size={2}>
+                    <span style={{ fontWeight: 600 }}>{row.assetName}</span>
+                    <span style={{ color: '#888', fontSize: 12 }}>{row.assetType}{row.assetIdentifier ? ` · ${row.assetIdentifier}` : ''}</span>
+                    <Tag color={row.returnStatus === 'RETURNED' ? 'green' : row.returnStatus === 'MISSING' ? 'red' : row.returnStatus === 'RETURNED_DAMAGED' ? 'orange' : 'default'}>
+                      {row.returnStatus.replace(/_/g, ' ')}
+                    </Tag>
+                    {row.returnDate && <span style={{ color: '#888', fontSize: 12 }}>Returned: {row.returnDate}</span>}
+                    {row.deductionAmount != null && (
+                      <span style={{ color: '#fa541c', fontSize: 12 }}>Deduction: {row.deductionAmount} AZN</span>
+                    )}
+                  </Space>
+                  <Select
+                    size="small"
+                    style={{ width: 160 }}
+                    value={row.returnStatus}
+                    loading={updatingAsset === row.id}
+                    onChange={(status: AssetReturnStatus) => doUpdateAsset(row.id, { returnStatus: status })}
+                    options={(['PENDING_RETURN','RETURNED','RETURNED_DAMAGED','MISSING','DEDUCTION_APPROVED','WRITTEN_OFF','WAIVED'] as AssetReturnStatus[])
+                      .map(s => ({ label: s.replace(/_/g, ' '), value: s }))}
+                  />
+                </Space>
+              </Card>
+            ))}
+          </Space>
+        )}
+        {!assetLoading && assetReturns.length === 0 && (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>
+            No assets assigned. Asset return rows are created automatically when the case becomes active.
+          </div>
+        )}
+      </Drawer>
+
       <Drawer
         title={drawerCase ? `Exit Checklist — ${drawerCase.caseNo}` : 'Exit Checklist'}
         open={drawerCase !== null}

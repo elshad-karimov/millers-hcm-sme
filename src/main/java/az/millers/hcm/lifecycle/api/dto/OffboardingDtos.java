@@ -6,8 +6,12 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import java.time.LocalDate;
+
+import az.millers.hcm.lifecycle.domain.AssetReturnStatus;
 import az.millers.hcm.lifecycle.domain.ClearanceDepartment;
 import az.millers.hcm.lifecycle.domain.ClearanceStatus;
+import az.millers.hcm.lifecycle.domain.OffboardingAssetReturn;
 import az.millers.hcm.lifecycle.domain.OffboardingCase;
 import az.millers.hcm.lifecycle.domain.OffboardingCaseStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingClearance;
@@ -75,6 +79,31 @@ public final class OffboardingDtos {
 
     public record ClearanceSignOffRequest(
             ClearanceStatus status,
+            BigDecimal deductionAmount,
+            String notes
+    ) {}
+
+    public record AssetReturnResponse(
+            UUID id, UUID caseId, UUID employeeAssetId,
+            String assetType, String assetName, String assetIdentifier,
+            AssetReturnStatus returnStatus, LocalDate returnDate,
+            String conditionAtReturn, BigDecimal deductionAmount,
+            String notes, OffsetDateTime createdAt, OffsetDateTime updatedAt
+    ) {
+        public static AssetReturnResponse from(OffboardingAssetReturn r) {
+            return new AssetReturnResponse(
+                    r.getId(), r.getCaseId(), r.getEmployeeAssetId(),
+                    r.getAssetType(), r.getAssetName(), r.getAssetIdentifier(),
+                    r.getReturnStatus(), r.getReturnDate(),
+                    r.getConditionAtReturn(), r.getDeductionAmount(),
+                    r.getNotes(), r.getCreatedAt(), r.getUpdatedAt());
+        }
+    }
+
+    public record AssetReturnUpdateRequest(
+            AssetReturnStatus returnStatus,
+            LocalDate returnDate,
+            String conditionAtReturn,
             BigDecimal deductionAmount,
             String notes
     ) {}
