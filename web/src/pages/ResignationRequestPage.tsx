@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, Card, DatePicker, Form, Input, Select, Space, Table, Tag, Typography, message
+  Button, Card, DatePicker, Form, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography, message
 } from 'antd'
 import { LogoutOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -27,6 +27,8 @@ export function ResignationRequestPage() {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<ResignationResponse | null>(null)
+  const [withdrawReason, setWithdrawReason] = useState('')
   const [page, setPage] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [statusFilter, setStatusFilter] = useState<ResignationStatus | undefined>()
@@ -63,11 +65,14 @@ export function ResignationRequestPage() {
     }
   }
 
-  const handleWithdraw = async (id: string) => {
-    setWithdrawing(id)
+  const handleWithdraw = async () => {
+    if (!withdrawTarget) return
+    setWithdrawing(withdrawTarget.id)
     try {
-      await withdrawResignation(id)
+      await withdrawResignation(withdrawTarget.id, withdrawReason ? { withdrawalReason: withdrawReason } : undefined)
       message.success('Resignation withdrawn')
+      setWithdrawTarget(null)
+      setWithdrawReason('')
       refresh()
     } catch {
       message.error('Failed to withdraw')
@@ -106,6 +111,13 @@ export function ResignationRequestPage() {
       render: (v: ResignationStatus) => <Tag color={STATUS_COLOR[v]}>{v}</Tag>,
     },
     {
+      title: 'Withdrawal Reason',
+      dataIndex: 'withdrawalReason',
+      render: (v?: string) => v
+        ? <Tooltip title={v}><span style={{ color: '#888', fontSize: 12 }}>{v.length > 30 ? v.slice(0, 30) + '…' : v}</span></Tooltip>
+        : '—',
+    },
+    {
       title: 'Actions',
       render: (_: unknown, r: ResignationResponse) =>
         (r.status === 'SUBMITTED' || r.status === 'APPROVED') ? (
@@ -113,7 +125,7 @@ export function ResignationRequestPage() {
             size="small"
             danger
             loading={withdrawing === r.id}
-            onClick={() => handleWithdraw(r.id)}
+            onClick={() => { setWithdrawTarget(r); setWithdrawReason('') }}
           >
             Withdraw
           </Button>
@@ -187,6 +199,24 @@ export function ResignationRequestPage() {
           }}
         />
       </Card>
+      <Modal
+        title={`Withdraw ${withdrawTarget?.resignationNo ?? 'Resignation'}`}
+        open={withdrawTarget !== null}
+        onCancel={() => setWithdrawTarget(null)}
+        onOk={handleWithdraw}
+        okText="Confirm Withdrawal"
+        okButtonProps={{ danger: true, loading: withdrawing !== null }}
+      >
+        <p style={{ color: '#888' }}>
+          This will cancel the offboarding case and notify the approver. This action cannot be undone.
+        </p>
+        <Input.TextArea
+          rows={3}
+          placeholder="Reason for withdrawal (optional)"
+          value={withdrawReason}
+          onChange={e => setWithdrawReason(e.target.value)}
+        />
+      </Modal>
     </div>
   )
 }

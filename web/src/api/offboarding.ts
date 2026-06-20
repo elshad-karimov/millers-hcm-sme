@@ -24,6 +24,8 @@ export interface ResignationResponse {
   comments?: string
   status: ResignationStatus
   workflowInstanceId?: string
+  withdrawalReason?: string
+  withdrawnAt?: string
   createdAt: string
   createdBy?: string
   updatedAt: string
@@ -105,8 +107,12 @@ export async function submitResignation(req: ResignationSubmitRequest): Promise<
   return res.data
 }
 
-export async function withdrawResignation(id: string): Promise<ResignationResponse> {
-  const res = await api.post(`/lifecycle/offboarding/resignations/${id}/withdraw`)
+export interface WithdrawRequest {
+  withdrawalReason?: string
+}
+
+export async function withdrawResignation(id: string, req?: WithdrawRequest): Promise<ResignationResponse> {
+  const res = await api.post(`/lifecycle/offboarding/resignations/${id}/withdraw`, req ?? null)
   return res.data
 }
 

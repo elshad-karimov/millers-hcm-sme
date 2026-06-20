@@ -60,6 +60,12 @@ public class ResignationRequest {
     @Column(name = "workflow_instance_id")
     private UUID workflowInstanceId;
 
+    @Column(name = "withdrawal_reason", columnDefinition = "text")
+    private String withdrawalReason;
+
+    @Column(name = "withdrawn_at")
+    private OffsetDateTime withdrawnAt;
+
     @Column(name = "created_by", length = 100)
     private String createdBy;
 

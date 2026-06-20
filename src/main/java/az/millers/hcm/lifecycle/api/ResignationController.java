@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import az.millers.hcm.common.PageResponse;
 import az.millers.hcm.lifecycle.api.dto.ResignationResponse;
 import az.millers.hcm.lifecycle.api.dto.ResignationSubmitRequest;
+import az.millers.hcm.lifecycle.api.dto.WithdrawRequest;
 import az.millers.hcm.lifecycle.domain.ResignationStatus;
 import az.millers.hcm.lifecycle.service.ResignationService;
 import az.millers.hcm.security.SecurityRoles;
@@ -61,8 +62,9 @@ public class ResignationController {
 
     @PostMapping("/{id}/withdraw")
     @PreAuthorize(SecurityRoles.WRITE_HR)
-    public ResignationResponse withdraw(@PathVariable UUID id) {
-        return ResignationResponse.from(service.withdraw(id));
+    public ResignationResponse withdraw(@PathVariable UUID id,
+                                        @RequestBody(required = false) WithdrawRequest req) {
+        return ResignationResponse.from(service.withdraw(id, req));
     }
 
     /** HR override: change the approved last working date after workflow approval. */

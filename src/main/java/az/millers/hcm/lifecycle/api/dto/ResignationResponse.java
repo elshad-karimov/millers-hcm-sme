@@ -20,6 +20,8 @@ public record ResignationResponse(
         String comments,
         ResignationStatus status,
         UUID workflowInstanceId,
+        String withdrawalReason,
+        OffsetDateTime withdrawnAt,
         OffsetDateTime createdAt,
         String createdBy,
         OffsetDateTime updatedAt
@@ -31,6 +33,7 @@ public record ResignationResponse(
                 r.getCalculatedLastWorkingDate(), r.getApprovedLastWorkingDate(),
                 r.getNoticeDaysCalculated(), r.getReasonText(), r.getComments(),
                 r.getStatus(), r.getWorkflowInstanceId(),
+                r.getWithdrawalReason(), r.getWithdrawnAt(),
                 r.getCreatedAt(), r.getCreatedBy(), r.getUpdatedAt());
     }
 }

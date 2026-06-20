@@ -21,6 +21,7 @@ import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.lifecycle.api.dto.ResignationResponse;
 import az.millers.hcm.lifecycle.api.dto.ResignationSubmitRequest;
+import az.millers.hcm.lifecycle.api.dto.WithdrawRequest;
 import az.millers.hcm.lifecycle.domain.OffboardingCase;
 import az.millers.hcm.lifecycle.domain.OffboardingCaseStatus;
 import az.millers.hcm.lifecycle.domain.OffboardingSource;
@@ -226,18 +227,21 @@ public class ResignationService {
     }
 
     @Transactional
-    public ResignationRequest withdraw(UUID id) {
+    public ResignationRequest withdraw(UUID id, WithdrawRequest req) {
         ResignationRequest r = get(id);
         if (r.getStatus() != ResignationStatus.SUBMITTED && r.getStatus() != ResignationStatus.APPROVED) {
             throw new BadRequestException("Only SUBMITTED or APPROVED resignations can be withdrawn");
         }
         r.setStatus(ResignationStatus.WITHDRAWN);
+        if (req != null && req.withdrawalReason() != null) r.setWithdrawalReason(req.withdrawalReason());
+        r.setWithdrawnAt(java.time.OffsetDateTime.now());
         ResignationRequest saved = resignations.save(r);
         offboardingCases.findByResignationId(id).ifPresent(c -> {
             c.setCaseStatus(OffboardingCaseStatus.CANCELLED);
             offboardingCases.save(c);
         });
-        audit.record(MODULE, ENTITY, id.toString(), "WITHDRAWN", null, null);
+        audit.record(MODULE, ENTITY, id.toString(), "WITHDRAWN", null,
+                req != null && req.withdrawalReason() != null ? Map.of("reason", req.withdrawalReason()) : null);
         return saved;
     }
 }
