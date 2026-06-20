@@ -130,3 +130,50 @@ export async function updateOffboardingCaseStatus(
   })
   return res.data
 }
+
+export async function updateResignationLwd(id: string, approvedLastWorkingDate: string): Promise<ResignationResponse> {
+  const res = await api.patch(`/lifecycle/offboarding/resignations/${id}/lwd`, null, {
+    params: { approvedLastWorkingDate }
+  })
+  return res.data
+}
+
+// ── Notice Period Rules ───────────────────────────────────────────────────────
+
+export type EmploymentType =
+  | 'PERMANENT' | 'FIXED_TERM' | 'PART_TIME' | 'PROBATIONARY' | 'CONTRACTOR' | 'INTERN'
+
+export interface NoticePeriodRule {
+  id: string
+  employmentType?: EmploymentType
+  onProbation: boolean
+  noticeDays: number
+  description?: string
+  active: boolean
+}
+
+export interface NoticePeriodRuleRequest {
+  employmentType?: EmploymentType
+  onProbation?: boolean
+  noticeDays: number
+  description?: string
+}
+
+export async function listNoticePeriodRules(): Promise<NoticePeriodRule[]> {
+  const res = await api.get('/lifecycle/offboarding/notice-period-rules')
+  return res.data
+}
+
+export async function createNoticePeriodRule(req: NoticePeriodRuleRequest): Promise<NoticePeriodRule> {
+  const res = await api.post('/lifecycle/offboarding/notice-period-rules', req)
+  return res.data
+}
+
+export async function updateNoticePeriodRule(id: string, req: NoticePeriodRuleRequest): Promise<NoticePeriodRule> {
+  const res = await api.put(`/lifecycle/offboarding/notice-period-rules/${id}`, req)
+  return res.data
+}
+
+export async function deleteNoticePeriodRule(id: string): Promise<void> {
+  await api.delete(`/lifecycle/offboarding/notice-period-rules/${id}`)
+}

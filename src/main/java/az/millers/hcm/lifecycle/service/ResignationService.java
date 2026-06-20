@@ -1,5 +1,6 @@
 package az.millers.hcm.lifecycle.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +49,7 @@ public class ResignationService {
     private final OffboardingCaseRepository offboardingCases;
     private final EmployeeRepository employees;
     private final WorkflowService workflowService;
+    private final NoticePeriodService noticePeriod;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -55,12 +57,14 @@ public class ResignationService {
                                OffboardingCaseRepository offboardingCases,
                                EmployeeRepository employees,
                                WorkflowService workflowService,
+                               NoticePeriodService noticePeriod,
                                AuditService audit,
                                CurrentRequest currentRequest) {
         this.resignations = resignations;
         this.offboardingCases = offboardingCases;
         this.employees = employees;
         this.workflowService = workflowService;
+        this.noticePeriod = noticePeriod;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -143,7 +147,19 @@ public class ResignationService {
         ResignationRequest r = get(id);
         if (r.getStatus() != ResignationStatus.SUBMITTED) return r;
         r.setStatus(ResignationStatus.APPROVED);
-        r.setApprovedLastWorkingDate(r.getProposedLastWorkingDate());
+
+        // Auto-calculate notice period from configured rules (PRD §9).
+        employees.findById(r.getEmployeeId()).ifPresent(emp -> {
+            int days = noticePeriod.noticeDaysFor(emp);
+            r.setNoticeDaysCalculated(days);
+            r.setCalculatedLastWorkingDate(r.getResignationDate().plusDays(days));
+        });
+        // Approved LWD defaults to the calculated date; HR can override via PATCH /{id}/lwd.
+        r.setApprovedLastWorkingDate(
+                r.getCalculatedLastWorkingDate() != null
+                        ? r.getCalculatedLastWorkingDate()
+                        : r.getProposedLastWorkingDate());
+
         ResignationRequest saved = resignations.save(r);
         offboardingCases.findByResignationId(id).ifPresent(c -> {
             c.setCaseStatus(OffboardingCaseStatus.IN_PROGRESS);
@@ -182,6 +198,24 @@ public class ResignationService {
         });
         audit.record(MODULE, ENTITY, id.toString(), "CANCELLED", null,
                 Map.of("comment", comment == null ? "" : comment));
+        return saved;
+    }
+
+    @Transactional
+    public ResignationRequest updateApprovedLwd(UUID id, LocalDate lwd) {
+        ResignationRequest r = get(id);
+        if (r.getStatus() != ResignationStatus.APPROVED) {
+            throw new BadRequestException("Only APPROVED resignations allow LWD override");
+        }
+        r.setApprovedLastWorkingDate(lwd);
+        ResignationRequest saved = resignations.save(r);
+        offboardingCases.findByResignationId(id).ifPresent(c -> {
+            c.setLastWorkingDate(lwd);
+            offboardingCases.save(c);
+        });
+        audit.record(MODULE, ENTITY, id.toString(), "LWD_OVERRIDE",
+                Map.of("previous", r.getApprovedLastWorkingDate()),
+                Map.of("newLwd", lwd));
         return saved;
     }
 

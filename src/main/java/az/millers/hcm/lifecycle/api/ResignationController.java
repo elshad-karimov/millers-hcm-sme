@@ -2,10 +2,13 @@ package az.millers.hcm.lifecycle.api;
 
 import java.util.UUID;
 
+import java.time.LocalDate;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -60,5 +63,14 @@ public class ResignationController {
     @PreAuthorize(SecurityRoles.WRITE_HR)
     public ResignationResponse withdraw(@PathVariable UUID id) {
         return ResignationResponse.from(service.withdraw(id));
+    }
+
+    /** HR override: change the approved last working date after workflow approval. */
+    @PatchMapping("/{id}/lwd")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public ResignationResponse updateLwd(
+            @PathVariable UUID id,
+            @RequestParam LocalDate approvedLastWorkingDate) {
+        return ResignationResponse.from(service.updateApprovedLwd(id, approvedLastWorkingDate));
     }
 }
