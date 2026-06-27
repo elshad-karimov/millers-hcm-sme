@@ -21,6 +21,7 @@ import { ScheduleFormPage } from './pages/ScheduleFormPage'
 import { ScheduleAssignmentFormPage } from './pages/ScheduleAssignmentFormPage'
 import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
 import { AttendanceSummaryPage } from './pages/AttendanceSummaryPage'
+import { AttendancePoliciesPage } from './pages/AttendancePoliciesPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
 import { TeamLeaveCalendarPage } from './pages/TeamLeaveCalendarPage'
@@ -245,6 +246,7 @@ export default function App() {
           <Route path="attendance/schedules/:scheduleId/assign" element={<ScheduleAssignmentFormPage />} />
           <Route path="attendance/events" element={<AttendanceEventsPage />} />
           <Route path="attendance/summary" element={<AttendanceSummaryPage />} />
+          <Route path="attendance/policies" element={<AttendancePoliciesPage />} />
           <Route path="timesheets" element={<TimesheetsPage />} />
           <Route path="timesheets/:id" element={<TimesheetDetailPage />} />
 

@@ -80,6 +80,20 @@ public class DailySummary {
     @Column(nullable = false)
     private SummaryStatus status;
 
+    /** M326 — which attendance policy was applied when this summary was computed. */
+    @Column(name = "policy_id")
+    private UUID policyId;
+
+    /** M326 — COMPUTED | APPROVED | PAYROLL_PROCESSED. */
+    @Column(name = "calculation_status", nullable = false, length = 30)
+    private String calculationStatus = "COMPUTED";
+
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
+
+    @Column(name = "approved_by", length = 200)
+    private String approvedBy;
+
     @Column(name = "correction_reason", columnDefinition = "text")
     private String correctionReason;
 

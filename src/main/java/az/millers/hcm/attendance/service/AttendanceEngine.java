@@ -30,6 +30,8 @@ import az.millers.hcm.attendance.repo.RosterEntryRepository;
 import az.millers.hcm.attendance.repo.ScheduleAssignmentRepository;
 import az.millers.hcm.attendance.repo.ShiftRepository;
 import az.millers.hcm.attendance.repo.WorkScheduleRepository;
+import az.millers.hcm.attendance.domain.AttendancePolicy;
+import az.millers.hcm.attendance.service.AttendancePolicyService;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
@@ -71,6 +73,7 @@ public class AttendanceEngine {
     private final DailySummaryRepository summaries;
     private final RosterEntryRepository roster;
     private final ShiftRepository shifts;
+    private final AttendancePolicyService policies;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -80,6 +83,7 @@ public class AttendanceEngine {
                             DailySummaryRepository summaries,
                             RosterEntryRepository roster,
                             ShiftRepository shifts,
+                            AttendancePolicyService policies,
                             AuditService audit,
                             CurrentRequest currentRequest) {
         this.schedules = schedules;
@@ -88,6 +92,7 @@ public class AttendanceEngine {
         this.summaries = summaries;
         this.roster = roster;
         this.shifts = shifts;
+        this.policies = policies;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -146,7 +151,13 @@ public class AttendanceEngine {
             return s;
         }
 
-        Resolution res = resolve(employeeId, date);
+        // Resolve applicable attendance policy (M326): policy grace overrides schedule grace.
+        AttendancePolicy policy = policies.findForEmployee(employeeId).orElse(null);
+        if (policy != null) {
+            s.setPolicyId(policy.getId());
+        }
+
+        Resolution res = resolve(employeeId, date, policy);
         s.setSource(res.source());
         s.setScheduleId(res.scheduleId());
         s.setShiftId(res.shiftId());
@@ -227,9 +238,9 @@ public class AttendanceEngine {
     /**
      * Decide which schedule source applies to (employee, date). Roster wins
      * when an entry exists; otherwise we fall through to the legacy
-     * WorkSchedule path.
+     * WorkSchedule path. Policy grace overrides schedule grace when present.
      */
-    private Resolution resolve(UUID employeeId, LocalDate date) {
+    private Resolution resolve(UUID employeeId, LocalDate date, AttendancePolicy policy) {
         ZoneId zone = ZoneId.systemDefault();
 
         Optional<RosterEntry> entryOpt = roster.findByEmployeeIdAndRosterDate(employeeId, date);
@@ -241,11 +252,12 @@ public class AttendanceEngine {
             ScheduleMath.Window window = ScheduleMath.window(
                     date, shift.getStartTime(), shift.getEndTime(),
                     shift.isCrossesMidnight(), zone);
+            int rosterGrace = policy != null ? policy.getClockInGraceMinutes() : 0;
             return new Resolution(
                     "ROSTER", null, shift.getId(),
                     window,
                     shift.getBreakMinutes(),
-                    0,           // shifts don't carry a grace period yet — exact start required
+                    rosterGrace,
                     true,        // a rostered day is by definition a working day
                     shift.isCrossesMidnight());
         }
@@ -265,11 +277,12 @@ public class AttendanceEngine {
         // so we treat it as a regular within-day window.
         ScheduleMath.Window window = ScheduleMath.window(
                 date, sch.getWorkStart(), sch.getWorkEnd(), false, zone);
+        int schedGrace = policy != null ? policy.getClockInGraceMinutes() : sch.getGracePeriodMinutes();
         return new Resolution(
                 "SCHEDULE", sch.getId(), null,
                 window,
                 sch.getBreakMinutes(),
-                sch.getGracePeriodMinutes(),
+                schedGrace,
                 workingDay,
                 false);
     }

@@ -123,6 +123,48 @@ export interface CsvImportResult {
   errors: string[]
 }
 
+// ── Attendance Policy (M326) ──────────────────────────────────────────────
+
+export type EarlyLeaveTreatment = 'SALARY_DEDUCTION' | 'LEAVE_BALANCE' | 'VIOLATION' | 'IGNORE'
+export type AbsenceTreatment = 'UNPAID' | 'WARNING' | 'LEAVE_DEDUCTION'
+export type RoundingDirection = 'NEAREST' | 'UP' | 'DOWN'
+
+export interface AttendancePolicy {
+  id: string
+  code: string
+  name: string
+  description?: string
+  departmentId?: string
+  locationId?: string
+  employmentType?: string
+  clockInGraceMinutes: number
+  clockOutGraceMinutes: number
+  lateDeductionEnabled: boolean
+  lateMaxBeforeHalfDayMinutes: number
+  lateMonthlyThresholdMinutes: number
+  earlyLeaveDeductionEnabled: boolean
+  earlyLeaveTreatment: EarlyLeaveTreatment
+  earlyLeaveToleranceMinutes: number
+  absenceDeductionEnabled: boolean
+  absenceDailyDivisor: number
+  hoursPerDay: number
+  unauthorizedAbsenceTreatment: AbsenceTreatment
+  overtimeRequiresPreapproval: boolean
+  overtimeDeptHeadThresholdMinutes: number
+  compOffEnabled: boolean
+  autoBreakDeductionEnabled: boolean
+  breakMinutes: number
+  minHoursForBreakDeduction: string
+  roundingEnabled: boolean
+  roundingMinutes: number
+  roundingDirection: RoundingDirection
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type AttendancePolicyRequest = Omit<AttendancePolicy, 'id' | 'createdAt' | 'updatedAt'>
+
 export const attendanceApi = {
   // Schedules
   schedules: () => api.get<WorkSchedule[]>('/attendance/schedules').then((r) => r.data),
@@ -178,4 +220,20 @@ export const attendanceApi = {
       .then((r) => r.data),
   correct: (id: string, payload: SummaryCorrectionRequest) =>
     api.post<DailySummary>(`/attendance/summary/${id}/correct`, payload).then((r) => r.data),
+
+  // Attendance Policies (M326)
+  policies: () => api.get<AttendancePolicy[]>('/attendance/policies').then((r) => r.data),
+  policy: (id: string) => api.get<AttendancePolicy>(`/attendance/policies/${id}`).then((r) => r.data),
+  resolvePolicy: (employeeId: string) =>
+    api.get<AttendancePolicy | null>('/attendance/policies/resolve', { params: { employeeId } })
+       .then((r) => r.data)
+       .catch(() => null),
+  createPolicy: (payload: AttendancePolicyRequest) =>
+    api.post<AttendancePolicy>('/attendance/policies', payload).then((r) => r.data),
+  updatePolicy: (id: string, payload: AttendancePolicyRequest) =>
+    api.put<AttendancePolicy>(`/attendance/policies/${id}`, payload).then((r) => r.data),
+  deactivatePolicy: (id: string) =>
+    api.delete<void>(`/attendance/policies/${id}/deactivate`).then((r) => r.data),
+  activatePolicy: (id: string) =>
+    api.post<void>(`/attendance/policies/${id}/activate`).then((r) => r.data),
 }
