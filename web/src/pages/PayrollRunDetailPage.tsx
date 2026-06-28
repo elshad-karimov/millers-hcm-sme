@@ -37,6 +37,7 @@ import {
   type PayrollRunStatus,
 } from '../api/payroll'
 import { employeesApi, type Employee } from '../api/employees'
+import { attendanceApi, type AttendancePayrollSummary } from '../api/attendance'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
 import { RoleSets } from '../auth/roleSets'
@@ -69,6 +70,8 @@ export function PayrollRunDetailPage() {
   const [loading, setLoading] = useState(true)
   const [actLoading, setActLoading] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState<PayrollResult | null>(null)
+  const [attSummary, setAttSummary] = useState<AttendancePayrollSummary[]>([])
+  const [attLoading, setAttLoading] = useState(false)
   // M41: allowance lines for the currently-open payslip — lazy-loaded
   // when the modal opens, keyed by employeeId so re-opens are instant.
   const [allowanceCache, setAllowanceCache] = useState<Record<string, PayrollAllowance[]>>({})
@@ -76,16 +79,18 @@ export function PayrollRunDetailPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [r, res, emp, exp] = await Promise.all([
+      const [r, res, emp, exp, att] = await Promise.all([
         payrollApi.run(id),
         payrollApi.results(id),
         employeesApi.list({ size: 500 }),
         erpExportApi.listByRun(id).catch(() => [] as ErpExportResponse[]),
+        attendanceApi.payrollSummary(id).catch(() => [] as AttendancePayrollSummary[]),
       ])
       setRun(r)
       setResults(res)
       setEmployees(emp.content)
       setErpExports(exp)
+      setAttSummary(att)
     } catch (err) {
       message.error(
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
@@ -315,6 +320,92 @@ export function PayrollRunDetailPage() {
           />
         )}
       </Card>
+
+      {/* M331 — Attendance deduction breakdown (visible after Calculate) */}
+      {(attSummary.length > 0 || run.status !== 'DRAFT') && (
+        <Card
+          title="Attendance deductions"
+          extra={
+            hasRole(...RoleSets.HR_ADMIN_WRITE) && (
+              <Button
+                size="small"
+                loading={attLoading}
+                onClick={async () => {
+                  setAttLoading(true)
+                  try {
+                    const rows = await attendanceApi.recomputePayrollSummary(id)
+                    setAttSummary(rows)
+                    message.success('Attendance deductions recomputed')
+                  } catch {
+                    message.error('Recompute failed')
+                  } finally {
+                    setAttLoading(false)
+                  }
+                }}
+              >
+                Recompute
+              </Button>
+            )
+          }
+        >
+          {attSummary.length === 0 ? (
+            <Typography.Text type="secondary">
+              No attendance data — calculate the run first, or no attendance policy is configured.
+            </Typography.Text>
+          ) : (
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={attSummary}
+              columns={[
+                {
+                  title: 'Employee',
+                  dataIndex: 'employeeId',
+                  render: (eid: string) => {
+                    const e = employeeMap.get(eid)
+                    return e ? `${e.employeeNo} ${e.lastName} ${e.firstName}` : eid
+                  },
+                },
+                {
+                  title: 'Policy',
+                  dataIndex: 'policyCode',
+                  width: 120,
+                  render: (v?: string, row?: AttendancePayrollSummary) =>
+                    v ? <Tag color={row?.policyApplied ? 'blue' : 'default'}>{v}</Tag> : <Tag>No policy</Tag>,
+                },
+                { title: 'Late (min)', dataIndex: 'totalLateMinutes', align: 'right', width: 100 },
+                { title: 'Early (min)', dataIndex: 'totalEarlyMinutes', align: 'right', width: 100 },
+                { title: 'Absent (days)', dataIndex: 'totalAbsentDays', align: 'right', width: 110 },
+                { title: 'OT (min)', dataIndex: 'totalOvertimeMinutes', align: 'right', width: 90 },
+                {
+                  title: 'Late deduction',
+                  dataIndex: 'lateDeductionAmount',
+                  align: 'right',
+                  width: 120,
+                  render: (v: number) => v > 0 ? <Tag color="orange">{v.toFixed(2)}</Tag> : '—',
+                },
+                {
+                  title: 'Absent deduction',
+                  dataIndex: 'absenceDeductionAmount',
+                  align: 'right',
+                  width: 140,
+                  render: (v: number) => v > 0 ? <Tag color="red">{v.toFixed(2)}</Tag> : '—',
+                },
+                {
+                  title: 'Total deduction',
+                  dataIndex: 'totalDeductionAmount',
+                  align: 'right',
+                  width: 130,
+                  render: (v: number) => (
+                    <strong style={{ color: v > 0 ? '#cf1322' : undefined }}>{v.toFixed(2)}</strong>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </Card>
+      )}
 
       {run.workflowInstanceId && (
         <Card title="Workflow">

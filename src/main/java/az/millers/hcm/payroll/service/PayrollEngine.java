@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import az.millers.hcm.attendance.service.AttendanceDeductionBridge;
+import az.millers.hcm.attendance.service.AttendanceDeductionBridge.AttendanceDeductionResult;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.compbenefits.domain.AllowanceStatus;
 import az.millers.hcm.compbenefits.domain.AllowanceType;
@@ -86,6 +88,7 @@ public class PayrollEngine {
     private final AllowanceTypeRepository allowanceTypes;
     private final EmployeeRepository employees;
     private final PayrollDeductionRepository deductions;
+    private final AttendanceDeductionBridge attendanceBridge;
     private final StatutoryCalculator calculator;
     private final ObjectMapper objectMapper;
 
@@ -100,6 +103,7 @@ public class PayrollEngine {
                           AllowanceTypeRepository allowanceTypes,
                           EmployeeRepository employees,
                           PayrollDeductionRepository deductions,
+                          AttendanceDeductionBridge attendanceBridge,
                           StatutoryCalculator calculator,
                           ObjectMapper objectMapper) {
         this.runs = runs;
@@ -113,6 +117,7 @@ public class PayrollEngine {
         this.allowanceTypes = allowanceTypes;
         this.employees = employees;
         this.deductions = deductions;
+        this.attendanceBridge = attendanceBridge;
         this.calculator = calculator;
         this.objectMapper = objectMapper;
     }
@@ -272,6 +277,14 @@ public class PayrollEngine {
             }
             deduction = deduction.setScale(2, RoundingMode.HALF_UP);
 
+            // M327: attendance-based deductions (late / early-leave / absence).
+            // Applied against baseSalary only — the policy formulas reference the
+            // contractual monthly salary, not the gross (which includes OT/bonuses).
+            AttendanceDeductionResult attDeduction = attendanceBridge.compute(
+                    employeeId, run.getPeriodYear(), run.getPeriodMonth(), baseSalary);
+            deduction = deduction.add(attDeduction.totalDeduction())
+                    .setScale(2, RoundingMode.HALF_UP);
+
             BigDecimal gross = baseSalary
                     .add(ot.totalPay())
                     .add(bonusAmount)
@@ -318,7 +331,7 @@ public class PayrollEngine {
             r.setNetAmount(net);
             r.setCalculationDetails(buildTrace(baseSalary, ot, bonusAmount,
                     snapshots, taxableAllowance, nonTaxableAllowance,
-                    gross, tax, dsmf, mmi, unempl, net));
+                    attDeduction, gross, tax, dsmf, mmi, unempl, net));
             results.save(r);
 
             // ---- Update deduction state-machine after applying ----
@@ -368,6 +381,7 @@ public class PayrollEngine {
     private String buildTrace(BigDecimal baseSalary, OvertimePay ot, BigDecimal bonus,
                                List<PayrollAllowance> allowanceLines,
                                BigDecimal taxableAllowance, BigDecimal nonTaxableAllowance,
+                               AttendanceDeductionResult attDeduction,
                                BigDecimal gross, IncomeTaxResult tax, ContributionPair dsmf,
                                ContributionPair mmi, ContributionPair unempl, BigDecimal net) {
         Map<String, Object> trace = new LinkedHashMap<>();
@@ -411,6 +425,21 @@ public class PayrollEngine {
         }
         allowanceBlock.put("lines", lines);
         trace.put("allowances", allowanceBlock);
+
+        // M327: attendance deduction breakdown
+        Map<String, Object> attBlock = new LinkedHashMap<>();
+        attBlock.put("policyApplied", attDeduction.policyApplied());
+        attBlock.put("policyCode", attDeduction.policyCode());
+        attBlock.put("totalLateMinutes", attDeduction.totalLateMinutes());
+        attBlock.put("totalEarlyMinutes", attDeduction.totalEarlyMinutes());
+        attBlock.put("totalAbsentDays", attDeduction.totalAbsentDays());
+        attBlock.put("totalOvertimeMinutes", attDeduction.totalOvertimeMinutes());
+        attBlock.put("lateDeduction", attDeduction.lateDeduction().toPlainString());
+        attBlock.put("earlyLeaveDeduction", attDeduction.earlyLeaveDeduction().toPlainString());
+        attBlock.put("absenceDeduction", attDeduction.absenceDeduction().toPlainString());
+        attBlock.put("totalAttendanceDeduction", attDeduction.totalDeduction().toPlainString());
+        trace.put("attendanceDeductions", attBlock);
+
         trace.put("gross", gross.toPlainString());
         trace.put("incomeTax", tax.trace());
         trace.put("dsmf", Map.of(

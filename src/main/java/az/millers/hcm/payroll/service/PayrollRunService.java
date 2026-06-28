@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.attendance.service.AttendancePayrollSummaryService;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
@@ -41,6 +42,7 @@ public class PayrollRunService {
     private final PayrollBonusRepository bonuses;
     private final PayrollAllowanceRepository allowances;
     private final PayrollEngine engine;
+    private final AttendancePayrollSummaryService attendanceSummaryService;
     private final WorkflowService workflowService;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditService audit;
@@ -51,6 +53,7 @@ public class PayrollRunService {
                               PayrollBonusRepository bonuses,
                               PayrollAllowanceRepository allowances,
                               PayrollEngine engine,
+                              AttendancePayrollSummaryService attendanceSummaryService,
                               WorkflowService workflowService,
                               ApplicationEventPublisher eventPublisher,
                               AuditService audit,
@@ -60,6 +63,7 @@ public class PayrollRunService {
         this.bonuses = bonuses;
         this.allowances = allowances;
         this.engine = engine;
+        this.attendanceSummaryService = attendanceSummaryService;
         this.workflowService = workflowService;
         this.eventPublisher = eventPublisher;
         this.audit = audit;
@@ -139,6 +143,8 @@ public class PayrollRunService {
         calculated.setCalculatedAt(OffsetDateTime.now());
         calculated.setCalculatedBy(currentRequest.username());
         PayrollRun saved = runs.save(calculated);
+        // M331: build attendance impact summary for pre-approval review
+        attendanceSummaryService.compute(saved.getId());
         audit.record(MODULE, ENTITY, id.toString(),
                 "CALCULATE", null,
                 Map.of("totalGross", saved.getTotalGross().toPlainString(),

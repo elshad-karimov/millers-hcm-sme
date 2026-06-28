@@ -429,4 +429,30 @@ export const attendanceApi = {
   attendanceReport: (type: string, from: string, to: string, departmentId?: string) =>
     api.get<any[]>(`/reports/attendance/${type}`, { params: { from, to, departmentId } })
        .then((r) => r.data),
+
+  // M331 — Attendance-payroll summary bridge
+  payrollSummary: (runId: string) =>
+    api.get<AttendancePayrollSummary[]>(`/attendance/payroll-summary/${runId}`).then((r) => r.data),
+  recomputePayrollSummary: (runId: string) =>
+    api.post<AttendancePayrollSummary[]>(`/attendance/payroll-summary/${runId}/recompute`).then((r) => r.data),
+}
+
+// ── M331 — Attendance–Payroll Summary ─────────────────────────────────────
+export interface AttendancePayrollSummary {
+  id: string
+  payrollRunId: string
+  employeeId: string
+  periodYear: number
+  periodMonth: number
+  totalLateMinutes: number
+  totalEarlyMinutes: number
+  totalAbsentDays: number
+  totalOvertimeMinutes: number
+  lateDeductionAmount: number
+  earlyLeaveDeduction: number
+  absenceDeductionAmount: number
+  totalDeductionAmount: number
+  policyCode?: string
+  policyApplied: boolean
+  computedAt: string
 }
