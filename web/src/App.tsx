@@ -32,6 +32,7 @@ import { AttendanceReportsPage } from './pages/AttendanceReportsPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
 import { LeavePeriodLocksPage } from './pages/LeavePeriodLocksPage'
+import { UnauthorizedAbsencePage } from './pages/UnauthorizedAbsencePage'
 import { LeaveCategoriesPage } from './pages/LeaveCategoriesPage'
 import { TeamLeaveCalendarPage } from './pages/TeamLeaveCalendarPage'
 import { AssetsAdminPage } from './pages/AssetsAdminPage'
@@ -361,6 +362,7 @@ export default function App() {
           <Route path="leave/blackouts" element={<LeaveBlackoutsPage />} />
           {/* M342 — leave period locks admin */}
           <Route path="leave/period-locks" element={<LeavePeriodLocksPage />} />
+          <Route path="leave/unauthorized-absences" element={<UnauthorizedAbsencePage />} />
           {/* M338 — leave categories admin */}
           <Route path="leave/categories" element={<LeaveCategoriesPage />} />
           {/* M131 — team time-off calendar */}
