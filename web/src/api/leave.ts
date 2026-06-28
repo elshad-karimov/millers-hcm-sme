@@ -178,6 +178,15 @@ export const leaveApi = {
   }) =>
     api.get<TeamCalendarResponse>('/leave/team-calendar', { params }).then((r) => r.data),
 
+  // M342 — Period Locks
+  periodLocks: () => api.get<LeavePeriodLock[]>('/leave/period-locks').then((r) => r.data),
+  createPeriodLock: (payload: LeavePeriodLockRequest) =>
+    api.post<LeavePeriodLock>('/leave/period-locks', payload).then((r) => r.data),
+  updatePeriodLock: (id: string, payload: LeavePeriodLockRequest) =>
+    api.put<LeavePeriodLock>(`/leave/period-locks/${id}`, payload).then((r) => r.data),
+  deletePeriodLock: (id: string) =>
+    api.delete<void>(`/leave/period-locks/${id}`).then((r) => r.data),
+
   // M338 — Leave Categories
   categories: () => api.get<LeaveCategory[]>('/leave/categories').then((r) => r.data),
   createCategory: (payload: LeaveCategoryRequest) =>
@@ -315,6 +324,28 @@ export interface EntitlementResolveResult {
   matched: boolean
   annualEntitlementDays?: number
   monthlyAccrualDays?: number
+}
+
+// ── M342 — Leave Period Locks ───────────────────────────────────────────
+
+export interface LeavePeriodLock {
+  id: string
+  leaveTypeId?: string | null
+  periodStart: string
+  periodEnd: string
+  reason?: string | null
+  lockedBy?: string | null
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LeavePeriodLockRequest {
+  periodStart: string
+  periodEnd: string
+  leaveTypeId?: string | null
+  reason?: string
+  active?: boolean
 }
 
 export const EMPLOYMENT_TYPES = [

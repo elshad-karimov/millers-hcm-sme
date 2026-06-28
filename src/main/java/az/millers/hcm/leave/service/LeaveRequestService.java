@@ -54,6 +54,8 @@ public class LeaveRequestService {
     private final HolidayService holidays;
     /** M123 — blackout windows + applicability checker. */
     private final BlackoutWindowService blackouts;
+    /** M342 — period locks that freeze a date range for all mutations. */
+    private final LeavePeriodLockService periodLocks;
 
     public LeaveRequestService(LeaveRequestRepository requests,
                                 LeaveTypeRepository types,
@@ -64,7 +66,8 @@ public class LeaveRequestService {
                                 CurrentRequest currentRequest,
                                 AccessScopeService accessScope,
                                 HolidayService holidays,
-                                BlackoutWindowService blackouts) {
+                                BlackoutWindowService blackouts,
+                                LeavePeriodLockService periodLocks) {
         this.requests = requests;
         this.types = types;
         this.employees = employees;
@@ -72,6 +75,7 @@ public class LeaveRequestService {
         this.workflowService = workflowService;
         this.audit = audit;
         this.blackouts = blackouts;
+        this.periodLocks = periodLocks;
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
         this.holidays = holidays;
@@ -207,6 +211,16 @@ public class LeaveRequestService {
         // BadRequestException carries a multi-line message naming each
         // conflicting window so the user sees what's in the way.
         // REQUIRES_APPROVAL windows let the request through but raise
+        // M342 — period lock blocks new submissions overlapping locked window
+        var activeLocks = periodLocks.activeLocksFor(req.startDate(), req.endDate(), req.leaveTypeId());
+        if (!activeLocks.isEmpty()) {
+            az.millers.hcm.leave.domain.LeavePeriodLock lock = activeLocks.get(0);
+            throw new BadRequestException(
+                    "Leave period is locked from " + lock.getPeriodStart()
+                    + " to " + lock.getPeriodEnd()
+                    + (lock.getReason() != null ? ": " + lock.getReason() : ""));
+        }
+
         // blackoutFlag so HR sees it in their approval inbox.
         java.util.List<BlackoutWindow> hits = blackouts.applicableFor(
                 req.employeeId(), req.leaveTypeId(), req.startDate(), req.endDate());
@@ -293,6 +307,15 @@ public class LeaveRequestService {
     public LeaveRequest onCancelled(UUID requestId, String comment) {
         LeaveRequest r = get(requestId);
         if (r.getStatus() != LeaveRequestStatus.PENDING) return r;
+        // M342 — period lock blocks cancellations too (balance would change)
+        var activeLocks = periodLocks.activeLocksFor(r.getStartDate(), r.getEndDate(), r.getLeaveTypeId());
+        if (!activeLocks.isEmpty()) {
+            az.millers.hcm.leave.domain.LeavePeriodLock lock = activeLocks.get(0);
+            throw new BadRequestException(
+                    "Cannot cancel: leave period is locked from " + lock.getPeriodStart()
+                    + " to " + lock.getPeriodEnd()
+                    + (lock.getReason() != null ? ": " + lock.getReason() : ""));
+        }
         balances.release(r.getEmployeeId(), r.getLeaveTypeId(),
                 r.getStartDate().getYear(), r.getTotalDays());
         r.setStatus(LeaveRequestStatus.CANCELLED);
