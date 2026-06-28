@@ -167,6 +167,22 @@ export const leaveApi = {
         params: { employeeId, year, leaveTypeId },
       })
       .then((r) => r.data),
+
+  // M339 — Entitlement rules
+  entitlementRules: (typeId: string) =>
+    api.get<LeaveEntitlementRule[]>(`/leave/types/${typeId}/entitlement-rules`).then((r) => r.data),
+  createEntitlementRule: (typeId: string, payload: LeaveEntitlementRuleRequest) =>
+    api.post<LeaveEntitlementRule>(`/leave/types/${typeId}/entitlement-rules`, payload).then((r) => r.data),
+  updateEntitlementRule: (typeId: string, id: string, payload: LeaveEntitlementRuleRequest) =>
+    api.put<LeaveEntitlementRule>(`/leave/types/${typeId}/entitlement-rules/${id}`, payload).then((r) => r.data),
+  toggleEntitlementRule: (typeId: string, id: string) =>
+    api.delete<void>(`/leave/types/${typeId}/entitlement-rules/${id}`).then((r) => r.data),
+  resolveEntitlementRule: (typeId: string, employmentType: string, tenureMonths: number) =>
+    api
+      .get<EntitlementResolveResult>(`/leave/types/${typeId}/entitlement-rules/resolve`, {
+        params: { employmentType, tenureMonths },
+      })
+      .then((r) => r.data),
 }
 
 // ── M131 — Team time-off calendar wire types ───────────────────────────
@@ -243,3 +259,42 @@ export interface LedgerEntry {
   createdBy?: string | null
   createdAt: string
 }
+
+// ── M339 — Entitlement rules ────────────────────────────────────────────
+
+export interface LeaveEntitlementRule {
+  id: string
+  leaveTypeId: string
+  employmentType?: string | null
+  minTenureMonths?: number | null
+  maxTenureMonths?: number | null
+  annualEntitlementDays: number
+  priority: number
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LeaveEntitlementRuleRequest {
+  employmentType?: string | null
+  minTenureMonths?: number | null
+  maxTenureMonths?: number | null
+  annualEntitlementDays: number
+  priority?: number
+  active?: boolean
+}
+
+export interface EntitlementResolveResult {
+  matched: boolean
+  annualEntitlementDays?: number
+  monthlyAccrualDays?: number
+}
+
+export const EMPLOYMENT_TYPES = [
+  'PERMANENT',
+  'FIXED_TERM',
+  'PART_TIME',
+  'PROBATIONARY',
+  'CONTRACTOR',
+  'INTERN',
+] as const

@@ -65,7 +65,7 @@ spring:
   data:
     redis:
       host: ${HCM_REDIS_HOST:localhost}
-      port: ${HCM_REDIS_PORT:6379}
+      port: ${HCM_REDIS_PORT:6380}
       # No password in dev; production: set HCM_REDIS_PASSWORD
       password: ${HCM_REDIS_PASSWORD:}
       lettuce:

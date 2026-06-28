@@ -14,6 +14,11 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 /**
  * M168 (PRD §15.2): Redis-backed Spring Cache configuration.
  *
@@ -48,16 +53,27 @@ public class CacheConfig {
     public static final String GRADES         = "hcm:grades";
     public static final String COMPETENCIES   = "hcm:competencies";
 
+    private GenericJackson2JsonRedisSerializer jsonSerializer() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Allow type info so polymorphic deserialization works across JVM restarts.
+        mapper.activateDefaultTyping(
+                BasicPolymorphicTypeValidator.builder().allowIfSubType(Object.class).build(),
+                ObjectMapper.DefaultTyping.NON_FINAL);
+        return new GenericJackson2JsonRedisSerializer(mapper);
+    }
+
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
+        GenericJackson2JsonRedisSerializer serializer = jsonSerializer();
         // Default: JSON serialisation, no null values, 5-minute TTL.
         RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
                                 new StringRedisSerializer()))
                 .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(
-                                new GenericJackson2JsonRedisSerializer()))
+                        RedisSerializationContext.SerializationPair.fromSerializer(serializer))
                 .disableCachingNullValues()
                 .entryTtl(Duration.ofMinutes(5));
 

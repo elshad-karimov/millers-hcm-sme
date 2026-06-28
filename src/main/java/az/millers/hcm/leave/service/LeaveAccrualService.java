@@ -27,6 +27,7 @@ import az.millers.hcm.audit.AuditIdempotency;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
+import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.leave.domain.LeaveBalance;
 import az.millers.hcm.leave.domain.LeaveGroupEntitlement;
@@ -91,6 +92,7 @@ public class LeaveAccrualService {
     private final OrgUnitPolicyService orgPolicies;
     private final StructureVersionRepository orgVersions;
     private final LeaveLedgerService ledger;
+    private final LeaveEntitlementRuleService entitlementRules;
 
     public LeaveAccrualService(LeaveTypeRepository leaveTypes,
                                LeaveBalanceRepository balances,
@@ -100,7 +102,8 @@ public class LeaveAccrualService {
                                LeaveGroupService leaveGroupService,
                                OrgUnitPolicyService orgPolicies,
                                StructureVersionRepository orgVersions,
-                               LeaveLedgerService ledger) {
+                               LeaveLedgerService ledger,
+                               LeaveEntitlementRuleService entitlementRules) {
         this.leaveTypes = leaveTypes;
         this.balances = balances;
         this.employees = employees;
@@ -110,6 +113,7 @@ public class LeaveAccrualService {
         this.orgPolicies = orgPolicies;
         this.orgVersions = orgVersions;
         this.ledger = ledger;
+        this.entitlementRules = entitlementRules;
     }
 
     /**
@@ -165,6 +169,14 @@ public class LeaveAccrualService {
                     .forEach(row -> hireDates.put((UUID) row[0], (LocalDate) row[1]));
         }
 
+        // M339: load employment types so the entitlement-rule engine can match
+        // rules scoped to a specific employment type (PERMANENT vs INTERN etc.).
+        Map<UUID, EmploymentType> employmentTypes = new HashMap<>();
+        if (!activeEmpIds.isEmpty()) {
+            employees.findIdAndEmploymentTypeByIdIn(activeEmpIds)
+                    .forEach(row -> employmentTypes.put((UUID) row[0], (EmploymentType) row[1]));
+        }
+
         // M66 / P1-08: load each employee's leaveGroupId so the override
         // lookup below can short-circuit to the per-group entitlement when
         // one is configured. Null = fall through to the default group inside
@@ -198,6 +210,7 @@ public class LeaveAccrualService {
 
         for (UUID empId : activeEmpIds) {
             LocalDate hireDate = hireDates.get(empId); // may be null for legacy data
+            EmploymentType empType = employmentTypes.get(empId); // may be null for legacy data
             UUID rowLeaveGroup = leaveGroups.get(empId); // may be null
             // M82: walk the org-tree policy chain when the employee row itself
             // doesn't pin a group. activeVersionId may be null on fresh
@@ -213,9 +226,9 @@ public class LeaveAccrualService {
                 // (brackets → monthlyAccrualDays → default/12) applies unchanged.
                 LeaveGroupEntitlement override = leaveGroupService
                         .resolveEntitlementSource(leaveGroupId, t.getId());
-                // Per-employee bump: seniority brackets (if configured) win over
-                // the flat monthlyAccrualDays / default/12 fallback chain.
-                BigDecimal bump = monthlyBumpFor(t, override, hireDate, periodDate);
+                // M339: entitlement rules (by employment_type + tenure months) are
+                // consulted at highest priority before all other sources.
+                BigDecimal bump = monthlyBumpFor(t, override, empType, hireDate, periodDate);
                 if (bump.signum() == 0) {
                     skipped++;
                     continue;
@@ -270,26 +283,29 @@ public class LeaveAccrualService {
     /**
      * Convenience overload for callers that don't have a hire date
      * (e.g. dry-run preview where the employee set isn't fully loaded).
-     * Skips brackets, no override, falls back to the flat
+     * Skips brackets and entitlement rules, no override, falls back to the flat
      * {@code monthlyAccrualDays / default/12} chain.
      */
     BigDecimal monthlyBumpFor(LeaveType t) {
-        return monthlyBumpFor(t, null, null, LocalDate.now());
+        return monthlyBumpFor(t, null, null, null, LocalDate.now());
     }
 
     /**
-     * Backwards-compatible overload — same semantics as before M66, no override.
+     * Backwards-compatible overload — same semantics as before M66, no override or entitlement rule.
      */
     BigDecimal monthlyBumpFor(LeaveType t, LocalDate hireDate, LocalDate periodDate) {
-        return monthlyBumpFor(t, null, hireDate, periodDate);
+        return monthlyBumpFor(t, null, null, hireDate, periodDate);
     }
 
     /**
-     * Per-employee monthly bump, honouring seniority brackets (M47) and
-     * per-(group, type) overrides (M66).
+     * Per-employee monthly bump, honouring entitlement rules (M339), seniority brackets (M47),
+     * and per-(group, type) overrides (M66).
      *
      * <p>Priority:
      * <ol>
+     *   <li><strong>Entitlement rule</strong> (M339) — if an active rule matches the employee's
+     *       employment_type and completed tenure months, its {@code annual_entitlement_days / 12}
+     *       wins outright over everything else.</li>
      *   <li><strong>Override seniority brackets</strong> (M66) — if the
      *       employee's group has an override row WITH non-empty
      *       {@code seniority_brackets_json}, those take precedence over the
@@ -306,17 +322,25 @@ public class LeaveAccrualService {
      *   <li>Zero — when no source is configured.</li>
      * </ol>
      *
-     * <p>The override layer is consulted before the corresponding type field
-     * at every level, so a group can override <em>only</em> the annual days
-     * budget while inheriting the type's seniority schedule (or vice versa).
-     *
-     * @param t           the leave type (carries default entitlement values)
-     * @param override    per-(group, type) override row; {@code null} = no override
-     * @param hireDate    employee hire date; {@code null} skips brackets
-     * @param periodDate  the 1st of the target accrual month (tenure "as of" date)
+     * @param t              the leave type (carries default entitlement values)
+     * @param override       per-(group, type) override row; {@code null} = no override
+     * @param employmentType employee's employment type; {@code null} skips entitlement rules
+     * @param hireDate       employee hire date; {@code null} skips brackets + entitlement rules
+     * @param periodDate     the 1st of the target accrual month (tenure "as of" date)
      */
     BigDecimal monthlyBumpFor(LeaveType t, LeaveGroupEntitlement override,
+                               EmploymentType employmentType,
                                LocalDate hireDate, LocalDate periodDate) {
+        // Priority 0: entitlement rules (M339) — employment_type + tenure months
+        if (employmentType != null && hireDate != null) {
+            int tenureMonths = (int) ChronoUnit.MONTHS.between(hireDate, periodDate);
+            Optional<BigDecimal> ruleAnnual = entitlementRules.resolve(
+                    t.getId(), employmentType, Math.max(0, tenureMonths));
+            if (ruleAnnual.isPresent()) {
+                return ruleAnnual.get().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+            }
+        }
+
         // Priority 1+2: brackets (override wins over type)
         List<SeniorityBracket> brackets = effectiveBrackets(t, override);
         if (brackets != null && !brackets.isEmpty() && hireDate != null) {

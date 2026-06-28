@@ -124,6 +124,15 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
             @Param("ids") java.util.Collection<UUID> ids);
 
     /**
+     * M339 — returns {@code (id, employmentType)} pairs for the given employee IDs.
+     * Used by {@link az.millers.hcm.leave.service.LeaveAccrualService} to match
+     * entitlement rules by employment type without loading the full Employee aggregate.
+     */
+    @Query("select e.id, e.employmentType from Employee e where e.id in :ids")
+    java.util.List<Object[]> findIdAndEmploymentTypeByIdIn(
+            @Param("ids") java.util.Collection<UUID> ids);
+
+    /**
      * M109 — count employees that actually <em>occupy</em> a position right now,
      * i.e. anyone in an active employment status (everything except TERMINATED
      * and RETIRED). Used by {@code PositionHeadcountService} to enforce the
