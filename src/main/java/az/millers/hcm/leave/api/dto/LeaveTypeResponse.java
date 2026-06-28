@@ -17,6 +17,7 @@ public record LeaveTypeResponse(
         boolean requiresReplacement,
         BigDecimal defaultAnnualEntitlementDays,
         BigDecimal carryForwardLimitDays,
+        Integer carryForwardExpiryMonths,
         Integer maxConsecutiveDays,
         boolean excludeWeekends,
         boolean excludeHolidays,
@@ -25,6 +26,8 @@ public record LeaveTypeResponse(
         BigDecimal monthlyAccrualDays,
         /** Seniority bracket schedule, empty list when none configured (M47). */
         List<SeniorityBracket> seniorityBrackets,
+        boolean negativeBalanceAllowed,
+        BigDecimal maxNegativeDays,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
 
@@ -36,9 +39,11 @@ public record LeaveTypeResponse(
                 t.getId(), t.getCode(), t.getName(), t.getDescription(),
                 t.isPaid(), t.isRequiresAttachment(), t.isRequiresReplacement(),
                 t.getDefaultAnnualEntitlementDays(), t.getCarryForwardLimitDays(),
+                t.getCarryForwardExpiryMonths(),
                 t.getMaxConsecutiveDays(), t.isExcludeWeekends(), t.isExcludeHolidays(),
                 t.isActive(), t.isAccruesMonthly(), t.getMonthlyAccrualDays(),
                 brackets,
+                t.isNegativeBalanceAllowed(), t.getMaxNegativeDays(),
                 t.getCreatedAt(), t.getUpdatedAt());
     }
 }

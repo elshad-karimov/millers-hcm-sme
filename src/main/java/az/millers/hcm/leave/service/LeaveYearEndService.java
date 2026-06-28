@@ -159,6 +159,12 @@ public class LeaveYearEndService {
 
         next.setCarriedForwardDays(carry);
         next.setLastRecalculatedAt(OffsetDateTime.now());
+        if (carry.compareTo(BigDecimal.ZERO) > 0 && type.getCarryForwardExpiryMonths() != null) {
+            next.setCarryForwardExpiresAt(
+                    LocalDate.of(nextYear, 1, 1).plusMonths(type.getCarryForwardExpiryMonths()));
+        } else {
+            next.setCarryForwardExpiresAt(null);
+        }
         balances.save(next);
 
         LocalDate rolloverDate = LocalDate.of(nextYear, 1, 1);

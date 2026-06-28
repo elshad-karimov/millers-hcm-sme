@@ -30,5 +30,11 @@ public record LeaveTypeRequest(
          * When non-null and non-empty, overrides monthlyAccrualDays and
          * defaultAnnualEntitlementDays/12 as the per-employee monthly bump.
          */
-        List<SeniorityBracket> seniorityBrackets) {
+        List<SeniorityBracket> seniorityBrackets,
+        /** Months after Jan 1 of new year before carried-forward days expire. Null = no mid-year expiry. */
+        @Min(1) Integer carryForwardExpiryMonths,
+        /** Allows submitting requests beyond the current balance. */
+        Boolean negativeBalanceAllowed,
+        /** Max overdraft days when negativeBalanceAllowed is true. Null = unlimited. */
+        @DecimalMin("0.0") BigDecimal maxNegativeDays) {
 }

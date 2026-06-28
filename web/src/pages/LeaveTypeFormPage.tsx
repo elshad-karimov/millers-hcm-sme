@@ -44,12 +44,15 @@ interface FormValues {
   requiresReplacement?: boolean
   defaultAnnualEntitlementDays?: number
   carryForwardLimitDays?: number
+  carryForwardExpiryMonths?: number
   maxConsecutiveDays?: number
   excludeWeekends?: boolean
   excludeHolidays?: boolean
   active?: boolean
   accruesMonthly?: boolean
   monthlyAccrualDays?: number
+  negativeBalanceAllowed?: boolean
+  maxNegativeDays?: number
 }
 
 export function LeaveTypeFormPage() {
@@ -83,12 +86,15 @@ export function LeaveTypeFormPage() {
           requiresReplacement: t.requiresReplacement,
           defaultAnnualEntitlementDays: t.defaultAnnualEntitlementDays ?? undefined,
           carryForwardLimitDays: t.carryForwardLimitDays ?? undefined,
+          carryForwardExpiryMonths: t.carryForwardExpiryMonths ?? undefined,
           maxConsecutiveDays: t.maxConsecutiveDays ?? undefined,
           excludeWeekends: t.excludeWeekends,
           excludeHolidays: t.excludeHolidays,
           active: t.active,
           accruesMonthly: t.accruesMonthly,
           monthlyAccrualDays: t.monthlyAccrualDays ?? undefined,
+          negativeBalanceAllowed: t.negativeBalanceAllowed,
+          maxNegativeDays: t.maxNegativeDays ?? undefined,
         })
         if (t.seniorityBrackets && t.seniorityBrackets.length > 0) {
           setBrackets(
@@ -242,6 +248,17 @@ export function LeaveTypeFormPage() {
               </Form.Item>
             </Col>
           </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="carryForwardExpiryMonths"
+                label="Carry-forward expiry (months)"
+                tooltip="Carried-forward days expire this many months into the new year. Leave blank = no expiry."
+              >
+                <InputNumber min={1} max={12} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
 
           {/* ── Flags ─────────────────────────────────────────────────── */}
           <Row gutter={16}>
@@ -296,6 +313,27 @@ export function LeaveTypeFormPage() {
                 tooltip="Leave blank to derive from default annual ÷ 12, or from seniority brackets"
               >
                 <InputNumber min={0} step={0.25} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* ── Negative balance ──────────────────────────────────────── */}
+          <Divider orientation="left" style={{ fontSize: 13 }}>
+            Negative balance (M340)
+          </Divider>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="negativeBalanceAllowed" valuePropName="checked">
+                <Checkbox>Allow negative balance</Checkbox>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="maxNegativeDays"
+                label="Max negative days"
+                tooltip="Maximum deficit allowed (e.g. 5 = employee can go 5 days below zero). Leave blank for unlimited negative."
+              >
+                <InputNumber min={0} step={0.5} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>

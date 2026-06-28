@@ -1,6 +1,7 @@
 package az.millers.hcm.leave.domain;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -48,6 +49,10 @@ public class LeaveBalance {
 
     @Column(name = "reserved_days", nullable = false, precision = 7, scale = 2)
     private BigDecimal reservedDays = BigDecimal.ZERO;
+
+    /** Set at year-end roll-over when the leave type has carryForwardExpiryMonths configured. */
+    @Column(name = "carry_forward_expires_at")
+    private LocalDate carryForwardExpiresAt;
 
     @Column(name = "last_recalculated_at", nullable = false)
     private OffsetDateTime lastRecalculatedAt;

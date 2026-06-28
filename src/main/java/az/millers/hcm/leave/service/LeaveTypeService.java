@@ -105,6 +105,9 @@ public class LeaveTypeService {
         t.setAccruesMonthly(Boolean.TRUE.equals(req.accruesMonthly()));
         t.setMonthlyAccrualDays(req.monthlyAccrualDays());
         t.setSeniorityBrackets(validateBrackets(req.seniorityBrackets()));
+        t.setCarryForwardExpiryMonths(req.carryForwardExpiryMonths());
+        t.setNegativeBalanceAllowed(Boolean.TRUE.equals(req.negativeBalanceAllowed()));
+        t.setMaxNegativeDays(req.maxNegativeDays());
     }
 
     /**

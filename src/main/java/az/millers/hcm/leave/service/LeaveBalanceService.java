@@ -86,12 +86,27 @@ public class LeaveBalanceService {
     /** Called by {@code LeaveRequestService} when a request is submitted. */
     @Transactional
     public LeaveBalance reserve(UUID employeeId, UUID leaveTypeId, int year, BigDecimal days,
-                                 boolean enforceLimit) {
+                                 LeaveType type) {
         LeaveBalance b = ensureBalance(employeeId, leaveTypeId, year);
-        if (enforceLimit && b.remaining().compareTo(days) < 0) {
-            throw new BadRequestException(
-                    "Insufficient remaining balance: requested " + days
-                            + ", available " + b.remaining());
+        boolean hasEntitlement = type.getDefaultAnnualEntitlementDays() != null
+                && type.getDefaultAnnualEntitlementDays().signum() > 0;
+        if (hasEntitlement) {
+            BigDecimal remaining = b.remaining();
+            if (type.isNegativeBalanceAllowed()) {
+                BigDecimal floor = type.getMaxNegativeDays() != null
+                        ? type.getMaxNegativeDays().negate()
+                        : new BigDecimal("-999999");
+                if (remaining.subtract(days).compareTo(floor) < 0) {
+                    throw new BadRequestException(
+                            "Request would exceed the maximum negative balance of "
+                                    + type.getMaxNegativeDays() + " days for "
+                                    + type.getCode());
+                }
+            } else if (remaining.compareTo(days) < 0) {
+                throw new BadRequestException(
+                        "Insufficient remaining balance: requested " + days
+                                + ", available " + remaining);
+            }
         }
         b.setReservedDays(b.getReservedDays().add(days));
         b.setLastRecalculatedAt(OffsetDateTime.now());

@@ -26,6 +26,7 @@ export interface LeaveType {
   requiresReplacement: boolean
   defaultAnnualEntitlementDays?: number | null
   carryForwardLimitDays?: number | null
+  carryForwardExpiryMonths?: number | null
   maxConsecutiveDays?: number | null
   excludeWeekends: boolean
   excludeHolidays: boolean
@@ -34,6 +35,8 @@ export interface LeaveType {
   monthlyAccrualDays?: number | null
   /** Seniority bracket schedule; empty array when none configured (M47). */
   seniorityBrackets: SeniorityBracket[]
+  negativeBalanceAllowed: boolean
+  maxNegativeDays?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -47,6 +50,7 @@ export interface LeaveTypeRequest {
   requiresReplacement?: boolean
   defaultAnnualEntitlementDays?: number
   carryForwardLimitDays?: number
+  carryForwardExpiryMonths?: number | null
   maxConsecutiveDays?: number
   excludeWeekends?: boolean
   excludeHolidays?: boolean
@@ -55,6 +59,8 @@ export interface LeaveTypeRequest {
   monthlyAccrualDays?: number
   /** Optional seniority bracket schedule (M47). */
   seniorityBrackets?: SeniorityBracket[]
+  negativeBalanceAllowed?: boolean
+  maxNegativeDays?: number | null
 }
 
 export interface LeaveBalance {
@@ -68,6 +74,7 @@ export interface LeaveBalance {
   usedDays: number
   reservedDays: number
   remainingDays: number
+  carryForwardExpiresAt?: string | null
   lastRecalculatedAt: string
 }
 

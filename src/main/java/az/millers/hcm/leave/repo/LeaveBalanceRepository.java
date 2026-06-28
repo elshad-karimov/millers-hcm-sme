@@ -1,5 +1,7 @@
 package az.millers.hcm.leave.repo;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,4 +18,8 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, UUID
     List<LeaveBalance> findByEmployeeIdAndYearOrderByLeaveTypeId(UUID employeeId, int year);
 
     List<LeaveBalance> findByYearOrderByEmployeeIdAscLeaveTypeIdAsc(int year);
+
+    /** Find balances whose carry-forward has passed its expiry date and still has days remaining. */
+    List<LeaveBalance> findByCarryForwardExpiresAtBeforeAndCarriedForwardDaysGreaterThan(
+            LocalDate cutoff, BigDecimal threshold);
 }

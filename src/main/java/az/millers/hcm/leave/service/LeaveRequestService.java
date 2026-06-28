@@ -192,10 +192,8 @@ public class LeaveRequestService {
         r.setCreatedBy(currentRequest.username());
         LeaveRequest saved = requests.save(r);
 
-        boolean enforceLimit = type.getDefaultAnnualEntitlementDays() != null
-                && type.getDefaultAnnualEntitlementDays().signum() > 0;
         balances.reserve(req.employeeId(), req.leaveTypeId(),
-                req.startDate().getYear(), totalDays, enforceLimit);
+                req.startDate().getYear(), totalDays, type);
 
         WorkflowInstance instance = workflowService.start(new StartWorkflowRequest(
                 WORKFLOW_DEFINITION,

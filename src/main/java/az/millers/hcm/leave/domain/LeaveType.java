@@ -54,6 +54,17 @@ public class LeaveType {
     @Column(name = "carry_forward_limit_days", precision = 6, scale = 2)
     private BigDecimal carryForwardLimitDays;
 
+    /** Months from Jan 1 of the new year before carried-forward days expire. Null = no mid-year expiry. */
+    @Column(name = "carry_forward_expiry_months")
+    private Integer carryForwardExpiryMonths;
+
+    @Column(name = "negative_balance_allowed", nullable = false)
+    private boolean negativeBalanceAllowed;
+
+    /** Max overdraft days when negativeBalanceAllowed is true. Null = unlimited. */
+    @Column(name = "max_negative_days", precision = 5, scale = 2)
+    private BigDecimal maxNegativeDays;
+
     /**
      * When {@code true}, {@code LeaveAccrualService} credits
      * {@link #monthlyAccrualDays} (or default/12 fallback) on the 1st of
