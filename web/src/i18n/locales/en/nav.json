@@ -52,6 +52,7 @@
       "leaveBalances": "Leave balances",
       "leaveTypes": "Leave types",
       "blackoutWindows": "Blackout windows",
+      "leaveCategories": "Leave categories",
       "permissionRequests": "Permission requests",
       "permissionBalances": "Permission balances",
       "permissionTypes": "Permission types"

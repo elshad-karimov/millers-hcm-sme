@@ -39,10 +39,10 @@ public class AttendancePayrollSummary {
     private UUID employeeId;
 
     @Column(name = "period_year", nullable = false)
-    private int periodYear;
+    private short periodYear;
 
     @Column(name = "period_month", nullable = false)
-    private int periodMonth;
+    private short periodMonth;
 
     @Column(name = "total_late_minutes", nullable = false)
     private int totalLateMinutes;

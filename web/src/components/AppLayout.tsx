@@ -39,6 +39,7 @@ import {
   LogoutOutlined,
   UserDeleteOutlined,
   WarningOutlined,
+  TagsOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -89,6 +90,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/attendance/summary', module: 'time', screen: 'attendance-summary' },
   { prefix: '/leave/types', module: 'absence', screen: 'leave-types' },
   { prefix: '/leave/blackouts', module: 'absence', screen: 'leave-blackouts' },
+  { prefix: '/leave/categories', module: 'absence', screen: 'leave-categories' },
   { prefix: '/leave/team-calendar', module: 'absence', screen: 'leave-team-calendar' },
   { prefix: '/leave/balances', module: 'absence', screen: 'leave-balances' },
   { prefix: '/leave/requests', module: 'absence', screen: 'leave-requests' },
@@ -441,6 +443,11 @@ export function AppLayout() {
                       key: 'leave-blackouts',
                       icon: <SafetyCertificateOutlined />,
                       label: <Link to="/leave/blackouts">{tNav('sub.absence.blackoutWindows')}</Link>,
+                    },
+                    {
+                      key: 'leave-categories',
+                      icon: <TagsOutlined />,
+                      label: <Link to="/leave/categories">{tNav('sub.absence.leaveCategories')}</Link>,
                     },
                     { type: 'divider' as const },
                   ]

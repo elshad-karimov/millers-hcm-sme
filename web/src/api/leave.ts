@@ -20,6 +20,7 @@ export interface LeaveType {
   code: string
   name: string
   description?: string | null
+  categoryId?: string | null
   paid: boolean
   requiresAttachment: boolean
   requiresReplacement: boolean
@@ -149,6 +150,23 @@ export const leaveApi = {
     thresholdPercent?: number
   }) =>
     api.get<TeamCalendarResponse>('/leave/team-calendar', { params }).then((r) => r.data),
+
+  // M338 — Leave Categories
+  categories: () => api.get<LeaveCategory[]>('/leave/categories').then((r) => r.data),
+  createCategory: (payload: LeaveCategoryRequest) =>
+    api.post<LeaveCategory>('/leave/categories', payload).then((r) => r.data),
+  updateCategory: (id: string, payload: LeaveCategoryRequest) =>
+    api.put<LeaveCategory>(`/leave/categories/${id}`, payload).then((r) => r.data),
+  deactivateCategory: (id: string) =>
+    api.delete<void>(`/leave/categories/${id}`).then((r) => r.data),
+
+  // M338 — Balance Ledger
+  balanceLedger: (employeeId: string, year: number, leaveTypeId?: string) =>
+    api
+      .get<LedgerEntry[]>('/leave/balances/ledger', {
+        params: { employeeId, year, leaveTypeId },
+      })
+      .then((r) => r.data),
 }
 
 // ── M131 — Team time-off calendar wire types ───────────────────────────
@@ -183,4 +201,45 @@ export interface TeamCalendarResponse {
   thresholdPercent: number
   entries: TeamLeaveEntry[]
   days: DailyRollup[]
+}
+
+// ── M338 — Leave Categories ─────────────────────────────────────────────
+
+export interface LeaveCategory {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  paidDefault: boolean
+  reportingGroup?: string | null
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LeaveCategoryRequest {
+  code: string
+  name: string
+  description?: string
+  paidDefault: boolean
+  reportingGroup?: string
+  active?: boolean
+}
+
+// ── M338 — Balance Ledger ───────────────────────────────────────────────
+
+export interface LedgerEntry {
+  id: string
+  employeeId: string
+  leaveTypeId: string
+  year: number
+  txType: string
+  amount: number
+  effectiveDate: string
+  sourceType?: string | null
+  sourceId?: string | null
+  balanceAfter: number
+  notes?: string | null
+  createdBy?: string | null
+  createdAt: string
 }

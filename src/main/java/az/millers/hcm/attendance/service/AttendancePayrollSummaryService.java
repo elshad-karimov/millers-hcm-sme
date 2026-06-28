@@ -70,8 +70,8 @@ public class AttendancePayrollSummaryService {
             summary.setTenantId(tenantId);
             summary.setPayrollRunId(runId);
             summary.setEmployeeId(pr.getEmployeeId());
-            summary.setPeriodYear(run.getPeriodYear());
-            summary.setPeriodMonth(run.getPeriodMonth());
+            summary.setPeriodYear((short) run.getPeriodYear());
+            summary.setPeriodMonth((short) run.getPeriodMonth());
             summary.setTotalLateMinutes(ded.totalLateMinutes());
             summary.setTotalEarlyMinutes(ded.totalEarlyMinutes());
             summary.setTotalAbsentDays(ded.totalAbsentDays());

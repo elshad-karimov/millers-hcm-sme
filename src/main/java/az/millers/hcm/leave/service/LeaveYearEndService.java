@@ -17,8 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.leave.domain.LeaveBalance;
 import az.millers.hcm.leave.domain.LeaveType;
+import az.millers.hcm.leave.domain.LedgerTxType;
 import az.millers.hcm.leave.repo.LeaveBalanceRepository;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
+
+import java.time.LocalDate;
 
 /**
  * Applies year-end carry-forward and expiration for all active leave types
@@ -46,19 +49,23 @@ import az.millers.hcm.leave.repo.LeaveTypeRepository;
 public class LeaveYearEndService {
 
     private static final Logger log = LoggerFactory.getLogger(LeaveYearEndService.class);
+    private static final String MODULE = "LEAVE";
     private static final String ENTITY = "LeaveBalance";
     private static final String ACTION  = "LEAVE_YEAR_END_ROLLOVER";
 
     private final LeaveBalanceRepository balances;
     private final LeaveTypeRepository types;
     private final AuditService audit;
+    private final LeaveLedgerService ledger;
 
     public LeaveYearEndService(LeaveBalanceRepository balances,
                                LeaveTypeRepository types,
-                               AuditService audit) {
+                               AuditService audit,
+                               LeaveLedgerService ledger) {
         this.balances = balances;
         this.types = types;
         this.audit = audit;
+        this.ledger = ledger;
     }
 
     /** Runs on 1 January at 01:30 AM for the previous year. */
@@ -110,7 +117,7 @@ public class LeaveYearEndService {
                                          .setScale(2, RoundingMode.HALF_UP);
 
             if (!dryRun) {
-                applyCarryForward(closing, type, nextYear, carry);
+                applyCarryForward(closing, type, nextYear, carry, expired);
                 recordAudit(closing, nextYear, available, carry, expired);
             }
 
@@ -125,7 +132,7 @@ public class LeaveYearEndService {
     // ---------- Internals ----------
 
     private void applyCarryForward(LeaveBalance closing, LeaveType type,
-                                    int nextYear, BigDecimal carry) {
+                                    int nextYear, BigDecimal carry, BigDecimal expired) {
         Optional<LeaveBalance> existing = balances
                 .findByEmployeeIdAndLeaveTypeIdAndYear(
                         closing.getEmployeeId(), closing.getLeaveTypeId(), nextYear);
@@ -133,7 +140,6 @@ public class LeaveYearEndService {
         LeaveBalance next;
         if (existing.isPresent()) {
             next = existing.get();
-            // Idempotency: if already has carried days from this run, skip.
             if (next.getCarriedForwardDays().compareTo(BigDecimal.ZERO) > 0) {
                 log.debug("Skipping already-rolled-over balance: emp={} type={} year={}",
                         closing.getEmployeeId(), type.getCode(), nextYear);
@@ -144,7 +150,6 @@ public class LeaveYearEndService {
             next.setEmployeeId(closing.getEmployeeId());
             next.setLeaveTypeId(closing.getLeaveTypeId());
             next.setYear(nextYear);
-            // Seed entitlement for non-accrual types; accrual types earn via monthly job.
             if (!type.isAccruesMonthly() && type.getDefaultAnnualEntitlementDays() != null) {
                 next.setEntitlementDays(type.getDefaultAnnualEntitlementDays());
             } else {
@@ -155,6 +160,20 @@ public class LeaveYearEndService {
         next.setCarriedForwardDays(carry);
         next.setLastRecalculatedAt(OffsetDateTime.now());
         balances.save(next);
+
+        LocalDate rolloverDate = LocalDate.of(nextYear, 1, 1);
+        if (carry.compareTo(BigDecimal.ZERO) > 0) {
+            ledger.record(next.getEmployeeId(), next.getLeaveTypeId(), nextYear,
+                    LedgerTxType.CARRY_FORWARD, carry, rolloverDate,
+                    "YEAR_END_ROLLOVER", closing.getId().toString(), next.remaining(),
+                    "Carried forward from " + closing.getYear(), "system");
+        }
+        if (expired.compareTo(BigDecimal.ZERO) > 0) {
+            ledger.record(closing.getEmployeeId(), closing.getLeaveTypeId(), closing.getYear(),
+                    LedgerTxType.EXPIRY, expired.negate(), rolloverDate,
+                    "YEAR_END_ROLLOVER", closing.getId().toString(), BigDecimal.ZERO,
+                    "Expired balance at year end", "system");
+        }
     }
 
     private void recordAudit(LeaveBalance closing, int nextYear,
@@ -166,7 +185,7 @@ public class LeaveYearEndService {
         detail.put("carried",   carry);
         detail.put("expired",   expired);
         detail.put("balanceId", closing.getId().toString());
-        audit.record(ENTITY, closing.getId().toString(), ACTION, null, detail, "system");
+        audit.record(MODULE, ENTITY, closing.getId().toString(), ACTION, null, detail);
     }
 
     /** Summary returned by {@link #rollover(int, boolean)}. */

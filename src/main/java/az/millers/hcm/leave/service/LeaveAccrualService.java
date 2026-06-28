@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
 import az.millers.hcm.leave.api.dto.SeniorityBracket;
+import az.millers.hcm.leave.domain.LedgerTxType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +90,7 @@ public class LeaveAccrualService {
     private final LeaveGroupService leaveGroupService;
     private final OrgUnitPolicyService orgPolicies;
     private final StructureVersionRepository orgVersions;
+    private final LeaveLedgerService ledger;
 
     public LeaveAccrualService(LeaveTypeRepository leaveTypes,
                                LeaveBalanceRepository balances,
@@ -96,7 +99,8 @@ public class LeaveAccrualService {
                                AuditIdempotency auditIdempotency,
                                LeaveGroupService leaveGroupService,
                                OrgUnitPolicyService orgPolicies,
-                               StructureVersionRepository orgVersions) {
+                               StructureVersionRepository orgVersions,
+                               LeaveLedgerService ledger) {
         this.leaveTypes = leaveTypes;
         this.balances = balances;
         this.employees = employees;
@@ -105,6 +109,7 @@ public class LeaveAccrualService {
         this.leaveGroupService = leaveGroupService;
         this.orgPolicies = orgPolicies;
         this.orgVersions = orgVersions;
+        this.ledger = ledger;
     }
 
     /**
@@ -235,7 +240,6 @@ public class LeaveAccrualService {
                     delta.put("deltaDays", bump);
                     delta.put("entitlementBefore", before);
                     delta.put("entitlementAfter", b.getEntitlementDays());
-                    // M47: record tenure context when seniority brackets drove the bump
                     if (hasBrackets(t) && hireDate != null) {
                         long tenure = Math.max(0L,
                                 ChronoUnit.YEARS.between(hireDate, periodDate));
@@ -243,6 +247,11 @@ public class LeaveAccrualService {
                     }
                     audit.record(MODULE, ENTITY, b.getId().toString(),
                             ACTION, null, delta);
+
+                    ledger.record(empId, t.getId(), year,
+                            LedgerTxType.ACCRUAL, bump, periodDate.withDayOfMonth(1),
+                            "ACCRUAL", periodKey, b.remaining(),
+                            "Monthly accrual for " + periodKey, "system");
                 }
                 credited++;
                 total = total.add(bump);

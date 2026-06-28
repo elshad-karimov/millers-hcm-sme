@@ -92,6 +92,9 @@ public class LeaveType {
     @Column(name = "seniority_brackets_json", columnDefinition = "jsonb")
     private List<SeniorityBracket> seniorityBrackets;
 
+    @Column(name = "category_id")
+    private UUID categoryId;
+
     @Column(nullable = false)
     private boolean active;
 

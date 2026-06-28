@@ -13,7 +13,7 @@ import {
   App as AntdApp,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { leaveApi, type LeaveBalance, type LeaveType } from '../api/leave'
+import { leaveApi, type LeaveBalance, type LeaveType, type LedgerEntry } from '../api/leave'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -36,6 +36,13 @@ export function LeaveBalancesPage() {
     delta: 0,
     reason: '',
   })
+  const [ledgerOpen, setLedgerOpen] = useState<{
+    employeeId: string
+    leaveTypeId: string
+    year: number
+  } | null>(null)
+  const [ledgerRows, setLedgerRows] = useState<LedgerEntry[]>([])
+  const [ledgerLoading, setLedgerLoading] = useState(false)
 
   // M241 — Split fetches with individual catches. The previous
   // Promise.all swallowed both setters if EITHER call rejected, which
@@ -104,6 +111,17 @@ export function LeaveBalancesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, employeeId])
 
+  useEffect(() => {
+    if (!ledgerOpen) return
+    setLedgerLoading(true)
+    leaveApi
+      .balanceLedger(ledgerOpen.employeeId, ledgerOpen.year, ledgerOpen.leaveTypeId)
+      .then(setLedgerRows)
+      .catch(() => setLedgerRows([]))
+      .finally(() => setLedgerLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ledgerOpen])
+
   const employeeMap = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees])
   const typeMap = useMemo(() => new Map(types.map((t) => [t.id, t])), [types])
 
@@ -144,11 +162,24 @@ export function LeaveBalancesPage() {
       align: 'right',
       render: (v: number) => <strong>{v}</strong>,
     },
-    canAdjust
-      ? {
-          title: '',
-          width: 90,
-          render: (_, r) => (
+    {
+      title: '',
+      width: canAdjust ? 140 : 80,
+      render: (_, r) => (
+        <Space>
+          <Button
+            size="small"
+            onClick={() => {
+              setLedgerOpen({
+                employeeId: r.employeeId,
+                leaveTypeId: r.leaveTypeId,
+                year: r.year,
+              })
+            }}
+          >
+            Ledger
+          </Button>
+          {canAdjust && (
             <Button
               size="small"
               onClick={() => {
@@ -158,9 +189,10 @@ export function LeaveBalancesPage() {
             >
               Adjust
             </Button>
-          ),
-        }
-      : { title: '', width: 0, render: () => null },
+          )}
+        </Space>
+      ),
+    },
   ]
 
   return (
@@ -250,6 +282,50 @@ export function LeaveBalancesPage() {
             onChange={(e) => setAdjustValues((s) => ({ ...s, reason: e.target.value }))}
           />
         </Space>
+      </Modal>
+
+      <Modal
+        title="Balance Ledger"
+        open={!!ledgerOpen}
+        onCancel={() => setLedgerOpen(null)}
+        footer={null}
+        width={760}
+        destroyOnHidden
+      >
+        <Table
+          rowKey="id"
+          size="small"
+          loading={ledgerLoading}
+          dataSource={ledgerRows}
+          pagination={false}
+          columns={[
+            { title: 'Date', dataIndex: 'effectiveDate', width: 110 },
+            {
+              title: 'Type',
+              dataIndex: 'txType',
+              width: 140,
+              render: (v: string) => <Tag>{v.replace(/_/g, ' ')}</Tag>,
+            },
+            {
+              title: 'Amount',
+              dataIndex: 'amount',
+              width: 90,
+              render: (v: number) => (
+                <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                  {v >= 0 ? '+' : ''}
+                  {v}
+                </span>
+              ),
+            },
+            { title: 'Balance After', dataIndex: 'balanceAfter', width: 110 },
+            {
+              title: 'Notes',
+              dataIndex: 'notes',
+              render: (v?: string | null) => v ?? '—',
+            },
+            { title: 'By', dataIndex: 'createdBy', width: 120 },
+          ]}
+        />
       </Modal>
     </Card>
   )
