@@ -20,6 +20,7 @@ import az.millers.hcm.leave.api.dto.LeaveTypeRequest;
 import az.millers.hcm.leave.api.dto.LeaveTypeResponse;
 import az.millers.hcm.leave.api.dto.SeniorityBracket;
 import az.millers.hcm.leave.domain.LeaveType;
+import az.millers.hcm.leave.domain.LeaveUnit;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
 import az.millers.hcm.security.CurrentRequest;
 
@@ -108,6 +109,12 @@ public class LeaveTypeService {
         t.setCarryForwardExpiryMonths(req.carryForwardExpiryMonths());
         t.setNegativeBalanceAllowed(Boolean.TRUE.equals(req.negativeBalanceAllowed()));
         t.setMaxNegativeDays(req.maxNegativeDays());
+        t.setLeaveUnit(req.leaveUnit() != null ? req.leaveUnit() : LeaveUnit.DAYS);
+        if (req.hoursPerDay() != null) {
+            t.setHoursPerDay(req.hoursPerDay());
+        } else if (t.getHoursPerDay() == null) {
+            t.setHoursPerDay(java.math.BigDecimal.valueOf(8));
+        }
     }
 
     /**

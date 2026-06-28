@@ -15,6 +15,8 @@ export interface SeniorityBracket {
   annualDays: number
 }
 
+export type LeaveUnit = 'DAYS' | 'HALF_DAY' | 'HOURS'
+
 export interface LeaveType {
   id: string
   code: string
@@ -37,6 +39,10 @@ export interface LeaveType {
   seniorityBrackets: SeniorityBracket[]
   negativeBalanceAllowed: boolean
   maxNegativeDays?: number | null
+  /** M341: How this leave type is measured — DAYS (default), HALF_DAY, or HOURS. */
+  leaveUnit: LeaveUnit
+  /** M341: Working hours per day for HOURS-unit types. */
+  hoursPerDay?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -61,6 +67,10 @@ export interface LeaveTypeRequest {
   seniorityBrackets?: SeniorityBracket[]
   negativeBalanceAllowed?: boolean
   maxNegativeDays?: number | null
+  /** M341: Leave unit — DAYS (default), HALF_DAY, or HOURS. */
+  leaveUnit?: LeaveUnit
+  /** M341: Working hours per day for HOURS-unit types. */
+  hoursPerDay?: number | null
 }
 
 export interface LeaveBalance {
@@ -100,6 +110,12 @@ export interface LeaveRequest {
   replacementEmployeeId?: string | null
   status: LeaveRequestStatus
   workflowInstanceId?: string | null
+  /** M341: For HOURS-unit types — start time (HH:mm:ss). */
+  startTime?: string | null
+  /** M341: For HOURS-unit types — end time (HH:mm:ss). */
+  endTime?: string | null
+  /** M341: For HOURS-unit types — gross hours requested. */
+  durationHours?: number | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -114,6 +130,10 @@ export interface LeaveSubmitRequest {
   reason?: string
   replacementEmployeeId?: string
   attachmentUrl?: string
+  /** M341: For HOURS-unit leave types — start time (HH:mm). */
+  startTime?: string
+  /** M341: For HOURS-unit leave types — end time (HH:mm). */
+  endTime?: string
 }
 
 export const leaveApi = {

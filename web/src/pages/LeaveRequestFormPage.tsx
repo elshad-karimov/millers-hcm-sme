@@ -10,6 +10,7 @@ import {
   Row,
   Select,
   Space,
+  TimePicker,
   Typography,
   App as AntdApp,
 } from 'antd'
@@ -34,6 +35,9 @@ interface FormValues {
   reason?: string
   replacementEmployeeId?: string
   attachmentUrl?: string
+  /** M341: For HOURS-unit leave types */
+  startTime?: dayjs.Dayjs
+  endTime?: dayjs.Dayjs
 }
 
 export function LeaveRequestFormPage() {
@@ -79,6 +83,12 @@ export function LeaveRequestFormPage() {
 
   const typeMap = useMemo(() => new Map(types.map((t) => [t.id, t])), [types])
 
+  // M341: derive the current type's unit so we can show/hide time pickers
+  const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState<string | undefined>()
+  const selectedType = selectedLeaveTypeId ? typeMap.get(selectedLeaveTypeId) : undefined
+  const isHoursUnit = selectedType?.leaveUnit === 'HOURS'
+  const isHalfDayUnit = selectedType?.leaveUnit === 'HALF_DAY'
+
   const refreshBalance = async (employeeId?: string, leaveTypeId?: string, year?: number) => {
     if (!employeeId || !leaveTypeId || !year) {
       setBalance(null)
@@ -94,13 +104,21 @@ export function LeaveRequestFormPage() {
 
   const onValuesChange = (_: Partial<FormValues>, all: FormValues) => {
     const start = all.range?.[0]
+    if (all.leaveTypeId !== selectedLeaveTypeId) {
+      setSelectedLeaveTypeId(all.leaveTypeId)
+    }
     refreshBalance(all.employeeId, all.leaveTypeId, start?.year())
   }
 
   const onFinish = async (v: FormValues) => {
-    const selectedType = typeMap.get(v.leaveTypeId)
-    if (selectedType?.requiresAttachment && !v.attachmentUrl) {
-      message.warning(t('leave:newRequest.messages.attachmentRequired', { code: selectedType.code }))
+    const selType = typeMap.get(v.leaveTypeId)
+    if (selType?.requiresAttachment && !v.attachmentUrl) {
+      message.warning(t('leave:newRequest.messages.attachmentRequired', { code: selType.code }))
+      return
+    }
+    const isHours = selType?.leaveUnit === 'HOURS'
+    if (isHours && (!v.startTime || !v.endTime)) {
+      message.warning('Start time and end time are required for hourly leave types')
       return
     }
     setSaving(true)
@@ -109,10 +127,12 @@ export function LeaveRequestFormPage() {
       leaveTypeId: v.leaveTypeId,
       startDate: v.range[0].format('YYYY-MM-DD'),
       endDate: v.range[1].format('YYYY-MM-DD'),
-      halfDay: v.halfDay,
+      halfDay: selType?.leaveUnit === 'HALF_DAY' ? true : v.halfDay,
       reason: v.reason,
       replacementEmployeeId: v.replacementEmployeeId,
       attachmentUrl: v.attachmentUrl,
+      startTime: isHours && v.startTime ? v.startTime.format('HH:mm') : undefined,
+      endTime: isHours && v.endTime ? v.endTime.format('HH:mm') : undefined,
     }
     try {
       // EMPLOYEE role: use the self-service endpoint (forces employeeId to current user)
@@ -195,9 +215,27 @@ export function LeaveRequestFormPage() {
             style={{ width: '100%', maxWidth: 400 }}
           />
         </Form.Item>
-        <Form.Item name="halfDay" valuePropName="checked">
-          <Checkbox>{t('leave:newRequest.halfDay')}</Checkbox>
-        </Form.Item>
+        {/* M341: time pickers for HOURS-unit types */}
+        {isHoursUnit && (
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="startTime" label="Start time" rules={[{ required: true }]}>
+                <TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="endTime" label="End time" rules={[{ required: true }]}>
+                <TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
+        {/* Half-day checkbox — hidden for HALF_DAY and HOURS unit types */}
+        {!isHoursUnit && !isHalfDayUnit && (
+          <Form.Item name="halfDay" valuePropName="checked">
+            <Checkbox>{t('leave:newRequest.halfDay')}</Checkbox>
+          </Form.Item>
+        )}
 
         {balance && (
           <Alert

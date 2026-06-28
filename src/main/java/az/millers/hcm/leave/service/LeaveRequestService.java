@@ -1,8 +1,11 @@
 package az.millers.hcm.leave.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -21,10 +24,10 @@ import az.millers.hcm.leave.api.dto.LeaveRequestResponse;
 import az.millers.hcm.leave.api.dto.LeaveSubmitRequest;
 import az.millers.hcm.leave.domain.BlackoutSeverity;
 import az.millers.hcm.leave.domain.BlackoutWindow;
-import az.millers.hcm.leave.domain.LeaveBalance;
 import az.millers.hcm.leave.domain.LeaveRequest;
 import az.millers.hcm.leave.domain.LeaveRequestStatus;
 import az.millers.hcm.leave.domain.LeaveType;
+import az.millers.hcm.leave.domain.LeaveUnit;
 import az.millers.hcm.leave.repo.LeaveRequestRepository;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -131,19 +134,56 @@ public class LeaveRequestService {
         if (req.startDate().isAfter(req.endDate())) {
             throw new BadRequestException("startDate must be on or before endDate");
         }
-        boolean halfDay = Boolean.TRUE.equals(req.halfDay());
-        if (halfDay && !req.startDate().equals(req.endDate())) {
-            throw new BadRequestException("Half-day requests must be a single date");
+
+        LeaveUnit unit = type.getLeaveUnit() != null ? type.getLeaveUnit() : LeaveUnit.DAYS;
+        boolean halfDay;
+        BigDecimal totalDays;
+        BigDecimal durationHours = null;
+        LocalTime startTime = null;
+        LocalTime endTime = null;
+
+        if (unit == LeaveUnit.HOURS) {
+            // Time-based request — must be a single day with both times provided
+            if (!req.startDate().equals(req.endDate())) {
+                throw new BadRequestException("HOURS-unit leave types require startDate == endDate");
+            }
+            if (req.startTime() == null || req.endTime() == null) {
+                throw new BadRequestException("HOURS-unit leave types require startTime and endTime");
+            }
+            if (!req.startTime().isBefore(req.endTime())) {
+                throw new BadRequestException("startTime must be before endTime");
+            }
+            startTime = req.startTime();
+            endTime = req.endTime();
+            long minutes = ChronoUnit.MINUTES.between(startTime, endTime);
+            durationHours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+            BigDecimal hpd = type.getHoursPerDay() != null ? type.getHoursPerDay() : BigDecimal.valueOf(8);
+            totalDays = durationHours.divide(hpd, 4, RoundingMode.HALF_UP);
+            halfDay = false;
+        } else if (unit == LeaveUnit.HALF_DAY) {
+            // This type forces half-day only
+            if (!req.startDate().equals(req.endDate())) {
+                throw new BadRequestException("HALF_DAY-unit leave types must be a single date");
+            }
+            halfDay = true;
+            totalDays = new BigDecimal("0.5");
+        } else {
+            // Standard DAYS-unit
+            halfDay = Boolean.TRUE.equals(req.halfDay());
+            if (halfDay && !req.startDate().equals(req.endDate())) {
+                throw new BadRequestException("Half-day requests must be a single date");
+            }
+            // M38: when the type sets exclude_holidays, pre-fetch the
+            // overlap month(s) of holidays once and subtract them in the
+            // day-count loop. Otherwise pass an empty set so the helper is
+            // a pure date arithmetic.
+            Set<LocalDate> holidaySet = type.isExcludeHolidays()
+                    ? holidays.holidayDatesBetween(req.startDate(), req.endDate())
+                    : Set.of();
+            totalDays = computeDays(req.startDate(), req.endDate(), halfDay,
+                    type.isExcludeWeekends(), holidaySet);
         }
-        // M38: when the type sets exclude_holidays, pre-fetch the
-        // overlap month(s) of holidays once and subtract them in the
-        // day-count loop. Otherwise pass an empty set so the helper is
-        // a pure date arithmetic.
-        Set<LocalDate> holidaySet = type.isExcludeHolidays()
-                ? holidays.holidayDatesBetween(req.startDate(), req.endDate())
-                : Set.of();
-        BigDecimal totalDays = computeDays(req.startDate(), req.endDate(), halfDay,
-                type.isExcludeWeekends(), holidaySet);
+
         if (totalDays.signum() <= 0) {
             throw new BadRequestException(
                     "Computed leave duration is zero (likely all weekends/holidays excluded)");
@@ -184,6 +224,9 @@ public class LeaveRequestService {
         r.setEndDate(req.endDate());
         r.setHalfDay(halfDay);
         r.setTotalDays(totalDays);
+        r.setStartTime(startTime);
+        r.setEndTime(endTime);
+        r.setDurationHours(durationHours);
         r.setReason(req.reason());
         r.setAttachmentUrl(req.attachmentUrl());
         r.setReplacementEmployeeId(req.replacementEmployeeId());

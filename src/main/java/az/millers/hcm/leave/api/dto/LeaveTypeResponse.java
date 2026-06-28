@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import az.millers.hcm.leave.domain.LeaveType;
+import az.millers.hcm.leave.domain.LeaveUnit;
 
 public record LeaveTypeResponse(
         UUID id,
@@ -28,6 +29,10 @@ public record LeaveTypeResponse(
         List<SeniorityBracket> seniorityBrackets,
         boolean negativeBalanceAllowed,
         BigDecimal maxNegativeDays,
+        /** M341: How this leave type is measured and requested. */
+        LeaveUnit leaveUnit,
+        /** M341: Working hours per day for HOURS-unit types. */
+        BigDecimal hoursPerDay,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
 
@@ -44,6 +49,8 @@ public record LeaveTypeResponse(
                 t.isActive(), t.isAccruesMonthly(), t.getMonthlyAccrualDays(),
                 brackets,
                 t.isNegativeBalanceAllowed(), t.getMaxNegativeDays(),
+                t.getLeaveUnit() != null ? t.getLeaveUnit() : LeaveUnit.DAYS,
+                t.getHoursPerDay(),
                 t.getCreatedAt(), t.getUpdatedAt());
     }
 }

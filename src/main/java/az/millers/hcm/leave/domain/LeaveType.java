@@ -10,6 +10,8 @@ import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -102,6 +104,15 @@ public class LeaveType {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "seniority_brackets_json", columnDefinition = "jsonb")
     private List<SeniorityBracket> seniorityBrackets;
+
+    /** M341: How this leave type is measured and requested (DAYS/HALF_DAY/HOURS). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "leave_unit", nullable = false, length = 10)
+    private LeaveUnit leaveUnit = LeaveUnit.DAYS;
+
+    /** M341: Working hours per day for HOURS-unit types (default 8). */
+    @Column(name = "hours_per_day", precision = 4, scale = 2)
+    private BigDecimal hoursPerDay = BigDecimal.valueOf(8);
 
     @Column(name = "category_id")
     private UUID categoryId;

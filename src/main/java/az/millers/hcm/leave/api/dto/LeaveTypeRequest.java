@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import az.millers.hcm.leave.domain.LeaveUnit;
+
 public record LeaveTypeRequest(
         @NotBlank @Size(max = 64) String code,
         @NotBlank @Size(max = 200) String name,
@@ -36,5 +38,9 @@ public record LeaveTypeRequest(
         /** Allows submitting requests beyond the current balance. */
         Boolean negativeBalanceAllowed,
         /** Max overdraft days when negativeBalanceAllowed is true. Null = unlimited. */
-        @DecimalMin("0.0") BigDecimal maxNegativeDays) {
+        @DecimalMin("0.0") BigDecimal maxNegativeDays,
+        /** M341: Leave unit — DAYS (default), HALF_DAY, or HOURS. */
+        LeaveUnit leaveUnit,
+        /** M341: Working hours per day for HOURS-unit types (default 8). */
+        @DecimalMin("1.0") BigDecimal hoursPerDay) {
 }

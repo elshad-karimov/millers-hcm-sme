@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Row,
+  Select,
   Space,
   Spin,
   Tooltip,
@@ -21,6 +22,7 @@ import {
   leaveApi,
   type LeaveType,
   type LeaveTypeRequest,
+  type LeaveUnit,
   type SeniorityBracket,
 } from '../api/leave'
 import { FormPageShell } from '../components/FormPageShell'
@@ -53,6 +55,9 @@ interface FormValues {
   monthlyAccrualDays?: number
   negativeBalanceAllowed?: boolean
   maxNegativeDays?: number
+  /** M341 */
+  leaveUnit?: LeaveUnit
+  hoursPerDay?: number
 }
 
 export function LeaveTypeFormPage() {
@@ -95,6 +100,8 @@ export function LeaveTypeFormPage() {
           monthlyAccrualDays: t.monthlyAccrualDays ?? undefined,
           negativeBalanceAllowed: t.negativeBalanceAllowed,
           maxNegativeDays: t.maxNegativeDays ?? undefined,
+          leaveUnit: t.leaveUnit ?? 'DAYS',
+          hoursPerDay: t.hoursPerDay ?? undefined,
         })
         if (t.seniorityBrackets && t.seniorityBrackets.length > 0) {
           setBrackets(
@@ -334,6 +341,36 @@ export function LeaveTypeFormPage() {
                 tooltip="Maximum deficit allowed (e.g. 5 = employee can go 5 days below zero). Leave blank for unlimited negative."
               >
                 <InputNumber min={0} step={0.5} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* ── Leave unit (M341) ─────────────────────────────────────── */}
+          <Divider orientation="left" style={{ fontSize: 13 }}>
+            Request unit (M341)
+          </Divider>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="leaveUnit"
+                label="Leave unit"
+                tooltip="DAYS = whole/half-day; HALF_DAY = type forces half-day only; HOURS = time-based with clock times"
+                initialValue="DAYS"
+              >
+                <Select>
+                  <Select.Option value="DAYS">Days</Select.Option>
+                  <Select.Option value="HALF_DAY">Half-day only</Select.Option>
+                  <Select.Option value="HOURS">Hours (time-based)</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="hoursPerDay"
+                label="Working hours per day"
+                tooltip="Used to convert requested hours → fractional leave days (HOURS unit only)"
+              >
+                <InputNumber min={1} max={24} step={0.5} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>

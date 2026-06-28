@@ -311,7 +311,9 @@ public class SelfController {
                 req.halfDay(),
                 req.reason(),
                 req.replacementEmployeeId(),
-                req.attachmentUrl());
+                req.attachmentUrl(),
+                req.startTime(),
+                req.endTime());
         return LeaveRequestResponse.from(leaveRequestService.submit(scoped));
     }
 

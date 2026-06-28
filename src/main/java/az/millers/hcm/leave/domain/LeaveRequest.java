@@ -2,6 +2,7 @@ package az.millers.hcm.leave.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -47,6 +48,18 @@ public class LeaveRequest {
 
     @Column(name = "total_days", nullable = false, precision = 7, scale = 2)
     private BigDecimal totalDays;
+
+    /** M341: For HOURS-unit leave types — start time of the leave window. */
+    @Column(name = "start_time")
+    private LocalTime startTime;
+
+    /** M341: For HOURS-unit leave types — end time of the leave window. */
+    @Column(name = "end_time")
+    private LocalTime endTime;
+
+    /** M341: Gross hours requested (endTime – startTime). Stored for reporting. */
+    @Column(name = "duration_hours", precision = 5, scale = 2)
+    private BigDecimal durationHours;
 
     @Column(columnDefinition = "text")
     private String reason;
