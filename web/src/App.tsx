@@ -22,6 +22,13 @@ import { ScheduleAssignmentFormPage } from './pages/ScheduleAssignmentFormPage'
 import { AttendanceEventsPage } from './pages/AttendanceEventsPage'
 import { AttendanceSummaryPage } from './pages/AttendanceSummaryPage'
 import { AttendancePoliciesPage } from './pages/AttendancePoliciesPage'
+import { AttendanceCorrectionsPage } from './pages/AttendanceCorrectionsPage'
+import { OvertimeRequestsPage } from './pages/OvertimeRequestsPage'
+import { AttendancePeriodsPage } from './pages/AttendancePeriodsPage'
+import { AttendanceExceptionsPage } from './pages/AttendanceExceptionsPage'
+import { DeviceMasterPage } from './pages/DeviceMasterPage'
+import { AttendanceWorkspacePage } from './pages/AttendanceWorkspacePage'
+import { AttendanceReportsPage } from './pages/AttendanceReportsPage'
 import { LeaveTypesPage } from './pages/LeaveTypesPage'
 import { LeaveBlackoutsPage } from './pages/LeaveBlackoutsPage'
 import { TeamLeaveCalendarPage } from './pages/TeamLeaveCalendarPage'
@@ -247,6 +254,13 @@ export default function App() {
           <Route path="attendance/events" element={<AttendanceEventsPage />} />
           <Route path="attendance/summary" element={<AttendanceSummaryPage />} />
           <Route path="attendance/policies" element={<AttendancePoliciesPage />} />
+          <Route path="attendance/corrections" element={<AttendanceCorrectionsPage />} />
+          <Route path="attendance/overtime-requests" element={<OvertimeRequestsPage />} />
+          <Route path="attendance/periods" element={<AttendancePeriodsPage />} />
+          <Route path="attendance/exceptions" element={<AttendanceExceptionsPage />} />
+          <Route path="attendance/devices" element={<DeviceMasterPage />} />
+          <Route path="attendance/workspace" element={<AttendanceWorkspacePage />} />
+          <Route path="attendance/reports" element={<AttendanceReportsPage />} />
           <Route path="timesheets" element={<TimesheetsPage />} />
           <Route path="timesheets/:id" element={<TimesheetDetailPage />} />
 

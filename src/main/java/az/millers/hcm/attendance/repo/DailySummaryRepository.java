@@ -40,4 +40,10 @@ public interface DailySummaryRepository extends JpaRepository<DailySummary, UUID
             @Param("from") LocalDate from,
             @Param("to") LocalDate to,
             @Param("employeeIds") Collection<UUID> employeeIds);
+
+    List<DailySummary> findByEmployeeIdAndWorkDateBetweenOrderByWorkDateDesc(
+            UUID employeeId, LocalDate from, LocalDate to);
+
+    @Query("select count(distinct s.employeeId) from DailySummary s where s.workDate = :date")
+    long countDistinctEmployeesByWorkDate(@Param("date") LocalDate date);
 }

@@ -38,6 +38,7 @@ import {
   AppstoreOutlined,
   LogoutOutlined,
   UserDeleteOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -77,6 +78,13 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/attendance/shift-patterns', module: 'time', screen: 'attendance-shift-patterns' },
   { prefix: '/attendance/variance', module: 'time', screen: 'attendance-variance' },
   { prefix: '/attendance/policies', module: 'time', screen: 'attendance-policies' },
+  { prefix: '/attendance/corrections', module: 'time', screen: 'attendance-corrections' },
+  { prefix: '/attendance/overtime-requests', module: 'time', screen: 'attendance-overtime' },
+  { prefix: '/attendance/periods', module: 'time', screen: 'attendance-periods' },
+  { prefix: '/attendance/exceptions', module: 'time', screen: 'attendance-exceptions' },
+  { prefix: '/attendance/devices', module: 'time', screen: 'attendance-devices' },
+  { prefix: '/attendance/workspace', module: 'time', screen: 'attendance-workspace' },
+  { prefix: '/attendance/reports', module: 'time', screen: 'attendance-reports' },
   { prefix: '/attendance/events', module: 'time', screen: 'attendance-events' },
   { prefix: '/attendance/summary', module: 'time', screen: 'attendance-summary' },
   { prefix: '/leave/types', module: 'absence', screen: 'leave-types' },
@@ -320,6 +328,11 @@ export function AppLayout() {
                 label: <Link to="/presence">{tNav('sub.time.presenceMap')}</Link>,
               },
               {
+                key: 'attendance-workspace',
+                icon: <BarChartOutlined />,
+                label: <Link to="/attendance/workspace">Attendance Workspace</Link>,
+              },
+              {
                 key: 'attendance-schedules',
                 icon: <CalendarOutlined />,
                 label: <Link to="/attendance/schedules">{tNav('sub.time.schedules')}</Link>,
@@ -348,6 +361,36 @@ export function AppLayout() {
                 key: 'attendance-summary',
                 icon: <BarChartOutlined />,
                 label: <Link to="/attendance/summary">{tNav('sub.time.dailySummary')}</Link>,
+              },
+              {
+                key: 'attendance-corrections',
+                icon: <SwapOutlined />,
+                label: <Link to="/attendance/corrections">Corrections</Link>,
+              },
+              {
+                key: 'attendance-overtime',
+                icon: <ClockCircleOutlined />,
+                label: <Link to="/attendance/overtime-requests">Overtime Requests</Link>,
+              },
+              {
+                key: 'attendance-periods',
+                icon: <CalendarOutlined />,
+                label: <Link to="/attendance/periods">Periods</Link>,
+              },
+              {
+                key: 'attendance-exceptions',
+                icon: <WarningOutlined />,
+                label: <Link to="/attendance/exceptions">Exceptions</Link>,
+              },
+              {
+                key: 'attendance-devices',
+                icon: <InboxOutlined />,
+                label: <Link to="/attendance/devices">Devices</Link>,
+              },
+              {
+                key: 'attendance-reports',
+                icon: <BarChartOutlined />,
+                label: <Link to="/attendance/reports">Reports</Link>,
               },
               {
                 key: 'timesheets',

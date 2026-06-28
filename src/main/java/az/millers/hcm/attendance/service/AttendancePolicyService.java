@@ -144,7 +144,7 @@ public class AttendancePolicyService {
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private UUID defaultTenantId() {
+    public UUID defaultTenantId() {
         return legalEntities.findAllByOrderByCodeAsc().stream()
                 .findFirst()
                 .map(e -> e.getId())

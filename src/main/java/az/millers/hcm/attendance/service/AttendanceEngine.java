@@ -11,11 +11,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.attendance.api.dto.DailySummaryResponse;
 import az.millers.hcm.attendance.api.dto.SummaryCorrectionRequest;
+import az.millers.hcm.attendance.events.AttendanceSummaryComputedEvent;
 import az.millers.hcm.attendance.domain.AttendanceEvent;
 import az.millers.hcm.attendance.domain.DailySummary;
 import az.millers.hcm.attendance.domain.EventType;
@@ -76,6 +78,8 @@ public class AttendanceEngine {
     private final AttendancePolicyService policies;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ApplicationEventPublisher eventPublisher;
+    private final AttendanceExceptionService exceptionService;
 
     public AttendanceEngine(WorkScheduleRepository schedules,
                             ScheduleAssignmentRepository assignments,
@@ -85,7 +89,9 @@ public class AttendanceEngine {
                             ShiftRepository shifts,
                             AttendancePolicyService policies,
                             AuditService audit,
-                            CurrentRequest currentRequest) {
+                            CurrentRequest currentRequest,
+                            ApplicationEventPublisher eventPublisher,
+                            AttendanceExceptionService exceptionService) {
         this.schedules = schedules;
         this.assignments = assignments;
         this.events = events;
@@ -95,6 +101,8 @@ public class AttendanceEngine {
         this.policies = policies;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.eventPublisher = eventPublisher;
+        this.exceptionService = exceptionService;
     }
 
     // ─── Queries ────────────────────────────────────────────────────────
@@ -138,7 +146,7 @@ public class AttendanceEngine {
     }
 
     @Transactional
-    public DailySummary computeFor(UUID employeeId, LocalDate date) {
+    public DailySummary computeFor(UUID employeeId, LocalDate date, UUID tenantId) {
         DailySummary s = summaries.findByEmployeeIdAndWorkDate(employeeId, date)
                 .orElseGet(() -> {
                     DailySummary n = new DailySummary();
@@ -232,7 +240,17 @@ public class AttendanceEngine {
         }
 
         s.setComputedAt(OffsetDateTime.now());
-        return summaries.save(s);
+        DailySummary saved = summaries.save(s);
+
+        eventPublisher.publishEvent(new AttendanceSummaryComputedEvent(saved, tenantId));
+        exceptionService.generateForSummary(saved, tenantId);
+
+        return saved;
+    }
+
+    @Transactional
+    public DailySummary computeFor(UUID employeeId, LocalDate date) {
+        return computeFor(employeeId, date, policies.defaultTenantId());
     }
 
     /**
