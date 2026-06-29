@@ -241,6 +241,22 @@ export const leaveApi = {
     api.post<LeaveDelegation>(`/leave/delegations/${id}/decline`, null, { params: { notes } }).then((r) => r.data),
   revokeDelegation: (id: string) =>
     api.delete<LeaveDelegation>(`/leave/delegations/${id}`).then((r) => r.data),
+
+  // M343 — Unpaid Leave → Payroll Bridge
+  syncUnpaidDeductions: (year: number, month: number, workingDaysPerMonth = 22) =>
+    api.post('/leave/unpaid-deductions/sync', null, { params: { year, month, workingDaysPerMonth } }).then((r) => r.data),
+  listUnpaidDeductions: (employeeId: string) =>
+    api.get('/leave/unpaid-deductions', { params: { employeeId } }).then((r) => r.data),
+
+  // M344 — Leave Encashment
+  listEncashments: (employeeId: string) =>
+    api.get('/leave/encashments', { params: { employeeId } }).then((r) => r.data),
+  createEncashment: (params: {
+    employeeId: string; leaveTypeId: string; year: number; days: number;
+    payrollYear: number; payrollMonth: number; notes?: string
+  }) => api.post('/leave/encashments', null, { params }).then((r) => r.data),
+  reverseEncashment: (id: string) =>
+    api.post(`/leave/encashments/${id}/reverse`).then((r) => r.data),
 }
 
 // ── M131 — Team time-off calendar wire types ───────────────────────────

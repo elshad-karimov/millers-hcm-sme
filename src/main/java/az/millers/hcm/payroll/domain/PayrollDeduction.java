@@ -77,6 +77,14 @@ public class PayrollDeduction {
     @Column(columnDefinition = "text")
     private String note;
 
+    /** M343 — leave request that originated this deduction (nullable for manual deductions). */
+    @Column(name = "source_leave_request_id")
+    private UUID sourceLeaveRequestId;
+
+    /** M343 — number of unpaid leave days this deduction represents. */
+    @Column(name = "source_leave_days", precision = 8, scale = 2)
+    private BigDecimal sourceLeaveDays;
+
     @Column(name = "created_by")
     private String createdBy;
 

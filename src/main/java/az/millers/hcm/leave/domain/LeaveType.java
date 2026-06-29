@@ -44,6 +44,10 @@ public class LeaveType {
     @Column(nullable = false)
     private boolean paid;
 
+    /** M344 — whether remaining balance can be encashed (paid leave types only). */
+    @Column(nullable = false)
+    private boolean encashable;
+
     @Column(name = "requires_attachment", nullable = false)
     private boolean requiresAttachment;
 

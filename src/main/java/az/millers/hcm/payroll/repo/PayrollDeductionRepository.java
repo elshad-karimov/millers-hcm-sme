@@ -1,6 +1,7 @@
 package az.millers.hcm.payroll.repo;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -32,6 +33,10 @@ public interface PayrollDeductionRepository extends JpaRepository<PayrollDeducti
             @Param("empId") UUID employeeId,
             @Param("year") int year,
             @Param("month") int month);
+
+    Optional<PayrollDeduction> findBySourceLeaveRequestId(UUID sourceLeaveRequestId);
+
+    List<PayrollDeduction> findByEmployeeIdAndDeductionType(UUID employeeId, String deductionType);
 
     Page<PayrollDeduction> findByEmployeeIdOrderByCreatedAtDesc(UUID employeeId, Pageable pageable);
 

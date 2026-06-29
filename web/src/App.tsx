@@ -35,6 +35,8 @@ import { LeavePeriodLocksPage } from './pages/LeavePeriodLocksPage'
 import { UnauthorizedAbsencePage } from './pages/UnauthorizedAbsencePage'
 import { LeaveWorkspacePage } from './pages/LeaveWorkspacePage'
 import { LeaveLiabilityPage } from './pages/LeaveLiabilityPage'
+import { UnpaidDeductionsPage } from './pages/UnpaidDeductionsPage'
+import { LeaveEncashmentPage } from './pages/LeaveEncashmentPage'
 import { LeaveCategoriesPage } from './pages/LeaveCategoriesPage'
 import { TeamLeaveCalendarPage } from './pages/TeamLeaveCalendarPage'
 import { AssetsAdminPage } from './pages/AssetsAdminPage'
@@ -367,6 +369,8 @@ export default function App() {
           <Route path="leave/unauthorized-absences" element={<UnauthorizedAbsencePage />} />
           <Route path="leave/workspace" element={<LeaveWorkspacePage />} />
           <Route path="leave/reports/liability" element={<LeaveLiabilityPage />} />
+          <Route path="leave/unpaid-deductions" element={<UnpaidDeductionsPage />} />
+          <Route path="leave/encashments" element={<LeaveEncashmentPage />} />
           {/* M338 — leave categories admin */}
           <Route path="leave/categories" element={<LeaveCategoriesPage />} />
           {/* M131 — team time-off calendar */}
