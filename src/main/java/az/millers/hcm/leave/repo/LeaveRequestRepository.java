@@ -18,6 +18,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID
     @Query(value = "SELECT nextval('leave_mgmt.leave_request_no_seq')", nativeQuery = true)
     long nextRequestNoSequence();
 
+    List<LeaveRequest> findByStartDateBetween(LocalDate from, LocalDate to);
+
     Page<LeaveRequest> findByEmployeeIdOrderByStartDateDesc(UUID employeeId, Pageable pageable);
 
     Page<LeaveRequest> findByStatusOrderByStartDateDesc(LeaveRequestStatus status, Pageable pageable);

@@ -220,6 +220,10 @@ export const leaveApi = {
       })
       .then((r) => r.data),
 
+  // M347 — Workspace analytics
+  workspaceStats: (year: number) =>
+    api.get('/leave/workspace/stats', { params: { year } }).then((r) => r.data),
+
   // M346 — Delegation
   delegations: (requestId: string) =>
     api.get<LeaveDelegation[]>(`/leave/requests/${requestId}/delegations`).then((r) => r.data),
