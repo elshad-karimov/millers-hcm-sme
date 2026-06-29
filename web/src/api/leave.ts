@@ -219,6 +219,20 @@ export const leaveApi = {
         params: { employmentType, tenureMonths },
       })
       .then((r) => r.data),
+
+  // M346 — Delegation
+  delegations: (requestId: string) =>
+    api.get<LeaveDelegation[]>(`/leave/requests/${requestId}/delegations`).then((r) => r.data),
+  pendingDelegations: (delegateId: string) =>
+    api.get<LeaveDelegation[]>('/leave/delegations/pending', { params: { delegateId } }).then((r) => r.data),
+  createDelegation: (requestId: string, payload: LeaveDelegationRequest) =>
+    api.post<LeaveDelegation>(`/leave/requests/${requestId}/delegations`, payload).then((r) => r.data),
+  acceptDelegation: (id: string, notes?: string) =>
+    api.post<LeaveDelegation>(`/leave/delegations/${id}/accept`, null, { params: { notes } }).then((r) => r.data),
+  declineDelegation: (id: string, notes?: string) =>
+    api.post<LeaveDelegation>(`/leave/delegations/${id}/decline`, null, { params: { notes } }).then((r) => r.data),
+  revokeDelegation: (id: string) =>
+    api.delete<LeaveDelegation>(`/leave/delegations/${id}`).then((r) => r.data),
 }
 
 // ── M131 — Team time-off calendar wire types ───────────────────────────
@@ -346,6 +360,29 @@ export interface LeavePeriodLockRequest {
   leaveTypeId?: string | null
   reason?: string
   active?: boolean
+}
+
+// ── M346 — Leave Delegation ─────────────────────────────────────────────
+
+export type DelegationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED'
+
+export interface LeaveDelegation {
+  id: string
+  leaveRequestId: string
+  delegatorId: string
+  delegatorName?: string | null
+  delegateId: string
+  delegateName?: string | null
+  delegationScope?: string | null
+  status: DelegationStatus
+  delegateNotes?: string | null
+  respondedAt?: string | null
+  createdAt: string
+}
+
+export interface LeaveDelegationRequest {
+  delegateId: string
+  delegationScope?: string
 }
 
 export const EMPLOYMENT_TYPES = [

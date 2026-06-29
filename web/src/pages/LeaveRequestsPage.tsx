@@ -10,7 +10,7 @@ import {
   Typography,
   App as AntdApp,
 } from 'antd'
-import { PaperClipOutlined } from '@ant-design/icons'
+import { PaperClipOutlined, TeamOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -22,6 +22,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { AttachmentUploader } from '../components/AttachmentUploader'
+import { LeaveDelegationPanel } from '../components/LeaveDelegationPanel'
 import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: LeaveRequestStatus[] = [
@@ -55,6 +56,7 @@ export function LeaveRequestsPage() {
   const [employeeId, setEmployeeId] = useState<string | undefined>()
   const [status, setStatus] = useState<LeaveRequestStatus | undefined>()
   const [filesFor, setFilesFor] = useState<LeaveRequest | null>(null)
+  const [delegateFor, setDelegateFor] = useState<LeaveRequest | null>(null)
 
   // M241 — Split the bootstrap fetches with individual catches so a
   // single rejection no longer leaves both maps empty (which made the
@@ -160,16 +162,17 @@ export function LeaveRequestsPage() {
     },
     {
       title: '',
-      key: 'files',
-      width: 100,
+      key: 'actions',
+      width: 160,
       render: (_, r) => (
-        <Button
-          size="small"
-          icon={<PaperClipOutlined />}
-          onClick={() => setFilesFor(r)}
-        >
-          Files
-        </Button>
+        <Space size="small">
+          <Button size="small" icon={<PaperClipOutlined />} onClick={() => setFilesFor(r)}>
+            Files
+          </Button>
+          <Button size="small" icon={<TeamOutlined />} onClick={() => setDelegateFor(r)}>
+            Delegate
+          </Button>
+        </Space>
       ),
     },
   ]
@@ -245,6 +248,16 @@ export function LeaveRequestsPage() {
             ownerId={filesFor.id}
           />
         )}
+      </Drawer>
+      <Drawer
+        title={delegateFor ? `Coverage Delegation — ${delegateFor.requestNo}` : 'Coverage Delegation'}
+        placement="right"
+        width={680}
+        open={!!delegateFor}
+        onClose={() => setDelegateFor(null)}
+        destroyOnClose
+      >
+        {delegateFor && <LeaveDelegationPanel leaveRequestId={delegateFor.id} />}
       </Drawer>
     </Card>
   )
