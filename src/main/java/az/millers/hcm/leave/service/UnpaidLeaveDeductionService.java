@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.leave.api.dto.UnpaidDeductionSyncResult;
 import az.millers.hcm.leave.domain.LeaveRequest;
 import az.millers.hcm.leave.domain.LeaveRequestStatus;
@@ -39,21 +40,26 @@ public class UnpaidLeaveDeductionService {
     private static final int DEFAULT_WORKING_DAYS = 22;
     private static final String DEDUCTION_TYPE = "UNPAID_LEAVE";
 
+    private static final String MODULE = "LEAVE";
+
     private final LeaveRequestRepository leaveRequests;
     private final LeaveTypeRepository leaveTypes;
     private final PayrollDeductionRepository deductions;
     private final EmployeeCompensationRepository compensations;
+    private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public UnpaidLeaveDeductionService(LeaveRequestRepository leaveRequests,
                                         LeaveTypeRepository leaveTypes,
                                         PayrollDeductionRepository deductions,
                                         EmployeeCompensationRepository compensations,
+                                        AuditService audit,
                                         CurrentRequest currentRequest) {
         this.leaveRequests = leaveRequests;
         this.leaveTypes = leaveTypes;
         this.deductions = deductions;
         this.compensations = compensations;
+        this.audit = audit;
         this.currentRequest = currentRequest;
     }
 
@@ -123,6 +129,8 @@ public class UnpaidLeaveDeductionService {
             deductions.save(d);
             created++;
             details.add("CREATED: employee=" + req.getEmployeeId() + " days=" + days + " amount=" + amount);
+            audit.record(MODULE, "PayrollDeduction", d.getId().toString(),
+                    "UNPAID_DEDUCTION_SYNC", null, d);
         }
 
         return new UnpaidDeductionSyncResult(year, month, finalWorkingDays, created, skipped, details);

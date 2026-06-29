@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.leave.api.dto.LeaveBalanceAdjustment;
 import az.millers.hcm.leave.domain.LeaveEncashment;
@@ -44,6 +45,8 @@ public class LeaveEncashmentService {
 
     private static final int DEFAULT_WORKING_DAYS = 22;
 
+    private static final String MODULE = "LEAVE";
+
     private final LeaveEncashmentRepository encashments;
     private final LeaveTypeRepository leaveTypes;
     private final LeaveBalanceRepository leaveBalances;
@@ -52,6 +55,7 @@ public class LeaveEncashmentService {
     private final EmployeeCompensationRepository compensations;
     private final PayrollRunRepository payrollRuns;
     private final PayrollRunService payrollRunService;
+    private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public LeaveEncashmentService(LeaveEncashmentRepository encashments,
@@ -62,6 +66,7 @@ public class LeaveEncashmentService {
                                    EmployeeCompensationRepository compensations,
                                    PayrollRunRepository payrollRuns,
                                    PayrollRunService payrollRunService,
+                                   AuditService audit,
                                    CurrentRequest currentRequest) {
         this.encashments = encashments;
         this.leaveTypes = leaveTypes;
@@ -71,6 +76,7 @@ public class LeaveEncashmentService {
         this.compensations = compensations;
         this.payrollRuns = payrollRuns;
         this.payrollRunService = payrollRunService;
+        this.audit = audit;
         this.currentRequest = currentRequest;
     }
 
@@ -118,8 +124,9 @@ public class LeaveEncashmentService {
         BigDecimal dailyRate = salary.divide(BigDecimal.valueOf(DEFAULT_WORKING_DAYS), 4, RoundingMode.HALF_UP);
         BigDecimal amount = dailyRate.multiply(days).setScale(2, RoundingMode.HALF_UP);
 
-        // Debit the leave balance
-        balanceService.commit(employeeId, leaveTypeId, year, days);
+        // Debit the leave balance via adjustment (negative delta) — not commit() which is for approvals
+        balanceService.applyAdjustment(new LeaveBalanceAdjustment(
+                employeeId, leaveTypeId, year, days.negate(), "Leave encashment: " + days + " day(s)"));
         BigDecimal balanceAfter = balance.remaining().subtract(days);
         ledger.record(employeeId, leaveTypeId, year,
                 LedgerTxType.ENCASHMENT, days.negate(), LocalDate.now(),
@@ -148,7 +155,10 @@ public class LeaveEncashmentService {
         enc.setStatus(bonusId != null ? "PAID" : "PENDING");
         enc.setNotes(notes);
         enc.setCreatedBy(currentRequest.username());
-        return encashments.save(enc);
+        LeaveEncashment saved = encashments.save(enc);
+        audit.record(MODULE, "LeaveEncashment", saved.getId().toString(),
+                "ENCASHMENT_CREATE", null, saved);
+        return saved;
     }
 
     @Transactional
@@ -174,6 +184,9 @@ public class LeaveEncashmentService {
                 "Reversal of encashment " + encashmentId, currentRequest.username());
 
         enc.setStatus("REVERSED");
-        return encashments.save(enc);
+        LeaveEncashment reversed = encashments.save(enc);
+        audit.record(MODULE, "LeaveEncashment", reversed.getId().toString(),
+                "ENCASHMENT_REVERSE", null, reversed);
+        return reversed;
     }
 }
