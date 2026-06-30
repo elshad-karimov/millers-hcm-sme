@@ -51,7 +51,7 @@ public class AnnualTaxCertificate {
     @Column(nullable = false, length = 20)
     private CertificateStatus status;
 
-    @Column(name = "pdf_storage_path", length = 500)
+    @Column(name = "storage_path", length = 500)
     private String pdfStoragePath;
 
     @Column(name = "pdf_attachment_id")

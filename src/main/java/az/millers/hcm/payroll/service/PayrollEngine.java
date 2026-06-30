@@ -148,9 +148,12 @@ public class PayrollEngine {
         // Clear previous results + allowance snapshots + component snapshots so re-running
         // stays idempotent. Bonus rows are intentionally NOT wiped — they're
         // added explicitly via AddBonusRequest and should survive a recalc.
+        // Wipe component snapshots first: payroll_result is partitioned (no FK cascade),
+        // and deleteByRunId resolves the result ids via sub-query, so it must run BEFORE
+        // the results themselves are deleted.
+        resultComponents.deleteByRunId(run.getId());
         results.deleteByRunId(run.getId());
         allowanceSnapshots.deleteByRunId(run.getId());
-        resultComponents.deleteByResultId(run.getId());
         results.flush();
 
         LocalDate ruleDate = YearMonth.of(run.getPeriodYear(), run.getPeriodMonth()).atDay(1);

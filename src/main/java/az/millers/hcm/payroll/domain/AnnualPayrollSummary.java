@@ -45,7 +45,7 @@ public class AnnualPayrollSummary {
     @Column(name = "total_mmi_employee", nullable = false, precision = 14, scale = 2)
     private BigDecimal totalMmiEmployee = BigDecimal.ZERO;
 
-    @Column(name = "total_unempl_employee", nullable = false, precision = 14, scale = 2)
+    @Column(name = "total_unemployment", nullable = false, precision = 14, scale = 2)
     private BigDecimal totalUnemplEmployee = BigDecimal.ZERO;
 
     @Column(name = "total_net", nullable = false, precision = 14, scale = 2)

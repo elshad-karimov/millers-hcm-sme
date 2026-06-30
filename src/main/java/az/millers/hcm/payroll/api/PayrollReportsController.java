@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.payroll.api.dto.*;
-import az.millers.hcm.payroll.service.PayrollReportService;
+import az.millers.hcm.payroll.service.PayrollReportSuiteService;
 import az.millers.hcm.payroll.service.PayrollVarianceService;
 import az.millers.hcm.security.SecurityRoles;
 
@@ -18,10 +18,10 @@ import az.millers.hcm.security.SecurityRoles;
 public class PayrollReportsController {
 
     private final PayrollVarianceService varianceService;
-    private final PayrollReportService reportService;
+    private final PayrollReportSuiteService reportService;
 
     public PayrollReportsController(PayrollVarianceService varianceService,
-                                    PayrollReportService reportService) {
+                                    PayrollReportSuiteService reportService) {
         this.varianceService = varianceService;
         this.reportService = reportService;
     }

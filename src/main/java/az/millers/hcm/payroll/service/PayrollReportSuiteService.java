@@ -19,7 +19,7 @@ import az.millers.hcm.payroll.repo.*;
 import az.millers.hcm.security.scope.AccessScopeService;
 
 @Service
-public class PayrollReportService {
+public class PayrollReportSuiteService {
 
     private final PayrollRunRepository runRepo;
     private final PayrollResultRepository resultRepo;
@@ -30,7 +30,7 @@ public class PayrollReportService {
     private final AccessScopeService accessScope;
     private final BankFileService bankFileService;
 
-    public PayrollReportService(PayrollRunRepository runRepo,
+    public PayrollReportSuiteService(PayrollRunRepository runRepo,
                                 PayrollResultRepository resultRepo,
                                 PayrollResultComponentRepository componentRepo,
                                 PayrollLoanRepository loanRepo,
