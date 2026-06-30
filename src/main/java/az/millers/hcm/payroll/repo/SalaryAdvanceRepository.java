@@ -27,4 +27,8 @@ public interface SalaryAdvanceRepository extends JpaRepository<SalaryAdvance, UU
             @Param("month") int month);
 
     boolean existsByEmployeeIdAndStatusIn(UUID employeeId, List<SalaryAdvanceStatus> statuses);
+
+    List<SalaryAdvance> findByStatusIn(List<SalaryAdvanceStatus> statuses);
+
+    long countByStatus(SalaryAdvanceStatus status);
 }

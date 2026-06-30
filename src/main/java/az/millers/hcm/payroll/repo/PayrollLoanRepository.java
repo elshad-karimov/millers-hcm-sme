@@ -32,4 +32,6 @@ public interface PayrollLoanRepository extends JpaRepository<PayrollLoan, UUID> 
               AND pl.status = 'ACTIVE'
             """)
     List<PayrollLoan> findActiveByEmployee(@Param("empId") UUID employeeId);
+
+    List<PayrollLoan> findByStatus(PayrollLoanStatus status);
 }
