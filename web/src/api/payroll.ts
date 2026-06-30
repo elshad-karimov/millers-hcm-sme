@@ -19,6 +19,20 @@ export type BonusType =
   | 'MANUAL'
   | 'IMPORTED'
 
+export type RunType = 'REGULAR' | 'OFF_CYCLE'
+
+export type ComponentKind = 'EARNING' | 'DEDUCTION'
+
+export type CalculationMethod = 'FIXED_AMOUNT' | 'PERCENTAGE_OF_BASE' | 'FLAT_RATE'
+
+export type AdvanceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'DEDUCTED' | 'CANCELLED'
+
+export type LoanStatus = 'PENDING' | 'ACTIVE' | 'FULLY_REPAID' | 'WRITTEN_OFF' | 'CANCELLED'
+
+export type GLAccountType = 'DEBIT' | 'CREDIT'
+
+export type CertificateStatus = 'DRAFT' | 'GENERATED' | 'DELIVERED'
+
 export interface PayrollRun {
   id: string
   runNo: string
@@ -171,6 +185,353 @@ export interface PayrollAllowance {
   createdAt: string
 }
 
+// ── M349: Salary Components ───────────────────────────────────────────────────
+
+export interface SalaryComponent {
+  id: string
+  code: string
+  name: string
+  kind: ComponentKind
+  calculationMethod: CalculationMethod
+  defaultAmount?: number | null
+  percentage?: number | null
+  isTaxable: boolean
+  contributionExempt: boolean
+  isStatutory: boolean
+  isActive: boolean
+  createdAt: string
+}
+
+export interface SalaryComponentRequest {
+  code: string
+  name: string
+  kind: ComponentKind
+  calculationMethod: CalculationMethod
+  percentage?: number
+  defaultAmount?: number
+  isTaxable: boolean
+  contributionExempt?: boolean
+}
+
+export interface ComponentAssignment {
+  id: string
+  employeeId: string
+  componentId: string
+  componentCode: string
+  componentName: string
+  componentKind: ComponentKind
+  amountOverride?: number | null
+  effectiveFrom: string
+  effectiveTo?: string | null
+}
+
+export interface ComponentAssignmentRequest {
+  componentId: string
+  effectiveFrom: string
+  amountOverride?: number
+  reason?: string
+}
+
+// ── M350: Run enhancements ────────────────────────────────────────────────────
+
+export interface CreateRunRequest {
+  periodYear: number
+  periodMonth: number
+  jurisdiction?: string
+  currency?: string
+  runType?: RunType
+  description?: string
+  employeeIds?: string[]
+}
+
+export interface HoldEmployeeRequest {
+  employeeId: string
+  reason: string
+}
+
+export interface SetHoldRequest {
+  holds: HoldEmployeeRequest[]
+}
+
+export interface PayrollPreFlightResponse {
+  runId: string
+  checklist: {
+    noCompensation: Array<{ employeeId: string; employeeNo: string }>
+    noTimesheet: Array<{ employeeId: string; employeeNo: string }>
+    onHold: Array<{ employeeId: string; employeeNo: string; reason: string }>
+    pendingAdvances: Array<{ employeeId: string; employeeNo: string; amount: number }>
+    retroactiveSalaryChange: Array<{ employeeId: string; employeeNo: string; changeDate: string }>
+  }
+  summary: {
+    totalIssues: number
+  }
+}
+
+// ── M351: Salary Advances ─────────────────────────────────────────────────────
+
+export interface SalaryAdvance {
+  id: string
+  employeeId: string
+  requestedAmount: number
+  approvedAmount?: number | null
+  repaymentYear?: number | null
+  repaymentMonth?: number | null
+  status: AdvanceStatus
+  reason?: string | null
+  requestedBy?: string | null
+  approvedBy?: string | null
+  approvedAt?: string | null
+  createdAt: string
+}
+
+export interface CreateAdvanceRequest {
+  employeeId: string
+  requestedAmount: number
+  reason?: string
+}
+
+export interface ApproveAdvanceRequest {
+  approvedAmount: number
+  repaymentYear: number
+  repaymentMonth: number
+}
+
+export interface RejectAdvanceRequest {
+  reason: string
+}
+
+// ── M352: Payroll Loans ───────────────────────────────────────────────────────
+
+export interface PayrollLoan {
+  id: string
+  employeeId: string
+  principalAmount: number
+  monthlyInstallment: number
+  outstandingBalance: number
+  amountRepaid: number
+  startDeductionYear: number
+  startDeductionMonth: number
+  status: LoanStatus
+  description?: string | null
+  approvedBy?: string | null
+  approvedAt?: string | null
+  createdAt: string
+}
+
+export interface CreateLoanRequest {
+  employeeId: string
+  principalAmount: number
+  monthlyInstallment: number
+  startDeductionYear: number
+  startDeductionMonth: number
+  description?: string
+}
+
+export interface WriteOffLoanRequest {
+  reason: string
+}
+
+// ── M353: Variance Report ─────────────────────────────────────────────────────
+
+export interface PayrollVarianceResponse {
+  currentRunId: string
+  priorRunId: string
+  summary: {
+    totalGrossChange: number
+    pctChange: number
+    highVarianceCount: number
+    newEmployeeCount: number
+    absentEmployeeCount: number
+  }
+  employees: Array<{
+    employeeId: string
+    employeeNo: string
+    name: string
+    priorGross: number
+    currentGross: number
+    grossDelta: number
+    grossDeltaPct: number
+    netDelta: number
+    flags: string[]
+  }>
+}
+
+// ── M353: YTD Summary ─────────────────────────────────────────────────────────
+
+export interface YTDSummaryResponse {
+  year: number
+  employees: Array<{
+    employeeId: string
+    employeeNo: string
+    name: string
+    totalGross: number
+    totalIncomeTax: number
+    totalDsmf: number
+    totalMmi: number
+    totalUnemployment: number
+    totalBonuses: number
+    totalNet: number
+    monthsCount: number
+  }>
+}
+
+// ── M354: Year-End + Tax Certificates ────────────────────────────────────────
+
+export interface AnnualTaxCertificate {
+  id: string
+  employeeId: string
+  employeeNo: string
+  employeeName: string
+  maskedNationalId?: string | null
+  year: number
+  annualGross: number
+  exemptAmount: number
+  taxableGross: number
+  totalTaxWithheld: number
+  status: CertificateStatus
+  generatedAt?: string | null
+  generatedBy?: string | null
+}
+
+// ── M355: Cost Allocations + GL ───────────────────────────────────────────────
+
+export interface CostAllocation {
+  id: string
+  employeeId: string
+  costCenterCode: string
+  allocationPct: number
+  effectiveFrom: string
+  effectiveTo?: string | null
+}
+
+export interface CostAllocationRequest {
+  allocations: Array<{
+    costCenterCode: string
+    allocationPct: number
+  }>
+  effectiveFrom: string
+}
+
+export interface GLAccountMapping {
+  id: string
+  componentKind: string
+  componentCode?: string | null
+  accountType: GLAccountType
+  glAccountCode: string
+  glAccountName: string
+  isActive: boolean
+}
+
+export interface GLAccountMappingRequest {
+  componentKind: string
+  componentCode?: string
+  accountType: GLAccountType
+  glAccountCode: string
+  glAccountName: string
+}
+
+export interface GLJournalResponse {
+  id: string
+  runId: string
+  journalNo: string
+  status: string
+  postingDate: string
+  totalDebit: number
+  totalCredit: number
+  lines: Array<{
+    id: string
+    lineNo: number
+    costCenterCode?: string | null
+    componentKind?: string | null
+    accountType: GLAccountType
+    glAccountCode: string
+    glAccountName: string
+    amount: number
+  }>
+}
+
+// ── M356: PDF Payslips ────────────────────────────────────────────────────────
+
+export interface PayslipInfo {
+  runId: string
+  periodYear: number
+  periodMonth: number
+  netAmount: number
+  generatedAt?: string | null
+}
+
+export interface GeneratePayslipsResponse {
+  generated: number
+}
+
+export interface SendPayslipsResponse {
+  sent: number
+  failed: number
+}
+
+// ── M357: Control Board ───────────────────────────────────────────────────────
+
+export interface PayrollControlBoardResponse {
+  currentRun?: {
+    id: string
+    periodYear: number
+    periodMonth: number
+    status: PayrollRunStatus
+    runType: RunType
+  } | null
+  headcount: number
+  totalGross: number
+  totalNet: number
+  totalTax: number
+  momGrossVariancePct: number
+  outstandingLoanBalance: number
+  pendingAdvanceCount: number
+}
+
+// ── M358: Reports Suite ───────────────────────────────────────────────────────
+
+export interface PeriodSummaryResponse {
+  runId: string
+  totalGross: number
+  totalTax: number
+  totalNet: number
+  employees: Array<{
+    employeeId: string
+    employeeNo: string
+    name: string
+    gross: number
+    tax: number
+    net: number
+  }>
+}
+
+export interface EmployerCostResponse {
+  runId: string
+  employees: Array<{
+    employeeId: string
+    employeeNo: string
+    name: string
+    gross: number
+    dsmfEmployer: number
+    mmiEmployer: number
+    unemploymentEmployer: number
+    totalEmployerCost: number
+  }>
+}
+
+export interface LoanAdvanceStatusResponse {
+  loans: Array<PayrollLoan>
+  advances: Array<SalaryAdvance>
+}
+
+export interface BankReconciliationResponse {
+  runId: string
+  payrollTotal: number
+  bankFileTotal: number
+  delta: number
+  isBalanced: boolean
+}
+
 export const payrollApi = {
   runs: () => api.get<PayrollRun[]>('/payroll/runs').then((r) => r.data),
   run: (id: string) => api.get<PayrollRun>(`/payroll/runs/${id}`).then((r) => r.data),
@@ -183,10 +544,8 @@ export const payrollApi = {
       .then((r) => r.data),
   runAllowances: (id: string) =>
     api.get<PayrollAllowance[]>(`/payroll/runs/${id}/allowances`).then((r) => r.data),
-  create: (periodYear: number, periodMonth: number, jurisdiction = 'AZ', currency = 'AZN') =>
-    api
-      .post<PayrollRun>('/payroll/runs', { periodYear, periodMonth, jurisdiction, currency })
-      .then((r) => r.data),
+  create: (req: CreateRunRequest) =>
+    api.post<PayrollRun>('/payroll/runs', req).then((r) => r.data),
   calculate: (id: string) =>
     api.post<PayrollRun>(`/payroll/runs/${id}/calculate`).then((r) => r.data),
   addBonus: (id: string, payload: AddBonusRequest) =>
@@ -204,6 +563,14 @@ export const payrollApi = {
     const token = tokenStore.get()
     return { id, token }
   },
+
+  // M350: Pre-flight + holds
+  preFlight: (id: string) =>
+    api.get<PayrollPreFlightResponse>(`/payroll/runs/${id}/pre-flight`).then((r) => r.data),
+  setHolds: (id: string, payload: SetHoldRequest) =>
+    api.post(`/payroll/runs/${id}/hold-employees`, payload),
+  releaseHold: (id: string, employeeId: string) =>
+    api.post(`/payroll/runs/${id}/hold-employees/${employeeId}/release`),
 
   // Compensation
   compensationHistory: (employeeId: string) =>
@@ -241,6 +608,205 @@ export const payrollApi = {
   /** Backward compatibility — pre-M74 callers used setBankAccount as upsert. */
   setBankAccount: (payload: BankAccountRequest) =>
     api.post<BankAccountResponse>('/payroll/bank-accounts', payload).then((r) => r.data),
+
+  // M349: Salary components
+  components: (params?: { kind?: ComponentKind; isActive?: boolean; isStatutory?: boolean }) =>
+    api.get<SalaryComponent[]>('/payroll/components', { params }).then((r) => r.data),
+  component: (id: string) =>
+    api.get<SalaryComponent>(`/payroll/components/${id}`).then((r) => r.data),
+  createComponent: (payload: SalaryComponentRequest) =>
+    api.post<SalaryComponent>('/payroll/components', payload).then((r) => r.data),
+  updateComponent: (id: string, payload: SalaryComponentRequest) =>
+    api.put<SalaryComponent>(`/payroll/components/${id}`, payload).then((r) => r.data),
+  deleteComponent: (id: string) => api.delete(`/payroll/components/${id}`),
+
+  // Component assignments
+  componentAssignments: (employeeId: string, activeOnly = true) =>
+    api
+      .get<ComponentAssignment[]>(`/payroll/employees/${employeeId}/component-assignments`, {
+        params: { activeOnly },
+      })
+      .then((r) => r.data),
+  createComponentAssignment: (employeeId: string, payload: ComponentAssignmentRequest) =>
+    api
+      .post<ComponentAssignment>(
+        `/payroll/employees/${employeeId}/component-assignments`,
+        payload,
+      )
+      .then((r) => r.data),
+  deleteComponentAssignment: (employeeId: string, assignmentId: string) =>
+    api.delete(`/payroll/employees/${employeeId}/component-assignments/${assignmentId}`),
+
+  // M351: Salary advances
+  advances: (params?: { employeeId?: string; status?: AdvanceStatus }) =>
+    api.get<SalaryAdvance[]>('/payroll/advances', { params }).then((r) => r.data),
+  advance: (id: string) =>
+    api.get<SalaryAdvance>(`/payroll/advances/${id}`).then((r) => r.data),
+  createAdvance: (payload: CreateAdvanceRequest) =>
+    api.post<SalaryAdvance>('/payroll/advances', payload).then((r) => r.data),
+  approveAdvance: (id: string, payload: ApproveAdvanceRequest) =>
+    api.post<SalaryAdvance>(`/payroll/advances/${id}/approve`, payload).then((r) => r.data),
+  rejectAdvance: (id: string, payload: RejectAdvanceRequest) =>
+    api.post<SalaryAdvance>(`/payroll/advances/${id}/reject`, payload).then((r) => r.data),
+  cancelAdvance: (id: string) =>
+    api.post<SalaryAdvance>(`/payroll/advances/${id}/cancel`).then((r) => r.data),
+
+  // M352: Payroll loans
+  loans: (params?: { employeeId?: string; status?: LoanStatus }) =>
+    api.get<PayrollLoan[]>('/payroll/loans', { params }).then((r) => r.data),
+  loan: (id: string) =>
+    api.get<PayrollLoan>(`/payroll/loans/${id}`).then((r) => r.data),
+  createLoan: (payload: CreateLoanRequest) =>
+    api.post<PayrollLoan>('/payroll/loans', payload).then((r) => r.data),
+  cancelLoan: (id: string) =>
+    api.post<PayrollLoan>(`/payroll/loans/${id}/cancel`).then((r) => r.data),
+  writeOffLoan: (id: string, payload: WriteOffLoanRequest) =>
+    api.post<PayrollLoan>(`/payroll/loans/${id}/write-off`, payload).then((r) => r.data),
+
+  // M353: Variance & YTD reports
+  varianceReport: (currentRunId: string, priorRunId: string) =>
+    api
+      .get<PayrollVarianceResponse>('/payroll/reports/variance', {
+        params: { currentRunId, priorRunId },
+      })
+      .then((r) => r.data),
+  ytdReport: (year: number, employeeId?: string) =>
+    api
+      .get<YTDSummaryResponse>('/payroll/reports/ytd', { params: { year, employeeId } })
+      .then((r) => r.data),
+
+  // M354: Year-end + tax certificates
+  generateYearEndSummary: (year: number) =>
+    api.post(`/payroll/year-end/generate-summary`, null, { params: { year } }),
+  taxCertificates: (year: number) =>
+    api
+      .get<AnnualTaxCertificate[]>('/payroll/year-end/certificates', { params: { year } })
+      .then((r) => r.data),
+  generateTaxCertificates: (year: number) =>
+    api.post(`/payroll/year-end/certificates/generate`, null, { params: { year } }),
+  downloadTaxCertificate: async (id: string, employeeNo: string, year: number) => {
+    const response = await api.get(`/payroll/year-end/certificates/${id}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tax-certificate-${employeeNo}-${year}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  myTaxCertificate: (year: number) =>
+    api
+      .get<AnnualTaxCertificate>('/payroll/employees/me/year-end/certificate', {
+        params: { year },
+      })
+      .then((r) => r.data),
+  downloadMyTaxCertificate: async (year: number) => {
+    const response = await api.get(`/payroll/employees/me/year-end/certificate`, {
+      responseType: 'blob',
+      params: { year },
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `my-tax-certificate-${year}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  // M355: Cost allocations
+  costAllocations: (employeeId: string) =>
+    api
+      .get<CostAllocation[]>(`/payroll/employees/${employeeId}/cost-allocations`)
+      .then((r) => r.data),
+  setCostAllocations: (employeeId: string, payload: CostAllocationRequest) =>
+    api
+      .post<CostAllocation[]>(`/payroll/employees/${employeeId}/cost-allocations`, payload)
+      .then((r) => r.data),
+
+  // M355: GL account mappings
+  glMappings: () =>
+    api.get<GLAccountMapping[]>('/payroll/gl/account-mappings').then((r) => r.data),
+  createGLMapping: (payload: GLAccountMappingRequest) =>
+    api.post<GLAccountMapping>('/payroll/gl/account-mappings', payload).then((r) => r.data),
+
+  // M355: GL journal
+  generateGLJournal: (runId: string) =>
+    api.post<GLJournalResponse>(`/payroll/runs/${runId}/gl-journal/generate`).then((r) => r.data),
+  glJournal: (runId: string) =>
+    api.get<GLJournalResponse>(`/payroll/runs/${runId}/gl-journal`).then((r) => r.data),
+  downloadGLJournal: async (runId: string, journalNo: string) => {
+    const response = await api.get(`/payroll/runs/${runId}/gl-journal/export`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${journalNo}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  // M356: Payslips
+  generatePayslips: (runId: string) =>
+    api
+      .post<GeneratePayslipsResponse>(`/payroll/runs/${runId}/generate-payslips`)
+      .then((r) => r.data),
+  downloadPayslip: async (runId: string, employeeId: string, employeeNo: string) => {
+    const response = await api.get(`/payroll/runs/${runId}/payslips/${employeeId}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `payslip-${employeeNo}-${runId}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  myPayslips: () =>
+    api.get<PayslipInfo[]>('/payroll/employees/me/payslips').then((r) => r.data),
+  downloadMyPayslip: async (runId: string, year: number, month: number) => {
+    const response = await api.get(`/payroll/employees/me/payslips/${runId}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `payslip-${year}-${String(month).padStart(2, '0')}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  sendPayslips: (runId: string) =>
+    api
+      .post<SendPayslipsResponse>(`/payroll/runs/${runId}/send-payslips`)
+      .then((r) => r.data),
+
+  // M357: Control board
+  controlBoard: () =>
+    api.get<PayrollControlBoardResponse>('/payroll/control-board').then((r) => r.data),
+
+  // M358: Reports suite
+  periodSummary: (runId: string) =>
+    api
+      .get<PeriodSummaryResponse>('/payroll/reports/period-summary', { params: { runId } })
+      .then((r) => r.data),
+  employerCostReport: (runId: string) =>
+    api
+      .get<EmployerCostResponse>('/payroll/reports/employer-cost', { params: { runId } })
+      .then((r) => r.data),
+  loanAdvanceStatus: () =>
+    api.get<LoanAdvanceStatusResponse>('/payroll/reports/loan-advance-status').then((r) => r.data),
+  bankReconciliation: (runId: string) =>
+    api
+      .get<BankReconciliationResponse>('/payroll/reports/bank-reconciliation', {
+        params: { runId },
+      })
+      .then((r) => r.data),
 }
 
 export type BankFileFormat = 'CSV' | 'ABB' | 'KAPITAL' | 'PASHA' | 'RESPUBLIKA' | 'SWIFT_MT103' | 'SEPA' | 'CUSTOM'

@@ -54,6 +54,10 @@ import {
   payrollApi,
   type BankAccountResponse,
   type CompensationResponse,
+  type ComponentAssignment,
+  type CostAllocation,
+  type PayrollLoan,
+  type SalaryComponent,
 } from '../api/payroll'
 import {
   assignmentApi,
@@ -159,6 +163,19 @@ export function EmployeeDetailPage() {
   const [empDocuments, setEmpDocuments] = useState<EmployeeDocument[]>([])
   const [loading, setLoading] = useState(true)
 
+  // M349, M352, M355: salary components, loans, cost allocations
+  const [componentAssignments, setComponentAssignments] = useState<ComponentAssignment[]>([])
+  const [costAllocations, setCostAllocations] = useState<CostAllocation[]>([])
+  const [loans, setLoans] = useState<PayrollLoan[]>([])
+  const [components, setComponents] = useState<SalaryComponent[]>([])
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
+  const [selectedComponentId, setSelectedComponentId] = useState<string>()
+  const [amountOverride, setAmountOverride] = useState<number>()
+  const [effectiveFrom, setEffectiveFrom] = useState('')
+  const [costAllocationModalOpen, setCostAllocationModalOpen] = useState(false)
+  const [costAllocationRows, setCostAllocationRows] = useState<Array<{ costCenterCode: string; allocationPct: number }>>([{ costCenterCode: '', allocationPct: 100 }])
+  const [costAllocationEffectiveFrom, setCostAllocationEffectiveFrom] = useState('')
+
   const [statusModal, setStatusModal] = useState(false)
   const [newStatus, setNewStatus] = useState<EmploymentStatus | undefined>()
   const [reason, setReason] = useState('')
@@ -196,8 +213,12 @@ export function EmployeeDetailPage() {
       timelineApi.forEmployee(id).catch(() => []),
       statusOverlayApi.list(id).catch(() => []),
       employeeDocumentsApi.list(id).catch(() => []),
+      payrollApi.componentAssignments(id, true).catch(() => []),
+      payrollApi.costAllocations(id).catch(() => []),
+      payrollApi.loans({ employeeId: id }).catch(() => []),
+      payrollApi.components().catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps]) => {
         setEmployee(emp)
         setAudit(log)
         setIdentifications(ids)
@@ -221,6 +242,10 @@ export function EmployeeDetailPage() {
         setTimeline(tline)
         setOverlays(ovls)
         setEmpDocuments(docs as EmployeeDocument[])
+        setComponentAssignments(compAsgs as ComponentAssignment[])
+        setCostAllocations(costAllocs as CostAllocation[])
+        setLoans(lns as PayrollLoan[])
+        setComponents(cmps as SalaryComponent[])
       })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -937,15 +962,94 @@ export function EmployeeDetailPage() {
     },
     {
       key: 'compensation',
-      label: `Compensation history (${compensations.length})`,
+      label: `Compensation`,
       children: (
-        <Table
-          rowKey="id"
-          columns={compensationColumns}
-          dataSource={compensations}
-          pagination={false}
-          locale={{ emptyText: <Empty description="No compensation records on file" /> }}
-        />
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Card
+            title="Compensation history"
+            size="small"
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              columns={compensationColumns}
+              dataSource={compensations}
+              pagination={false}
+              locale={{ emptyText: <Empty description="No compensation records on file" /> }}
+            />
+          </Card>
+          <Card
+            title="Salary components"
+            size="small"
+            extra={
+              canEdit && (
+                <Button size="small" onClick={() => setAssignmentModalOpen(true)}>
+                  Add assignment
+                </Button>
+              )
+            }
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={componentAssignments}
+              columns={[
+                { title: 'Component', dataIndex: 'componentName' },
+                { title: 'Code', dataIndex: 'componentCode', width: 100 },
+                { title: 'Kind', dataIndex: 'componentKind', width: 100, render: (v: string) => <Tag>{v}</Tag> },
+                { title: 'Amount override', dataIndex: 'amountOverride', width: 130, align: 'right', render: (v?: number) => v ?? '—' },
+                { title: 'Effective from', dataIndex: 'effectiveFrom', width: 130 },
+                { title: 'Effective to', dataIndex: 'effectiveTo', width: 130, render: (v?: string) => v ?? 'current' },
+              ]}
+              locale={{ emptyText: <Empty description="No component assignments" /> }}
+            />
+          </Card>
+          <Card
+            title="Cost center allocations"
+            size="small"
+            extra={
+              canEdit && (
+                <Button size="small" onClick={() => setCostAllocationModalOpen(true)}>
+                  Update allocations
+                </Button>
+              )
+            }
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={costAllocations}
+              columns={[
+                { title: 'Cost center', dataIndex: 'costCenterCode' },
+                { title: 'Allocation %', dataIndex: 'allocationPct', width: 120, align: 'right', render: (v: number) => `${v}%` },
+                { title: 'Effective from', dataIndex: 'effectiveFrom', width: 130 },
+                { title: 'Effective to', dataIndex: 'effectiveTo', width: 130, render: (v?: string) => v ?? 'current' },
+              ]}
+              locale={{ emptyText: <Empty description="No cost allocations" /> }}
+            />
+          </Card>
+          <Card
+            title="Payroll loans"
+            size="small"
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={loans}
+              columns={[
+                { title: 'Principal', dataIndex: 'principalAmount', width: 120, align: 'right', render: (v?: number) => v ?? '****' },
+                { title: 'Monthly installment', dataIndex: 'monthlyInstallment', width: 150, align: 'right', render: (v?: number) => v ?? '****' },
+                { title: 'Outstanding', dataIndex: 'outstandingBalance', width: 130, align: 'right', render: (v?: number) => v ?? '****' },
+                { title: 'Status', dataIndex: 'status', width: 120, render: (s: string) => <Tag>{s}</Tag> },
+                { title: 'Start deduction', render: (_, l) => `${l.startDeductionYear}-${String(l.startDeductionMonth).padStart(2, '0')}`, width: 130 },
+              ]}
+              locale={{ emptyText: <Empty description="No loans" /> }}
+            />
+          </Card>
+        </Space>
       ),
     },
   ]
@@ -1194,6 +1298,152 @@ export function EmployeeDetailPage() {
             value={rehireReason}
             onChange={(e) => setRehireReason(e.target.value)}
             rows={3}
+          />
+        </Space>
+      </Modal>
+
+      {/* M349 — Component assignment modal */}
+      <Modal
+        title="Add component assignment"
+        open={assignmentModalOpen}
+        onCancel={() => {
+          setAssignmentModalOpen(false)
+          setSelectedComponentId(undefined)
+          setAmountOverride(undefined)
+          setEffectiveFrom('')
+        }}
+        onOk={async () => {
+          if (!selectedComponentId || !effectiveFrom) {
+            message.error('Component and effective date are required')
+            return
+          }
+          try {
+            await payrollApi.createComponentAssignment(employee.id, {
+              componentId: selectedComponentId,
+              effectiveFrom,
+              amountOverride,
+            })
+            message.success('Component assigned')
+            setAssignmentModalOpen(false)
+            setSelectedComponentId(undefined)
+            setAmountOverride(undefined)
+            setEffectiveFrom('')
+            load()
+          } catch (err) {
+            message.error((err as any).response?.data?.message ?? 'Assignment failed')
+          }
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text>Component:</Typography.Text>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Select component"
+            value={selectedComponentId}
+            onChange={setSelectedComponentId}
+            options={components.map((c) => ({
+              value: c.id,
+              label: `${c.code} — ${c.name} (${c.kind})`,
+            }))}
+          />
+          <Typography.Text>Amount override (optional):</Typography.Text>
+          <Input
+            type="number"
+            value={amountOverride}
+            onChange={(e) => setAmountOverride(Number(e.target.value))}
+            placeholder="Leave blank to use component default"
+          />
+          <Typography.Text>Effective from:</Typography.Text>
+          <Input
+            type="date"
+            value={effectiveFrom}
+            onChange={(e) => setEffectiveFrom(e.target.value)}
+          />
+        </Space>
+      </Modal>
+
+      {/* M355 — Cost allocation modal */}
+      <Modal
+        title="Update cost center allocations"
+        open={costAllocationModalOpen}
+        onCancel={() => {
+          setCostAllocationModalOpen(false)
+          setCostAllocationRows([{ costCenterCode: '', allocationPct: 100 }])
+          setCostAllocationEffectiveFrom('')
+        }}
+        onOk={async () => {
+          const total = costAllocationRows.reduce((sum, r) => sum + (r.allocationPct || 0), 0)
+          if (total !== 100) {
+            message.error('Allocation percentages must sum to 100%')
+            return
+          }
+          if (!costAllocationEffectiveFrom) {
+            message.error('Effective date is required')
+            return
+          }
+          try {
+            await payrollApi.setCostAllocations(employee.id, {
+              allocations: costAllocationRows,
+              effectiveFrom: costAllocationEffectiveFrom,
+            })
+            message.success('Allocations updated')
+            setCostAllocationModalOpen(false)
+            setCostAllocationRows([{ costCenterCode: '', allocationPct: 100 }])
+            setCostAllocationEffectiveFrom('')
+            load()
+          } catch (err) {
+            message.error((err as any).response?.data?.message ?? 'Update failed')
+          }
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text>Cost center allocations:</Typography.Text>
+          {costAllocationRows.map((row, idx) => (
+            <Space key={idx} style={{ width: '100%' }}>
+              <Input
+                placeholder="Cost center code"
+                value={row.costCenterCode}
+                onChange={(e) => {
+                  const updated = [...costAllocationRows]
+                  updated[idx].costCenterCode = e.target.value
+                  setCostAllocationRows(updated)
+                }}
+              />
+              <Input
+                type="number"
+                placeholder="%"
+                value={row.allocationPct}
+                onChange={(e) => {
+                  const updated = [...costAllocationRows]
+                  updated[idx].allocationPct = Number(e.target.value)
+                  setCostAllocationRows(updated)
+                }}
+                style={{ width: 80 }}
+              />
+              {idx > 0 && (
+                <Button
+                  size="small"
+                  onClick={() => setCostAllocationRows(costAllocationRows.filter((_, i) => i !== idx))}
+                >
+                  Remove
+                </Button>
+              )}
+            </Space>
+          ))}
+          <Button
+            size="small"
+            onClick={() => setCostAllocationRows([...costAllocationRows, { costCenterCode: '', allocationPct: 0 }])}
+          >
+            Add row
+          </Button>
+          <Typography.Text>
+            Total: {costAllocationRows.reduce((sum, r) => sum + (r.allocationPct || 0), 0)}%
+          </Typography.Text>
+          <Typography.Text>Effective from:</Typography.Text>
+          <Input
+            type="date"
+            value={costAllocationEffectiveFrom}
+            onChange={(e) => setCostAllocationEffectiveFrom(e.target.value)}
           />
         </Space>
       </Modal>

@@ -9,6 +9,7 @@ import {
   CoffeeOutlined,
   ClockCircleTwoTone,
   CloudServerOutlined,
+  DashboardOutlined,
   DollarCircleOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
@@ -546,6 +547,11 @@ export function AppLayout() {
             label: 'Payroll',
             children: [
               {
+                key: 'payroll-control-board',
+                icon: <DashboardOutlined />,
+                label: <Link to="/payroll/control-board">Control Board</Link>,
+              },
+              {
                 key: 'payroll-runs',
                 icon: <BankOutlined />,
                 label: <Link to="/payroll/runs">{tNav('sub.payroll.runs')}</Link>,
@@ -554,6 +560,36 @@ export function AppLayout() {
                 key: 'payroll-compensation',
                 icon: <WalletOutlined />,
                 label: <Link to="/payroll/compensation">{tNav('sub.payroll.compensation')}</Link>,
+              },
+              {
+                key: 'payroll-components',
+                icon: <AppstoreOutlined />,
+                label: <Link to="/payroll/components">Components</Link>,
+              },
+              {
+                key: 'payroll-advances',
+                icon: <WalletOutlined />,
+                label: <Link to="/payroll/advances">Advances</Link>,
+              },
+              {
+                key: 'payroll-loans',
+                icon: <BankOutlined />,
+                label: <Link to="/payroll/loans">Loans</Link>,
+              },
+              {
+                key: 'payroll-gl-mappings',
+                icon: <SettingOutlined />,
+                label: <Link to="/payroll/gl-mappings">GL Mappings</Link>,
+              },
+              {
+                key: 'payroll-year-end',
+                icon: <CalendarOutlined />,
+                label: <Link to="/payroll/year-end">Year-End</Link>,
+              },
+              {
+                key: 'payroll-variance-report',
+                icon: <BarChartOutlined />,
+                label: <Link to="/payroll/reports/variance">Variance Report</Link>,
               },
             ],
           } satisfies ItemType,

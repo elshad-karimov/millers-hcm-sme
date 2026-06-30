@@ -60,6 +60,13 @@ import { TimesheetDetailPage } from './pages/TimesheetDetailPage'
 import { PayrollRunsPage } from './pages/PayrollRunsPage'
 import { PayrollRunDetailPage } from './pages/PayrollRunDetailPage'
 import { PayrollCompensationPage } from './pages/PayrollCompensationPage'
+import { SalaryComponentsPage } from './pages/SalaryComponentsPage'
+import { SalaryAdvancesPage } from './pages/SalaryAdvancesPage'
+import { PayrollLoansPage } from './pages/PayrollLoansPage'
+import { GLAccountMappingsPage } from './pages/GLAccountMappingsPage'
+import { YearEndPage } from './pages/YearEndPage'
+import { PayrollControlBoardPage } from './pages/PayrollControlBoardPage'
+import { VarianceReportPage } from './pages/VarianceReportPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -385,6 +392,13 @@ export default function App() {
           <Route path="payroll/runs" element={<PayrollRunsPage />} />
           <Route path="payroll/runs/:id" element={<PayrollRunDetailPage />} />
           <Route path="payroll/compensation" element={<PayrollCompensationPage />} />
+          <Route path="payroll/components" element={<SalaryComponentsPage />} />
+          <Route path="payroll/advances" element={<SalaryAdvancesPage />} />
+          <Route path="payroll/loans" element={<PayrollLoansPage />} />
+          <Route path="payroll/gl-mappings" element={<GLAccountMappingsPage />} />
+          <Route path="payroll/year-end" element={<YearEndPage />} />
+          <Route path="payroll/control-board" element={<PayrollControlBoardPage />} />
+          <Route path="payroll/reports/variance" element={<VarianceReportPage />} />
 
           {/* Recruitment */}
           <Route path="recruitment/vacancies" element={<VacanciesPage />} />

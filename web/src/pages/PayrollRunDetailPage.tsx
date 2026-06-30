@@ -76,6 +76,25 @@ export function PayrollRunDetailPage() {
   // when the modal opens, keyed by employeeId so re-opens are instant.
   const [allowanceCache, setAllowanceCache] = useState<Record<string, PayrollAllowance[]>>({})
 
+  // M350: holds
+  const [holdModalOpen, setHoldModalOpen] = useState(false)
+  const [holdEmployeeId, setHoldEmployeeId] = useState<string>()
+  const [holdReason, setHoldReason] = useState('')
+  const [holdsLoading, setHoldsLoading] = useState(false)
+  const [currentHolds] = useState<Array<{ employeeId: string; employeeNo: string; reason: string }>>([])
+
+  // M350: pre-flight
+  const [preFlightOpen, setPreFlightOpen] = useState(false)
+  const [preFlight, setPreFlight] = useState<any>(null)
+  const [preFlightLoading, setPreFlightLoading] = useState(false)
+
+  // M355: GL journal
+  const [glJournal, setGlJournal] = useState<any>(null)
+  const [glLoading, setGlLoading] = useState(false)
+
+  // M356: payslips
+  const [payslipsLoading, setPayslipsLoading] = useState(false)
+
   const load = async () => {
     setLoading(true)
     try {
@@ -418,6 +437,243 @@ export function PayrollRunDetailPage() {
         </Card>
       )}
 
+      {/* M350 — Holds section */}
+      <Card
+        title="Payroll holds"
+        extra={
+          canCalculate && (
+            <Button size="small" onClick={() => setHoldModalOpen(true)}>
+              Add hold
+            </Button>
+          )
+        }
+      >
+        {currentHolds.length === 0 ? (
+          <Typography.Text type="secondary">No employees on hold</Typography.Text>
+        ) : (
+          <Table
+            rowKey="employeeId"
+            size="small"
+            pagination={false}
+            dataSource={currentHolds}
+            columns={[
+              {
+                title: 'Employee',
+                dataIndex: 'employeeNo',
+                render: (no: string, r: any) => `${no} ${employeeMap.get(r.employeeId)?.lastName ?? ''}`,
+              },
+              { title: 'Reason', dataIndex: 'reason' },
+              {
+                title: '',
+                width: 100,
+                render: (_: unknown, r: any) => (
+                  <Button
+                    size="small"
+                    onClick={async () => {
+                      try {
+                        await payrollApi.releaseHold(run.id, r.employeeId)
+                        message.success('Hold released')
+                        load()
+                      } catch {
+                        message.error('Release failed')
+                      }
+                    }}
+                  >
+                    Release
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        )}
+      </Card>
+
+      {/* M350 — Pre-flight */}
+      <Card
+        title="Pre-flight checklist"
+        extra={
+          <Button
+            size="small"
+            loading={preFlightLoading}
+            onClick={async () => {
+              setPreFlightLoading(true)
+              try {
+                const pf = await payrollApi.preFlight(run.id)
+                setPreFlight(pf)
+                setPreFlightOpen(true)
+              } catch (err) {
+                message.error((err as any).response?.data?.message ?? 'Pre-flight failed')
+              } finally {
+                setPreFlightLoading(false)
+              }
+            }}
+          >
+            Run pre-flight
+          </Button>
+        }
+      >
+        <Typography.Text type="secondary">
+          Run the pre-flight check to identify issues before calculating payroll.
+        </Typography.Text>
+      </Card>
+
+      {/* M355 — GL Journal tab */}
+      {(run.status === 'APPROVED' || run.status === 'PAID' || run.status === 'CLOSED') && (
+        <Card
+          title="GL journal"
+          extra={
+            <Space>
+              {!glJournal && (
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={glLoading}
+                  onClick={async () => {
+                    setGlLoading(true)
+                    try {
+                      const j = await payrollApi.generateGLJournal(run.id)
+                      setGlJournal(j)
+                      message.success('GL journal generated')
+                    } catch (err) {
+                      message.error((err as any).response?.data?.message ?? 'Generation failed')
+                    } finally {
+                      setGlLoading(false)
+                    }
+                  }}
+                >
+                  Generate journal
+                </Button>
+              )}
+              {glJournal && (
+                <Button
+                  size="small"
+                  onClick={() => payrollApi.downloadGLJournal(run.id, glJournal.journalNo)}
+                >
+                  Export CSV
+                </Button>
+              )}
+            </Space>
+          }
+        >
+          {glJournal ? (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Descriptions size="small" bordered column={4}>
+                <Descriptions.Item label="Journal #">{glJournal.journalNo}</Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <Tag>{glJournal.status}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Total debit">{glJournal.totalDebit}</Descriptions.Item>
+                <Descriptions.Item label="Total credit">{glJournal.totalCredit}</Descriptions.Item>
+                <Descriptions.Item label="Balanced" span={4}>
+                  {glJournal.totalDebit === glJournal.totalCredit ? (
+                    <Tag color="green">✓ Balanced</Tag>
+                  ) : (
+                    <Tag color="red">✗ Out of balance</Tag>
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
+              <Table
+                rowKey="id"
+                size="small"
+                pagination={false}
+                dataSource={glJournal.lines}
+                columns={[
+                  { title: 'Line', dataIndex: 'lineNo', width: 60 },
+                  { title: 'Account code', dataIndex: 'glAccountCode', width: 130 },
+                  { title: 'Account name', dataIndex: 'glAccountName' },
+                  { title: 'Cost center', dataIndex: 'costCenterCode', width: 120, render: (v?: string) => v ?? '—' },
+                  { title: 'Type', dataIndex: 'accountType', width: 90, render: (v: string) => <Tag>{v}</Tag> },
+                  { title: 'Amount', dataIndex: 'amount', width: 120, align: 'right' },
+                ]}
+              />
+            </Space>
+          ) : (
+            <Typography.Text type="secondary">
+              No journal generated yet. Generate after run is APPROVED or PAID.
+            </Typography.Text>
+          )}
+        </Card>
+      )}
+
+      {/* M356 — Payslips tab */}
+      {(run.status === 'PAID' || run.status === 'CLOSED') && (
+        <Card
+          title="Payslips"
+          extra={
+            <Space>
+              <Button
+                size="small"
+                type="primary"
+                loading={payslipsLoading}
+                onClick={async () => {
+                  setPayslipsLoading(true)
+                  try {
+                    const res = await payrollApi.generatePayslips(run.id)
+                    message.success(`Generated ${res.generated} payslips`)
+                    load()
+                  } catch (err) {
+                    message.error((err as any).response?.data?.message ?? 'Generation failed')
+                  } finally {
+                    setPayslipsLoading(false)
+                  }
+                }}
+              >
+                Generate all payslips
+              </Button>
+              <Button
+                size="small"
+                onClick={async () => {
+                  try {
+                    const res = await payrollApi.sendPayslips(run.id)
+                    message.success(`Sent ${res.sent} payslips`)
+                  } catch (err) {
+                    message.error((err as any).response?.data?.message ?? 'Send failed')
+                  }
+                }}
+              >
+                Send by email
+              </Button>
+            </Space>
+          }
+        >
+          <Table
+            rowKey="employeeId"
+            size="small"
+            pagination={false}
+            dataSource={results.map((r) => ({
+              employeeId: r.employeeId,
+              employeeNo: employeeMap.get(r.employeeId)?.employeeNo ?? '',
+              name: employeeMap.get(r.employeeId)?.lastName ?? '',
+              generated: true,
+            }))}
+            columns={[
+              {
+                title: 'Employee',
+                render: (_: unknown, r: any) => `${r.employeeNo} ${r.name}`,
+              },
+              {
+                title: 'Status',
+                dataIndex: 'generated',
+                width: 120,
+                render: (g: boolean) => (g ? <Tag color="green">Generated</Tag> : <Tag>Pending</Tag>),
+              },
+              {
+                title: '',
+                width: 100,
+                render: (_: unknown, r: any) => (
+                  <Button
+                    size="small"
+                    onClick={() => payrollApi.downloadPayslip(run.id, r.employeeId, r.employeeNo)}
+                  >
+                    Download
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      )}
+
       {/* M158 — ERP export card */}
       {(run.status === 'APPROVED' || run.status === 'PAID' || run.status === 'CLOSED') && (
         <Card
@@ -611,6 +867,146 @@ export function PayrollRunDetailPage() {
                 },
               ]}
             />
+          </Space>
+        )}
+      </Modal>
+
+      {/* M350 — Hold modal */}
+      <Modal
+        title="Add payroll hold"
+        open={holdModalOpen}
+        onCancel={() => {
+          setHoldModalOpen(false)
+          setHoldEmployeeId(undefined)
+          setHoldReason('')
+        }}
+        onOk={async () => {
+          if (!holdEmployeeId || !holdReason) {
+            message.error('Employee and reason are required')
+            return
+          }
+          setHoldsLoading(true)
+          try {
+            await payrollApi.setHolds(run.id, { holds: [{ employeeId: holdEmployeeId, reason: holdReason }] })
+            message.success('Hold added')
+            setHoldModalOpen(false)
+            setHoldEmployeeId(undefined)
+            setHoldReason('')
+            load()
+          } catch (err) {
+            message.error((err as any).response?.data?.message ?? 'Hold failed')
+          } finally {
+            setHoldsLoading(false)
+          }
+        }}
+        confirmLoading={holdsLoading}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text>Employee:</Typography.Text>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Select employee"
+            value={holdEmployeeId}
+            onChange={setHoldEmployeeId}
+            options={employees.map((e) => ({
+              value: e.id,
+              label: `${e.employeeNo} ${e.lastName} ${e.firstName}`,
+            }))}
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          />
+          <Typography.Text>Reason:</Typography.Text>
+          <Input.TextArea
+            value={holdReason}
+            onChange={(e) => setHoldReason(e.target.value)}
+            placeholder="Reason for hold"
+            rows={3}
+          />
+        </Space>
+      </Modal>
+
+      {/* M350 — Pre-flight drawer */}
+      <Modal
+        title="Pre-flight checklist"
+        open={preFlightOpen}
+        onCancel={() => setPreFlightOpen(false)}
+        footer={null}
+        width={800}
+      >
+        {preFlight && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Typography.Title level={5}>
+              Total issues: {preFlight.summary.totalIssues}
+            </Typography.Title>
+            {preFlight.checklist.noCompensation.length > 0 && (
+              <Card size="small" title={`No compensation (${preFlight.checklist.noCompensation.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.checklist.noCompensation}
+                  columns={[{ title: 'Employee #', dataIndex: 'employeeNo' }]}
+                />
+              </Card>
+            )}
+            {preFlight.checklist.noTimesheet.length > 0 && (
+              <Card size="small" title={`No timesheet (${preFlight.checklist.noTimesheet.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.checklist.noTimesheet}
+                  columns={[{ title: 'Employee #', dataIndex: 'employeeNo' }]}
+                />
+              </Card>
+            )}
+            {preFlight.checklist.onHold.length > 0 && (
+              <Card size="small" title={`On hold (${preFlight.checklist.onHold.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.checklist.onHold}
+                  columns={[
+                    { title: 'Employee #', dataIndex: 'employeeNo' },
+                    { title: 'Reason', dataIndex: 'reason' },
+                  ]}
+                />
+              </Card>
+            )}
+            {preFlight.checklist.pendingAdvances.length > 0 && (
+              <Card size="small" title={`Pending advances (${preFlight.checklist.pendingAdvances.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.checklist.pendingAdvances}
+                  columns={[
+                    { title: 'Employee #', dataIndex: 'employeeNo' },
+                    { title: 'Amount', dataIndex: 'amount', align: 'right' },
+                  ]}
+                />
+              </Card>
+            )}
+            {preFlight.checklist.retroactiveSalaryChange.length > 0 && (
+              <Card size="small" title={`Retroactive salary changes (${preFlight.checklist.retroactiveSalaryChange.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.checklist.retroactiveSalaryChange}
+                  columns={[
+                    { title: 'Employee #', dataIndex: 'employeeNo' },
+                    { title: 'Change date', dataIndex: 'changeDate' },
+                  ]}
+                />
+              </Card>
+            )}
+            {preFlight.summary.totalIssues === 0 && (
+              <Typography.Text type="success">✓ All pre-flight checks passed</Typography.Text>
+            )}
           </Space>
         )}
       </Modal>

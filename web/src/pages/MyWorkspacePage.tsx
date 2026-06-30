@@ -7,8 +7,11 @@ import {
   Collapse,
   Descriptions,
   Empty,
+  Input,
+  Modal,
   Progress,
   Row,
+  Select,
   Space,
   Spin,
   Statistic,
@@ -31,7 +34,7 @@ import type { LeaveBalance, LeaveRequest, LeaveType } from '../api/leave'
 import type { PermissionBalance, PermissionRequest } from '../api/permission'
 import type { BusinessTrip } from '../api/businessTrip'
 import type { Timesheet } from '../api/timesheet'
-import type { PayrollResult } from '../api/payroll'
+import { payrollApi, type PayslipInfo, type SalaryAdvance } from '../api/payroll'
 import type { Enrollment, Certificate, EmployeeCompetency } from '../api/learning'
 import {
   pathAssignmentsApi,
@@ -448,46 +451,164 @@ function TimesheetsTab() {
 }
 
 // ============================================================================
-//  Payslips tab
+//  Payroll tab (M351, M354, M356)
 // ============================================================================
-function PayslipsTab() {
+function PayrollTab() {
   const { message } = AntdApp.useApp()
-  const [rows, setRows] = useState<PayrollResult[]>([])
+  const [payslips, setPayslips] = useState<PayslipInfo[]>([])
+  const [advances, setAdvances] = useState<SalaryAdvance[]>([])
   const [loading, setLoading] = useState(true)
+  const [advanceModalOpen, setAdvanceModalOpen] = useState(false)
+  const [advanceAmount, setAdvanceAmount] = useState<number>()
+  const [advanceReason, setAdvanceReason] = useState('')
+  const [certYear, setCertYear] = useState(new Date().getFullYear())
+
   useEffect(() => {
-    selfApi
-      .payslips()
-      .then(setRows)
+    Promise.all([
+      payrollApi.myPayslips(),
+      payrollApi.advances({ status: 'PENDING' }),
+    ])
+      .then(([ps, adv]) => {
+        setPayslips(ps)
+        setAdvances(adv)
+      })
       .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
   }, [message])
 
   if (loading) return <Spin />
 
-  const cols: ColumnsType<PayrollResult> = [
-    { title: 'Payslip #', dataIndex: 'payslipNo', width: 130 },
-    { title: 'Base salary', dataIndex: 'baseSalary', width: 130, align: 'right' },
-    { title: 'Bonus', dataIndex: 'bonusAmount', width: 110, align: 'right' },
-    { title: 'Overtime', dataIndex: 'overtimePay', width: 110, align: 'right' },
-    {
-      title: 'Gross',
-      render: (_, r) => <Typography.Text>{r.grossAmount}</Typography.Text>,
-      width: 130,
-      align: 'right',
-    },
-    { title: 'Income tax', dataIndex: 'incomeTax', width: 110, align: 'right' },
-    {
-      title: 'Net',
-      render: (_, r) => <Typography.Text strong>{r.netAmount}</Typography.Text>,
-      width: 130,
-      align: 'right',
-    },
-  ]
-
   return (
-    <Card title="My payslips" size="small">
-      <Table rowKey="id" size="small" columns={cols} dataSource={rows} pagination={false} />
-    </Card>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Card title="My payslips" size="small">
+        <Table
+          rowKey="runId"
+          size="small"
+          pagination={false}
+          dataSource={payslips}
+          columns={[
+            {
+              title: 'Period',
+              render: (_, p) => `${p.periodYear}-${String(p.periodMonth).padStart(2, '0')}`,
+              width: 110,
+            },
+            { title: 'Net amount', dataIndex: 'netAmount', width: 130, align: 'right' },
+            {
+              title: 'Generated',
+              dataIndex: 'generatedAt',
+              width: 140,
+              render: (v?: string) => (v ? new Date(v).toLocaleDateString() : '—'),
+            },
+            {
+              title: '',
+              width: 100,
+              render: (_, p) => (
+                <Button
+                  size="small"
+                  onClick={() => payrollApi.downloadMyPayslip(p.runId, p.periodYear, p.periodMonth)}
+                >
+                  Download
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </Card>
+      <Card
+        title="My salary advances"
+        size="small"
+        extra={
+          <Button size="small" type="primary" onClick={() => setAdvanceModalOpen(true)}>
+            Request advance
+          </Button>
+        }
+      >
+        <Table
+          rowKey="id"
+          size="small"
+          pagination={false}
+          dataSource={advances}
+          columns={[
+            { title: 'Requested', dataIndex: 'requestedAmount', width: 130, align: 'right' },
+            { title: 'Approved', dataIndex: 'approvedAmount', width: 130, align: 'right', render: (v?: number) => v ?? '—' },
+            { title: 'Status', dataIndex: 'status', width: 120, render: (s: string) => <Tag>{s}</Tag> },
+            { title: 'Reason', dataIndex: 'reason', render: (r?: string) => r ?? '—' },
+          ]}
+        />
+      </Card>
+      <Card title="My tax certificate" size="small">
+        <Space>
+          <Typography.Text>Year:</Typography.Text>
+          <Select
+            value={certYear}
+            onChange={(v: number) => setCertYear(v)}
+            style={{ width: 100 }}
+            options={[2024, 2025, 2026].map((y) => ({ value: y, label: y }))}
+          />
+          <Button
+            onClick={async () => {
+              try {
+                await payrollApi.downloadMyTaxCertificate(certYear)
+                message.success('Certificate downloaded')
+              } catch (err) {
+                message.error((err as any).response?.data?.message ?? 'Download failed')
+              }
+            }}
+          >
+            Download certificate
+          </Button>
+        </Space>
+      </Card>
+
+      <Modal
+        title="Request salary advance"
+        open={advanceModalOpen}
+        onCancel={() => {
+          setAdvanceModalOpen(false)
+          setAdvanceAmount(undefined)
+          setAdvanceReason('')
+        }}
+        onOk={async () => {
+          if (!advanceAmount) {
+            message.error('Amount is required')
+            return
+          }
+          try {
+            await payrollApi.createAdvance({
+              employeeId: '', // backend derives from context
+              requestedAmount: advanceAmount,
+              reason: advanceReason || undefined,
+            })
+            message.success('Advance requested')
+            setAdvanceModalOpen(false)
+            setAdvanceAmount(undefined)
+            setAdvanceReason('')
+            // reload
+            const adv = await payrollApi.advances({ status: 'PENDING' })
+            setAdvances(adv)
+          } catch (err) {
+            message.error((err as any).response?.data?.message ?? 'Request failed')
+          }
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text>Amount:</Typography.Text>
+          <Input
+            type="number"
+            value={advanceAmount}
+            onChange={(e) => setAdvanceAmount(Number(e.target.value))}
+            placeholder="Requested amount"
+          />
+          <Typography.Text>Reason:</Typography.Text>
+          <Input.TextArea
+            value={advanceReason}
+            onChange={(e) => setAdvanceReason(e.target.value)}
+            placeholder="Reason for advance"
+            rows={3}
+          />
+        </Space>
+      </Modal>
+    </Space>
   )
 }
 
@@ -828,7 +949,7 @@ export function MyWorkspacePage() {
           { key: 'permission',    label: t('tabs.permission'),     children: <PermissionTab /> },
           { key: 'businessTrips', label: t('tabs.businessTrips'),  children: <BusinessTripsTab /> },
           { key: 'timesheets',    label: t('tabs.timesheets'),     children: <TimesheetsTab /> },
-          { key: 'payslips',      label: t('tabs.payslips'),       children: <PayslipsTab /> },
+          { key: 'payroll',       label: 'Payroll',                children: <PayrollTab /> },
           { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
           { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
         ]}
