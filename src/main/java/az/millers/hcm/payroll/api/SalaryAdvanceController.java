@@ -87,8 +87,10 @@ public class SalaryAdvanceController {
         return SalaryAdvanceResponse.from(advance);
     }
 
+    // Advance approval/rejection is an HR_ADMIN-only money decision (PAYROLL_SPECIALIST
+    // may create/record advances but not approve them) — see the permission matrix.
     @PostMapping("/{id}/approve")
-    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public SalaryAdvanceResponse approve(@PathVariable UUID id, @Valid @RequestBody ApproveAdvanceRequest req) {
         SalaryAdvance advance = service.approve(id, req.approvedAmount(), req.repaymentYear(),
                 req.repaymentMonth(), currentRequest.username());
@@ -96,7 +98,7 @@ public class SalaryAdvanceController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public SalaryAdvanceResponse reject(@PathVariable UUID id, @Valid @RequestBody RejectAdvanceRequest req) {
         SalaryAdvance advance = service.reject(id, req.reason());
         return SalaryAdvanceResponse.from(advance);
@@ -105,6 +107,17 @@ public class SalaryAdvanceController {
     @PostMapping("/{id}/cancel")
     @PreAuthorize(SecurityRoles.WRITE_PAYROLL + " or hasRole('" + SecurityRoles.R_EMPLOYEE + "')")
     public SalaryAdvanceResponse cancel(@PathVariable UUID id) {
+        // An EMPLOYEE may cancel only their OWN advance — verify ownership before acting so
+        // a UUID cannot be used to cancel another employee's request.
+        if (currentRequest.hasRole(SecurityRoles.R_EMPLOYEE) && !currentRequest.hasRole(SecurityRoles.R_HR_ADMIN)
+                && !currentRequest.hasRole(SecurityRoles.R_PAYROLL_SPECIALIST)) {
+            SalaryAdvance owned = service.get(id);
+            UUID me = employeeContext.currentEmployee().getId();
+            if (!owned.getEmployeeId().equals(me)) {
+                throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Cannot cancel another employee's advance");
+            }
+        }
         SalaryAdvance advance = service.cancel(id);
         return SalaryAdvanceResponse.from(advance);
     }

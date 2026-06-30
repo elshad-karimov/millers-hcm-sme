@@ -92,8 +92,12 @@ public class GLJournalService {
             throw new BadRequestException("RUN_STATUS_INVALID");
         }
 
-        // Delete existing journal + lines (idempotent replace)
+        // A DRAFT journal may be regenerated (idempotent replace), but a POSTED journal is
+        // an accounting record of record and must never be silently overwritten.
         journals.findByRunId(runId).ifPresent(existing -> {
+            if (existing.getStatus() == GLJournalStatus.POSTED) {
+                throw new BadRequestException("JOURNAL_ALREADY_POSTED");
+            }
             journalLines.deleteByJournalId(existing.getId());
             journals.deleteByRunId(runId);
         });

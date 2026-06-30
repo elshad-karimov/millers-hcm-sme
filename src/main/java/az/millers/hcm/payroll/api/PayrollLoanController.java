@@ -85,8 +85,10 @@ public class PayrollLoanController {
         return PayrollLoanResponse.from(loan);
     }
 
+    // Writing off an outstanding loan is a non-reversible financial concession —
+    // restrict to HR_ADMIN / SYSTEM_ADMIN, not PAYROLL_SPECIALIST.
     @PostMapping("/{id}/write-off")
-    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PayrollLoanResponse writeOff(@PathVariable UUID id, @Valid @RequestBody WriteOffLoanRequest req) {
         PayrollLoan loan = service.writeOff(id, req.reason());
         return PayrollLoanResponse.from(loan);

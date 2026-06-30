@@ -128,6 +128,13 @@ public class SalaryAdvanceService {
         return saved;
     }
 
+    /** Read a single advance (used for ownership checks). */
+    @Transactional(readOnly = true)
+    public SalaryAdvance get(UUID advanceId) {
+        return advanceRepo.findById(advanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Salary advance not found"));
+    }
+
     @Transactional
     public void markDeducted(UUID advanceId) {
         SalaryAdvance advance = advanceRepo.findById(advanceId)

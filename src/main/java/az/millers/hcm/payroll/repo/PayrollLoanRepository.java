@@ -14,7 +14,8 @@ public interface PayrollLoanRepository extends JpaRepository<PayrollLoan, UUID> 
 
     @Query("""
             SELECT pl FROM PayrollLoan pl
-            WHERE pl.employeeId = :empId
+            WHERE pl.tenantId = 'default'
+              AND pl.employeeId = :empId
               AND pl.status = 'ACTIVE'
               AND ((pl.startDeductionYear * 100 + pl.startDeductionMonth) <= (:year * 100 + :month))
               AND pl.outstandingBalance > 0

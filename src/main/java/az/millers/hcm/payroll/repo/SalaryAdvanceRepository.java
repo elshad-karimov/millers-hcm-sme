@@ -16,7 +16,8 @@ public interface SalaryAdvanceRepository extends JpaRepository<SalaryAdvance, UU
 
     @Query("""
             SELECT sa FROM SalaryAdvance sa
-            WHERE sa.employeeId = :empId
+            WHERE sa.tenantId = 'default'
+              AND sa.employeeId = :empId
               AND sa.status = 'APPROVED'
               AND sa.repaymentYear = :year
               AND sa.repaymentMonth = :month
