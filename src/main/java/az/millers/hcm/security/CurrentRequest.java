@@ -18,6 +18,15 @@ public class CurrentRequest {
         return authentication != null ? authentication.getName() : "system";
     }
 
+    public boolean hasRole(String role) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_" + role));
+    }
+
     public String ipAddress() {
         HttpServletRequest request = currentRequest();
         if (request == null) {

@@ -42,4 +42,23 @@ public interface PayrollDeductionRepository extends JpaRepository<PayrollDeducti
 
     Page<PayrollDeduction> findByEmployeeIdAndStatusOrderByCreatedAtDesc(
             UUID employeeId, String status, Pageable pageable);
+
+    /** M351: an advance is recovered exactly once, so a single row keyed by the advance is enough. */
+    Optional<PayrollDeduction> findBySourceAdvanceId(UUID sourceAdvanceId);
+
+    /**
+     * M352: a loan is recovered over many periods, so idempotency is per (loan, period).
+     * One row per installment, keyed by the originating loan and the period it applies to.
+     */
+    Optional<PayrollDeduction> findBySourceLoanIdAndStartPeriodYearAndStartPeriodMonth(
+            UUID sourceLoanId, int startPeriodYear, int startPeriodMonth);
+
+    /**
+     * M351/M352: all advance/loan deduction rows recorded for an employee in a period.
+     * The engine sums these to get the post-statutory deduction, so recalculating a run
+     * re-derives the same net impact from persisted rows instead of relying on freshly
+     * created rows (which would otherwise return zero on a second calculation).
+     */
+    List<PayrollDeduction> findByEmployeeIdAndStartPeriodYearAndStartPeriodMonthAndDeductionTypeIn(
+            UUID employeeId, int startPeriodYear, int startPeriodMonth, java.util.Collection<String> deductionTypes);
 }

@@ -85,6 +85,14 @@ public class PayrollDeduction {
     @Column(name = "source_leave_days", precision = 8, scale = 2)
     private BigDecimal sourceLeaveDays;
 
+    /** M351 — salary advance that originated this deduction (nullable for non-advance deductions). */
+    @Column(name = "source_advance_id")
+    private UUID sourceAdvanceId;
+
+    /** M352 — payroll loan that originated this deduction (nullable for non-loan deductions). */
+    @Column(name = "source_loan_id")
+    private UUID sourceLoanId;
+
     @Column(name = "created_by")
     private String createdBy;
 

@@ -19,6 +19,8 @@ import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.payroll.domain.PayrollResult;
 import az.millers.hcm.payroll.domain.PayrollRun;
 import az.millers.hcm.payroll.domain.PayrollRunStatus;
+import az.millers.hcm.payroll.domain.RunType;
+import az.millers.hcm.payroll.repo.PayrollLoanRepository;
 import az.millers.hcm.payroll.repo.PayrollResultRepository;
 import az.millers.hcm.payroll.repo.PayrollRunRepository;
 import az.millers.hcm.payroll.service.StatutoryCalculator.ContributionPair;
@@ -39,7 +41,7 @@ import az.millers.hcm.payroll.service.StatutoryCalculator.IncomeTaxResult;
 public class FinalSettlementService {
 
     private static final Logger log = LoggerFactory.getLogger(FinalSettlementService.class);
-    private static final String RUN_TYPE = "FINAL_SETTLEMENT";
+    private static final RunType RUN_TYPE = RunType.FINAL_SETTLEMENT;
     private static final String MODULE   = "PAYROLL";
     private static final String ENTITY   = "PayrollRun";
 
@@ -47,17 +49,23 @@ public class FinalSettlementService {
     private final PayrollResultRepository results;
     private final StatutoryCalculator calculator;
     private final AuditService audit;
+    private final SalaryAdvanceService advanceService;
+    private final PayrollLoanRepository loanRepo;
     private final ObjectMapper objectMapper;
 
     public FinalSettlementService(PayrollRunRepository runs,
                                   PayrollResultRepository results,
                                   StatutoryCalculator calculator,
                                   AuditService audit,
+                                  SalaryAdvanceService advanceService,
+                                  PayrollLoanRepository loanRepo,
                                   ObjectMapper objectMapper) {
         this.runs = runs;
         this.results = results;
         this.calculator = calculator;
         this.audit = audit;
+        this.advanceService = advanceService;
+        this.loanRepo = loanRepo;
         this.objectMapper = objectMapper;
     }
 
@@ -163,6 +171,42 @@ public class FinalSettlementService {
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal netAmount = grossSettlement.subtract(totalDeductions)
                 .max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+
+        // M351/M352: recover outstanding advances + loans from final payout
+        BigDecimal advanceDeduction = advanceService.outstandingForEmployee(employeeId).stream()
+                .map(advance -> advance.getApprovedAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal loanDeduction = loanRepo.findActiveByEmployee(employeeId).stream()
+                .map(loan -> loan.getOutstandingBalance())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalAdvanceLoan = advanceDeduction.add(loanDeduction).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal payoutBeforeFloor = netAmount;
+        netAmount = netAmount.subtract(totalAdvanceLoan).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+
+        if (totalAdvanceLoan.compareTo(payoutBeforeFloor) > 0) {
+            BigDecimal writeOffAmount = totalAdvanceLoan.subtract(payoutBeforeFloor).setScale(2, RoundingMode.HALF_UP);
+            calcDetail.put("advanceLoanWriteOff", writeOffAmount.toPlainString());
+            audit.record(MODULE, "FinalSettlementWriteOff", employeeId.toString(), "WRITE_OFF", null,
+                    Map.of("writeOffAmount", writeOffAmount.toPlainString(), "requiresHrAcknowledgement", true));
+        }
+
+        // Mark advances as DEDUCTED and loans as FULLY_REPAID or WRITTEN_OFF
+        for (var advance : advanceService.outstandingForEmployee(employeeId)) {
+            advanceService.markDeducted(advance.getId());
+        }
+        for (var loan : loanRepo.findActiveByEmployee(employeeId)) {
+            if (loan.getOutstandingBalance().compareTo(payoutBeforeFloor) <= 0) {
+                loan.setStatus(az.millers.hcm.payroll.domain.PayrollLoanStatus.FULLY_REPAID);
+                loanRepo.save(loan);
+            } else {
+                loan.setStatus(az.millers.hcm.payroll.domain.PayrollLoanStatus.WRITTEN_OFF);
+                loanRepo.save(loan);
+            }
+        }
+
+        calcDetail.put("advanceDeduction", advanceDeduction.toPlainString());
+        calcDetail.put("loanDeduction", loanDeduction.toPlainString());
         calcDetail.put("totalDeductions", totalDeductions.toPlainString());
         calcDetail.put("netAmount", netAmount.toPlainString());
 

@@ -22,10 +22,14 @@ import org.springframework.web.bind.annotation.RestController;
 import az.millers.hcm.payroll.api.dto.AddBonusRequest;
 import az.millers.hcm.payroll.api.dto.CreateRunRequest;
 import az.millers.hcm.payroll.api.dto.PayrollAllowanceResponse;
+import az.millers.hcm.payroll.api.dto.PayrollPreFlightResponse;
 import az.millers.hcm.payroll.api.dto.PayrollResultResponse;
 import az.millers.hcm.payroll.api.dto.PayrollRunResponse;
+import az.millers.hcm.payroll.api.dto.SetHoldRequest;
 import az.millers.hcm.payroll.domain.BankFileFormat;
 import az.millers.hcm.payroll.service.BankFileService;
+import az.millers.hcm.payroll.service.PayrollHoldService;
+import az.millers.hcm.payroll.service.PayrollPreFlightService;
 import az.millers.hcm.payroll.service.PayrollRunService;
 import jakarta.validation.Valid;
 
@@ -35,10 +39,17 @@ public class PayrollRunController {
 
     private final PayrollRunService service;
     private final BankFileService bankFile;
+    private final PayrollHoldService holdService;
+    private final PayrollPreFlightService preFlightService;
 
-    public PayrollRunController(PayrollRunService service, BankFileService bankFile) {
+    public PayrollRunController(PayrollRunService service,
+                                 BankFileService bankFile,
+                                 PayrollHoldService holdService,
+                                 PayrollPreFlightService preFlightService) {
         this.service = service;
         this.bankFile = bankFile;
+        this.holdService = holdService;
+        this.preFlightService = preFlightService;
     }
 
     @GetMapping
@@ -138,5 +149,29 @@ public class PayrollRunController {
                         "attachment; filename=payroll-bank-" + format.name().toLowerCase()
                                 + "-" + id + "." + ext)
                 .body(content);
+    }
+
+    /** M350: pre-flight checklist before calculating a run. */
+    @GetMapping("/{id}/pre-flight")
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
+    public PayrollPreFlightResponse preFlight(@PathVariable UUID id) {
+        return preFlightService.preFlight(id);
+    }
+
+    /** M350: set holds for multiple employees on a run. */
+    @PostMapping("/{id}/hold-employees")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    public void setHolds(@PathVariable UUID id, @Valid @RequestBody SetHoldRequest req) {
+        for (var hold : req.holds()) {
+            holdService.setHold(id, hold.employeeId(), hold.reason());
+        }
+    }
+
+    /** M350: release hold for a single employee. */
+    @PostMapping("/{id}/hold-employees/{employeeId}/release")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void releaseHold(@PathVariable UUID id, @PathVariable UUID employeeId) {
+        holdService.releaseHold(id, employeeId);
     }
 }

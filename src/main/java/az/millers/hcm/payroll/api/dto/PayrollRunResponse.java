@@ -2,14 +2,19 @@ package az.millers.hcm.payroll.api.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import az.millers.hcm.payroll.domain.PayrollRun;
 import az.millers.hcm.payroll.domain.PayrollRunStatus;
+import az.millers.hcm.payroll.domain.RunType;
 
 public record PayrollRunResponse(
         UUID id,
         String runNo,
+        RunType runType,
+        String description,
+        List<UUID> employeeIds,
         int periodYear,
         int periodMonth,
         String jurisdiction,
@@ -39,6 +44,7 @@ public record PayrollRunResponse(
     public static PayrollRunResponse from(PayrollRun r) {
         return new PayrollRunResponse(
                 r.getId(), r.getRunNo(),
+                r.getRunType(), r.getDescription(), r.getEmployeeIds(),
                 r.getPeriodYear(), r.getPeriodMonth(),
                 r.getJurisdiction(), r.getCurrency(),
                 r.getStatus(), r.getWorkflowInstanceId(),

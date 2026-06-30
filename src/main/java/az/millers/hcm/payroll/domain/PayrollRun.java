@@ -2,7 +2,11 @@ package az.millers.hcm.payroll.domain;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,13 +33,23 @@ public class PayrollRun {
     @Column(name = "run_no", nullable = false, unique = true)
     private String runNo;
 
-    /** REGULAR (default) or FINAL_SETTLEMENT (one per terminated employee). */
+    /** REGULAR (default), OFF_CYCLE (employee subset), or FINAL_SETTLEMENT (one per terminated employee). */
+    @Enumerated(EnumType.STRING)
     @Column(name = "run_type", nullable = false, length = 30)
-    private String runType = "REGULAR";
+    private RunType runType = RunType.REGULAR;
 
     /** Set for FINAL_SETTLEMENT runs; links back to the originating termination. */
     @Column(name = "termination_id")
     private UUID terminationId;
+
+    /** Optional description for the run (useful for off-cycle or special runs). */
+    @Column(length = 500)
+    private String description;
+
+    /** For OFF_CYCLE runs: the specific employee IDs to include. Null/empty for REGULAR runs. */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "employee_ids", columnDefinition = "uuid[]")
+    private List<UUID> employeeIds;
 
     @Column(name = "period_year", nullable = false)
     private int periodYear;

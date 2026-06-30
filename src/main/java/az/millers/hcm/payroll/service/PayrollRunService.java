@@ -109,25 +109,44 @@ public class PayrollRunService {
     @Transactional
     public PayrollRun create(CreateRunRequest req) {
         String jurisdiction = req.jurisdiction() == null ? "AZ" : req.jurisdiction();
-        runs.findByPeriodYearAndPeriodMonthAndJurisdiction(
-                req.periodYear(), req.periodMonth(), jurisdiction)
-                .ifPresent(existing -> {
-                    throw new BadRequestException(
-                            "Payroll run already exists for " + req.periodYear()
-                                    + "/" + req.periodMonth() + " (" + jurisdiction + ")");
-                });
+        az.millers.hcm.payroll.domain.RunType runType = req.runType() == null
+                ? az.millers.hcm.payroll.domain.RunType.REGULAR
+                : req.runType();
+
+        // Validation: OFF_CYCLE requires employeeIds
+        if (runType == az.millers.hcm.payroll.domain.RunType.OFF_CYCLE) {
+            if (req.employeeIds() == null || req.employeeIds().isEmpty()) {
+                throw new BadRequestException("OFF_CYCLE_REQUIRES_EMPLOYEES");
+            }
+        }
+
+        // REGULAR runs still enforce uniqueness; OFF_CYCLE runs bypass this guard
+        if (runType == az.millers.hcm.payroll.domain.RunType.REGULAR) {
+            runs.findByPeriodYearAndPeriodMonthAndJurisdiction(
+                    req.periodYear(), req.periodMonth(), jurisdiction)
+                    .ifPresent(existing -> {
+                        throw new BadRequestException(
+                                "Payroll run already exists for " + req.periodYear()
+                                        + "/" + req.periodMonth() + " (" + jurisdiction + ")");
+                    });
+        }
+
         PayrollRun r = new PayrollRun();
         r.setRunNo(String.format("PR-%05d", runs.nextRunNoSequence()));
         r.setPeriodYear(req.periodYear());
         r.setPeriodMonth(req.periodMonth());
         r.setJurisdiction(jurisdiction);
         r.setCurrency(req.currency() == null ? "AZN" : req.currency());
+        r.setRunType(runType);
+        r.setDescription(req.description());
+        r.setEmployeeIds(req.employeeIds());
         r.setStatus(PayrollRunStatus.DRAFT);
         r.setCreatedBy(currentRequest.username());
         PayrollRun saved = runs.save(r);
         audit.record(MODULE, ENTITY, saved.getId().toString(),
                 "CREATE", null,
-                Map.of("period", req.periodYear() + "-" + req.periodMonth()));
+                Map.of("period", req.periodYear() + "-" + req.periodMonth(),
+                       "runType", runType.name()));
         return saved;
     }
 

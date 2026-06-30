@@ -7,6 +7,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,17 +34,25 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.payroll.domain.CalculationMethod;
+import az.millers.hcm.payroll.domain.ComponentKind;
 import az.millers.hcm.payroll.domain.PayrollAllowance;
 import az.millers.hcm.payroll.domain.PayrollBonus;
 import az.millers.hcm.payroll.domain.PayrollResult;
+import az.millers.hcm.payroll.domain.PayrollResultComponent;
 import az.millers.hcm.payroll.domain.PayrollRun;
 import az.millers.hcm.payroll.domain.PayrollDeduction;
+import az.millers.hcm.payroll.domain.SalaryComponent;
+import az.millers.hcm.payroll.domain.SalaryComponentAssignment;
 import az.millers.hcm.payroll.repo.EmployeeCompensationRepository;
 import az.millers.hcm.payroll.repo.PayrollAllowanceRepository;
 import az.millers.hcm.payroll.repo.PayrollBonusRepository;
 import az.millers.hcm.payroll.repo.PayrollDeductionRepository;
+import az.millers.hcm.payroll.repo.PayrollResultComponentRepository;
 import az.millers.hcm.payroll.repo.PayrollResultRepository;
+import az.millers.hcm.payroll.repo.PayrollRunHoldRepository;
 import az.millers.hcm.payroll.repo.PayrollRunRepository;
+import az.millers.hcm.payroll.repo.SalaryComponentAssignmentRepository;
 import az.millers.hcm.payroll.service.StatutoryCalculator.ContributionPair;
 import az.millers.hcm.payroll.service.StatutoryCalculator.IncomeTaxResult;
 import az.millers.hcm.payroll.service.StatutoryCalculator.OvertimePay;
@@ -90,6 +99,10 @@ public class PayrollEngine {
     private final PayrollDeductionRepository deductions;
     private final AttendanceDeductionBridge attendanceBridge;
     private final StatutoryCalculator calculator;
+    private final SalaryComponentAssignmentRepository componentAssignments;
+    private final PayrollResultComponentRepository resultComponents;
+    private final PayrollRunHoldRepository holdRepo;
+    private final PayrollAdvanceLoanDeductionService advanceLoanDeductionService;
     private final ObjectMapper objectMapper;
 
     public PayrollEngine(PayrollRunRepository runs,
@@ -105,6 +118,10 @@ public class PayrollEngine {
                           PayrollDeductionRepository deductions,
                           AttendanceDeductionBridge attendanceBridge,
                           StatutoryCalculator calculator,
+                          SalaryComponentAssignmentRepository componentAssignments,
+                          PayrollResultComponentRepository resultComponents,
+                          PayrollRunHoldRepository holdRepo,
+                          PayrollAdvanceLoanDeductionService advanceLoanDeductionService,
                           ObjectMapper objectMapper) {
         this.runs = runs;
         this.results = results;
@@ -119,21 +136,35 @@ public class PayrollEngine {
         this.deductions = deductions;
         this.attendanceBridge = attendanceBridge;
         this.calculator = calculator;
+        this.componentAssignments = componentAssignments;
+        this.resultComponents = resultComponents;
+        this.holdRepo = holdRepo;
+        this.advanceLoanDeductionService = advanceLoanDeductionService;
         this.objectMapper = objectMapper;
     }
 
     @Transactional
     public PayrollRun calculate(PayrollRun run) {
-        // Clear previous results + allowance snapshots so re-running
+        // Clear previous results + allowance snapshots + component snapshots so re-running
         // stays idempotent. Bonus rows are intentionally NOT wiped — they're
         // added explicitly via AddBonusRequest and should survive a recalc.
         results.deleteByRunId(run.getId());
         allowanceSnapshots.deleteByRunId(run.getId());
+        resultComponents.deleteByResultId(run.getId());
         results.flush();
 
         LocalDate ruleDate = YearMonth.of(run.getPeriodYear(), run.getPeriodMonth()).atDay(1);
         List<Timesheet> approved = timesheets.findByPeriodYearAndPeriodMonthAndStatus(
                 run.getPeriodYear(), run.getPeriodMonth(), TimesheetStatus.APPROVED);
+
+        // M350: OFF_CYCLE filtering — restrict to specific employees
+        if (run.getRunType() == az.millers.hcm.payroll.domain.RunType.OFF_CYCLE
+                && run.getEmployeeIds() != null && !run.getEmployeeIds().isEmpty()) {
+            Set<UUID> targetIds = new HashSet<>(run.getEmployeeIds());
+            approved = approved.stream()
+                    .filter(ts -> targetIds.contains(ts.getEmployeeId()))
+                    .toList();
+        }
 
         if (approved.isEmpty()) {
             throw new BadRequestException(
@@ -156,6 +187,12 @@ public class PayrollEngine {
 
         for (Timesheet ts : approved) {
             UUID employeeId = ts.getEmployeeId();
+
+            // M350: skip if employee is on hold for this run
+            if (holdRepo.existsByRunIdAndEmployeeIdAndReleasedAtIsNull(run.getId(), employeeId)) {
+                log.info("PayrollEngine: skipping employee {} — on hold for run {}", employeeId, run.getId());
+                continue;
+            }
 
             // M61 / P1-02: payroll-eligibility gate. Stale APPROVED timesheets
             // belonging to TERMINATED/RETIRED/SUSPENDED employees must never
@@ -261,6 +298,56 @@ public class PayrollEngine {
             nonTaxableAllowance = nonTaxableAllowance.setScale(2, RoundingMode.HALF_UP);
             BigDecimal allowance = taxableAllowance.add(nonTaxableAllowance);
 
+            // ---- M349: salary component assignments (EARNING / DEDUCTION) ----
+            List<SalaryComponentAssignment> assignments = componentAssignments.findActiveOn(employeeId, ruleDate);
+            BigDecimal taxableComponentEarnings = BigDecimal.ZERO;
+            BigDecimal nonTaxableContributableEarnings = BigDecimal.ZERO;
+            BigDecimal nonTaxableNonContributableEarnings = BigDecimal.ZERO;
+            BigDecimal componentDeductions = BigDecimal.ZERO;
+            List<PayrollResultComponent> componentSnapshots = new ArrayList<>();
+
+            for (SalaryComponentAssignment assignment : assignments) {
+                SalaryComponent component = assignment.getComponent();
+
+                // Resolve amount: amountOverride if set, else from component definition
+                BigDecimal amount;
+                if (assignment.getAmountOverride() != null) {
+                    amount = assignment.getAmountOverride();
+                } else if (component.getCalculationMethod() == CalculationMethod.PERCENTAGE_OF_BASE) {
+                    amount = baseSalary.multiply(component.getPercentage() != null ? component.getPercentage() : BigDecimal.ZERO);
+                } else {
+                    // FIXED_AMOUNT or FLAT_RATE
+                    amount = component.getDefaultAmount() != null ? component.getDefaultAmount() : BigDecimal.ZERO;
+                }
+                amount = amount.setScale(2, RoundingMode.HALF_UP);
+
+                // Classify and accumulate
+                if (component.getKind() == ComponentKind.EARNING) {
+                    if (component.getIsTaxable()) {
+                        taxableComponentEarnings = taxableComponentEarnings.add(amount);
+                    } else if (!component.getContributionExempt()) {
+                        nonTaxableContributableEarnings = nonTaxableContributableEarnings.add(amount);
+                    } else {
+                        nonTaxableNonContributableEarnings = nonTaxableNonContributableEarnings.add(amount);
+                    }
+                } else {
+                    // DEDUCTION
+                    componentDeductions = componentDeductions.add(amount);
+                }
+
+                // Snapshot for audit trail
+                PayrollResultComponent snapshot = new PayrollResultComponent();
+                snapshot.setTenantId("default");
+                snapshot.setComponentId(component.getId());
+                snapshot.setComponentCode(component.getCode());
+                snapshot.setComponentName(component.getName());
+                snapshot.setKind(component.getKind());
+                snapshot.setAmount(amount);
+                snapshot.setIsTaxable(component.getIsTaxable());
+                snapshot.setContributionExempt(component.getContributionExempt());
+                componentSnapshots.add(snapshot);
+            }
+
             // ---- Payroll deductions (one-off, recurring, garnishment, advance recovery) ----
             List<PayrollDeduction> activeDeductions = deductions.findActiveForPeriod(
                     employeeId, run.getPeriodYear(), run.getPeriodMonth());
@@ -285,25 +372,43 @@ public class PayrollEngine {
             deduction = deduction.add(attDeduction.totalDeduction())
                     .setScale(2, RoundingMode.HALF_UP);
 
-            BigDecimal gross = baseSalary
+            // M349: taxable gross = base + OT + bonus + taxable allowances + taxable component earnings
+            BigDecimal taxableGross = baseSalary
                     .add(ot.totalPay())
                     .add(bonusAmount)
                     .add(taxableAllowance)
+                    .add(taxableComponentEarnings)
                     .subtract(deduction)
                     .max(BigDecimal.ZERO)
                     .setScale(2, RoundingMode.HALF_UP);
 
-            IncomeTaxResult tax = calculator.incomeTax(gross, run.getJurisdiction(), ruleDate);
-            ContributionPair dsmf = calculator.dsmf(gross, run.getJurisdiction(), ruleDate);
-            ContributionPair mmi = calculator.mmi(gross, run.getJurisdiction(), ruleDate);
-            ContributionPair unempl = calculator.unemployment(gross, run.getJurisdiction(), ruleDate);
+            // M349: DSMF/MMI base = taxable gross + non-taxable contributable earnings
+            BigDecimal dsmfBase = taxableGross.add(nonTaxableContributableEarnings)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-            BigDecimal net = gross
+            IncomeTaxResult tax = calculator.incomeTax(taxableGross, run.getJurisdiction(), ruleDate);
+            ContributionPair dsmf = calculator.dsmf(dsmfBase, run.getJurisdiction(), ruleDate);
+            ContributionPair mmi = calculator.mmi(dsmfBase, run.getJurisdiction(), ruleDate);
+            ContributionPair unempl = calculator.unemployment(dsmfBase, run.getJurisdiction(), ruleDate);
+
+            // M349: net = taxable gross - statutory deductions + non-taxable allowances
+            //       + non-taxable contributable earnings + non-taxable non-contributable earnings
+            //       - component deductions (applied AFTER statutory deductions)
+            BigDecimal net = taxableGross
                     .subtract(tax.tax())
                     .subtract(dsmf.employee())
                     .subtract(mmi.employee())
                     .subtract(unempl.employee())
                     .add(nonTaxableAllowance)
+                    .add(nonTaxableContributableEarnings)
+                    .add(nonTaxableNonContributableEarnings)
+                    .subtract(componentDeductions);
+
+            // M351/M352: apply salary advance + loan installments (post-statutory)
+            BigDecimal advanceLoanDeduction = advanceLoanDeductionService.applyForEmployee(
+                    employeeId, run.getPeriodYear(), run.getPeriodMonth());
+            net = net.subtract(advanceLoanDeduction)
+                    .max(BigDecimal.ZERO)
                     .setScale(2, RoundingMode.HALF_UP);
 
             PayrollResult r = new PayrollResult();
@@ -320,7 +425,7 @@ public class PayrollEngine {
             r.setBonusAmount(bonusAmount);
             r.setAllowanceAmount(allowance); // M41: combined taxable + non-taxable
             r.setDeductionAmount(deduction);
-            r.setGrossAmount(gross);
+            r.setGrossAmount(taxableGross);
             r.setIncomeTax(tax.tax());
             r.setDsmfEmployee(dsmf.employee());
             r.setDsmfEmployer(dsmf.employer());
@@ -331,8 +436,15 @@ public class PayrollEngine {
             r.setNetAmount(net);
             r.setCalculationDetails(buildTrace(baseSalary, ot, bonusAmount,
                     snapshots, taxableAllowance, nonTaxableAllowance,
-                    attDeduction, gross, tax, dsmf, mmi, unempl, net));
-            results.save(r);
+                    attDeduction, taxableGross, tax, dsmf, mmi, unempl, net,
+                    componentSnapshots));
+            PayrollResult saved = results.save(r);
+
+            // M349: persist component snapshots with result ID
+            for (PayrollResultComponent snapshot : componentSnapshots) {
+                snapshot.setResultId(saved.getId());
+                resultComponents.save(snapshot);
+            }
 
             // ---- Update deduction state-machine after applying ----
             for (PayrollDeduction d : activeDeductions) {
@@ -352,7 +464,7 @@ public class PayrollEngine {
                 deductions.save(d);
             }
 
-            totalGross = totalGross.add(gross);
+            totalGross = totalGross.add(taxableGross);
             totalIncomeTax = totalIncomeTax.add(tax.tax());
             totalDsmfEmp = totalDsmfEmp.add(dsmf.employee());
             totalDsmfEr = totalDsmfEr.add(dsmf.employer());
@@ -383,7 +495,8 @@ public class PayrollEngine {
                                BigDecimal taxableAllowance, BigDecimal nonTaxableAllowance,
                                AttendanceDeductionResult attDeduction,
                                BigDecimal gross, IncomeTaxResult tax, ContributionPair dsmf,
-                               ContributionPair mmi, ContributionPair unempl, BigDecimal net) {
+                               ContributionPair mmi, ContributionPair unempl, BigDecimal net,
+                               List<PayrollResultComponent> components) {
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("baseSalary", baseSalary.toPlainString());
         // Overtime audit trace — split by day type so HR can verify each premium.
@@ -425,6 +538,20 @@ public class PayrollEngine {
         }
         allowanceBlock.put("lines", lines);
         trace.put("allowances", allowanceBlock);
+
+        // M349: salary component breakdown
+        List<Map<String, Object>> componentLines = new ArrayList<>();
+        for (PayrollResultComponent comp : components) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("code", comp.getComponentCode());
+            row.put("name", comp.getComponentName());
+            row.put("kind", comp.getKind().name());
+            row.put("amount", comp.getAmount().toPlainString());
+            row.put("isTaxable", comp.getIsTaxable());
+            row.put("contributionExempt", comp.getContributionExempt());
+            componentLines.add(row);
+        }
+        trace.put("components", componentLines);
 
         // M327: attendance deduction breakdown
         Map<String, Object> attBlock = new LinkedHashMap<>();
