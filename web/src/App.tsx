@@ -71,6 +71,8 @@ import { CompensationConfigPage } from './pages/CompensationConfigPage'
 import { PayBandsPage } from './pages/PayBandsPage'
 import { ChangeReasonsPage } from './pages/ChangeReasonsPage'
 import { CompensationProfilePage } from './pages/CompensationProfilePage'
+import { SalaryChangesPage } from './pages/SalaryChangesPage'
+import { CompensationExceptionsPage } from './pages/CompensationExceptionsPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -409,6 +411,8 @@ export default function App() {
           <Route path="compensation/pay-bands" element={<PayBandsPage />} />
           <Route path="compensation/change-reasons" element={<ChangeReasonsPage />} />
           <Route path="compensation/config" element={<CompensationConfigPage />} />
+          <Route path="compensation/salary-changes" element={<SalaryChangesPage />} />
+          <Route path="compensation/exceptions" element={<CompensationExceptionsPage />} />
 
           {/* Recruitment */}
           <Route path="recruitment/vacancies" element={<VacanciesPage />} />

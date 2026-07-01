@@ -35,6 +35,20 @@ CASES = [
  # permissions
  ("SEC-01","Permissions (Phase A)","HR Specialist","Sign in as HR Specialist. Open the Compensation menu.","Can view the Compensation Profile / Pay Bands / Change Reasons, but the create/edit/Save actions and Settings are not available (read-only)."),
  ("SEC-02","Permissions (Phase A)","Employee","Sign in as a plain Employee.","The Compensation admin menu (Pay Bands, Change Reasons, Settings) is not available."),
+ # ---------- Phase B: salary-change governance (M361) + exceptions (M362) ----------
+ ("SETB","Setup B","HR Admin","Make sure the test employee has a manager (for approval routing) and a pay band covering their grade (from Phase A, e.g. IT-B3 min 1500 / mid 2500 / max 3500).","The employee has a manager and an active pay band.")
+ ,("SC-01","Salary Changes (M361)","HR Admin","Compensation → Salary Changes → New salary change. Pick the test employee (their current salary shows), Proposed salary = current + about 5%, Reason = Annual Merit, Effective date = 1st of next month, add a note. Save.","A DRAFT salary-change row appears (Current → Proposed, Increase %, status DRAFT). No red flags because it is within band and under 15%.")
+ ,("SC-02","Salary Changes (M361)","HR Admin","On the DRAFT row click Submit.","Status changes to PENDING_APPROVAL and a message says it is now in the Approvals inbox.")
+ ,("SC-03","Salary Changes (M361)","HR Admin","Create a new change with Proposed salary ABOVE the band maximum (e.g. 4000 when max is 3500), or an increase over 15%. Save.","The row shows red 'Out-of-band' and/or 'Above-threshold' flags.")
+ ,("SC-04","Exceptions (M362)","HR Admin","Go to Compensation → Exceptions.","An OPEN exception was auto-raised for that employee (ABOVE_BAND and/or ABOVE_THRESHOLD) linked to the salary change.")
+ ,("SC-05","Approvals (M361)","Manager then HR Admin","Open the Approvals inbox. As the employee's manager approve the pending salary change; then as HR Admin/Compensation Manager approve the second step.","After the final approval the salary-change status becomes APPLIED.")
+ ,("SC-06","Salary Changes (M361)","HR Admin","Open the test employee's Compensation Profile (Phase A page).","The profile now shows the NEW salary as current, and the Salary history table has a new row — the OLD salary row is preserved (not overwritten).")
+ ,("SC-07","Governance (M361)","HR Admin","Create another salary change but do NOT approve it. Check the employee's Compensation Profile.","Before approval the profile still shows the OLD salary — an unapproved change is never applied / never reaches payroll.")
+ ,("SC-08","Self-approval (M361)","Requester","In the Approvals inbox, as the person who raised/owns the change, try to approve your own request.","You cannot approve your own compensation change (self-approval is blocked).")
+ ,("SC-09","Salary Changes (M361)","HR Admin","On a DRAFT (not yet submitted) change click Cancel.","Status becomes CANCELLED; nothing is applied.")
+ ,("EX-01","Exceptions (M362)","HR Admin","On the Exceptions page, on an OPEN row click Resolve → choose RESOLVED (or WAIVED) and add a note. Save.","The exception status changes to RESOLVED/WAIVED with your note recorded.")
+ ,("EX-02","Exceptions (M362)","HR Admin","Use the Status and Exception-type filters on the Exceptions page.","The list filters correctly by status and by exception type.")
+ ,("SEC-B1","Permissions (Phase B)","HR Specialist","Sign in as HR Specialist and open Compensation → Salary Changes.","You can view the list but cannot create, submit, or cancel a salary change (read-only).")
 ]
 
 wb = Workbook()
@@ -50,7 +64,7 @@ ws.cell(2,2,"HCM_10 Compensation Management  •  front-end (browser) testing  �
 for r,l,v in [
  (4,"How to use","Open the 'Test Cases' sheet. Do exactly what the Steps say (which menu, which button, what to type), compare to the Expected Result, and pick Pass / Fail / Blocked / Not Run in the Result column. Add anything unusual under Tester Notes. Fill the Sign-off sheet at the end."),
  (6,"Application URL","http://localhost:5180 — sign in first. Compensation features are under the top-nav 'Compensation' menu."),
- (7,"Delivered so far","Phase A — Pay Bands, Compensation Settings, Change Reasons, and the Employee Compensation Profile (compa-ratio + range penetration + salary history). Later phases (salary-change approvals, merit cycles, budgets, incentives/commission, market data, total-comp statement) will be appended to this same file."),
+ (7,"Delivered so far","Phase A — Pay Bands, Settings, Change Reasons, Compensation Profile (compa-ratio + range penetration + history). Phase B — Salary-change requests with approval-before-payroll (a change only becomes the employee's salary after it is approved) + auto-raised Compensation Exceptions (out-of-band / above-threshold). Later phases (merit cycles, budgets, incentives/commission, market data, total-comp statement, payroll transfer) will be appended to this same file."),
  (9,"Logins you will need","HR Admin (full compensation access), HR Specialist (read-only), Department Manager (own team only), Employee (self-service). If you only have an admin login, mark the role-restriction rows Blocked with a note."),
  (11,"Result values","Pass = worked as expected.  Fail = did not match (add a note).  Blocked = could not run (missing login/data).  Not Run = skipped."),
  (12,"The two key numbers","Compa-ratio = salary ÷ band midpoint × 100.  Range penetration = (salary − min) ÷ (max − min) × 100. If the employee's salary equals the band midpoint, compa-ratio is 100% and range penetration is 50%."),
@@ -86,7 +100,8 @@ for col,w in zip("ABCDE",[3,34,16,22,18]): so.column_dimensions[col].width=w
 so.cell(1,2,"Compensation UAT — Sign-off").font=Font(name=FONT,bold=True,size=15,color=navy)
 for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
-areas=["Settings (CFG)","Pay Bands (PB)","Change Reasons (CR)","Compensation Profile (CP)","Permissions (SEC)"]
+areas=["Settings (CFG)","Pay Bands (PB)","Change Reasons (CR)","Compensation Profile (CP)",
+       "Salary Changes + Approval (SC)","Compensation Exceptions (EX)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)

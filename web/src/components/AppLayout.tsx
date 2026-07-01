@@ -115,6 +115,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compensation/profile', module: 'compensation', screen: 'compensation-profile' },
   { prefix: '/compensation/pay-bands', module: 'compensation', screen: 'compensation-pay-bands' },
   { prefix: '/compensation/change-reasons', module: 'compensation', screen: 'compensation-change-reasons' },
+  { prefix: '/compensation/salary-changes', module: 'compensation', screen: 'compensation-salary-changes' },
+  { prefix: '/compensation/exceptions', module: 'compensation', screen: 'compensation-exceptions' },
   { prefix: '/compensation/config', module: 'compensation', screen: 'compensation-config' },
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
@@ -622,6 +624,16 @@ export function AppLayout() {
                 key: 'compensation-change-reasons',
                 icon: <TagsOutlined />,
                 label: <Link to="/compensation/change-reasons">Change Reasons</Link>,
+              },
+              {
+                key: 'compensation-salary-changes',
+                icon: <SwapOutlined />,
+                label: <Link to="/compensation/salary-changes">Salary Changes</Link>,
+              },
+              {
+                key: 'compensation-exceptions',
+                icon: <WarningOutlined />,
+                label: <Link to="/compensation/exceptions">Exceptions</Link>,
               },
               {
                 key: 'compensation-config',

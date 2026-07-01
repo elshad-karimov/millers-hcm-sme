@@ -111,6 +111,78 @@ export interface CompensationProfileDto {
   salaryHistory: SalaryHistoryItem[]
 }
 
+// ── Salary Change Requests ───────────────────────────────────────────────────
+
+export type SalaryChangeStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'APPLIED'
+  | 'CANCELLED'
+
+export interface SalaryChangeRequestDto {
+  id: string
+  employeeId: string
+  currentSalary: number
+  proposedSalary: number
+  currency: string
+  changeReasonId: string
+  effectiveDate: string
+  increasePct: number
+  outsideBand: boolean
+  aboveThreshold: boolean
+  status: SalaryChangeStatus
+  workflowInstanceId: string | null
+  requestedBy: string
+  createdAt: string
+  decidedAt: string | null
+  appliedAt: string | null
+  note: string | null
+}
+
+export interface CreateSalaryChangeRequest {
+  employeeId: string
+  proposedSalary: number
+  currency: string
+  changeReasonId: string
+  effectiveDate: string
+  note?: string
+}
+
+// ── Compensation Exceptions ──────────────────────────────────────────────────
+
+export type CompensationExceptionSource = 'SALARY_CHANGE' | 'PROFILE_REVIEW' | 'BULK_IMPORT'
+
+export type CompensationExceptionType =
+  | 'BELOW_BAND'
+  | 'ABOVE_BAND'
+  | 'ABOVE_THRESHOLD'
+  | 'OVER_BUDGET'
+
+export type CompensationExceptionSeverity = 'LOW' | 'MEDIUM' | 'HIGH'
+
+export type CompensationExceptionStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | 'WAIVED'
+
+export interface CompensationExceptionDto {
+  id: string
+  employeeId: string
+  sourceType: CompensationExceptionSource
+  sourceId: string
+  exceptionType: CompensationExceptionType
+  severity: CompensationExceptionSeverity
+  status: CompensationExceptionStatus
+  reason: string
+  raisedAt: string
+  resolvedBy: string | null
+  resolvedAt: string | null
+}
+
+export interface ResolveExceptionRequest {
+  status: CompensationExceptionStatus
+  note: string
+}
+
 // ── API ──────────────────────────────────────────────────────────────────────
 
 export const compensationApi = {
@@ -148,4 +220,38 @@ export const compensationApi = {
     api
       .get<CompensationProfileDto>(`/api/compensation/employees/${employeeId}/profile`)
       .then((r) => r.data),
+
+  // Salary Change Requests
+  listSalaryChanges: (filters?: { employeeId?: string; status?: SalaryChangeStatus }) => {
+    const params = new URLSearchParams()
+    if (filters?.employeeId) params.set('employeeId', filters.employeeId)
+    if (filters?.status) params.set('status', filters.status)
+    const query = params.toString()
+    return api
+      .get<SalaryChangeRequestDto[]>(`/api/compensation/salary-changes${query ? `?${query}` : ''}`)
+      .then((r) => r.data)
+  },
+  getSalaryChange: (id: string) =>
+    api.get<SalaryChangeRequestDto>(`/api/compensation/salary-changes/${id}`).then((r) => r.data),
+  createSalaryChange: (payload: CreateSalaryChangeRequest) =>
+    api
+      .post<SalaryChangeRequestDto>('/api/compensation/salary-changes', payload)
+      .then((r) => r.data),
+  submitSalaryChange: (id: string) =>
+    api.post(`/api/compensation/salary-changes/${id}/submit`).then((r) => r.data),
+  cancelSalaryChange: (id: string) =>
+    api.post(`/api/compensation/salary-changes/${id}/cancel`).then((r) => r.data),
+
+  // Exceptions
+  listExceptions: (filters?: { status?: CompensationExceptionStatus; exceptionType?: CompensationExceptionType }) => {
+    const params = new URLSearchParams()
+    if (filters?.status) params.set('status', filters.status)
+    if (filters?.exceptionType) params.set('exceptionType', filters.exceptionType)
+    const query = params.toString()
+    return api
+      .get<CompensationExceptionDto[]>(`/api/compensation/exceptions${query ? `?${query}` : ''}`)
+      .then((r) => r.data)
+  },
+  resolveException: (id: string, payload: ResolveExceptionRequest) =>
+    api.post(`/api/compensation/exceptions/${id}/resolve`, payload).then((r) => r.data),
 }
