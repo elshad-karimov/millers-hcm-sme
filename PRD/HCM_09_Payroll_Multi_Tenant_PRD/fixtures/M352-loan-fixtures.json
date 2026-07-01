@@ -1,0 +1,61 @@
+{
+  "description": "M352 payroll loan fixtures for payroll-validation agent",
+  "scenarios": [
+    {
+      "id": "M352-S1",
+      "description": "Standard loan: 6 installments",
+      "loan": { "principal": 3000.00, "monthly_installment": 500.00 },
+      "expected": {
+        "term_months": 6,
+        "installments": [500.00, 500.00, 500.00, 500.00, 500.00, 500.00],
+        "outstanding_after_month_3": 1500.00,
+        "final_status": "FULLY_REPAID"
+      }
+    },
+    {
+      "id": "M352-S2",
+      "description": "Loan with non-divisible principal: last installment = remainder",
+      "loan": { "principal": 1100.00, "monthly_installment": 300.00 },
+      "expected": {
+        "term_months": 4,
+        "installments": [300.00, 300.00, 300.00, 200.00],
+        "last_installment": 200.00,
+        "final_status": "FULLY_REPAID"
+      }
+    },
+    {
+      "id": "M352-S3",
+      "description": "Idempotency: recalculating the same month does not double-deduct",
+      "loan": { "principal": 2000.00, "monthly_installment": 400.00 },
+      "actions": [
+        { "action": "calculate_run", "period": "2026-07" },
+        { "action": "recalculate_run", "period": "2026-07" }
+      ],
+      "expected": {
+        "deduction_rows_for_july": 1,
+        "amount_deducted_in_july": 400.00
+      }
+    },
+    {
+      "id": "M352-S4",
+      "description": "Termination: outstanding balance deducted from final payout",
+      "loan": { "principal": 3000.00, "monthly_installment": 500.00, "amount_repaid": 1000.00, "outstanding_balance": 2000.00 },
+      "terminal_gross_payout": 2500.00,
+      "expected": {
+        "terminal_net": 500.00,
+        "loan_status_after_termination": "FULLY_REPAID"
+      }
+    },
+    {
+      "id": "M352-S5",
+      "description": "Termination: loan exceeds payout → write-off",
+      "loan": { "outstanding_balance": 3000.00 },
+      "terminal_gross_payout": 1000.00,
+      "expected": {
+        "terminal_net": 0.00,
+        "write_off_amount": 2000.00,
+        "loan_status_after_termination": "WRITTEN_OFF"
+      }
+    }
+  ]
+}

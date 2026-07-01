@@ -1,0 +1,61 @@
+{
+  "description": "M349 salary component taxability fixtures. payroll-validation agent must verify these exact outputs.",
+  "jurisdiction": "AZ",
+  "currency": "AZN",
+  "exempt_band_monthly": 200.00,
+
+  "scenarios": [
+    {
+      "id": "M349-S1",
+      "description": "Employee with taxable MEAL (50 AZN) + non-taxable-contribution-included TRANSPORT (150 AZN)",
+      "employee": { "id": "test-001", "base_salary": 2000.00 },
+      "components": [
+        { "code": "MEAL", "kind": "EARNING", "is_taxable": true, "contribution_exempt": false, "amount": 50.00 },
+        { "code": "TRANSPORT", "kind": "EARNING", "is_taxable": false, "contribution_exempt": false, "amount": 150.00 }
+      ],
+      "expected": {
+        "taxable_gross": 2050.00,
+        "dsmf_mmi_base": 2200.00,
+        "exempt_amount": 200.00,
+        "taxable_after_exempt": 1850.00,
+        "income_tax_notes": "14% on first band (200-2500 AZN range after 200 AZN exempt) = 1850 * 0.14 = 259.00",
+        "income_tax": 259.00,
+        "dsmf_employee": 66.00,
+        "mmi_employee": 44.00,
+        "unemployment_employee": 4.40,
+        "net_before_transport": 1466.60,
+        "transport_added_to_net": 150.00,
+        "net_pay": 1616.60
+      }
+    },
+    {
+      "id": "M349-S2",
+      "description": "Employee with contribution-exempt HOUSING allowance (500 AZN, rare statutory social payment)",
+      "employee": { "id": "test-002", "base_salary": 3000.00 },
+      "components": [
+        { "code": "HOUSING", "kind": "EARNING", "is_taxable": false, "contribution_exempt": true, "amount": 500.00 }
+      ],
+      "expected": {
+        "taxable_gross": 3000.00,
+        "dsmf_mmi_base": 3000.00,
+        "housing_added_to_net_not_to_dsmf_base": true,
+        "net_before_housing": "3000 minus statutory",
+        "housing_added_to_net": 500.00
+      }
+    },
+    {
+      "id": "M349-S3",
+      "description": "DEDUCTION-kind component does NOT reduce DSMF base",
+      "employee": { "id": "test-003", "base_salary": 2000.00 },
+      "components": [
+        { "code": "EQUIPMENT_RECOVER", "kind": "DEDUCTION", "is_taxable": false, "contribution_exempt": false, "amount": 200.00 }
+      ],
+      "expected": {
+        "taxable_gross": 2000.00,
+        "dsmf_mmi_base": 2000.00,
+        "deduction_applied_after_statutory": true,
+        "deduction_amount": 200.00
+      }
+    }
+  ]
+}

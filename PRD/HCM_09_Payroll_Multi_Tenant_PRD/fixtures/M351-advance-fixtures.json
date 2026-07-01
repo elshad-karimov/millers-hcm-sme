@@ -1,0 +1,65 @@
+{
+  "description": "M351 salary advance fixtures for payroll-validation agent",
+  "scenarios": [
+    {
+      "id": "M351-S1",
+      "description": "Advance ceiling enforcement",
+      "employee": { "monthly_base_salary": 3000.00 },
+      "request_amount": 1500.00,
+      "expected_max": 1500.00,
+      "should_succeed": true
+    },
+    {
+      "id": "M351-S2",
+      "description": "Advance over ceiling rejected",
+      "employee": { "monthly_base_salary": 3000.00 },
+      "request_amount": 1501.00,
+      "expected_error": "ADVANCE_LIMIT_EXCEEDED",
+      "should_succeed": false
+    },
+    {
+      "id": "M351-S3",
+      "description": "One-at-a-time: second request blocked",
+      "employee": { "monthly_base_salary": 3000.00 },
+      "existing_advance_status": "PENDING",
+      "new_request_amount": 500.00,
+      "expected_error": "ADVANCE_PENDING_EXISTS",
+      "should_succeed": false
+    },
+    {
+      "id": "M351-S4",
+      "description": "Advance deducted in repayment period reduces net",
+      "employee": { "monthly_base_salary": 2000.00 },
+      "approved_amount": 800.00,
+      "repayment_period": "2026-08",
+      "expected": {
+        "net_reduction_in_august": 800.00,
+        "advance_status_after_run": "DEDUCTED",
+        "deduction_type": "SALARY_ADVANCE"
+      }
+    },
+    {
+      "id": "M351-S5",
+      "description": "Termination with outstanding advance: deducted from final payout",
+      "employee": { "monthly_base_salary": 2000.00 },
+      "outstanding_advance": 800.00,
+      "terminal_gross_payout": 1500.00,
+      "expected": {
+        "terminal_net_after_advance_deduction": 700.00,
+        "advance_status_after_termination": "DEDUCTED"
+      }
+    },
+    {
+      "id": "M351-S6",
+      "description": "Termination with advance exceeding final payout: write-off",
+      "employee": { "monthly_base_salary": 2000.00 },
+      "outstanding_advance": 800.00,
+      "terminal_gross_payout": 500.00,
+      "expected": {
+        "terminal_net": 0.00,
+        "write_off_amount": 300.00,
+        "write_off_requires_hr_acknowledgement": true
+      }
+    }
+  ]
+}
