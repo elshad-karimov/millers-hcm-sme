@@ -260,6 +260,118 @@ export interface BudgetStatusDto {
   currency: string
 }
 
+// ── Incentive Plans ──────────────────────────────────────────────────────
+
+export type IncentiveMeasure = 'KPI' | 'SALES' | 'PRODUCTION' | 'OTHER'
+
+export type IncentivePayoutStatus = 'DRAFT' | 'APPROVED' | 'PAID' | 'CANCELLED'
+
+export interface IncentivePlanDto {
+  id: string
+  code: string
+  name: string
+  measure: IncentiveMeasure
+  targetPct: number
+  thresholdAchievement: number
+  targetAchievement: number
+  capAchievement: number
+  maxPayoutPct: number
+  currency: string
+  active: boolean
+}
+
+export interface IncentivePlanRequest {
+  code: string
+  name: string
+  measure: IncentiveMeasure
+  targetPct: number
+  thresholdAchievement: number
+  targetAchievement: number
+  capAchievement: number
+  maxPayoutPct: number
+  currency: string
+  active?: boolean
+}
+
+export interface IncentivePayoutDto {
+  id: string
+  planId: string
+  employeeId: string
+  employeeName?: string
+  period: string
+  eligibleSalary: number
+  achievementPct: number
+  payoutPct: number
+  payoutAmount: number
+  status: IncentivePayoutStatus
+  approvedBy: string | null
+  approvedAt: string | null
+}
+
+export interface CreateIncentivePayoutRequest {
+  planId: string
+  employeeId: string
+  period: string
+  achievementPct: number
+}
+
+// ── Commission Plans ─────────────────────────────────────────────────────
+
+export type CommissionBasis = 'REVENUE' | 'GROSS_MARGIN' | 'COLLECTIONS'
+
+export type CommissionPayoutStatus = 'DRAFT' | 'APPROVED' | 'PAID' | 'CANCELLED'
+
+export interface CommissionTierDto {
+  id?: string
+  fromAmount: number
+  toAmount: number | null
+  ratePct: number
+  sortOrder: number
+}
+
+export interface CommissionPlanDto {
+  id: string
+  code: string
+  name: string
+  basis: CommissionBasis
+  flatRatePct: number | null
+  tiered: boolean
+  currency: string
+  active: boolean
+  tiers: CommissionTierDto[]
+}
+
+export interface CommissionPlanRequest {
+  code: string
+  name: string
+  basis: CommissionBasis
+  flatRatePct?: number | null
+  tiered: boolean
+  currency: string
+  active?: boolean
+  tiers?: CommissionTierDto[]
+}
+
+export interface CommissionPayoutDto {
+  id: string
+  planId: string
+  employeeId: string
+  employeeName?: string
+  period: string
+  salesAmount: number
+  commissionAmount: number
+  status: CommissionPayoutStatus
+  approvedBy: string | null
+  approvedAt: string | null
+}
+
+export interface CreateCommissionPayoutRequest {
+  planId: string
+  employeeId: string
+  period: string
+  salesAmount: number
+}
+
 // ── API ──────────────────────────────────────────────────────────────────────
 
 export const compensationApi = {
@@ -370,4 +482,64 @@ export const compensationApi = {
     api.delete(`/api/compensation/budgets/${id}`).then((r) => r.data),
   getBudgetStatus: (id: string) =>
     api.get<BudgetStatusDto>(`/api/compensation/budgets/${id}/status`).then((r) => r.data),
+
+  // Incentive Plans
+  listIncentivePlans: () =>
+    api.get<IncentivePlanDto[]>('/api/compensation/incentive-plans').then((r) => r.data),
+  getIncentivePlan: (id: string) =>
+    api.get<IncentivePlanDto>(`/api/compensation/incentive-plans/${id}`).then((r) => r.data),
+  createIncentivePlan: (payload: IncentivePlanRequest) =>
+    api.post<IncentivePlanDto>('/api/compensation/incentive-plans', payload).then((r) => r.data),
+  updateIncentivePlan: (id: string, payload: IncentivePlanRequest) =>
+    api.put<IncentivePlanDto>(`/api/compensation/incentive-plans/${id}`, payload).then((r) => r.data),
+  deactivateIncentivePlan: (id: string) =>
+    api.delete(`/api/compensation/incentive-plans/${id}`).then((r) => r.data),
+
+  // Incentive Payouts
+  listIncentivePayouts: (filters?: { planId?: string; employeeId?: string; status?: IncentivePayoutStatus }) => {
+    const params = new URLSearchParams()
+    if (filters?.planId) params.set('planId', filters.planId)
+    if (filters?.employeeId) params.set('employeeId', filters.employeeId)
+    if (filters?.status) params.set('status', filters.status)
+    const query = params.toString()
+    return api
+      .get<IncentivePayoutDto[]>(`/api/compensation/incentive-payouts${query ? `?${query}` : ''}`)
+      .then((r) => r.data)
+  },
+  createIncentivePayout: (payload: CreateIncentivePayoutRequest) =>
+    api.post<IncentivePayoutDto>('/api/compensation/incentive-payouts', payload).then((r) => r.data),
+  approveIncentivePayout: (id: string) =>
+    api.post(`/api/compensation/incentive-payouts/${id}/approve`).then((r) => r.data),
+  cancelIncentivePayout: (id: string) =>
+    api.post(`/api/compensation/incentive-payouts/${id}/cancel`).then((r) => r.data),
+
+  // Commission Plans
+  listCommissionPlans: () =>
+    api.get<CommissionPlanDto[]>('/api/compensation/commission-plans').then((r) => r.data),
+  getCommissionPlan: (id: string) =>
+    api.get<CommissionPlanDto>(`/api/compensation/commission-plans/${id}`).then((r) => r.data),
+  createCommissionPlan: (payload: CommissionPlanRequest) =>
+    api.post<CommissionPlanDto>('/api/compensation/commission-plans', payload).then((r) => r.data),
+  updateCommissionPlan: (id: string, payload: CommissionPlanRequest) =>
+    api.put<CommissionPlanDto>(`/api/compensation/commission-plans/${id}`, payload).then((r) => r.data),
+  deactivateCommissionPlan: (id: string) =>
+    api.delete(`/api/compensation/commission-plans/${id}`).then((r) => r.data),
+
+  // Commission Payouts
+  listCommissionPayouts: (filters?: { planId?: string; employeeId?: string; status?: CommissionPayoutStatus }) => {
+    const params = new URLSearchParams()
+    if (filters?.planId) params.set('planId', filters.planId)
+    if (filters?.employeeId) params.set('employeeId', filters.employeeId)
+    if (filters?.status) params.set('status', filters.status)
+    const query = params.toString()
+    return api
+      .get<CommissionPayoutDto[]>(`/api/compensation/commission-payouts${query ? `?${query}` : ''}`)
+      .then((r) => r.data)
+  },
+  createCommissionPayout: (payload: CreateCommissionPayoutRequest) =>
+    api.post<CommissionPayoutDto>('/api/compensation/commission-payouts', payload).then((r) => r.data),
+  approveCommissionPayout: (id: string) =>
+    api.post(`/api/compensation/commission-payouts/${id}/approve`).then((r) => r.data),
+  cancelCommissionPayout: (id: string) =>
+    api.post(`/api/compensation/commission-payouts/${id}/cancel`).then((r) => r.data),
 }

@@ -119,6 +119,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compensation/exceptions', module: 'compensation', screen: 'compensation-exceptions' },
   { prefix: '/compensation/merit-matrices', module: 'compensation', screen: 'compensation-merit-matrices' },
   { prefix: '/compensation/budgets', module: 'compensation', screen: 'compensation-budgets' },
+  { prefix: '/compensation/incentive-plans', module: 'compensation', screen: 'compensation-incentive-plans' },
+  { prefix: '/compensation/commission-plans', module: 'compensation', screen: 'compensation-commission-plans' },
   { prefix: '/compensation/config', module: 'compensation', screen: 'compensation-config' },
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
@@ -646,6 +648,16 @@ export function AppLayout() {
                 key: 'compensation-budgets',
                 icon: <DollarCircleOutlined />,
                 label: <Link to="/compensation/budgets">Budgets</Link>,
+              },
+              {
+                key: 'compensation-incentive-plans',
+                icon: <RocketOutlined />,
+                label: <Link to="/compensation/incentive-plans">Incentives</Link>,
+              },
+              {
+                key: 'compensation-commission-plans',
+                icon: <DollarCircleOutlined />,
+                label: <Link to="/compensation/commission-plans">Commission</Link>,
               },
               {
                 key: 'compensation-config',

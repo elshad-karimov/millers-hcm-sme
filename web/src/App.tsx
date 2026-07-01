@@ -75,6 +75,8 @@ import { SalaryChangesPage } from './pages/SalaryChangesPage'
 import { CompensationExceptionsPage } from './pages/CompensationExceptionsPage'
 import { MeritMatricesPage } from './pages/MeritMatricesPage'
 import { CompensationBudgetsPage } from './pages/CompensationBudgetsPage'
+import { IncentivePlansPage } from './pages/IncentivePlansPage'
+import { CommissionPlansPage } from './pages/CommissionPlansPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -417,6 +419,8 @@ export default function App() {
           <Route path="compensation/exceptions" element={<CompensationExceptionsPage />} />
           <Route path="compensation/merit-matrices" element={<MeritMatricesPage />} />
           <Route path="compensation/budgets" element={<CompensationBudgetsPage />} />
+          <Route path="compensation/incentive-plans" element={<IncentivePlansPage />} />
+          <Route path="compensation/commission-plans" element={<CommissionPlansPage />} />
 
           {/* Recruitment */}
           <Route path="recruitment/vacancies" element={<VacanciesPage />} />

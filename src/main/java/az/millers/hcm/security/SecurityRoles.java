@@ -151,4 +151,12 @@ public final class SecurityRoles {
     /** Compensation write — manage bands, change reasons, salary changes. */
     public static final String WRITE_COMPENSATION =
             "hasAnyRole(" + SA + "," + HRA + "," + COMP + ")";
+
+    /** Compensation read OR HR read — profile view, history, payouts. */
+    public static final String READ_COMPENSATION_OR_HR =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + COMP + "," + FIN + "," + AUD + ")";
+
+    /** Compensation write OR HR admin — edit plans, payouts, approve. */
+    public static final String WRITE_COMPENSATION_OR_HR_ADMIN =
+            "hasAnyRole(" + SA + "," + HRA + "," + COMP + ")";
 }

@@ -58,6 +58,16 @@ CASES = [
  ,("BUD-03","Budgets (M364)","HR Admin","In Settings set Budget policy = HARD_STOP. Create a salary change whose increase exceeds the remaining MERIT budget.","The salary change is blocked with a 'budget exceeded' error.")
  ,("BUD-04","Budgets (M364)","HR Admin","Set Budget policy back to WARNING. Approve a salary change (via the Approvals inbox) for a budgeted employee, then reopen the MERIT budget.","The budget's Consumed has increased by the salary increase and Remaining has decreased accordingly.")
  ,("BUD-05","Budgets (M364)","HR Admin","On a budget row click Deactivate.","The budget shows Inactive (not physically deleted).")
+ # ---------- Phase D: incentives (M365) + commission (M366) ----------
+ ,("IN-01","Incentives (M365)","HR Admin","Compensation → Incentives → Plans tab → Create. Code=SALES_INC, Name=Sales Incentive, Measure=SALES, Target %=10, Threshold achievement=80, Target achievement=100, Cap achievement=120, Max payout %=15. Save.","The incentive plan appears in the Plans table.")
+ ,("IN-02","Incentives (M365)","HR Admin","Payouts tab → New payout. Pick the plan + test employee, Period=2026-Q1, Achievement %=100. Save.","Payout is created with payout amount = eligible salary × 10% (the target). E.g. salary 2500 → payout 250.")
+ ,("IN-03","Incentives (M365)","HR Admin","Create another payout with Achievement %=70 (below the 80 threshold).","Payout amount is 0 (below threshold = no payout).")
+ ,("IN-04","Incentives (M365)","HR Admin","Create a payout with Achievement %=120 (at the cap).","Payout uses the maximum payout % (capped); e.g. salary 2500 × 15% = 375.")
+ ,("IN-05","Incentives (M365)","HR Admin","On a DRAFT payout click Approve.","Status becomes APPROVED. A note explains it is not attached to payroll until the Payroll-transfer step (Phase E).")
+ ,("CM-01","Commission (M366)","HR Admin","Compensation → Commission → Plans → Create. Code=REV_2PCT, Name=Revenue 2%, Basis=REVENUE, Tiered=off, Flat rate %=2. Save.","The commission plan appears.")
+ ,("CM-02","Commission (M366)","HR Admin","Payouts tab → New payout. Pick the plan + employee, Period=2026-01, Sales amount=10000. Save.","Commission amount = 200 (2% of 10000).")
+ ,("CM-03","Commission (M366)","HR Admin","Create a tiered plan (Tiered=on) with tiers e.g. 0–5000 @1%, 5000+ @3%. Create a payout with Sales amount=10000.","Commission uses marginal tiers: 5000×1% + 5000×3% = 50 + 150 = 200.")
+ ,("CM-04","Commission (M366)","HR Admin","On a DRAFT commission payout click Approve.","Status becomes APPROVED (attached to payroll later via the Payroll-transfer step).")
 ]
 
 wb = Workbook()
@@ -111,7 +121,7 @@ for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
 areas=["Settings (CFG)","Pay Bands (PB)","Change Reasons (CR)","Compensation Profile (CP)",
        "Salary Changes + Approval (SC)","Compensation Exceptions (EX)",
-       "Merit Matrix (MM)","Budgets (BUD)","Permissions (SEC)"]
+       "Merit Matrix (MM)","Budgets (BUD)","Incentives (IN)","Commission (CM)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)
