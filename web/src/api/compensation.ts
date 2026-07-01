@@ -372,6 +372,100 @@ export interface CreateCommissionPayoutRequest {
   salesAmount: number
 }
 
+// ── M367: Market Data ────────────────────────────────────────────────────
+
+export interface MarketSalarySurveyDto {
+  id: string
+  provider: string
+  surveyYear: number
+  country?: string
+  currency?: string
+  notes?: string
+}
+
+export interface CreateMarketSurveyRequest {
+  provider: string
+  surveyYear: number
+  country?: string
+  currency?: string
+  notes?: string
+}
+
+export interface MarketSalaryDataDto {
+  id: string
+  surveyId: string
+  jobCode?: string
+  gradeCode?: string
+  location?: string
+  p25?: number
+  p50?: number
+  p75?: number
+  p90?: number
+  currency?: string
+}
+
+export interface AddMarketDataRequest {
+  jobCode?: string
+  gradeCode?: string
+  location?: string
+  p25?: number
+  p50?: number
+  p75?: number
+  p90?: number
+  currency?: string
+}
+
+export interface MarketComparisonDto {
+  currentSalary: number
+  gradeCode?: string
+  surveyProvider?: string
+  surveyYear?: number
+  p25?: number
+  p50?: number
+  p75?: number
+  p90?: number
+  marketRatio?: number
+  positionVsMarket?: string
+}
+
+// ── M368: Total Comp Statements ──────────────────────────────────────────
+
+export type TotalCompStatementStatus = 'GENERATED' | 'RELEASED'
+
+export interface TotalCompStatementDto {
+  id: string
+  employeeId: string
+  employeeName?: string
+  year: number
+  baseSalary: number
+  allowancesTotal: number
+  bonusTotal: number
+  incentivesTotal: number
+  commissionTotal: number
+  employerBenefitsTotal: number
+  employerContributionsTotal: number
+  totalComp: number
+  currency: string
+  status: TotalCompStatementStatus
+  generatedAt?: string
+  releasedAt?: string
+}
+
+// ── M369: Comp → Payroll Transfer ────────────────────────────────────────
+
+export interface PayrollCompTransferDto {
+  id: string
+  sourceType: string
+  sourceId: string
+  employeeId: string
+  employeeName?: string
+  targetRunId: string
+  amount: number
+  payrollBonusId?: string
+  status: string
+  transferredAt?: string
+}
+
 // ── API ──────────────────────────────────────────────────────────────────────
 
 export const compensationApi = {
@@ -542,4 +636,74 @@ export const compensationApi = {
     api.post(`/api/compensation/commission-payouts/${id}/approve`).then((r) => r.data),
   cancelCommissionPayout: (id: string) =>
     api.post(`/api/compensation/commission-payouts/${id}/cancel`).then((r) => r.data),
+
+  // ── M367: Market Data ──────────────────────────────────────────────────────
+
+  listMarketSurveys: () =>
+    api.get<MarketSalarySurveyDto[]>('/api/compensation/market/surveys').then((r) => r.data),
+  createMarketSurvey: (payload: CreateMarketSurveyRequest) =>
+    api.post<MarketSalarySurveyDto>('/api/compensation/market/surveys', payload).then((r) => r.data),
+  deleteMarketSurvey: (id: string) =>
+    api.delete(`/api/compensation/market/surveys/${id}`).then((r) => r.data),
+  listMarketData: (surveyId: string) =>
+    api.get<MarketSalaryDataDto[]>(`/api/compensation/market/surveys/${surveyId}/data`).then((r) => r.data),
+  addMarketData: (surveyId: string, payload: AddMarketDataRequest) =>
+    api.post<MarketSalaryDataDto>(`/api/compensation/market/surveys/${surveyId}/data`, payload).then((r) => r.data),
+  deleteMarketData: (id: string) =>
+    api.delete(`/api/compensation/market/data/${id}`).then((r) => r.data),
+  compareMarket: (employeeId: string, surveyId?: string) => {
+    const params = new URLSearchParams({ employeeId })
+    if (surveyId) params.set('surveyId', surveyId)
+    return api.get<MarketComparisonDto>(`/api/compensation/market/compare?${params.toString()}`).then((r) => r.data)
+  },
+
+  // ── M368: Total Comp Statements ─────────────────────────────────────────────
+
+  generateStatement: (employeeId: string, year: number) =>
+    api.post<TotalCompStatementDto>(`/api/compensation/total-comp-statements/generate?employeeId=${employeeId}&year=${year}`).then((r) => r.data),
+  generateAllStatements: (year: number) =>
+    api.post<{ generated: number }>(`/api/compensation/total-comp-statements/generate-all?year=${year}`).then((r) => r.data),
+  listStatements: (year: number) =>
+    api.get<TotalCompStatementDto[]>(`/api/compensation/total-comp-statements?year=${year}`).then((r) => r.data),
+  releaseStatement: (id: string) =>
+    api.post<TotalCompStatementDto>(`/api/compensation/total-comp-statements/${id}/release`).then((r) => r.data),
+  releaseAllStatements: (year: number) =>
+    api.post<{ released: number }>(`/api/compensation/total-comp-statements/release-all?year=${year}`).then((r) => r.data),
+  downloadStatement: async (id: string, employeeName: string, year: number) => {
+    const response = await api.get(`/api/compensation/total-comp-statements/${id}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `total-comp-statement-${employeeName.replace(/\s/g, '-')}-${year}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+  myStatement: (year: number) =>
+    api.get<TotalCompStatementDto>(`/api/compensation/total-comp-statements/employees/me?year=${year}`).then((r) => r.data),
+  downloadMyStatement: async (year: number) => {
+    const response = await api.get(`/api/compensation/total-comp-statements/employees/me/download?year=${year}`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `my-total-comp-statement-${year}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  // ── M369: Comp → Payroll Transfer ───────────────────────────────────────────
+
+  transferToPayroll: (payrollRunId: string) =>
+    api.post<{ transferredCount: number; skippedCount: number }>(`/api/compensation/transfers/to-run/${payrollRunId}`).then((r) => r.data),
+  listTransfers: (status?: string) => {
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    const query = params.toString()
+    return api.get<PayrollCompTransferDto[]>(`/api/compensation/transfers${query ? `?${query}` : ''}`).then((r) => r.data)
+  },
 }

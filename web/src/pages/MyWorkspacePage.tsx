@@ -35,6 +35,7 @@ import type { PermissionBalance, PermissionRequest } from '../api/permission'
 import type { BusinessTrip } from '../api/businessTrip'
 import type { Timesheet } from '../api/timesheet'
 import { payrollApi, type PayslipInfo, type SalaryAdvance } from '../api/payroll'
+import { compensationApi } from '../api/compensation'
 import type { Enrollment, Certificate, EmployeeCompetency } from '../api/learning'
 import {
   pathAssignmentsApi,
@@ -451,7 +452,7 @@ function TimesheetsTab() {
 }
 
 // ============================================================================
-//  Payroll tab (M351, M354, M356)
+//  Payroll & Compensation tab (M351, M354, M356, M368)
 // ============================================================================
 function PayrollTab() {
   const { message } = AntdApp.useApp()
@@ -462,6 +463,7 @@ function PayrollTab() {
   const [advanceAmount, setAdvanceAmount] = useState<number>()
   const [advanceReason, setAdvanceReason] = useState('')
   const [certYear, setCertYear] = useState(new Date().getFullYear())
+  const [compStatementYear, setCompStatementYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
     Promise.all([
@@ -558,6 +560,33 @@ function PayrollTab() {
             Download certificate
           </Button>
         </Space>
+      </Card>
+
+      <Card title="My total compensation" size="small">
+        <Space>
+          <Typography.Text>Year:</Typography.Text>
+          <Select
+            value={compStatementYear}
+            onChange={(v: number) => setCompStatementYear(v)}
+            style={{ width: 100 }}
+            options={[2024, 2025, 2026].map((y) => ({ value: y, label: y }))}
+          />
+          <Button
+            onClick={async () => {
+              try {
+                await compensationApi.downloadMyStatement(compStatementYear)
+                message.success('Statement downloaded')
+              } catch (err) {
+                message.error((err as any).response?.data?.message ?? 'Download failed or not released yet')
+              }
+            }}
+          >
+            Download statement
+          </Button>
+        </Space>
+        <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+          Only RELEASED statements are available for download.
+        </Typography.Text>
       </Card>
 
       <Modal

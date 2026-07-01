@@ -68,6 +68,15 @@ CASES = [
  ,("CM-02","Commission (M366)","HR Admin","Payouts tab → New payout. Pick the plan + employee, Period=2026-01, Sales amount=10000. Save.","Commission amount = 200 (2% of 10000).")
  ,("CM-03","Commission (M366)","HR Admin","Create a tiered plan (Tiered=on) with tiers e.g. 0–5000 @1%, 5000+ @3%. Create a payout with Sales amount=10000.","Commission uses marginal tiers: 5000×1% + 5000×3% = 50 + 150 = 200.")
  ,("CM-04","Commission (M366)","HR Admin","On a DRAFT commission payout click Approve.","Status becomes APPROVED (attached to payroll later via the Payroll-transfer step).")
+ # ---------- Phase E: market data (M367) + total comp statement (M368) + transfer (M369) ----------
+ ,("MK-01","Market Data (M367)","HR Admin","Compensation → Market Data → create a survey (Provider=Mercer, Year=2026). Select it → add a data row (Grade code = the test grade, p25=1800, p50=2400, p75=3000, p90=3600). Then use 'Compare employee' → pick the test employee.","The comparison shows the percentiles, the employee salary, the market ratio (salary ÷ p50 × 100) and a position label (below/at/above market).")
+ ,("TC-01","Total Comp (M368)","HR Admin","Compensation → Total Comp Statements → pick the year → Generate all.","A statement per employee appears with base + allowances + bonus + incentives + commission + employer contributions, and a Total that equals the sum of those parts.")
+ ,("TC-02","Total Comp (M368)","HR Admin","On a GENERATED statement click Release (or Release all).","Status changes to RELEASED.")
+ ,("TC-03","Total Comp (M368)","HR Admin","Click Download on a statement.","A PDF opens showing the compensation breakdown and the total.")
+ ,("TC-04","Total Comp (M368)","Employee","Sign in as the Employee → My Workspace → Payroll tab → My total compensation → pick the year → Download.","The employee can download their own RELEASED total-compensation statement only.")
+ ,("TR-01","Payroll Transfer (M369)","HR Admin","Compensation → Payroll Transfer. Select an OPEN payroll run (not Paid) and click 'Transfer approved payouts to this run'.","A result shows how many were transferred; the previously-approved incentive/commission payouts become PAID and appear as one-time bonuses on that payroll run; a transfer-log row is recorded.")
+ ,("TR-02","Payroll Transfer (M369)","HR Admin","Click Transfer again for the SAME run.","0 payouts are transferred the second time (idempotent — no duplicates).")
+ ,("TR-03","Payroll Transfer (M369)","HR Admin","Approve a payout for a TERMINATED employee, then run the transfer.","That payout is skipped (terminated employees are not transferred to payroll).")
 ]
 
 wb = Workbook()
@@ -121,7 +130,7 @@ for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
 areas=["Settings (CFG)","Pay Bands (PB)","Change Reasons (CR)","Compensation Profile (CP)",
        "Salary Changes + Approval (SC)","Compensation Exceptions (EX)",
-       "Merit Matrix (MM)","Budgets (BUD)","Incentives (IN)","Commission (CM)","Permissions (SEC)"]
+       "Merit Matrix (MM)","Budgets (BUD)","Incentives (IN)","Commission (CM)","Market Data (MK)","Total Comp (TC)","Payroll Transfer (TR)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)

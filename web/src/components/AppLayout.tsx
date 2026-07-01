@@ -121,6 +121,9 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compensation/budgets', module: 'compensation', screen: 'compensation-budgets' },
   { prefix: '/compensation/incentive-plans', module: 'compensation', screen: 'compensation-incentive-plans' },
   { prefix: '/compensation/commission-plans', module: 'compensation', screen: 'compensation-commission-plans' },
+  { prefix: '/compensation/market', module: 'compensation', screen: 'compensation-market' },
+  { prefix: '/compensation/total-comp-statements', module: 'compensation', screen: 'compensation-total-comp-statements' },
+  { prefix: '/compensation/payroll-transfer', module: 'compensation', screen: 'compensation-payroll-transfer' },
   { prefix: '/compensation/config', module: 'compensation', screen: 'compensation-config' },
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
@@ -658,6 +661,21 @@ export function AppLayout() {
                 key: 'compensation-commission-plans',
                 icon: <DollarCircleOutlined />,
                 label: <Link to="/compensation/commission-plans">Commission</Link>,
+              },
+              {
+                key: 'compensation-market',
+                icon: <BarChartOutlined />,
+                label: <Link to="/compensation/market">Market Data</Link>,
+              },
+              {
+                key: 'compensation-total-comp-statements',
+                icon: <FileTextOutlined />,
+                label: <Link to="/compensation/total-comp-statements">Total Comp Statements</Link>,
+              },
+              {
+                key: 'compensation-payroll-transfer',
+                icon: <SwapOutlined />,
+                label: <Link to="/compensation/payroll-transfer">Payroll Transfer</Link>,
               },
               {
                 key: 'compensation-config',

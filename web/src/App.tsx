@@ -77,6 +77,9 @@ import { MeritMatricesPage } from './pages/MeritMatricesPage'
 import { CompensationBudgetsPage } from './pages/CompensationBudgetsPage'
 import { IncentivePlansPage } from './pages/IncentivePlansPage'
 import { CommissionPlansPage } from './pages/CommissionPlansPage'
+import { MarketDataPage } from './pages/MarketDataPage'
+import { TotalCompStatementsPage } from './pages/TotalCompStatementsPage'
+import { CompPayrollTransferPage } from './pages/CompPayrollTransferPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -421,6 +424,9 @@ export default function App() {
           <Route path="compensation/budgets" element={<CompensationBudgetsPage />} />
           <Route path="compensation/incentive-plans" element={<IncentivePlansPage />} />
           <Route path="compensation/commission-plans" element={<CommissionPlansPage />} />
+          <Route path="compensation/market" element={<MarketDataPage />} />
+          <Route path="compensation/total-comp-statements" element={<TotalCompStatementsPage />} />
+          <Route path="compensation/payroll-transfer" element={<CompPayrollTransferPage />} />
 
           {/* Recruitment */}
           <Route path="recruitment/vacancies" element={<VacanciesPage />} />
