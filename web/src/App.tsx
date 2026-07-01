@@ -67,6 +67,10 @@ import { GLAccountMappingsPage } from './pages/GLAccountMappingsPage'
 import { YearEndPage } from './pages/YearEndPage'
 import { PayrollControlBoardPage } from './pages/PayrollControlBoardPage'
 import { VarianceReportPage } from './pages/VarianceReportPage'
+import { CompensationConfigPage } from './pages/CompensationConfigPage'
+import { PayBandsPage } from './pages/PayBandsPage'
+import { ChangeReasonsPage } from './pages/ChangeReasonsPage'
+import { CompensationProfilePage } from './pages/CompensationProfilePage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -399,6 +403,12 @@ export default function App() {
           <Route path="payroll/year-end" element={<YearEndPage />} />
           <Route path="payroll/control-board" element={<PayrollControlBoardPage />} />
           <Route path="payroll/reports/variance" element={<VarianceReportPage />} />
+
+          {/* Compensation */}
+          <Route path="compensation/profile" element={<CompensationProfilePage />} />
+          <Route path="compensation/pay-bands" element={<PayBandsPage />} />
+          <Route path="compensation/change-reasons" element={<ChangeReasonsPage />} />
+          <Route path="compensation/config" element={<CompensationConfigPage />} />
 
           {/* Recruitment */}
           <Route path="recruitment/vacancies" element={<VacanciesPage />} />

@@ -112,6 +112,10 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
+  { prefix: '/compensation/profile', module: 'compensation', screen: 'compensation-profile' },
+  { prefix: '/compensation/pay-bands', module: 'compensation', screen: 'compensation-pay-bands' },
+  { prefix: '/compensation/change-reasons', module: 'compensation', screen: 'compensation-change-reasons' },
+  { prefix: '/compensation/config', module: 'compensation', screen: 'compensation-config' },
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
   { prefix: '/recruitment/interview-kits', module: 'recruitment', screen: 'recruitment-interview-kits' },
@@ -590,6 +594,39 @@ export function AppLayout() {
                 key: 'payroll-variance-report',
                 icon: <BarChartOutlined />,
                 label: <Link to="/payroll/reports/variance">Variance Report</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Compensation (HR only) ─────────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'compensation',
+            icon: <WalletOutlined />,
+            label: 'Compensation',
+            children: [
+              {
+                key: 'compensation-profile',
+                icon: <UserOutlined />,
+                label: <Link to="/compensation/profile">Compensation Profile</Link>,
+              },
+              {
+                key: 'compensation-pay-bands',
+                icon: <BarChartOutlined />,
+                label: <Link to="/compensation/pay-bands">Pay Bands</Link>,
+              },
+              {
+                key: 'compensation-change-reasons',
+                icon: <TagsOutlined />,
+                label: <Link to="/compensation/change-reasons">Change Reasons</Link>,
+              },
+              {
+                key: 'compensation-config',
+                icon: <SettingOutlined />,
+                label: <Link to="/compensation/config">Settings</Link>,
               },
             ],
           } satisfies ItemType,

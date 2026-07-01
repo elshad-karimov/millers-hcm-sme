@@ -82,6 +82,18 @@ export const RoleSets = {
     Roles.HR_ADMIN, Roles.SYSTEM_ADMIN, Roles.PAYROLL_SPECIALIST,
   ] as const,
 
+  // ── Compensation ────────────────────────────────────────────────────────
+
+  /** Compensation profile read — HR can view compensation profiles. */
+  COMPENSATION_READ: [
+    Roles.SYSTEM_ADMIN, Roles.HR_ADMIN, Roles.HR_SPECIALIST, Roles.AUDITOR,
+  ] as const,
+
+  /** Compensation config / band / reason write — HR admin only. */
+  COMPENSATION_WRITE: [
+    Roles.HR_ADMIN, Roles.SYSTEM_ADMIN,
+  ] as const,
+
   // ── Single-role gates (kept for readability) ────────────────────────────
 
   /** SYSTEM_ADMIN only — destructive admin endpoints. */
