@@ -183,6 +183,83 @@ export interface ResolveExceptionRequest {
   note: string
 }
 
+// ── Merit Matrices ───────────────────────────────────────────────────────
+
+export type PerformanceBand = 'EXCELLENT' | 'GOOD' | 'MEETS' | 'BELOW'
+
+export type MeritRangePosition = 'LOW' | 'MID' | 'HIGH'
+
+export interface MeritMatrixCellDto {
+  id?: string
+  performanceBand: PerformanceBand
+  rangePosition: MeritRangePosition
+  meritPct: number
+}
+
+export interface MeritMatrixDto {
+  id: string
+  code: string
+  name: string
+  isActive: boolean
+  cells: MeritMatrixCellDto[]
+}
+
+export interface MeritMatrixRequest {
+  code: string
+  name: string
+  isActive?: boolean
+  cells: MeritMatrixCellDto[]
+}
+
+export interface MeritSuggestionDto {
+  performanceBand: PerformanceBand
+  rangePosition: MeritRangePosition
+  meritPct: number
+  currentSalary: number
+  meritAmount: number
+  newSalary: number
+}
+
+// ── Compensation Budgets ─────────────────────────────────────────────────
+
+export type BudgetType = 'MERIT' | 'BONUS' | 'INCENTIVE' | 'PROMOTION'
+
+export type BudgetScopeType = 'GLOBAL' | 'DEPARTMENT' | 'MANAGER' | 'GRADE' | 'LEGAL_ENTITY'
+
+export interface CompensationBudgetDto {
+  id: string
+  cycleId: string | null
+  scopeType: BudgetScopeType
+  scopeRef: string | null
+  budgetType: BudgetType
+  amount: number
+  currency: string
+  consumedAmount: number
+  effectiveFrom: string
+  effectiveTo: string | null
+  isActive: boolean
+}
+
+export interface CompensationBudgetRequest {
+  cycleId?: string | null
+  scopeType: BudgetScopeType
+  scopeRef?: string | null
+  budgetType: BudgetType
+  amount: number
+  currency: string
+  effectiveFrom: string
+  effectiveTo?: string | null
+  isActive?: boolean
+}
+
+export interface BudgetStatusDto {
+  budgetId: string
+  amount: number
+  consumedAmount: number
+  remaining: number
+  currency: string
+}
+
 // ── API ──────────────────────────────────────────────────────────────────────
 
 export const compensationApi = {
@@ -254,4 +331,43 @@ export const compensationApi = {
   },
   resolveException: (id: string, payload: ResolveExceptionRequest) =>
     api.post(`/api/compensation/exceptions/${id}/resolve`, payload).then((r) => r.data),
+
+  // Merit Matrices
+  listMeritMatrices: () =>
+    api.get<MeritMatrixDto[]>('/api/compensation/merit-matrices').then((r) => r.data),
+  getMeritMatrix: (id: string) =>
+    api.get<MeritMatrixDto>(`/api/compensation/merit-matrices/${id}`).then((r) => r.data),
+  createMeritMatrix: (payload: MeritMatrixRequest) =>
+    api.post<MeritMatrixDto>('/api/compensation/merit-matrices', payload).then((r) => r.data),
+  updateMeritMatrix: (id: string, payload: MeritMatrixRequest) =>
+    api.put<MeritMatrixDto>(`/api/compensation/merit-matrices/${id}`, payload).then((r) => r.data),
+  deactivateMeritMatrix: (id: string) =>
+    api.delete(`/api/compensation/merit-matrices/${id}`).then((r) => r.data),
+  suggestMerit: (employeeId: string, matrixId: string) =>
+    api
+      .get<MeritSuggestionDto>(
+        `/api/compensation/merit-matrices/suggest?employeeId=${employeeId}&matrixId=${matrixId}`,
+      )
+      .then((r) => r.data),
+
+  // Compensation Budgets
+  listBudgets: (filters?: { budgetType?: BudgetType; scopeType?: BudgetScopeType }) => {
+    const params = new URLSearchParams()
+    if (filters?.budgetType) params.set('budgetType', filters.budgetType)
+    if (filters?.scopeType) params.set('scopeType', filters.scopeType)
+    const query = params.toString()
+    return api
+      .get<CompensationBudgetDto[]>(`/api/compensation/budgets${query ? `?${query}` : ''}`)
+      .then((r) => r.data)
+  },
+  getBudget: (id: string) =>
+    api.get<CompensationBudgetDto>(`/api/compensation/budgets/${id}`).then((r) => r.data),
+  createBudget: (payload: CompensationBudgetRequest) =>
+    api.post<CompensationBudgetDto>('/api/compensation/budgets', payload).then((r) => r.data),
+  updateBudget: (id: string, payload: CompensationBudgetRequest) =>
+    api.put<CompensationBudgetDto>(`/api/compensation/budgets/${id}`, payload).then((r) => r.data),
+  deactivateBudget: (id: string) =>
+    api.delete(`/api/compensation/budgets/${id}`).then((r) => r.data),
+  getBudgetStatus: (id: string) =>
+    api.get<BudgetStatusDto>(`/api/compensation/budgets/${id}/status`).then((r) => r.data),
 }

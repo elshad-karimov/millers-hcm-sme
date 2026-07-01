@@ -117,6 +117,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compensation/change-reasons', module: 'compensation', screen: 'compensation-change-reasons' },
   { prefix: '/compensation/salary-changes', module: 'compensation', screen: 'compensation-salary-changes' },
   { prefix: '/compensation/exceptions', module: 'compensation', screen: 'compensation-exceptions' },
+  { prefix: '/compensation/merit-matrices', module: 'compensation', screen: 'compensation-merit-matrices' },
+  { prefix: '/compensation/budgets', module: 'compensation', screen: 'compensation-budgets' },
   { prefix: '/compensation/config', module: 'compensation', screen: 'compensation-config' },
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
@@ -634,6 +636,16 @@ export function AppLayout() {
                 key: 'compensation-exceptions',
                 icon: <WarningOutlined />,
                 label: <Link to="/compensation/exceptions">Exceptions</Link>,
+              },
+              {
+                key: 'compensation-merit-matrices',
+                icon: <AppstoreOutlined />,
+                label: <Link to="/compensation/merit-matrices">Merit Matrices</Link>,
+              },
+              {
+                key: 'compensation-budgets',
+                icon: <DollarCircleOutlined />,
+                label: <Link to="/compensation/budgets">Budgets</Link>,
               },
               {
                 key: 'compensation-config',

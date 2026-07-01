@@ -49,6 +49,15 @@ CASES = [
  ,("EX-01","Exceptions (M362)","HR Admin","On the Exceptions page, on an OPEN row click Resolve → choose RESOLVED (or WAIVED) and add a note. Save.","The exception status changes to RESOLVED/WAIVED with your note recorded.")
  ,("EX-02","Exceptions (M362)","HR Admin","Use the Status and Exception-type filters on the Exceptions page.","The list filters correctly by status and by exception type.")
  ,("SEC-B1","Permissions (Phase B)","HR Specialist","Sign in as HR Specialist and open Compensation → Salary Changes.","You can view the list but cannot create, submit, or cancel a salary change (read-only).")
+ # ---------- Phase C: merit matrix (M363) + budgets (M364) ----------
+ ,("MM-01","Merit Matrix (M363)","HR Admin","Compensation → Merit Matrices → open the DEFAULT matrix.","A grid shows 4 performance bands (Excellent/Good/Meets/Below) × 3 range positions (Low/Mid/High) with the seeded percentages: Excellent 8/6/4, Good 5/4/2, Meets 3/2/1, Below 0/0/0.")
+ ,("MM-02","Merit Matrix (M363)","HR Admin","Change one cell (e.g. Good/Mid from 4 to 4.5) and Save.","The change is saved and shows the new value when reopened.")
+ ,("MM-03","Merit Matrix (M363)","HR Admin","Use the 'Suggest merit' panel: pick the test employee.","It shows the employee's performance band, range position, suggested merit %, current salary, merit amount and new salary. Check: merit amount = current salary × merit % ÷ 100, and new salary = current + merit amount.")
+ ,("BUD-01","Budgets (M364)","HR Admin","Compensation → Budgets → Create. Budget Type=MERIT, Scope=GLOBAL, Amount=10000, Currency=AZN, Effective From=today. Save.","The budget appears with Amount 10000, Consumed 0, Remaining 10000.")
+ ,("BUD-02","Budgets (M364)","HR Admin","With Settings → Budget policy = WARNING, create a salary change whose increase is larger than the remaining budget.","The salary change is still allowed (WARNING policy only warns, does not block).")
+ ,("BUD-03","Budgets (M364)","HR Admin","In Settings set Budget policy = HARD_STOP. Create a salary change whose increase exceeds the remaining MERIT budget.","The salary change is blocked with a 'budget exceeded' error.")
+ ,("BUD-04","Budgets (M364)","HR Admin","Set Budget policy back to WARNING. Approve a salary change (via the Approvals inbox) for a budgeted employee, then reopen the MERIT budget.","The budget's Consumed has increased by the salary increase and Remaining has decreased accordingly.")
+ ,("BUD-05","Budgets (M364)","HR Admin","On a budget row click Deactivate.","The budget shows Inactive (not physically deleted).")
 ]
 
 wb = Workbook()
@@ -101,7 +110,8 @@ so.cell(1,2,"Compensation UAT — Sign-off").font=Font(name=FONT,bold=True,size=
 for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
 areas=["Settings (CFG)","Pay Bands (PB)","Change Reasons (CR)","Compensation Profile (CP)",
-       "Salary Changes + Approval (SC)","Compensation Exceptions (EX)","Permissions (SEC)"]
+       "Salary Changes + Approval (SC)","Compensation Exceptions (EX)",
+       "Merit Matrix (MM)","Budgets (BUD)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)

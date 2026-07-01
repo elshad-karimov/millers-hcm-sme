@@ -23,7 +23,11 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.compensation.api.dto.CreateSalaryChangeRequest;
 import az.millers.hcm.compensation.api.dto.SalaryChangeRequestDto;
+import az.millers.hcm.compensation.domain.BudgetExceededPolicy;
+import az.millers.hcm.compensation.domain.BudgetScopeType;
+import az.millers.hcm.compensation.domain.BudgetType;
 import az.millers.hcm.compensation.domain.CompConfig;
+import az.millers.hcm.compensation.domain.CompensationBudget;
 import az.millers.hcm.compensation.domain.CompensationExceptionSeverity;
 import az.millers.hcm.compensation.domain.CompensationExceptionSource;
 import az.millers.hcm.compensation.domain.CompensationExceptionType;
@@ -71,6 +75,7 @@ public class SalaryChangeRequestService {
     private final PositionRepository positions;
     private final GradeRepository grades;
     private final CompensationExceptionService exceptionService;
+    private final CompensationBudgetService budgetService;
     private final WorkflowService workflowService;
     private final AccessScopeService accessScope;
     private final AuditService audit;
@@ -85,6 +90,7 @@ public class SalaryChangeRequestService {
                                        PositionRepository positions,
                                        GradeRepository grades,
                                        CompensationExceptionService exceptionService,
+                                       CompensationBudgetService budgetService,
                                        WorkflowService workflowService,
                                        AccessScopeService accessScope,
                                        AuditService audit,
@@ -98,6 +104,7 @@ public class SalaryChangeRequestService {
         this.positions = positions;
         this.grades = grades;
         this.exceptionService = exceptionService;
+        this.budgetService = budgetService;
         this.workflowService = workflowService;
         this.accessScope = accessScope;
         this.audit = audit;
@@ -159,6 +166,26 @@ public class SalaryChangeRequestService {
             aboveThreshold = increasePct.compareTo(config.getMaxIncreasePctWithoutApproval()) > 0;
         }
 
+        // Budget check (M364): compute increment and check budget
+        BigDecimal increment = currentSalary != null
+                ? req.proposedSalary().subtract(currentSalary)
+                : req.proposedSalary();
+
+        // Determine scope: use employee's orgUnitId (department) if available, else GLOBAL
+        BudgetScopeType scopeType = BudgetScopeType.GLOBAL;
+        String scopeRef = null;
+        if (emp.getOrgUnitId() != null) {
+            scopeType = BudgetScopeType.DEPARTMENT;
+            scopeRef = emp.getOrgUnitId().toString();
+        }
+
+        // Check budget and apply policy
+        Map<String, Object> budgetCheck = budgetService.checkAndApply(
+                scopeType, scopeRef, BudgetType.MERIT, increment);
+
+        boolean budgetExceeded = !(boolean) budgetCheck.get("withinBudget");
+        String policyStr = (String) budgetCheck.get("policy");
+
         SalaryChangeRequest scr = new SalaryChangeRequest();
         scr.setTenantId(TENANT);
         scr.setEmployeeId(req.employeeId());
@@ -193,6 +220,14 @@ public class SalaryChangeRequestService {
                     saved.getId(), CompensationExceptionType.ABOVE_THRESHOLD, CompensationExceptionSeverity.MEDIUM,
                     "Increase percentage exceeds threshold (" + increasePct + "% > "
                             + config.getMaxIncreasePctWithoutApproval() + "%)");
+        }
+        if (budgetExceeded && "EXCEPTION_APPROVAL".equals(policyStr)) {
+            CompensationBudget budget = (CompensationBudget) budgetCheck.get("budget");
+            BigDecimal remainingAfter = (BigDecimal) budgetCheck.get("remainingAfter");
+            exceptionService.raise(req.employeeId(), CompensationExceptionSource.SALARY_CHANGE,
+                    saved.getId(), CompensationExceptionType.OVER_BUDGET, CompensationExceptionSeverity.HIGH,
+                    "Budget exceeded: remaining " + remainingAfter + " " + budget.getCurrency()
+                            + ", increment " + increment + " " + budget.getCurrency());
         }
 
         return saved;
@@ -347,6 +382,30 @@ public class SalaryChangeRequestService {
                     scr.setStatus(SalaryChangeStatus.APPLIED);
                     scr.setAppliedAt(OffsetDateTime.now());
                     repo.save(scr);
+
+                    // M364: consume budget (best-effort, guarded)
+                    try {
+                        BigDecimal increment = scr.getCurrentSalary() != null
+                                ? scr.getProposedSalary().subtract(scr.getCurrentSalary())
+                                : scr.getProposedSalary();
+                        if (increment.compareTo(BigDecimal.ZERO) > 0) {
+                            // Resolve scope same as create
+                            BudgetScopeType scopeType = BudgetScopeType.GLOBAL;
+                            String scopeRef = null;
+                            if (emp != null && emp.getOrgUnitId() != null) {
+                                scopeType = BudgetScopeType.DEPARTMENT;
+                                scopeRef = emp.getOrgUnitId().toString();
+                            }
+                            Map<String, Object> budgetCheck = budgetService.checkAndApply(
+                                    scopeType, scopeRef, BudgetType.MERIT, increment);
+                            CompensationBudget budget = (CompensationBudget) budgetCheck.get("budget");
+                            if (budget != null) {
+                                budgetService.consume(budget.getId(), increment);
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to consume budget for salary change {}: {}", requestId, e.getMessage());
+                    }
 
                     audit.record(MODULE, ENTITY, requestId.toString(), "APPROVED", null,
                             SalaryChangeRequestDto.from(scr));
