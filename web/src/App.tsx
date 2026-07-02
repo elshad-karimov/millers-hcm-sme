@@ -71,6 +71,7 @@ import { CompensationConfigPage } from './pages/CompensationConfigPage'
 import { PayBandsPage } from './pages/PayBandsPage'
 import { ChangeReasonsPage } from './pages/ChangeReasonsPage'
 import { CompensationProfilePage } from './pages/CompensationProfilePage'
+import { CompensationDashboardPage } from './pages/CompensationDashboardPage'
 import { SalaryChangesPage } from './pages/SalaryChangesPage'
 import { CompensationExceptionsPage } from './pages/CompensationExceptionsPage'
 import { MeritMatricesPage } from './pages/MeritMatricesPage'
@@ -414,6 +415,7 @@ export default function App() {
           <Route path="payroll/reports/variance" element={<VarianceReportPage />} />
 
           {/* Compensation */}
+          <Route path="compensation/dashboard" element={<CompensationDashboardPage />} />
           <Route path="compensation/profile" element={<CompensationProfilePage />} />
           <Route path="compensation/pay-bands" element={<PayBandsPage />} />
           <Route path="compensation/change-reasons" element={<ChangeReasonsPage />} />

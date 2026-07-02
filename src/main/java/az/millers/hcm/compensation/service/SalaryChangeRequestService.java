@@ -51,11 +51,14 @@ import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.domain.WorkflowStatus;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.notifications.NotificationService;
+import az.millers.hcm.notifications.domain.NotificationCategory;
 
 /**
  * M361 — Salary change request + approval workflow.
  * A salary change must be APPROVED before it becomes the employee's compensation.
  * Reuses the existing workflow engine.
+ * M371 — adds notification hooks (minimal, non-fatal).
  */
 @Service
 public class SalaryChangeRequestService {
@@ -81,6 +84,7 @@ public class SalaryChangeRequestService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final TransactionTemplate requiresNew;
+    private final NotificationService notifications;
 
     public SalaryChangeRequestService(SalaryChangeRequestRepository repo,
                                        EmployeeRepository employees,
@@ -95,7 +99,8 @@ public class SalaryChangeRequestService {
                                        AccessScopeService accessScope,
                                        AuditService audit,
                                        CurrentRequest currentRequest,
-                                       PlatformTransactionManager txManager) {
+                                       PlatformTransactionManager txManager,
+                                       NotificationService notifications) {
         this.repo = repo;
         this.employees = employees;
         this.compensations = compensations;
@@ -111,6 +116,7 @@ public class SalaryChangeRequestService {
         this.currentRequest = currentRequest;
         this.requiresNew = new TransactionTemplate(txManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -277,6 +283,26 @@ public class SalaryChangeRequestService {
 
         audit.record(MODULE, ENTITY, id.toString(), "SUBMITTED", null,
                 Map.of("workflowInstanceId", instance.getId().toString()));
+
+        // M371 notification: notify manager on submission (non-fatal)
+        try {
+            if (emp.getManagerId() != null) {
+                Employee manager = employees.findById(emp.getManagerId()).orElse(null);
+                if (manager != null && manager.getUsername() != null) {
+                    notifications.notifyAll(
+                            NotificationCategory.WORKFLOW_APPROVAL,
+                            manager.getUsername(),
+                            "Salary Change Request Submitted",
+                            "A salary change request for " + emp.getFirstName() + " " + emp.getLastName()
+                                    + " has been submitted for approval.",
+                            MODULE, ENTITY, saved.getId().toString()
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send notification for salary change submission {}: {}", id, e.getMessage());
+        }
+
         return saved;
     }
 
@@ -411,6 +437,22 @@ public class SalaryChangeRequestService {
                             SalaryChangeRequestDto.from(scr));
                     audit.record(MODULE, ENTITY, requestId.toString(), "APPLIED", null,
                             SalaryChangeRequestDto.from(scr));
+
+                    // M371 notification: notify employee on applied salary change (non-fatal)
+                    try {
+                        if (emp != null && emp.getUsername() != null) {
+                            notifications.notifyAll(
+                                    NotificationCategory.TRANSACTIONAL,
+                                    emp.getUsername(),
+                                    "Salary Change Approved",
+                                    "Your salary change to " + scr.getProposedSalary() + " " + scr.getCurrency()
+                                            + " has been approved and will be effective from " + scr.getEffectiveDate() + ".",
+                                    MODULE, ENTITY, requestId.toString()
+                            );
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to send notification for salary change approval {}: {}", requestId, e.getMessage());
+                    }
 
                     log.info("Salary change request {} approved and applied for employee {}",
                             requestId, scr.getEmployeeId());

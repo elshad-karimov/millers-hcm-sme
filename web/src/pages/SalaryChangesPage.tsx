@@ -195,6 +195,20 @@ export function SalaryChangesPage() {
     })
   }
 
+  const handleGenerateLetter = async (rec: SalaryChangeRequestDto) => {
+    try {
+      const result = await compensationApi.generateSalaryLetter(rec.id)
+      message.success('Salary increase letter generated')
+      // Open the PDF in a new window
+      window.open(result.downloadPath, '_blank')
+    } catch (err) {
+      message.error(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Letter generation failed',
+      )
+    }
+  }
+
   const employeeMap = new Map(employees.map((e) => [e.id, e]))
 
   const columns: ColumnsType<SalaryChangeRequestDto> = [
@@ -255,10 +269,11 @@ export function SalaryChangesPage() {
     },
     {
       title: 'Actions',
-      width: 180,
+      width: 240,
       render: (_, rec) => {
         const canSubmit = rec.status === 'DRAFT' && canWrite
         const canCancelReq = (rec.status === 'DRAFT' || rec.status === 'PENDING_APPROVAL') && canWrite
+        const canGenerateLetter = rec.status === 'APPLIED' && canWrite
         return (
           <Space>
             {canSubmit && (
@@ -269,6 +284,11 @@ export function SalaryChangesPage() {
             {canCancelReq && (
               <Button size="small" onClick={() => handleCancel(rec)}>
                 Cancel
+              </Button>
+            )}
+            {canGenerateLetter && (
+              <Button size="small" type="default" onClick={() => handleGenerateLetter(rec)}>
+                Generate Letter
               </Button>
             )}
           </Space>

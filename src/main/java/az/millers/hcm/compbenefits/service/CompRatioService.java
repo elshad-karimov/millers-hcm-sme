@@ -215,8 +215,8 @@ public class CompRatioService {
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    /** Package-private for tests. */
-    static CompRiskLevel riskLevel(BigDecimal ratio) {
+    /** Public for reuse by M370 compensation dashboard. */
+    public static CompRiskLevel riskLevel(BigDecimal ratio) {
         if (ratio == null) return CompRiskLevel.NO_BAND;
         if (ratio.compareTo(LOW_THRESHOLD) < 0)   return CompRiskLevel.BELOW_RANGE;
         if (ratio.compareTo(LOW_IN_THRESHOLD) < 0) return CompRiskLevel.LOW_IN_RANGE;
@@ -225,8 +225,8 @@ public class CompRatioService {
         return CompRiskLevel.ABOVE_RANGE;
     }
 
-    /** Package-private for tests. */
-    static BigDecimal midpoint(Grade grade) {
+    /** Public for reuse by M370 compensation dashboard. */
+    public static BigDecimal midpoint(Grade grade) {
         BigDecimal min = grade.getMinSalary();
         BigDecimal max = grade.getMaxSalary();
         if (min == null && max == null) return null;

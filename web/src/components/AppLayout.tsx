@@ -112,6 +112,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
+  { prefix: '/compensation/dashboard', module: 'compensation', screen: 'compensation-dashboard' },
   { prefix: '/compensation/profile', module: 'compensation', screen: 'compensation-profile' },
   { prefix: '/compensation/pay-bands', module: 'compensation', screen: 'compensation-pay-bands' },
   { prefix: '/compensation/change-reasons', module: 'compensation', screen: 'compensation-change-reasons' },
@@ -617,6 +618,11 @@ export function AppLayout() {
             icon: <WalletOutlined />,
             label: 'Compensation',
             children: [
+              {
+                key: 'compensation-dashboard',
+                icon: <DashboardOutlined />,
+                label: <Link to="/compensation/dashboard">Dashboard</Link>,
+              },
               {
                 key: 'compensation-profile',
                 icon: <UserOutlined />,

@@ -77,6 +77,15 @@ CASES = [
  ,("TR-01","Payroll Transfer (M369)","HR Admin","Compensation → Payroll Transfer. Select an OPEN payroll run (not Paid) and click 'Transfer approved payouts to this run'.","A result shows how many were transferred; the previously-approved incentive/commission payouts become PAID and appear as one-time bonuses on that payroll run; a transfer-log row is recorded.")
  ,("TR-02","Payroll Transfer (M369)","HR Admin","Click Transfer again for the SAME run.","0 payouts are transferred the second time (idempotent — no duplicates).")
  ,("TR-03","Payroll Transfer (M369)","HR Admin","Approve a payout for a TERMINATED employee, then run the transfer.","That payout is skipped (terminated employees are not transferred to payroll).")
+ # ---------- Phase F: dashboard/analytics (M370) + letters + notifications (M371) ----------
+ ,("DB-01","Dashboard (M370)","HR Admin","Compensation → Dashboard.","Stat cards populate: employees with a comp record, without grade, without band, out of band, pending salary-change approvals, and open exceptions — with sensible numbers.")
+ ,("DB-02","Dashboard (M370)","HR Admin","Look at the Compa-ratio distribution chart.","A bar chart shows counts across bands (below-min / low / mid / high / above-max), colour-coded.")
+ ,("DB-03","Dashboard (M370)","HR Admin","Look at the Budget utilization table.","Each active budget shows amount, consumed, remaining and a utilization % progress bar.")
+ ,("DB-04","Dashboard (M370)","HR Admin","Look at the Out-of-band employees table (also under Reports).","It lists employees whose salary is outside their pay band, with the delta.")
+ ,("DB-05","Dashboard (M370)","Department Manager","Sign in as a Department Manager and open the Dashboard.","The figures reflect only your team (hierarchy-scoped), not the whole company.")
+ ,("LT-01","Comp Letters (M371)","HR Admin","On Salary Changes, find an APPLIED change and click 'Generate Letter'.","A salary-increase letter PDF opens showing employee name, old salary, new salary, increase % and effective date.")
+ ,("LT-02","Comp Letters (M371)","HR Admin","Look at the 'Generate Letter' action on a DRAFT / PENDING change.","It is disabled — a letter is only available once the change is APPLIED.")
+ ,("NT-01","Notifications (M371)","Manager / Employee","Submit a salary change (manager is notified), approve it (employee is notified), and trigger an exception (HR/manager notified). Check the notifications bell.","The relevant users receive in-app notifications for submit / approval / exception events.")
 ]
 
 wb = Workbook()
@@ -92,7 +101,7 @@ ws.cell(2,2,"HCM_10 Compensation Management  •  front-end (browser) testing  �
 for r,l,v in [
  (4,"How to use","Open the 'Test Cases' sheet. Do exactly what the Steps say (which menu, which button, what to type), compare to the Expected Result, and pick Pass / Fail / Blocked / Not Run in the Result column. Add anything unusual under Tester Notes. Fill the Sign-off sheet at the end."),
  (6,"Application URL","http://localhost:5180 — sign in first. Compensation features are under the top-nav 'Compensation' menu."),
- (7,"Delivered so far","Phase A — Pay Bands, Settings, Change Reasons, Compensation Profile (compa-ratio + range penetration + history). Phase B — Salary-change requests with approval-before-payroll (a change only becomes the employee's salary after it is approved) + auto-raised Compensation Exceptions (out-of-band / above-threshold). Later phases (merit cycles, budgets, incentives/commission, market data, total-comp statement, payroll transfer) will be appended to this same file."),
+ (7,"Delivered so far","Phases A–F COMPLETE — Pay Bands, Settings, Change Reasons, Compensation Profile; Salary-change approvals + Exceptions; Merit Matrix + Budgets; Incentives + Commission; Market Data + Total-Comp Statement + Payroll Transfer; Dashboard/Analytics + Comp Letters + Notifications. The whole Compensation module is covered here."),
  (9,"Logins you will need","HR Admin (full compensation access), HR Specialist (read-only), Department Manager (own team only), Employee (self-service). If you only have an admin login, mark the role-restriction rows Blocked with a note."),
  (11,"Result values","Pass = worked as expected.  Fail = did not match (add a note).  Blocked = could not run (missing login/data).  Not Run = skipped."),
  (12,"The two key numbers","Compa-ratio = salary ÷ band midpoint × 100.  Range penetration = (salary − min) ÷ (max − min) × 100. If the employee's salary equals the band midpoint, compa-ratio is 100% and range penetration is 50%."),
@@ -130,7 +139,7 @@ for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
 areas=["Settings (CFG)","Pay Bands (PB)","Change Reasons (CR)","Compensation Profile (CP)",
        "Salary Changes + Approval (SC)","Compensation Exceptions (EX)",
-       "Merit Matrix (MM)","Budgets (BUD)","Incentives (IN)","Commission (CM)","Market Data (MK)","Total Comp (TC)","Payroll Transfer (TR)","Permissions (SEC)"]
+       "Merit Matrix (MM)","Budgets (BUD)","Incentives (IN)","Commission (CM)","Market Data (MK)","Total Comp (TC)","Payroll Transfer (TR)","Dashboard + Letters (DB/LT/NT)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)

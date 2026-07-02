@@ -17,29 +17,44 @@ import az.millers.hcm.compensation.domain.CompensationExceptionSource;
 import az.millers.hcm.compensation.domain.CompensationExceptionStatus;
 import az.millers.hcm.compensation.domain.CompensationExceptionType;
 import az.millers.hcm.compensation.repo.CompensationExceptionRepository;
+import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.notifications.NotificationService;
+import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * M362 — Compensation exceptions registry.
  * Tracks out-of-band salary changes, budget overruns, threshold violations.
+ * M371 — adds notification on exception raised (non-fatal).
  */
 @Service
 public class CompensationExceptionService {
+
+    private static final Logger log = LoggerFactory.getLogger(CompensationExceptionService.class);
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "CompensationException";
     private static final String TENANT = "default";
 
     private final CompensationExceptionRepository repo;
+    private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final NotificationService notifications;
 
     public CompensationExceptionService(CompensationExceptionRepository repo,
+                                         EmployeeRepository employees,
                                          AuditService audit,
-                                         CurrentRequest currentRequest) {
+                                         CurrentRequest currentRequest,
+                                         NotificationService notifications) {
         this.repo = repo;
+        this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.notifications = notifications;
     }
 
     /**
@@ -71,6 +86,27 @@ public class CompensationExceptionService {
         CompensationException saved = repo.save(exc);
         audit.record(MODULE, ENTITY, saved.getId().toString(),
                 "RAISED", null, CompensationExceptionDto.from(saved));
+
+        // M371 notification: notify manager on exception raised (non-fatal)
+        try {
+            Employee employee = employees.findById(employeeId).orElse(null);
+            if (employee != null && employee.getManagerId() != null) {
+                Employee manager = employees.findById(employee.getManagerId()).orElse(null);
+                if (manager != null && manager.getUsername() != null) {
+                    notifications.notifyAll(
+                            NotificationCategory.TRANSACTIONAL,
+                            manager.getUsername(),
+                            "Compensation Exception Raised",
+                            "A compensation exception (" + exceptionType.name() + ") was raised for "
+                                    + employee.getFirstName() + " " + employee.getLastName() + ": " + reason,
+                            MODULE, ENTITY, saved.getId().toString()
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send notification for compensation exception {}: {}", saved.getId(), e.getMessage());
+        }
+
         return saved;
     }
 

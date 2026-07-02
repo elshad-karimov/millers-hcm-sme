@@ -466,6 +466,44 @@ export interface PayrollCompTransferDto {
   transferredAt?: string
 }
 
+// ── M370: Dashboard & Analytics ──────────────────────────────────────────
+
+export interface BudgetUtilizationRow {
+  budgetType: string
+  scopeType: string
+  scopeRef: string
+  amount: number
+  consumed: number
+  remaining: number
+  utilizationPct: number
+}
+
+export interface CompensationDashboardDto {
+  totalEmployeesWithCompRecord: number
+  employeesWithoutGrade: number
+  employeesWithoutBand: number
+  employeesOutOfBand: number
+  pendingSalaryChangeApprovals: number
+  openExceptions: number
+  compaRatioDistribution: Record<string, number>
+  budgetUtilization: BudgetUtilizationRow[]
+}
+
+export interface OutOfBandReportRow {
+  employeeId: string
+  employeeNo: string
+  employeeName: string
+  department: string
+  gradeCode: string
+  bandCode: string
+  minSalary: number
+  maxSalary: number
+  actualSalary: number
+  deltaFromMin: number
+  deltaFromMax: number
+  position: string
+}
+
 // ── API ──────────────────────────────────────────────────────────────────────
 
 export const compensationApi = {
@@ -706,4 +744,24 @@ export const compensationApi = {
     const query = params.toString()
     return api.get<PayrollCompTransferDto[]>(`/api/compensation/transfers${query ? `?${query}` : ''}`).then((r) => r.data)
   },
+
+  // ── M370: Dashboard & Analytics ─────────────────────────────────────────────
+
+  getDashboard: () =>
+    api.get<CompensationDashboardDto>('/api/compensation/dashboard').then((r) => r.data),
+  compaRatioDistribution: (gradeId?: string) => {
+    const params = new URLSearchParams()
+    if (gradeId) params.set('gradeId', gradeId)
+    const query = params.toString()
+    return api.get<Record<string, number>>(`/api/compensation/reports/compa-ratio-distribution${query ? `?${query}` : ''}`).then((r) => r.data)
+  },
+  outOfBandReport: () =>
+    api.get<OutOfBandReportRow[]>('/api/compensation/reports/out-of-band').then((r) => r.data),
+  budgetVsActual: () =>
+    api.get<BudgetUtilizationRow[]>('/api/compensation/reports/budget-vs-actual').then((r) => r.data),
+
+  // ── M371: Salary Increase Letter ────────────────────────────────────────────
+
+  generateSalaryLetter: (salaryChangeId: string) =>
+    api.post<{ letterRequestId: string; letterRequestNo: string; downloadPath: string; status: string }>(`/api/compensation/salary-changes/${salaryChangeId}/letter`).then((r) => r.data),
 }
