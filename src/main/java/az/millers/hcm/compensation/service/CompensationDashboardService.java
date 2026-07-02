@@ -301,6 +301,8 @@ public class CompensationDashboardService {
         }
 
         List<OutOfBandReportRow> rows = new ArrayList<>();
+        // Salary confidentiality: mask raw pay figures from under-privileged readers.
+        boolean seeAmounts = az.millers.hcm.compensation.security.CompensationAccessRoles.canSeeSalaryAmounts();
 
         for (Employee emp : all) {
             EmployeeCompensation comp = null;
@@ -337,9 +339,9 @@ public class CompensationDashboardService {
                         band.getCode(),
                         band.getMinSalary(),
                         band.getMaxSalary(),
-                        salary,
-                        deltaFromMin,
-                        deltaFromMax,
+                        seeAmounts ? salary : null,
+                        seeAmounts ? deltaFromMin : null,
+                        seeAmounts ? deltaFromMax : null,
                         position
                 ));
             }

@@ -186,22 +186,30 @@ public class CompensationProfileService {
 
         // Salary history
         List<EmployeeCompensation> history = compensations.historyFor(employeeId);
+
+        // Salary confidentiality: under-privileged readers (e.g. HR_SPECIALIST) see the
+        // structure, grade, band and range position but NOT the employee's raw pay figures.
+        boolean seeAmounts = az.millers.hcm.compensation.security.CompensationAccessRoles.canSeeSalaryAmounts();
         List<SalaryHistoryItem> salaryHistory = history.stream()
                 .map(c -> new SalaryHistoryItem(
                     c.getEffectiveFrom(),
                     c.getEffectiveTo(),
-                    c.getMonthlyBaseSalary(),
+                    seeAmounts ? c.getMonthlyBaseSalary() : null,
                     c.getCurrency(),
                     c.getReason()
                 ))
                 .toList();
 
+        if (!seeAmounts && currentSalary != null) {
+            currentSalary = new CurrentSalaryInfo(null, currentSalary.currency(), currentSalary.effectiveFrom());
+        }
+
         return new CompensationProfileDto(
             currentSalary,
             gradeInfo,
             bandInfo,
-            compaRatio,
-            rangePenetration,
+            seeAmounts ? compaRatio : null,
+            seeAmounts ? rangePenetration : null,
             rangePositionLabel,
             salaryHistory
         );

@@ -86,6 +86,8 @@ CASES = [
  ,("LT-01","Comp Letters (M371)","HR Admin","On Salary Changes, find an APPLIED change and click 'Generate Letter'.","A salary-increase letter PDF opens showing employee name, old salary, new salary, increase % and effective date.")
  ,("LT-02","Comp Letters (M371)","HR Admin","Look at the 'Generate Letter' action on a DRAFT / PENDING change.","It is disabled — a letter is only available once the change is APPLIED.")
  ,("NT-01","Notifications (M371)","Manager / Employee","Submit a salary change (manager is notified), approve it (employee is notified), and trigger an exception (HR/manager notified). Check the notifications bell.","The relevant users receive in-app notifications for submit / approval / exception events.")
+ # ---------- M372 security hardening ----------
+ ,("SEC-C1","Salary masking (M372)","HR Specialist","Sign in as HR Specialist. Open a Compensation Profile, the Salary Changes list, and the Dashboard out-of-band report.","Salary amounts, compa-ratio and range penetration are hidden/blank for HR Specialist (grade, band structure and range-position label still show). As HR Admin / Compensation Manager the amounts are visible.")
 ]
 
 wb = Workbook()

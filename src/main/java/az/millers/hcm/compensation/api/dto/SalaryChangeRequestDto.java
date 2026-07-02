@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import az.millers.hcm.compensation.domain.SalaryChangeRequest;
 import az.millers.hcm.compensation.domain.SalaryChangeStatus;
+import az.millers.hcm.compensation.security.CompensationAccessRoles;
 
 public record SalaryChangeRequestDto(
         UUID id,
@@ -28,11 +29,12 @@ public record SalaryChangeRequestDto(
         String note
 ) {
     public static SalaryChangeRequestDto from(SalaryChangeRequest r) {
+        boolean seeAmounts = CompensationAccessRoles.canSeeSalaryAmounts();
         return new SalaryChangeRequestDto(
                 r.getId(),
                 r.getEmployeeId(),
-                r.getCurrentSalary(),
-                r.getProposedSalary(),
+                seeAmounts ? r.getCurrentSalary() : null,
+                seeAmounts ? r.getProposedSalary() : null,
                 r.getCurrency(),
                 r.getChangeReasonId(),
                 r.getEffectiveDate(),
