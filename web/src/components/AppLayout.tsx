@@ -823,6 +823,11 @@ export function AppLayout() {
                 label: <Link to="/performance/templates">Review templates</Link>,
               },
               {
+                key: 'performance-kpis',
+                icon: <BarChartOutlined />,
+                label: <Link to="/performance/kpis">KPIs</Link>,
+              },
+              {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
                 label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,

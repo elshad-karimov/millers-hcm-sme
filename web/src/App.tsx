@@ -109,6 +109,7 @@ import { ReviewCyclesPage } from './pages/ReviewCyclesPage'
 import { CalibrationPage } from './pages/performance/CalibrationPage'
 import { RatingScalesPage } from './pages/performance/RatingScalesPage'
 import { ReviewTemplatesPage } from './pages/performance/ReviewTemplatesPage'
+import { KpiPage } from './pages/performance/KpiPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
@@ -310,6 +311,8 @@ export default function App() {
           <Route path="performance/rating-scales" element={<RatingScalesPage />} />
           {/* HCM_12 M389 — review templates */}
           <Route path="performance/templates" element={<ReviewTemplatesPage />} />
+          {/* HCM_12 M390 — KPI library + assignments */}
+          <Route path="performance/kpis" element={<KpiPage />} />
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />

@@ -386,6 +386,132 @@ export const perfTemplatesApi = {
     api.put<PerfTemplateResponse>(`/performance/templates/${id}`, req).then((r) => r.data),
 }
 
+// ─── KPI library + assignments (HCM_12 M390) ─────────────────────────────────
+
+export type KpiFrequency = 'MONTHLY' | 'QUARTERLY' | 'SEMI_ANNUAL' | 'ANNUAL'
+export type KpiScoringModel = 'LINEAR' | 'THRESHOLD'
+export type KpiDataSource = 'MANUAL' | 'MANAGER' | 'EMPLOYEE' | 'IMPORT' | 'EXTERNAL'
+export type KpiAssignmentStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'MEASURED' | 'CANCELLED'
+
+export const KPI_FREQUENCY_LABEL: Record<KpiFrequency, string> = {
+  MONTHLY: 'Monthly',
+  QUARTERLY: 'Quarterly',
+  SEMI_ANNUAL: 'Semi-annual',
+  ANNUAL: 'Annual',
+}
+
+export const KPI_SCORING_LABEL: Record<KpiScoringModel, string> = {
+  LINEAR: 'Linear (achievement ÷ 20)',
+  THRESHOLD: 'Threshold bands (110/100/80/60)',
+}
+
+export const KPI_DATA_SOURCE_LABEL: Record<KpiDataSource, string> = {
+  MANUAL: 'Manual entry',
+  MANAGER: 'Manager reported',
+  EMPLOYEE: 'Employee reported',
+  IMPORT: 'File import',
+  EXTERNAL: 'External system',
+}
+
+export interface KpiRequest {
+  kpiCode: string
+  kpiName: string
+  category?: string | null
+  description?: string | null
+  measurementUnit?: string | null
+  defaultTarget?: number | null
+  minThreshold?: number | null
+  maxThreshold?: number | null
+  frequency?: KpiFrequency
+  scoringModel?: KpiScoringModel
+  dataSource?: KpiDataSource
+  active?: boolean
+}
+
+export interface KpiResponse {
+  id: string
+  kpiCode: string
+  kpiName: string
+  category?: string | null
+  description?: string | null
+  measurementUnit?: string | null
+  defaultTarget?: number | null
+  minThreshold?: number | null
+  maxThreshold?: number | null
+  frequency: KpiFrequency
+  scoringModel: KpiScoringModel
+  dataSource: KpiDataSource
+  active: boolean
+  createdAt: string
+}
+
+export interface KpiAssignRequest {
+  kpiId: string
+  cycleId: string
+  employeeId: string
+  assignedTarget: number
+  weightPercent?: number
+}
+
+export interface KpiMeasureRequest {
+  actualValue: number
+  periodLabel?: string
+  note?: string
+}
+
+export interface KpiAssignmentResponse {
+  id: string
+  kpiId: string
+  kpiCode?: string | null
+  kpiName?: string | null
+  measurementUnit?: string | null
+  scoringModel?: KpiScoringModel | null
+  cycleId: string
+  employeeId: string
+  employeeName?: string | null
+  assignedTarget: number
+  weightPercent?: number | null
+  actualValue?: number | null
+  achievementPercent?: number | null
+  rating?: number | null
+  status: KpiAssignmentStatus
+  createdAt: string
+}
+
+export interface KpiResultResponse {
+  id: string
+  periodLabel?: string | null
+  actualValue: number
+  achievementPercent?: number | null
+  rating?: number | null
+  note?: string | null
+  recordedBy?: string | null
+  recordedAt: string
+}
+
+export const kpisApi = {
+  list: (activeOnly = false) =>
+    api.get<KpiResponse[]>('/performance/kpis', { params: { activeOnly } }).then((r) => r.data),
+  create: (req: KpiRequest) =>
+    api.post<KpiResponse>('/performance/kpis', req).then((r) => r.data),
+  update: (id: string, req: KpiRequest) =>
+    api.put<KpiResponse>(`/performance/kpis/${id}`, req).then((r) => r.data),
+  assignments: (params: { cycleId?: string; employeeId?: string }) =>
+    api
+      .get<KpiAssignmentResponse[]>('/performance/kpis/assignments', { params })
+      .then((r) => r.data),
+  assign: (req: KpiAssignRequest) =>
+    api.post<KpiAssignmentResponse>('/performance/kpis/assignments', req).then((r) => r.data),
+  measure: (id: string, req: KpiMeasureRequest) =>
+    api
+      .post<KpiAssignmentResponse>(`/performance/kpis/assignments/${id}/measure`, req)
+      .then((r) => r.data),
+  cancelAssignment: (id: string) =>
+    api.post<KpiAssignmentResponse>(`/performance/kpis/assignments/${id}/cancel`).then((r) => r.data),
+  history: (id: string) =>
+    api.get<KpiResultResponse[]>(`/performance/kpis/assignments/${id}/history`).then((r) => r.data),
+}
+
 export const performanceApi = {
   cycles: (status?: CycleStatus) =>
     api.get<ReviewCycle[]>('/performance/cycles', { params: { status } }).then((r) => r.data),
