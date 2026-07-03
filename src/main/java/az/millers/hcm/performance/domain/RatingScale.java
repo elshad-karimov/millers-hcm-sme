@@ -11,24 +11,21 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Explicit named-successor record (M103).
- *
- * <p>Complements the M92 9-box bucket placement with a durable, auditable
- * record that HR can present to auditors: "Employee X has been formally
- * designated as the Ready-Now successor for Position Y."
+ * HCM_12 M388 — tenant-configurable rating scale master (PRD §5.3). Replaces the
+ * JSONB rating map embedded on {@link ReviewCycle} as the source of truth (that map is
+ * kept for back-compat); §18.3 score-band conversion reads the scale values.
  */
 @Entity
-@Table(name = "succession_nomination", schema = "performance")
+@Table(name = "rating_scale", schema = "performance")
 @Getter
 @Setter
 @NoArgsConstructor
-public class SuccessionNomination {
+public class RatingScale {
 
     @Id
     private UUID id;
@@ -36,27 +33,28 @@ public class SuccessionNomination {
     @Column(name = "tenant_id", nullable = false, length = 64)
     private String tenantId = "default";
 
-    @Column(name = "position_id", nullable = false)
-    private UUID positionId;
+    @Column(name = "scale_code", nullable = false, length = 40)
+    private String scaleCode;
 
-    @Column(name = "nominee_employee_id", nullable = false)
-    private UUID nomineeEmployeeId;
-
-    @Column(name = "nominated_by", length = 80)
-    private String nominatedBy;
+    @Column(name = "scale_name", nullable = false, length = 160)
+    private String scaleName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "readiness_tier", nullable = false, length = 20)
-    private Readiness readinessTier;
+    @Column(name = "scale_type", nullable = false, length = 30)
+    private RatingScaleType scaleType = RatingScaleType.NUMERIC_1_5;
 
     @Column(columnDefinition = "text")
-    private String notes;
+    private String description;
 
-    @Column(name = "cancelled_at")
-    private OffsetDateTime cancelledAt;
+    @Column(nullable = false)
+    private boolean active = true;
 
-    @Column(name = "cancellation_reason", columnDefinition = "text")
-    private String cancellationReason;
+    /** The tenant's default scale used when a cycle doesn't pick one explicitly. */
+    @Column(name = "is_default", nullable = false)
+    private boolean isDefault = false;
+
+    @Column(name = "created_by", length = 80)
+    private String createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -73,11 +71,5 @@ public class SuccessionNomination {
     }
 
     @PreUpdate
-    void onUpdate() {
-        updatedAt = OffsetDateTime.now();
-    }
-
-    public boolean isActive() {
-        return cancelledAt == null;
-    }
+    void onUpdate() { updatedAt = OffsetDateTime.now(); }
 }

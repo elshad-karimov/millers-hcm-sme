@@ -30,6 +30,9 @@ public class Feedback {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(name = "cycle_id", nullable = false)
     private UUID cycleId;
 

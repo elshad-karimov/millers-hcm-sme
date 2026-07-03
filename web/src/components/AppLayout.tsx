@@ -813,6 +813,11 @@ export function AppLayout() {
                 label: <Link to="/performance/cycles">{tNav('sub.performance.cycles')}</Link>,
               },
               {
+                key: 'performance-rating-scales',
+                icon: <BarChartOutlined />,
+                label: <Link to="/performance/rating-scales">Rating scales</Link>,
+              },
+              {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
                 label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,

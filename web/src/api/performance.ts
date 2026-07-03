@@ -236,6 +236,69 @@ export interface FeedbackRequest {
   submit: boolean
 }
 
+// ─── Rating scales (HCM_12 M388) ─────────────────────────────────────────────
+
+export type RatingScaleType =
+  | 'NUMERIC_1_5'
+  | 'NUMERIC_1_10'
+  | 'PERCENTAGE'
+  | 'DESCRIPTIVE'
+  | 'LETTER'
+  | 'PASS_FAIL'
+
+export const RATING_SCALE_TYPE_LABEL: Record<RatingScaleType, string> = {
+  NUMERIC_1_5: '1–5 numeric',
+  NUMERIC_1_10: '1–10 numeric',
+  PERCENTAGE: 'Percentage',
+  DESCRIPTIVE: 'Descriptive',
+  LETTER: 'Letter grades',
+  PASS_FAIL: 'Pass / Fail',
+}
+
+export interface RatingScaleValue {
+  id?: string
+  valueOrder?: number
+  ratingValue: number
+  ratingLabel: string
+  description?: string | null
+  minPercentage?: number | null
+  maxPercentage?: number | null
+  colorCode?: string | null
+}
+
+export interface RatingScaleRequest {
+  scaleCode: string
+  scaleName: string
+  scaleType: RatingScaleType
+  description?: string
+  active?: boolean
+  isDefault?: boolean
+  values: RatingScaleValue[]
+}
+
+export interface RatingScaleResponse {
+  id: string
+  scaleCode: string
+  scaleName: string
+  scaleType: RatingScaleType
+  description?: string | null
+  active: boolean
+  isDefault: boolean
+  values: RatingScaleValue[]
+  createdAt: string
+}
+
+export const ratingScalesApi = {
+  list: (activeOnly = false) =>
+    api
+      .get<RatingScaleResponse[]>('/performance/rating-scales', { params: { activeOnly } })
+      .then((r) => r.data),
+  create: (req: RatingScaleRequest) =>
+    api.post<RatingScaleResponse>('/performance/rating-scales', req).then((r) => r.data),
+  update: (id: string, req: RatingScaleRequest) =>
+    api.put<RatingScaleResponse>(`/performance/rating-scales/${id}`, req).then((r) => r.data),
+}
+
 export const performanceApi = {
   cycles: (status?: CycleStatus) =>
     api.get<ReviewCycle[]>('/performance/cycles', { params: { status } }).then((r) => r.data),

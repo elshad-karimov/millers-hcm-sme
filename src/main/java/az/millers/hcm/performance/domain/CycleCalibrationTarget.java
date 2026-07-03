@@ -32,6 +32,9 @@ public class CycleCalibrationTarget {
     @Column(name = "cycle_id", nullable = false)
     private UUID cycleId;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Id
     @Column(nullable = false, length = 64)
     private String band;

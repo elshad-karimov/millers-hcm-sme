@@ -107,6 +107,7 @@ import { ContractChangeFormPage } from './pages/ContractChangeFormPage'
 import { ContractChangeDetailPage } from './pages/ContractChangeDetailPage'
 import { ReviewCyclesPage } from './pages/ReviewCyclesPage'
 import { CalibrationPage } from './pages/performance/CalibrationPage'
+import { RatingScalesPage } from './pages/performance/RatingScalesPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
@@ -304,6 +305,8 @@ export default function App() {
           <Route path="business-trips/expense-claims" element={<ExpenseClaimsPage />} />
 
           {/* Performance */}
+          {/* HCM_12 M388 — rating scale master */}
+          <Route path="performance/rating-scales" element={<RatingScalesPage />} />
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />

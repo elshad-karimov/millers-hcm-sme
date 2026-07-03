@@ -28,6 +28,9 @@ public class PerformanceReview {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(name = "review_no", nullable = false, unique = true)
     private String reviewNo;
 
