@@ -48,6 +48,24 @@ CASES = [
  ("SEC-A1","Permissions (Phase A)","HR Specialist","Sign in as HR Specialist (hrspec). Open Performance → Rating scales and Review templates.","The lists are visible but 'New scale…' / 'New template…' / Edit are unavailable (write is HR Admin only)."),
  ("SEC-A2","Permissions (Phase A)","Employee","Sign in as a plain Employee. Try opening /performance/kpis and /performance/okrs directly.","The employee cannot see other employees' KPI assignments or OKR admin data (read is HR + managers; the API returns no rows / access denied for out-of-scope employees)."),
  ("SEC-A3","Permissions (Phase A)","Manager","Sign in as a Manager (manager). Open Performance → KPIs → Assignments.","The manager can view and assign/measure KPIs (managers are allowed to manage their team's KPIs); employee lists respect the manager's hierarchy scope."),
+ # ---------- Phase B.1: goal-plan approval + progress trail (M392) ----------
+ ("GPL-01","Goal plan submit (M392)","HR Admin","Performance → Goals. Pick a cycle + ONE employee (who has a manager). Create 2 DRAFT goals with weights 60 and 30. Look at the 'weights' tag next to the filters.","The tag shows 'weights 90%' in red and 'Submit plan for approval' is disabled (weights must total exactly 100 — §37.5)."),
+ ("GPL-02","Goal plan submit (M392)","HR Admin","Edit one goal's weight so the two total 100 (60+40). Click 'Submit plan for approval'.","The tag turns green at 100%; submission succeeds — both goals show Approval = PENDING APPROVAL and editing them is now blocked."),
+ ("GPL-03","Goal plan approve (M392)","Manager","Sign in as the employee's MANAGER → Approvals inbox. Find 'Goal plan: <employee> (2 goals, weights 100%)' and Approve it.","After approval the goals' Approval column shows APPROVED and their status flips DRAFT → ACTIVE."),
+ ("GPL-04","Goal plan reject (M392)","HR Admin / Manager","Create another employee's plan (weights = 100), submit, and as their manager REJECT it in the Approvals inbox.","Goals show Approval = REJECTED and stay DRAFT — they can be edited and resubmitted (rework loop)."),
+ ("GPL-05","Approved-edit guard (M392)","HR Admin","Edit an APPROVED goal (change its title or weight). Save, then look at its Approval column.","The edit works but Approval drops back to '—' (NOT_SUBMITTED) — a structurally changed goal must be resubmitted for approval (traceable)."),
+ ("GPT-01","Progress trail (M392)","HR Admin","On any ACTIVE goal click 'Progress', set 40% with note 'Q2 checkpoint', save. Update again to 70% with another note. Then click 'History'.","The drawer shows BOTH updates newest-first: 40% → 70% with old→new values, notes, who and when (§6.4 audit trail)."),
+ # ---------- Phase B.2: competency assessment (M393) ----------
+ ("CMP-01","Competency seed (M393)","HR Admin","Open a performance review (Performance → Reviews → any review). In the 'Competency assessment' card click 'Seed from position'. (The employee's position must have required competencies — set them under Staffing → Position requirements if empty.)","One row per required competency appears with the Required level snapshot. If the position has none, a clear message says to add manually instead."),
+ ("CMP-02","Competency add + assess (M393)","HR Admin","Click 'Add competency', pick one from the catalog with Required level 4. Then click 'Assess' on it: Self=3, Manager=3, Final=3, comment. Save.","The row shows levels 3/3/3 and Gap = '-1 below' in red (gap = required − final; positive gap = development need)."),
+ ("CMP-03","Competency gap states (M393)","HR Admin","Assess another row with Final = required level, and one with Final ABOVE required.","Gap shows 'meets' (blue) when equal and '+N above' (green) when above."),
+ ("CMP-04","Duplicate guard (M393)","HR Admin","Try adding the SAME competency to the review again.","Rejected — the competency is already on the review (it's also hidden from the picker)."),
+ # ---------- Phase B.3: weighted scoring + override (M394) ----------
+ ("SCR-01","Weighted scoring (M394)","HR Admin","On a review where goals are RATED (Goals page → Rate) and competencies have FINAL levels: in the 'Weighted scores (§18)' card enter Values score 4 and click 'Compute scores'.","Goal/KPI/Competency/Values cells populate; Overall = weighted average using the template weights (Goals 50 / KPI 25 / Competency 20 / Values 5), re-normalised over the sections that have scores; the §18.3 band label (e.g. 'Exceeds Expectations') appears next to it."),
+ ("SCR-02","Missing-section handling (M394)","HR Admin","Compute scores on a review with NO KPI assignments (KPI cell —).","The overall still computes — the missing KPI section is left out and the remaining weights are re-normalised (it is NOT dragged down by a zero)."),
+ ("OVR-01","HR override (M394)","HR Admin","On the scored review click 'Override rating'. New rating=4.5, Reason='Calibration committee decision'. Confirm.","Final rating becomes 4.50 with an 'overridden' tag; the Override cell shows the ORIGINAL computed rating, who overrode and the reason (original preserved — §18.4)."),
+ ("OVR-02","Override guards (M394)","HR Admin / HR Specialist","Try overriding without a reason; then sign in as HR Specialist and look for the Override button.","No reason → rejected (reason is required). HR Specialist doesn't see the Override button (HR Admin only)."),
+ ("SEC-B1","Permissions (Phase B)","Employee","Sign in as an Employee. Open another employee's review URL directly (/performance/reviews/<id>).","The competency and scoring data of another employee is NOT accessible (hierarchy guard — access denied / error)."),
 ]
 
 wb = Workbook()
@@ -63,7 +81,7 @@ ws.cell(2,2,"HCM_12 Performance Management  •  front-end (browser) testing  �
 for r,l,v in [
  (4,"How to use","Open the 'Test Cases' sheet. Do exactly what the Steps say (which tab, which button, what to type), compare to the Expected Result, and pick Pass / Fail / Blocked / Not Run in the Result column. Add anything unusual under Tester Notes. Fill the Sign-off sheet at the end."),
  (6,"Application URL","http://localhost:5180 — sign in first. Performance features are under the top-nav 'Performance' menu."),
- (7,"Delivered so far","Phase A (configuration foundation): rating scales with score bands (M388), review templates with weighted sections + cycle audience scoping (M389), KPI library + per-cycle assignments with automatic achievement/rating scoring (M390), OKR objectives + key results + check-ins with progress roll-up (M391)."),
+ (7,"Delivered so far","Phase A (configuration foundation): rating scales with score bands (M388), review templates with weighted sections + cycle audience scoping (M389), KPI library + per-cycle assignments with automatic achievement/rating scoring (M390), OKR objectives + key results + check-ins with progress roll-up (M391). Phase B (goals & scoring): goal-plan approval workflow Employee→Manager with weights-must-total-100 validation + progress-update audit trail (M392), per-review competency assessment with position-requirement seeding and gap analysis (M393), §18 weighted section scoring + score→band conversion + HR rating override with preserved original (M394)."),
  (9,"Logins you will need","HR Admin (full performance admin), HR Specialist (read-only checks), Manager (team KPI/OKR), Employee (self-service scoping checks). If you only have an admin login, mark role-restriction rows Blocked with a note."),
  (11,"Result values","Pass = worked as expected.  Fail = did not match (add a note).  Blocked = could not run (missing login/data).  Not Run = skipped."),
  (12,"Good to know","Rating-scale bands convert numeric scores to ratings during weighted scoring (Phase B). Templates fix which sections a review has and their weights (scoring sections must total 100). KPI ratings compute automatically: LINEAR = achievement ÷ 20 (100% → 5.0); THRESHOLD = bands ≥110→5 / ≥100→4 / ≥80→3 / ≥60→2 / else 1. OKR objective progress = weighted average of key-result progress."),
@@ -101,7 +119,8 @@ for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
 areas=["Rating scales (SCL)","Review templates + cycle scoping (TPL)",
        "KPI library + assignments + scoring (KPI)","OKR objectives + key results + check-ins (OKR)",
-       "Permissions (SEC)"]
+       "Goal-plan approval + progress trail (GPL/GPT)","Competency assessment (CMP)",
+       "Weighted scoring + override (SCR/OVR)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)
