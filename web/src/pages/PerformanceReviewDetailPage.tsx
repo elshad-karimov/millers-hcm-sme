@@ -27,6 +27,7 @@ import {
   type ReviewStatus,
 } from '../api/performance'
 import { employeesApi, type Employee } from '../api/employees'
+import { CompetencyAssessmentCard } from './performance/CompetencyAssessmentCard'
 import { FormPageShell } from '../components/FormPageShell'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -297,6 +298,9 @@ export function PerformanceReviewDetailPage() {
             </Space>
           )}
         </Card>
+
+        {/* HCM_12 M393 — structured competency assessment (§17) */}
+        <CompetencyAssessmentCard reviewId={r.id} canEdit={canManager} />
 
         <Card title="Actions">
           <Space wrap>

@@ -529,6 +529,54 @@ export const kpisApi = {
     api.get<KpiResultResponse[]>(`/performance/kpis/assignments/${id}/history`).then((r) => r.data),
 }
 
+// ─── Competency assessment (HCM_12 M393) ─────────────────────────────────────
+
+export interface CompetencyAssessment {
+  id: string
+  reviewId: string
+  competencyId: string
+  competencyCode?: string | null
+  competencyName?: string | null
+  category?: string | null
+  requiredLevel?: number | null
+  selfLevel?: number | null
+  managerLevel?: number | null
+  finalLevel?: number | null
+  /** §17.3 — required − final; positive = development need. */
+  gap?: number | null
+  comment?: string | null
+  updatedAt: string
+}
+
+export const competencyAssessmentsApi = {
+  list: (reviewId: string) =>
+    api
+      .get<CompetencyAssessment[]>(`/performance/reviews/${reviewId}/competencies`)
+      .then((r) => r.data),
+  init: (reviewId: string) =>
+    api
+      .post<CompetencyAssessment[]>(`/performance/reviews/${reviewId}/competencies/init`)
+      .then((r) => r.data),
+  add: (reviewId: string, competencyId: string, requiredLevel?: number) =>
+    api
+      .post<CompetencyAssessment>(`/performance/reviews/${reviewId}/competencies`, {
+        competencyId,
+        requiredLevel,
+      })
+      .then((r) => r.data),
+  rate: (
+    reviewId: string,
+    assessmentId: string,
+    req: { selfLevel?: number; managerLevel?: number; finalLevel?: number; comment?: string },
+  ) =>
+    api
+      .post<CompetencyAssessment>(
+        `/performance/reviews/${reviewId}/competencies/${assessmentId}/rate`,
+        req,
+      )
+      .then((r) => r.data),
+}
+
 // ─── OKR (HCM_12 M391) ────────────────────────────────────────────────────────
 
 export type OkrLevel =
