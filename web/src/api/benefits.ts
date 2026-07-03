@@ -338,6 +338,14 @@ export const benefitsApi = {
     api
       .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/terminate`, req)
       .then((r) => r.data),
+  submit: (id: string) =>
+    api
+      .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/submit`)
+      .then((r) => r.data),
+  cancel: (id: string) =>
+    api
+      .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/cancel`)
+      .then((r) => r.data),
   suspend: (id: string) =>
     api
       .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/suspend`)

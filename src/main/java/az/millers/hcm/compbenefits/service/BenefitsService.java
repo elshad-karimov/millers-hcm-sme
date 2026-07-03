@@ -11,7 +11,14 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
@@ -41,6 +48,12 @@ import az.millers.hcm.corehr.domain.EmployeeDependent;
 import az.millers.hcm.corehr.repo.EmployeeDependentRepository;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.workflow.api.dto.ActionRequest;
+import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
+import az.millers.hcm.workflow.domain.ActionType;
+import az.millers.hcm.workflow.domain.WorkflowInstance;
+import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
+import az.millers.hcm.workflow.service.WorkflowService;
 
 /**
  * M108 — Benefits administration: plan catalog CRUD + employee enrolment
@@ -50,9 +63,12 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class BenefitsService {
 
+    private static final Logger log = LoggerFactory.getLogger(BenefitsService.class);
+
     private static final String MODULE = "COMP_BENEFITS";
     private static final String PLAN_ENTITY = "BenefitPlan";
     private static final String ENROLLMENT_ENTITY = "BenefitEnrollment";
+    public static final String WORKFLOW_DEFINITION = "BENEFIT_ENROLLMENT_APPROVAL";
 
     private final BenefitPlanRepository plans;
     private final BenefitEnrollmentRepository enrollments;
@@ -62,8 +78,10 @@ public class BenefitsService {
     private final EmployeeDependentRepository dependents;
     private final BenefitEnrollmentDependentRepository enrollmentDependents;
     private final EmployeeRepository employees;
+    private final WorkflowService workflows;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final TransactionTemplate requiresNew;
 
     public BenefitsService(BenefitPlanRepository plans,
                            BenefitEnrollmentRepository enrollments,
@@ -73,8 +91,10 @@ public class BenefitsService {
                            EmployeeDependentRepository dependents,
                            BenefitEnrollmentDependentRepository enrollmentDependents,
                            EmployeeRepository employees,
+                           WorkflowService workflows,
                            AuditService audit,
-                           CurrentRequest currentRequest) {
+                           CurrentRequest currentRequest,
+                           PlatformTransactionManager txManager) {
         this.plans = plans;
         this.enrollments = enrollments;
         this.providers = providers;
@@ -83,8 +103,11 @@ public class BenefitsService {
         this.dependents = dependents;
         this.enrollmentDependents = enrollmentDependents;
         this.employees = employees;
+        this.workflows = workflows;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.requiresNew = new TransactionTemplate(txManager);
+        this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /** Resolve a provider's display name, or null if unset / not found. */
@@ -344,6 +367,9 @@ public class BenefitsService {
         audit.record(MODULE, ENROLLMENT_ENTITY, saved.getId().toString(),
                 targetStatus == EnrollmentStatus.WAIVED ? "WAIVE" : "ENROL",
                 null, response);
+        if (saved.getStatus() == EnrollmentStatus.ENROLLED) {
+            onEnrollmentActivated(saved);
+        }
         return response;
     }
 
@@ -383,6 +409,7 @@ public class BenefitsService {
         e.setStatus(EnrollmentStatus.SUSPENDED);
         BenefitEnrollment saved = enrollments.save(e);
         audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "SUSPEND", null, saved.getStatus());
+        onEnrollmentDeactivated(saved);
         return decorateOne(saved);
     }
 
@@ -397,11 +424,131 @@ public class BenefitsService {
         e.setStatus(EnrollmentStatus.ENROLLED);
         BenefitEnrollment saved = enrollments.save(e);
         audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "RESUME", null, saved.getStatus());
+        onEnrollmentActivated(saved);
         return decorateOne(saved);
     }
 
     private EnrollmentResponse decorateOne(BenefitEnrollment e) {
         return decorate(List.of(e)).get(0);
+    }
+
+    // -------------------------------------------------------------------------
+    // M377 — enrollment approval workflow
+    // -------------------------------------------------------------------------
+
+    /** Submit a DRAFT enrollment for HR approval (starts the workflow). */
+    @Transactional
+    public EnrollmentResponse submit(UUID id) {
+        BenefitEnrollment e = enrollments.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrolment not found: " + id));
+        if (e.getStatus() != EnrollmentStatus.DRAFT) {
+            throw new BadRequestException("Only DRAFT enrolments can be submitted (current: " + e.getStatus() + ")");
+        }
+        Employee emp = employees.findById(e.getEmployeeId()).orElse(null);
+        BenefitPlan plan = plans.findById(e.getPlanId()).orElse(null);
+        String who = emp == null ? e.getEmployeeId().toString() : (emp.getFirstName() + " " + emp.getLastName());
+        String what = plan == null ? "benefit plan" : plan.getName();
+
+        WorkflowInstance instance = workflows.start(new StartWorkflowRequest(
+                WORKFLOW_DEFINITION, MODULE, ENROLLMENT_ENTITY, e.getId().toString(),
+                "Benefit enrollment: " + who + " → " + what,
+                Map.of(
+                        "employeeId", e.getEmployeeId().toString(),
+                        "planId", e.getPlanId().toString(),
+                        "employeeContribution", e.getEmployeeContribution().toPlainString()
+                )));
+
+        e.setWorkflowInstanceId(instance.getId());
+        e.setStatus(EnrollmentStatus.PENDING_APPROVAL);
+        BenefitEnrollment saved = enrollments.save(e);
+        audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "SUBMIT",
+                null, Map.of("workflowInstanceId", instance.getId().toString()));
+        return decorateOne(saved);
+    }
+
+    /** Cancel a DRAFT / PENDING_APPROVAL enrollment before it becomes active. */
+    @Transactional
+    public EnrollmentResponse cancelDraft(UUID id) {
+        BenefitEnrollment e = enrollments.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrolment not found: " + id));
+        if (e.getStatus() != EnrollmentStatus.DRAFT && e.getStatus() != EnrollmentStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Only DRAFT or PENDING_APPROVAL enrolments can be cancelled");
+        }
+        if (e.getWorkflowInstanceId() != null) {
+            try {
+                workflows.act(e.getWorkflowInstanceId(),
+                        new ActionRequest(ActionType.CANCEL, "Cancelled by requestor", null, null));
+            } catch (Exception ex) {
+                log.warn("Failed to cancel benefit-enrollment workflow {}: {}",
+                        e.getWorkflowInstanceId(), ex.getMessage());
+            }
+        }
+        e.setStatus(EnrollmentStatus.CANCELLED);
+        BenefitEnrollment saved = enrollments.save(e);
+        audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "CANCEL", null, saved.getStatus());
+        return decorateOne(saved);
+    }
+
+    /**
+     * Workflow completion listener (AFTER_COMMIT, REQUIRES_NEW per the compensation pattern).
+     * On APPROVED → the enrollment becomes ENROLLED (active); REJECTED → REJECTED.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onWorkflowCompleted(WorkflowCompletedEvent event) {
+        if (!WORKFLOW_DEFINITION.equals(event.definitionCode())) return;
+        if (!ENROLLMENT_ENTITY.equals(event.subjectEntity())) return;
+
+        UUID enrollmentId = UUID.fromString(event.subjectId());
+        requiresNew.executeWithoutResult(status -> {
+            BenefitEnrollment e = enrollments.findById(enrollmentId).orElse(null);
+            if (e == null) {
+                log.warn("Benefit enrollment not found for workflow completion: {}", enrollmentId);
+                return;
+            }
+            // Idempotent — only act on a still-pending enrollment.
+            if (e.getStatus() != EnrollmentStatus.PENDING_APPROVAL) return;
+
+            switch (event.status()) {
+                case APPROVED, AUTO_APPROVED -> {
+                    e.setStatus(EnrollmentStatus.ENROLLED);
+                    enrollments.save(e);
+                    audit.record(MODULE, ENROLLMENT_ENTITY, enrollmentId.toString(), "APPROVED",
+                            null, EnrollmentStatus.ENROLLED);
+                    onEnrollmentActivated(e);
+                    log.info("Benefit enrollment {} approved and activated", enrollmentId);
+                }
+                case REJECTED, RETURNED -> {
+                    e.setStatus(EnrollmentStatus.REJECTED);
+                    enrollments.save(e);
+                    audit.record(MODULE, ENROLLMENT_ENTITY, enrollmentId.toString(), "REJECTED",
+                            null, EnrollmentStatus.REJECTED);
+                }
+                case CANCELLED -> {
+                    e.setStatus(EnrollmentStatus.CANCELLED);
+                    enrollments.save(e);
+                    audit.record(MODULE, ENROLLMENT_ENTITY, enrollmentId.toString(), "CANCELLED",
+                            null, EnrollmentStatus.CANCELLED);
+                }
+                default -> log.warn("Unexpected workflow status {} for benefit enrollment {}",
+                        event.status(), enrollmentId);
+            }
+        });
+    }
+
+    /**
+     * Hook invoked when an enrollment becomes ENROLLED (active) — both direct enrol and
+     * post-approval. M378 wires the payroll-deduction bridge here.
+     */
+    protected void onEnrollmentActivated(BenefitEnrollment e) {
+        // M378: create the recurring payroll deduction for the employee contribution.
+    }
+
+    /**
+     * Hook invoked when an active enrollment is suspended or terminated. M378 cancels the
+     * payroll deduction here.
+     */
+    protected void onEnrollmentDeactivated(BenefitEnrollment e) {
+        // M378: cancel the recurring payroll deduction.
     }
 
     @Transactional
@@ -431,6 +578,7 @@ public class BenefitsService {
         EnrollmentResponse response = EnrollmentResponse.from(saved, plan, name);
         audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "TERMINATE",
                 before, response);
+        onEnrollmentDeactivated(saved);
         return response;
     }
 

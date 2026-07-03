@@ -106,6 +106,18 @@ public class BenefitsController {
         return service.terminate(id, req);
     }
 
+    @PostMapping("/enrollments/{id}/submit")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public EnrollmentResponse submit(@PathVariable UUID id) {
+        return service.submit(id);
+    }
+
+    @PostMapping("/enrollments/{id}/cancel")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public EnrollmentResponse cancel(@PathVariable UUID id) {
+        return service.cancelDraft(id);
+    }
+
     @PostMapping("/enrollments/{id}/suspend")
     @PreAuthorize(SecurityRoles.WRITE_HR)
     public EnrollmentResponse suspend(@PathVariable UUID id) {

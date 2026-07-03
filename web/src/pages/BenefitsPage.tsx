@@ -1190,6 +1190,18 @@ function EnrolmentsTab() {
     }
   }
 
+  const doSubmitCancel = async (r: EnrollmentResponse, action: 'submit' | 'cancel') => {
+    try {
+      await (action === 'submit' ? benefitsApi.submit(r.id) : benefitsApi.cancel(r.id))
+      message.success(action === 'submit' ? 'Submitted for approval' : 'Enrolment cancelled')
+      load()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed',
+      )
+    }
+  }
+
   const cols: ColumnsType<EnrollmentResponse> = [
     {
       title: 'Employee',
@@ -1264,6 +1276,14 @@ function EnrolmentsTab() {
         const ended = r.status === 'TERMINATED' || r.status === 'CANCELLED' || r.status === 'REJECTED'
         return (
           <Space size={4}>
+            {r.status === 'DRAFT' && (
+              <Button size="small" type="primary" onClick={() => doSubmitCancel(r, 'submit')}>Submit</Button>
+            )}
+            {(r.status === 'DRAFT' || r.status === 'PENDING_APPROVAL') && (
+              <Popconfirm title="Cancel this enrolment?" onConfirm={() => doSubmitCancel(r, 'cancel')}>
+                <Button size="small">Cancel</Button>
+              </Popconfirm>
+            )}
             {r.status === 'ENROLLED' && (
               <Popconfirm title="Suspend this enrolment?" onConfirm={() => doSuspendResume(r, 'suspend')}>
                 <Button size="small">Suspend</Button>
@@ -1365,7 +1385,8 @@ function EnrolmentsTab() {
             <Col span={8}>
               <Form.Item name="status" label="Status">
                 <Select options={[
-                  { value: 'ENROLLED', label: 'Enrolled' },
+                  { value: 'ENROLLED', label: 'Enrolled (active now)' },
+                  { value: 'DRAFT', label: 'Draft (submit for approval)' },
                   { value: 'WAIVED', label: 'Waived (offered, declined)' },
                 ]} />
               </Form.Item>

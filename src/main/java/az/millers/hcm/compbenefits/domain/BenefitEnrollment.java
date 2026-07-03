@@ -85,6 +85,10 @@ public class BenefitEnrollment {
     @Column(name = "termination_reason", columnDefinition = "text")
     private String terminationReason;
 
+    /** M377 — the running approval workflow, if this enrollment went through approval. */
+    @Column(name = "workflow_instance_id")
+    private UUID workflowInstanceId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
