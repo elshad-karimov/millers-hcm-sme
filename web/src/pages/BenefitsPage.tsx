@@ -36,11 +36,15 @@ import {
   BENEFIT_TYPE_LABEL,
   COVERAGE_TIER_LABEL,
   ENROLLMENT_STATUS_COLOR,
+  LIFE_EVENT_LABEL,
+  LIFE_EVENT_STATUS_COLOR,
   PROVIDER_TYPE_LABEL,
   benefitCategoriesApi,
   benefitPlanConfigApi,
   benefitProvidersApi,
   benefitsApi,
+  lifeEventsApi,
+  openEnrollmentApi,
   type BenefitCategoryRequest,
   type BenefitCategoryResponse,
   type BenefitProviderRequest,
@@ -52,6 +56,11 @@ import {
   type EnrollmentRequest,
   type EnrollmentResponse,
   type EnrollmentStatus,
+  type LifeEventRequest,
+  type LifeEventResponse,
+  type LifeEventType,
+  type OpenEnrollmentWindowRequest,
+  type OpenEnrollmentWindowResponse,
   type PlanRequest,
   type PlanResponse,
   type PlanTier,
@@ -1539,6 +1548,274 @@ function MyBenefitsTab() {
   )
 }
 
+// ─── Open enrollment tab (HCM_11 M379) ───────────────────────────────────────
+
+const LIFE_EVENT_OPTIONS: { value: LifeEventType; label: string }[] = (
+  Object.keys(LIFE_EVENT_LABEL) as LifeEventType[]
+).map((k) => ({ value: k, label: LIFE_EVENT_LABEL[k] }))
+
+function OpenEnrollmentTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
+
+  const [rows, setRows] = useState<OpenEnrollmentWindowResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<OpenEnrollmentWindowResponse | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<{
+    planYear: number
+    name: string
+    window: [ReturnType<typeof dayjs>, ReturnType<typeof dayjs>]
+    notes?: string
+    active: boolean
+  }>()
+
+  const load = () => {
+    setLoading(true)
+    openEnrollmentApi.listWindows(false)
+      .then(setRows)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load windows'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [])
+
+  const startCreate = () => {
+    setEditing(null)
+    form.resetFields()
+    form.setFieldsValue({ planYear: dayjs().year(), active: true })
+    setOpen(true)
+  }
+  const startEdit = (w: OpenEnrollmentWindowResponse) => {
+    setEditing(w)
+    form.setFieldsValue({
+      planYear: w.planYear,
+      name: w.name,
+      window: [dayjs(w.startDate), dayjs(w.endDate)],
+      notes: w.notes ?? undefined,
+      active: w.active,
+    })
+    setOpen(true)
+  }
+  const submit = async () => {
+    const v = await form.validateFields()
+    const req: OpenEnrollmentWindowRequest = {
+      planYear: v.planYear,
+      name: v.name,
+      startDate: v.window[0].format('YYYY-MM-DD'),
+      endDate: v.window[1].format('YYYY-MM-DD'),
+      notes: v.notes,
+      active: v.active,
+    }
+    setSaving(true)
+    try {
+      if (editing) { await openEnrollmentApi.updateWindow(editing.id, req); message.success('Window updated') }
+      else { await openEnrollmentApi.createWindow(req); message.success('Window created') }
+      setOpen(false); load()
+    } catch (e) {
+      message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Save failed')
+    } finally { setSaving(false) }
+  }
+
+  const cols: ColumnsType<OpenEnrollmentWindowResponse> = [
+    { title: 'Plan year', dataIndex: 'planYear', width: 100, align: 'center' },
+    { title: 'Name', dataIndex: 'name', render: (v, r) => <a onClick={() => canEdit && startEdit(r)}>{v}</a> },
+    { title: 'Window', render: (_, r) => `${r.startDate} → ${r.endDate}` },
+    {
+      title: 'Open now',
+      width: 110,
+      align: 'center',
+      render: (_, r) => (r.openNow ? <Tag color="green">OPEN</Tag> : <Tag>closed</Tag>),
+    },
+    {
+      title: 'Status',
+      width: 90,
+      align: 'center',
+      render: (_, r) => (r.active ? <Tag color="blue">Active</Tag> : <Tag>Inactive</Tag>),
+    },
+  ]
+
+  if (loading) return <Spin />
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        Open-enrollment windows define when employees may elect / change benefits for a plan year.
+        HR can always enrol; this governs employee self-election.
+      </Paragraph>
+      {canEdit && <div><Button type="primary" onClick={startCreate}>New window…</Button></div>}
+      <Card>
+        <Table rowKey="id" columns={cols} dataSource={rows} size="small" pagination={false}
+          locale={{ emptyText: <Empty description="No open-enrollment windows" /> }} />
+      </Card>
+      <Modal open={open} title={editing ? `Edit window — ${editing.name}` : 'New open-enrollment window'}
+        onCancel={() => setOpen(false)} onOk={submit} confirmLoading={saving} okText={editing ? 'Save' : 'Create'}>
+        <Form form={form} layout="vertical">
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item name="planYear" label="Plan year" rules={[{ required: true }]}>
+                <InputNumber min={2000} max={2100} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+                <Input placeholder="2026 Annual Open Enrollment" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="window" label="Window (start / end)" rules={[{ required: true }]}>
+            <DatePicker.RangePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={18}><Form.Item name="notes" label="Notes"><Input.TextArea rows={2} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="active" label="Active" valuePropName="checked"><Switch /></Form.Item></Col>
+          </Row>
+        </Form>
+      </Modal>
+    </Space>
+  )
+}
+
+// ─── Life events tab (HCM_11 M380) ───────────────────────────────────────────
+
+function LifeEventsTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canEdit = hasRole(...RoleSets.HR_WRITE)
+
+  const [rows, setRows] = useState<LifeEventResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined)
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<{
+    employeeId: string
+    eventType: LifeEventType
+    eventDate: ReturnType<typeof dayjs>
+    windowDays?: number
+    notes?: string
+  }>()
+
+  const load = () => {
+    setLoading(true)
+    lifeEventsApi.list({ status: filterStatus })
+      .then(setRows)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load life events'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [filterStatus])
+
+  const startReport = () => {
+    form.resetFields()
+    form.setFieldsValue({ eventType: 'MARRIAGE', eventDate: dayjs(), windowDays: 30 })
+    setOpen(true)
+  }
+  const submit = async () => {
+    const v = await form.validateFields()
+    const req: LifeEventRequest = {
+      employeeId: v.employeeId,
+      eventType: v.eventType,
+      eventDate: v.eventDate.format('YYYY-MM-DD'),
+      windowDays: v.windowDays ?? 30,
+      notes: v.notes,
+    }
+    setSaving(true)
+    try { await lifeEventsApi.report(req); message.success('Life event reported'); setOpen(false); load() }
+    catch (e) { message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed') }
+    finally { setSaving(false) }
+  }
+  const review = async (r: LifeEventResponse, approve: boolean) => {
+    try {
+      await (approve ? lifeEventsApi.approve(r.id) : lifeEventsApi.reject(r.id))
+      message.success(approve ? 'Approved — special window open' : 'Rejected')
+      load()
+    } catch (e) {
+      message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed')
+    }
+  }
+
+  const cols: ColumnsType<LifeEventResponse> = [
+    { title: 'Employee', render: (_, r) => r.employeeName ?? r.employeeId.slice(0, 8) },
+    { title: 'Event', width: 140, render: (_, r) => <Tag>{LIFE_EVENT_LABEL[r.eventType]}</Tag> },
+    { title: 'Event date', dataIndex: 'eventDate', width: 120 },
+    { title: 'Window ends', dataIndex: 'windowEnd', width: 120 },
+    {
+      title: 'Special window',
+      width: 130,
+      align: 'center',
+      render: (_, r) => (r.windowOpenNow ? <Tag color="green">OPEN</Tag> : <Tag>closed</Tag>),
+    },
+    {
+      title: 'Status',
+      width: 110,
+      render: (_, r) => <Tag color={LIFE_EVENT_STATUS_COLOR[r.status]}>{r.status}</Tag>,
+    },
+    {
+      title: '',
+      width: 160,
+      render: (_, r) => canEdit && r.status === 'PENDING' ? (
+        <Space size={4}>
+          <Button size="small" type="primary" onClick={() => review(r, true)}>Approve</Button>
+          <Popconfirm title="Reject this event?" onConfirm={() => review(r, false)}>
+            <Button size="small" danger>Reject</Button>
+          </Popconfirm>
+        </Space>
+      ) : null,
+    },
+  ]
+
+  if (loading) return <Spin />
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        A qualifying life event (marriage, birth, …) opens a special enrolment window so the employee
+        can change benefits outside open enrolment. HR approves the reported event.
+      </Paragraph>
+      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Select style={{ width: 180 }} allowClear placeholder="All statuses" value={filterStatus}
+          onChange={setFilterStatus}
+          options={[
+            { value: 'PENDING', label: 'Pending' },
+            { value: 'APPROVED', label: 'Approved' },
+            { value: 'REJECTED', label: 'Rejected' },
+          ]} />
+        {canEdit && <Button type="primary" onClick={startReport}>Report life event…</Button>}
+      </Space>
+      <Card>
+        <Table rowKey="id" columns={cols} dataSource={rows} size="small" pagination={{ pageSize: 25 }}
+          locale={{ emptyText: <Empty description="No life events" /> }} />
+      </Card>
+      <Modal open={open} title="Report a qualifying life event" onCancel={() => setOpen(false)}
+        onOk={submit} confirmLoading={saving} okText="Report">
+        <Form form={form} layout="vertical">
+          <Form.Item name="employeeId" label="Employee ID" rules={[{ required: true }]}
+            extra="Paste the employee UUID from their profile page.">
+            <Input placeholder="00000000-0000-0000-0000-000000000000" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={10}>
+              <Form.Item name="eventType" label="Event type" rules={[{ required: true }]}>
+                <Select options={LIFE_EVENT_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="eventDate" label="Event date" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="windowDays" label="Window (days)">
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} /></Form.Item>
+        </Form>
+      </Modal>
+    </Space>
+  )
+}
+
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
 export function BenefitsPage() {
@@ -1552,6 +1829,8 @@ export function BenefitsPage() {
         { key: 'providers', label: 'Providers', children: <ProvidersTab /> },
         { key: 'plans', label: 'Plans catalog', children: <PlansTab /> },
         { key: 'enrolments', label: 'Enrolments', children: <EnrolmentsTab /> },
+        { key: 'openEnrollment', label: 'Open enrollment', children: <OpenEnrollmentTab /> },
+        { key: 'lifeEvents', label: 'Life events', children: <LifeEventsTab /> },
         { key: 'me', label: 'My benefits', children: <MyBenefitsTab /> },
       ]
     : [{ key: 'me', label: 'My benefits', children: <MyBenefitsTab /> }]

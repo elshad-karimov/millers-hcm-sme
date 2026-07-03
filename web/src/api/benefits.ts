@@ -310,6 +310,128 @@ export const benefitProvidersApi = {
       .then((r) => r.data),
 }
 
+// ─── Open enrollment (HCM_11 M379) ───────────────────────────────────────────
+
+export interface OpenEnrollmentWindowRequest {
+  planYear: number
+  name: string
+  startDate: string
+  endDate: string
+  notes?: string
+  active?: boolean
+}
+
+export interface OpenEnrollmentWindowResponse {
+  id: string
+  planYear: number
+  name: string
+  startDate: string
+  endDate: string
+  active: boolean
+  openNow: boolean
+  notes?: string | null
+  createdAt: string
+}
+
+export interface OpenEnrollmentStatus {
+  open: boolean
+  windowId?: string | null
+  windowName?: string | null
+  planYear?: number | null
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export const openEnrollmentApi = {
+  listWindows: (activeOnly = false) =>
+    api
+      .get<OpenEnrollmentWindowResponse[]>('/compbenefits/open-enrollment/windows', {
+        params: { activeOnly },
+      })
+      .then((r) => r.data),
+  status: () =>
+    api.get<OpenEnrollmentStatus>('/compbenefits/open-enrollment/status').then((r) => r.data),
+  createWindow: (req: OpenEnrollmentWindowRequest) =>
+    api
+      .post<OpenEnrollmentWindowResponse>('/compbenefits/open-enrollment/windows', req)
+      .then((r) => r.data),
+  updateWindow: (id: string, req: OpenEnrollmentWindowRequest) =>
+    api
+      .put<OpenEnrollmentWindowResponse>(`/compbenefits/open-enrollment/windows/${id}`, req)
+      .then((r) => r.data),
+}
+
+// ─── Qualifying life events (HCM_11 M380) ────────────────────────────────────
+
+export type LifeEventType =
+  | 'MARRIAGE'
+  | 'DIVORCE'
+  | 'BIRTH'
+  | 'ADOPTION'
+  | 'DEATH'
+  | 'DEPENDENT_LOSS'
+  | 'OTHER'
+
+export const LIFE_EVENT_LABEL: Record<LifeEventType, string> = {
+  MARRIAGE: 'Marriage',
+  DIVORCE: 'Divorce',
+  BIRTH: 'Birth',
+  ADOPTION: 'Adoption',
+  DEATH: 'Death',
+  DEPENDENT_LOSS: 'Loss of dependent',
+  OTHER: 'Other',
+}
+
+export type LifeEventStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CLOSED'
+
+export const LIFE_EVENT_STATUS_COLOR: Record<LifeEventStatus, string> = {
+  PENDING: 'gold',
+  APPROVED: 'green',
+  REJECTED: 'red',
+  CLOSED: 'default',
+}
+
+export interface LifeEventRequest {
+  employeeId: string
+  eventType: LifeEventType
+  eventDate: string
+  windowDays?: number
+  notes?: string
+}
+
+export interface LifeEventResponse {
+  id: string
+  employeeId: string
+  employeeName?: string | null
+  eventType: LifeEventType
+  eventDate: string
+  windowDays: number
+  windowEnd: string
+  windowOpenNow: boolean
+  status: LifeEventStatus
+  notes?: string | null
+  reportedBy?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNotes?: string | null
+  createdAt: string
+}
+
+export const lifeEventsApi = {
+  list: (params: { status?: string; employeeId?: string } = {}) =>
+    api.get<LifeEventResponse[]>('/compbenefits/life-events', { params }).then((r) => r.data),
+  report: (req: LifeEventRequest) =>
+    api.post<LifeEventResponse>('/compbenefits/life-events', req).then((r) => r.data),
+  approve: (id: string, reviewNotes?: string) =>
+    api
+      .post<LifeEventResponse>(`/compbenefits/life-events/${id}/approve`, { reviewNotes })
+      .then((r) => r.data),
+  reject: (id: string, reviewNotes?: string) =>
+    api
+      .post<LifeEventResponse>(`/compbenefits/life-events/${id}/reject`, { reviewNotes })
+      .then((r) => r.data),
+}
+
 export const benefitsApi = {
   listPlans: (activeOnly = false) =>
     api
