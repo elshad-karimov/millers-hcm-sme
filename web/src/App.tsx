@@ -110,6 +110,7 @@ import { CalibrationPage } from './pages/performance/CalibrationPage'
 import { RatingScalesPage } from './pages/performance/RatingScalesPage'
 import { ReviewTemplatesPage } from './pages/performance/ReviewTemplatesPage'
 import { KpiPage } from './pages/performance/KpiPage'
+import { OkrPage } from './pages/performance/OkrPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
@@ -313,6 +314,8 @@ export default function App() {
           <Route path="performance/templates" element={<ReviewTemplatesPage />} />
           {/* HCM_12 M390 — KPI library + assignments */}
           <Route path="performance/kpis" element={<KpiPage />} />
+          {/* HCM_12 M391 — OKR objectives + key results */}
+          <Route path="performance/okrs" element={<OkrPage />} />
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />

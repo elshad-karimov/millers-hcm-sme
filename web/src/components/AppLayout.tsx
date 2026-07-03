@@ -828,6 +828,11 @@ export function AppLayout() {
                 label: <Link to="/performance/kpis">KPIs</Link>,
               },
               {
+                key: 'performance-okrs',
+                icon: <BarChartOutlined />,
+                label: <Link to="/performance/okrs">OKRs</Link>,
+              },
+              {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
                 label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,

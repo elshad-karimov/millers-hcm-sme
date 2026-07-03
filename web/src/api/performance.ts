@@ -512,6 +512,131 @@ export const kpisApi = {
     api.get<KpiResultResponse[]>(`/performance/kpis/assignments/${id}/history`).then((r) => r.data),
 }
 
+// ─── OKR (HCM_12 M391) ────────────────────────────────────────────────────────
+
+export type OkrLevel =
+  | 'COMPANY'
+  | 'LEGAL_ENTITY'
+  | 'BUSINESS_UNIT'
+  | 'DEPARTMENT'
+  | 'TEAM'
+  | 'INDIVIDUAL'
+export type OkrStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'CANCELLED'
+export type OkrConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
+export type OkrMeasurementType = 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'BOOLEAN'
+export type OkrKrStatus = 'ACTIVE' | 'DONE' | 'AT_RISK' | 'CANCELLED'
+
+export const OKR_LEVEL_LABEL: Record<OkrLevel, string> = {
+  COMPANY: 'Company',
+  LEGAL_ENTITY: 'Legal entity',
+  BUSINESS_UNIT: 'Business unit',
+  DEPARTMENT: 'Department',
+  TEAM: 'Team',
+  INDIVIDUAL: 'Individual',
+}
+
+export interface OkrObjectiveRequest {
+  title: string
+  description?: string
+  okrLevel: OkrLevel
+  parentId?: string | null
+  ownerEmployeeId?: string | null
+  orgUnitId?: string | null
+  legalEntityId?: string | null
+  cycleId?: string | null
+  periodStart?: string | null
+  periodEnd?: string | null
+  dueDate?: string | null
+  confidence?: OkrConfidence | null
+}
+
+export interface OkrKeyResultRequest {
+  title: string
+  measurementType?: OkrMeasurementType
+  baselineValue?: number
+  targetValue: number
+  weightPercent?: number
+  confidence?: OkrConfidence | null
+  ownerEmployeeId?: string | null
+  dueDate?: string | null
+}
+
+export interface OkrCheckInRequest {
+  keyResultId?: string
+  currentValue?: number
+  confidence?: OkrConfidence
+  status?: OkrKrStatus
+  comment?: string
+}
+
+export interface OkrKeyResultResponse {
+  id: string
+  title: string
+  measurementType: OkrMeasurementType
+  baselineValue: number
+  targetValue: number
+  currentValue?: number | null
+  progressPercent: number
+  weightPercent: number
+  confidence?: OkrConfidence | null
+  ownerEmployeeId?: string | null
+  dueDate?: string | null
+  status: OkrKrStatus
+}
+
+export interface OkrObjectiveResponse {
+  id: string
+  title: string
+  description?: string | null
+  okrLevel: OkrLevel
+  parentId?: string | null
+  parentTitle?: string | null
+  ownerEmployeeId?: string | null
+  ownerName?: string | null
+  orgUnitId?: string | null
+  legalEntityId?: string | null
+  cycleId?: string | null
+  periodStart?: string | null
+  periodEnd?: string | null
+  dueDate?: string | null
+  status: OkrStatus
+  progressPercent: number
+  confidence?: OkrConfidence | null
+  keyResults: OkrKeyResultResponse[]
+  createdAt: string
+}
+
+export interface OkrCheckInResponse {
+  id: string
+  keyResultId?: string | null
+  oldValue?: number | null
+  newValue?: number | null
+  confidence?: OkrConfidence | null
+  comment?: string | null
+  recordedBy?: string | null
+  recordedAt: string
+}
+
+export const okrsApi = {
+  list: (params: { cycleId?: string; level?: OkrLevel; ownerEmployeeId?: string } = {}) =>
+    api.get<OkrObjectiveResponse[]>('/performance/okrs', { params }).then((r) => r.data),
+  get: (id: string) => api.get<OkrObjectiveResponse>(`/performance/okrs/${id}`).then((r) => r.data),
+  create: (req: OkrObjectiveRequest) =>
+    api.post<OkrObjectiveResponse>('/performance/okrs', req).then((r) => r.data),
+  update: (id: string, req: OkrObjectiveRequest) =>
+    api.put<OkrObjectiveResponse>(`/performance/okrs/${id}`, req).then((r) => r.data),
+  changeStatus: (id: string, status: OkrStatus) =>
+    api.post<OkrObjectiveResponse>(`/performance/okrs/${id}/status/${status}`).then((r) => r.data),
+  addKeyResult: (id: string, req: OkrKeyResultRequest) =>
+    api.post<OkrKeyResultResponse>(`/performance/okrs/${id}/key-results`, req).then((r) => r.data),
+  updateKeyResult: (krId: string, req: OkrKeyResultRequest) =>
+    api.put<OkrKeyResultResponse>(`/performance/okrs/key-results/${krId}`, req).then((r) => r.data),
+  checkIn: (id: string, req: OkrCheckInRequest) =>
+    api.post<OkrObjectiveResponse>(`/performance/okrs/${id}/check-ins`, req).then((r) => r.data),
+  checkIns: (id: string) =>
+    api.get<OkrCheckInResponse[]>(`/performance/okrs/${id}/check-ins`).then((r) => r.data),
+}
+
 export const performanceApi = {
   cycles: (status?: CycleStatus) =>
     api.get<ReviewCycle[]>('/performance/cycles', { params: { status } }).then((r) => r.data),
