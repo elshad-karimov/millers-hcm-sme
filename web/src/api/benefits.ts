@@ -19,6 +19,8 @@ export interface PlanRequest {
   name: string
   description?: string
   benefitType: BenefitType
+  categoryId?: string | null
+  planYear?: number | null
   provider?: string
   providerId?: string | null
   coverageDetails?: string
@@ -37,6 +39,9 @@ export interface PlanResponse {
   name: string
   description?: string | null
   benefitType: BenefitType
+  categoryId?: string | null
+  categoryName?: string | null
+  planYear?: number | null
   provider?: string | null
   providerId?: string | null
   providerName?: string | null
@@ -153,6 +158,65 @@ export const benefitCategoriesApi = {
   update: (id: string, req: BenefitCategoryRequest) =>
     api
       .put<BenefitCategoryResponse>(`/compbenefits/benefit-categories/${id}`, req)
+      .then((r) => r.data),
+}
+
+// ─── Plan coverage tiers + eligibility rules (HCM_11 M375) ───────────────────
+
+export type CoverageTier =
+  | 'EMPLOYEE_ONLY'
+  | 'EMPLOYEE_SPOUSE'
+  | 'EMPLOYEE_CHILDREN'
+  | 'FAMILY'
+  | 'CUSTOM'
+
+export const COVERAGE_TIER_LABEL: Record<CoverageTier, string> = {
+  EMPLOYEE_ONLY: 'Employee only',
+  EMPLOYEE_SPOUSE: 'Employee + spouse',
+  EMPLOYEE_CHILDREN: 'Employee + children',
+  FAMILY: 'Family',
+  CUSTOM: 'Custom',
+}
+
+export interface PlanTier {
+  id?: string
+  planId?: string
+  tierCode: CoverageTier
+  tierLabel?: string | null
+  employerContribution?: number
+  employeeContribution?: number
+  coverageAmount?: number | null
+  displayOrder?: number
+  active?: boolean
+}
+
+export interface EligibilityRule {
+  id?: string
+  planId?: string
+  employmentType?: string | null
+  departmentId?: string | null
+  orgUnitId?: string | null
+  gradeId?: string | null
+  employeeCategory?: string | null
+  minServiceMonths?: number | null
+  description?: string | null
+  active?: boolean
+}
+
+export const benefitPlanConfigApi = {
+  listTiers: (planId: string) =>
+    api.get<PlanTier[]>(`/compbenefits/benefits/plans/${planId}/tiers`).then((r) => r.data),
+  replaceTiers: (planId: string, tiers: PlanTier[]) =>
+    api
+      .put<PlanTier[]>(`/compbenefits/benefits/plans/${planId}/tiers`, { tiers })
+      .then((r) => r.data),
+  listRules: (planId: string) =>
+    api
+      .get<EligibilityRule[]>(`/compbenefits/benefits/plans/${planId}/eligibility-rules`)
+      .then((r) => r.data),
+  replaceRules: (planId: string, rules: EligibilityRule[]) =>
+    api
+      .put<EligibilityRule[]>(`/compbenefits/benefits/plans/${planId}/eligibility-rules`, { rules })
       .then((r) => r.data),
 }
 

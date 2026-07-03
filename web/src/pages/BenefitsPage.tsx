@@ -34,9 +34,11 @@ import dayjs from 'dayjs'
 import {
   BENEFIT_TYPE_COLOR,
   BENEFIT_TYPE_LABEL,
+  COVERAGE_TIER_LABEL,
   ENROLLMENT_STATUS_COLOR,
   PROVIDER_TYPE_LABEL,
   benefitCategoriesApi,
+  benefitPlanConfigApi,
   benefitProvidersApi,
   benefitsApi,
   type BenefitCategoryRequest,
@@ -45,11 +47,14 @@ import {
   type BenefitProviderResponse,
   type BenefitProviderType,
   type BenefitType,
+  type CoverageTier,
+  type EligibilityRule,
   type EnrollmentRequest,
   type EnrollmentResponse,
   type EnrollmentStatus,
   type PlanRequest,
   type PlanResponse,
+  type PlanTier,
 } from '../api/benefits'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -497,6 +502,194 @@ function ProvidersTab() {
   )
 }
 
+// ─── Plan config modal: coverage tiers + eligibility rules (HCM_11 M375) ─────
+
+const COVERAGE_TIER_OPTIONS: { value: CoverageTier; label: string }[] = (
+  Object.keys(COVERAGE_TIER_LABEL) as CoverageTier[]
+).map((k) => ({ value: k, label: COVERAGE_TIER_LABEL[k] }))
+
+function PlanConfigModal({
+  plan,
+  open,
+  canEdit,
+  onClose,
+}: {
+  plan: PlanResponse | null
+  open: boolean
+  canEdit: boolean
+  onClose: () => void
+}) {
+  const { message } = AntdApp.useApp()
+  const [tiers, setTiers] = useState<PlanTier[]>([])
+  const [rules, setRules] = useState<EligibilityRule[]>([])
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!plan || !open) return
+    setLoading(true)
+    Promise.all([
+      benefitPlanConfigApi.listTiers(plan.id),
+      benefitPlanConfigApi.listRules(plan.id),
+    ])
+      .then(([t, r]) => { setTiers(t); setRules(r) })
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load plan config'))
+      .finally(() => setLoading(false))
+  }, [plan, open, message])
+
+  const addTier = () =>
+    setTiers((cur) => [
+      ...cur,
+      { tierCode: 'EMPLOYEE_ONLY', employerContribution: 0, employeeContribution: 0, active: true },
+    ])
+  const patchTier = (i: number, patch: Partial<PlanTier>) =>
+    setTiers((cur) => cur.map((t, idx) => (idx === i ? { ...t, ...patch } : t)))
+  const removeTier = (i: number) => setTiers((cur) => cur.filter((_, idx) => idx !== i))
+
+  const addRule = () => setRules((cur) => [...cur, { active: true }])
+  const patchRule = (i: number, patch: Partial<EligibilityRule>) =>
+    setRules((cur) => cur.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  const removeRule = (i: number) => setRules((cur) => cur.filter((_, idx) => idx !== i))
+
+  const save = async () => {
+    if (!plan) return
+    const codes = tiers.map((t) => t.tierCode)
+    if (new Set(codes).size !== codes.length) {
+      message.error('Each coverage tier code must be unique')
+      return
+    }
+    setSaving(true)
+    try {
+      await benefitPlanConfigApi.replaceTiers(plan.id, tiers)
+      await benefitPlanConfigApi.replaceRules(plan.id, rules)
+      message.success('Plan configuration saved')
+      onClose()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Save failed',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      title={plan ? `Coverage tiers & eligibility — ${plan.code}` : ''}
+      width={840}
+      onCancel={onClose}
+      onOk={canEdit ? save : onClose}
+      confirmLoading={saving}
+      okText={canEdit ? 'Save' : 'Close'}
+      cancelButtonProps={{ style: { display: canEdit ? undefined : 'none' } }}
+    >
+      {loading ? (
+        <Spin />
+      ) : (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div>
+            <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+              <Text strong>Coverage tiers</Text>
+              {canEdit && <Button size="small" onClick={addTier}>Add tier</Button>}
+            </Space>
+            <Paragraph type="secondary" style={{ fontSize: 12, margin: '4px 0' }}>
+              Per-tier employer/employee split. No tiers = the plan's flat contribution applies.
+            </Paragraph>
+            {tiers.length === 0 && <Empty description="No tiers — flat contribution used" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            {tiers.map((t, i) => (
+              <Row gutter={8} key={i} align="middle" style={{ marginBottom: 6 }}>
+                <Col span={6}>
+                  <Select
+                    style={{ width: '100%' }}
+                    value={t.tierCode}
+                    disabled={!canEdit}
+                    options={COVERAGE_TIER_OPTIONS}
+                    onChange={(v) => patchTier(i, { tierCode: v })}
+                  />
+                </Col>
+                <Col span={5}>
+                  <InputNumber
+                    style={{ width: '100%' }} min={0} precision={2} disabled={!canEdit}
+                    addonBefore="Er" value={t.employerContribution}
+                    onChange={(v) => patchTier(i, { employerContribution: v ?? 0 })}
+                  />
+                </Col>
+                <Col span={5}>
+                  <InputNumber
+                    style={{ width: '100%' }} min={0} precision={2} disabled={!canEdit}
+                    addonBefore="Ee" value={t.employeeContribution}
+                    onChange={(v) => patchTier(i, { employeeContribution: v ?? 0 })}
+                  />
+                </Col>
+                <Col span={6}>
+                  <InputNumber
+                    style={{ width: '100%' }} min={0} precision={2} disabled={!canEdit}
+                    addonBefore="Cover" placeholder="sum insured"
+                    value={t.coverageAmount ?? undefined}
+                    onChange={(v) => patchTier(i, { coverageAmount: v })}
+                  />
+                </Col>
+                <Col span={2}>
+                  {canEdit && <Button size="small" danger onClick={() => removeTier(i)}>✕</Button>}
+                </Col>
+              </Row>
+            ))}
+          </div>
+
+          <div>
+            <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+              <Text strong>Eligibility rules</Text>
+              {canEdit && <Button size="small" onClick={addRule}>Add rule</Button>}
+            </Space>
+            <Paragraph type="secondary" style={{ fontSize: 12, margin: '4px 0' }}>
+              Each rule is a set of AND-ed conditions; an employee is eligible if ANY rule matches.
+              No rules = open to everyone. Blank field = "any".
+            </Paragraph>
+            {rules.length === 0 && <Empty description="No rules — open to all" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            {rules.map((r, i) => (
+              <Row gutter={8} key={i} align="middle" style={{ marginBottom: 6 }}>
+                <Col span={6}>
+                  <Input
+                    placeholder="Employment type" disabled={!canEdit}
+                    value={r.employmentType ?? undefined}
+                    onChange={(e) => patchRule(i, { employmentType: e.target.value })}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Input
+                    placeholder="Employee category" disabled={!canEdit}
+                    value={r.employeeCategory ?? undefined}
+                    onChange={(e) => patchRule(i, { employeeCategory: e.target.value })}
+                  />
+                </Col>
+                <Col span={5}>
+                  <InputNumber
+                    style={{ width: '100%' }} min={0} disabled={!canEdit}
+                    addonAfter="mo" placeholder="min service"
+                    value={r.minServiceMonths ?? undefined}
+                    onChange={(v) => patchRule(i, { minServiceMonths: v })}
+                  />
+                </Col>
+                <Col span={5}>
+                  <Input
+                    placeholder="Note" disabled={!canEdit}
+                    value={r.description ?? undefined}
+                    onChange={(e) => patchRule(i, { description: e.target.value })}
+                  />
+                </Col>
+                <Col span={2}>
+                  {canEdit && <Button size="small" danger onClick={() => removeRule(i)}>✕</Button>}
+                </Col>
+              </Row>
+            ))}
+          </div>
+        </Space>
+      )}
+    </Modal>
+  )
+}
+
 // ─── Plans tab ───────────────────────────────────────────────────────────────
 
 function PlansTab() {
@@ -505,6 +698,8 @@ function PlansTab() {
   const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [plans, setPlans] = useState<PlanResponse[]>([])
+  const [categories, setCategories] = useState<BenefitCategoryResponse[]>([])
+  const [configPlan, setConfigPlan] = useState<PlanResponse | null>(null)
   const [providers, setProviders] = useState<BenefitProviderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [activeOnly, setActiveOnly] = useState(false)
@@ -515,6 +710,8 @@ function PlansTab() {
     name: string
     description?: string
     benefitType: BenefitType
+    categoryId?: string | null
+    planYear?: number | null
     provider?: string
     providerId?: string | null
     coverageDetails?: string
@@ -539,6 +736,7 @@ function PlansTab() {
   useEffect(() => { load() /* eslint-disable-next-line */ }, [activeOnly])
   useEffect(() => {
     benefitProvidersApi.list(true).then(setProviders).catch(() => setProviders([]))
+    benefitCategoriesApi.list(true).then(setCategories).catch(() => setCategories([]))
   }, [])
 
   const totals = useMemo(() => {
@@ -570,6 +768,8 @@ function PlansTab() {
       name: plan.name,
       description: plan.description ?? undefined,
       benefitType: plan.benefitType,
+      categoryId: plan.categoryId ?? undefined,
+      planYear: plan.planYear ?? undefined,
       provider: plan.provider ?? undefined,
       providerId: plan.providerId ?? undefined,
       coverageDetails: plan.coverageDetails ?? undefined,
@@ -591,6 +791,8 @@ function PlansTab() {
       name: v.name,
       description: v.description,
       benefitType: v.benefitType,
+      categoryId: v.categoryId ?? null,
+      planYear: v.planYear ?? null,
       provider: v.provider,
       providerId: v.providerId ?? null,
       coverageDetails: v.coverageDetails,
@@ -638,6 +840,12 @@ function PlansTab() {
         <Tag color={BENEFIT_TYPE_COLOR[t]}>{BENEFIT_TYPE_LABEL[t]}</Tag>
       ),
     },
+    {
+      title: 'Category',
+      width: 140,
+      render: (_, r) => (r.categoryName ? <Tag color="geekblue">{r.categoryName}</Tag> : '—'),
+    },
+    { title: 'Year', dataIndex: 'planYear', width: 70, align: 'center', render: (v) => v ?? '—' },
     { title: 'Provider', width: 170, render: (_, r) => r.providerName ?? r.provider ?? '—' },
     {
       title: 'Employer / mo',
@@ -671,6 +879,13 @@ function PlansTab() {
       width: 90,
       align: 'center',
       render: (_, r) => r.active ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>,
+    },
+    {
+      title: '',
+      width: 90,
+      render: (_, r) => (
+        <Button size="small" onClick={() => setConfigPlan(r)}>Tiers…</Button>
+      ),
     },
   ]
 
@@ -738,6 +953,26 @@ function PlansTab() {
             <Col span={6}>
               <Form.Item name="benefitType" label="Type" rules={[{ required: true }]}>
                 <Select options={BENEFIT_TYPE_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            <Col span={16}>
+              <Form.Item name="categoryId" label="Category"
+                tooltip="Tenant-configured category — drives tax treatment & provider requirement.">
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Pick a category…"
+                  options={categories.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="planYear" label="Plan year">
+                <InputNumber min={2000} max={2100} style={{ width: '100%' }} placeholder="2026" />
               </Form.Item>
             </Col>
           </Row>
@@ -813,6 +1048,13 @@ function PlansTab() {
           </Row>
         </Form>
       </Modal>
+
+      <PlanConfigModal
+        plan={configPlan}
+        open={!!configPlan}
+        canEdit={canEdit}
+        onClose={() => setConfigPlan(null)}
+      />
     </Space>
   )
 }

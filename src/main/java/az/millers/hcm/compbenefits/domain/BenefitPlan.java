@@ -48,6 +48,14 @@ public class BenefitPlan {
     @Column(name = "benefit_type", nullable = false, length = 20)
     private BenefitType benefitType;
 
+    /** M375 — optional link to the benefit category master. */
+    @Column(name = "category_id")
+    private UUID categoryId;
+
+    /** M375 — plan year this plan version applies to (e.g. 2026). Nullable. */
+    @Column(name = "plan_year")
+    private Integer planYear;
+
     /** Legacy free-text provider name (M108). Kept for back-compat. */
     @Column(length = 160)
     private String provider;

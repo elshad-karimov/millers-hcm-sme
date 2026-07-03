@@ -24,6 +24,8 @@ public final class BenefitDtos {
             @NotBlank String name,
             String description,
             @NotNull BenefitType benefitType,
+            UUID categoryId,
+            Integer planYear,
             String provider,
             UUID providerId,
             String coverageDetails,
@@ -43,6 +45,9 @@ public final class BenefitDtos {
             String name,
             String description,
             BenefitType benefitType,
+            UUID categoryId,
+            String categoryName,
+            Integer planYear,
             String provider,
             UUID providerId,
             String providerName,
@@ -59,17 +64,23 @@ public final class BenefitDtos {
             OffsetDateTime createdAt) {
 
         public static PlanResponse from(BenefitPlan p) {
-            return from(p, 0L, null);
+            return from(p, 0L, null, null);
         }
 
         public static PlanResponse from(BenefitPlan p, long activeEnrolments) {
-            return from(p, activeEnrolments, null);
+            return from(p, activeEnrolments, null, null);
         }
 
         public static PlanResponse from(BenefitPlan p, long activeEnrolments, String providerName) {
+            return from(p, activeEnrolments, providerName, null);
+        }
+
+        public static PlanResponse from(BenefitPlan p, long activeEnrolments,
+                                        String providerName, String categoryName) {
             return new PlanResponse(
                     p.getId(), p.getCode(), p.getName(), p.getDescription(),
-                    p.getBenefitType(), p.getProvider(), p.getProviderId(), providerName,
+                    p.getBenefitType(), p.getCategoryId(), categoryName, p.getPlanYear(),
+                    p.getProvider(), p.getProviderId(), providerName,
                     p.getCoverageDetails(), p.getEligibility(),
                     p.getEmployerContribution(), p.getEmployeeContribution(), p.totalContribution(),
                     p.getCurrency(), p.getEffectiveFrom(), p.getEffectiveTo(),

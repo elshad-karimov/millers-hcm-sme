@@ -21,10 +21,12 @@ import az.millers.hcm.compbenefits.api.dto.BenefitDtos.EnrollmentResponse;
 import az.millers.hcm.compbenefits.api.dto.BenefitDtos.PlanRequest;
 import az.millers.hcm.compbenefits.api.dto.BenefitDtos.PlanResponse;
 import az.millers.hcm.compbenefits.api.dto.BenefitDtos.TerminateRequest;
+import az.millers.hcm.compbenefits.domain.BenefitCategory;
 import az.millers.hcm.compbenefits.domain.BenefitEnrollment;
 import az.millers.hcm.compbenefits.domain.BenefitPlan;
 import az.millers.hcm.compbenefits.domain.BenefitProvider;
 import az.millers.hcm.compbenefits.domain.EnrollmentStatus;
+import az.millers.hcm.compbenefits.repo.BenefitCategoryRepository;
 import az.millers.hcm.compbenefits.repo.BenefitEnrollmentRepository;
 import az.millers.hcm.compbenefits.repo.BenefitPlanRepository;
 import az.millers.hcm.compbenefits.repo.BenefitProviderRepository;
@@ -47,6 +49,7 @@ public class BenefitsService {
     private final BenefitPlanRepository plans;
     private final BenefitEnrollmentRepository enrollments;
     private final BenefitProviderRepository providers;
+    private final BenefitCategoryRepository categories;
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
@@ -54,12 +57,14 @@ public class BenefitsService {
     public BenefitsService(BenefitPlanRepository plans,
                            BenefitEnrollmentRepository enrollments,
                            BenefitProviderRepository providers,
+                           BenefitCategoryRepository categories,
                            EmployeeRepository employees,
                            AuditService audit,
                            CurrentRequest currentRequest) {
         this.plans = plans;
         this.enrollments = enrollments;
         this.providers = providers;
+        this.categories = categories;
         this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
@@ -69,6 +74,12 @@ public class BenefitsService {
     private String providerName(UUID providerId) {
         if (providerId == null) return null;
         return providers.findById(providerId).map(BenefitProvider::getName).orElse(null);
+    }
+
+    /** Resolve a category's display name, or null if unset / not found. */
+    private String categoryName(UUID categoryId) {
+        if (categoryId == null) return null;
+        return categories.findById(categoryId).map(BenefitCategory::getName).orElse(null);
     }
 
     // -------------------------------------------------------------------------
@@ -81,11 +92,14 @@ public class BenefitsService {
                 ? plans.findByActiveTrueOrderByBenefitTypeAscNameAsc()
                 : plans.findAllByOrderByBenefitTypeAscNameAsc();
         Map<UUID, String> providerNames = new HashMap<>();
+        Map<UUID, String> categoryNames = new HashMap<>();
         return rows.stream()
                 .map(p -> PlanResponse.from(p,
                         enrollments.countByPlanIdAndStatus(p.getId(), EnrollmentStatus.ENROLLED),
                         p.getProviderId() == null ? null
-                                : providerNames.computeIfAbsent(p.getProviderId(), this::providerName)))
+                                : providerNames.computeIfAbsent(p.getProviderId(), this::providerName),
+                        p.getCategoryId() == null ? null
+                                : categoryNames.computeIfAbsent(p.getCategoryId(), this::categoryName)))
                 .toList();
     }
 
@@ -100,7 +114,7 @@ public class BenefitsService {
         BenefitPlan p = getPlan(id);
         return PlanResponse.from(p,
                 enrollments.countByPlanIdAndStatus(p.getId(), EnrollmentStatus.ENROLLED),
-                providerName(p.getProviderId()));
+                providerName(p.getProviderId()), categoryName(p.getCategoryId()));
     }
 
     @Transactional
@@ -113,7 +127,8 @@ public class BenefitsService {
         applyPlan(p, req);
         p.setCreatedBy(currentRequest.username());
         BenefitPlan saved = plans.save(p);
-        PlanResponse response = PlanResponse.from(saved, 0L, providerName(saved.getProviderId()));
+        PlanResponse response = PlanResponse.from(saved, 0L,
+                providerName(saved.getProviderId()), categoryName(saved.getCategoryId()));
         audit.record(MODULE, PLAN_ENTITY, saved.getId().toString(),
                 "CREATE", null, response);
         return response;
@@ -124,13 +139,15 @@ public class BenefitsService {
         validatePlanRequest(req);
         BenefitPlan p = getPlan(id);
         long active = enrollments.countByPlanIdAndStatus(id, EnrollmentStatus.ENROLLED);
-        PlanResponse before = PlanResponse.from(p, active, providerName(p.getProviderId()));
+        PlanResponse before = PlanResponse.from(p, active,
+                providerName(p.getProviderId()), categoryName(p.getCategoryId()));
         if (!p.getCode().equals(req.code()) && plans.existsByCode(req.code())) {
             throw new BadRequestException("Benefit plan code already exists: " + req.code());
         }
         applyPlan(p, req);
         BenefitPlan saved = plans.save(p);
-        PlanResponse response = PlanResponse.from(saved, active, providerName(saved.getProviderId()));
+        PlanResponse response = PlanResponse.from(saved, active,
+                providerName(saved.getProviderId()), categoryName(saved.getCategoryId()));
         audit.record(MODULE, PLAN_ENTITY, id.toString(),
                 "UPDATE", before, response);
         return response;
@@ -141,6 +158,11 @@ public class BenefitsService {
         p.setName(req.name());
         p.setDescription(req.description());
         p.setBenefitType(req.benefitType());
+        if (req.categoryId() != null && !categories.existsById(req.categoryId())) {
+            throw new BadRequestException("Benefit category not found: " + req.categoryId());
+        }
+        p.setCategoryId(req.categoryId());
+        p.setPlanYear(req.planYear());
         p.setProvider(req.provider());
         if (req.providerId() != null && !providers.existsById(req.providerId())) {
             throw new BadRequestException("Benefit provider not found: " + req.providerId());
