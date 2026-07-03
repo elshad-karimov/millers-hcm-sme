@@ -29,6 +29,7 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.scope.AccessScopeService;
 
 /**
  * HCM_11 M381/M382 — benefit reimbursement claims. Mirrors the ExpenseClaim state machine
@@ -47,6 +48,7 @@ public class BenefitClaimService {
     private final BenefitPlanRepository plans;
     private final EmployeeRepository employees;
     private final NotificationService notifications;
+    private final AccessScopeService accessScope;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -55,6 +57,7 @@ public class BenefitClaimService {
                                BenefitPlanRepository plans,
                                EmployeeRepository employees,
                                NotificationService notifications,
+                               AccessScopeService accessScope,
                                AuditService audit,
                                CurrentRequest currentRequest) {
         this.claims = claims;
@@ -62,6 +65,7 @@ public class BenefitClaimService {
         this.plans = plans;
         this.employees = employees;
         this.notifications = notifications;
+        this.accessScope = accessScope;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -91,6 +95,10 @@ public class BenefitClaimService {
 
     @Transactional(readOnly = true)
     public List<ClaimResponse> listForEmployee(UUID employeeId) {
+        // Hierarchy scope (GLOBAL RULE 7): managers only see their reports; HR/admin unrestricted.
+        if (!accessScope.isAccessible(employeeId)) {
+            return List.of();
+        }
         return decorate(claims.findByTenantIdAndEmployeeIdOrderByClaimDateDesc(TENANT, employeeId));
     }
 

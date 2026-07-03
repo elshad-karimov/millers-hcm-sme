@@ -20,6 +20,7 @@ import az.millers.hcm.compbenefits.repo.BenefitLifeEventRepository;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.scope.AccessScopeService;
 
 /**
  * HCM_11 M380 — qualifying life events. Report → HR approve/reject. An APPROVED event
@@ -34,15 +35,18 @@ public class BenefitLifeEventService {
 
     private final BenefitLifeEventRepository repo;
     private final EmployeeRepository employees;
+    private final AccessScopeService accessScope;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public BenefitLifeEventService(BenefitLifeEventRepository repo,
                                    EmployeeRepository employees,
+                                   AccessScopeService accessScope,
                                    AuditService audit,
                                    CurrentRequest currentRequest) {
         this.repo = repo;
         this.employees = employees;
+        this.accessScope = accessScope;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -57,6 +61,10 @@ public class BenefitLifeEventService {
 
     @Transactional(readOnly = true)
     public List<EventResponse> listForEmployee(UUID employeeId) {
+        // Hierarchy scope (GLOBAL RULE 7): managers only see their reports; HR/admin unrestricted.
+        if (!accessScope.isAccessible(employeeId)) {
+            return List.of();
+        }
         return decorate(repo.findByTenantIdAndEmployeeIdOrderByEventDateDesc(TENANT, employeeId));
     }
 

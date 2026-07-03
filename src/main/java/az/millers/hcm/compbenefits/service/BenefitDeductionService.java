@@ -61,6 +61,7 @@ public class BenefitDeductionService {
         String planName = plan == null ? "benefit plan" : plan.getName();
 
         PayrollDeduction d = new PayrollDeduction();
+        d.setTenantId(e.getTenantId());
         d.setEmployeeId(e.getEmployeeId());
         d.setDeductionType(RECURRING);
         d.setDescription("Benefit contribution: " + planName);

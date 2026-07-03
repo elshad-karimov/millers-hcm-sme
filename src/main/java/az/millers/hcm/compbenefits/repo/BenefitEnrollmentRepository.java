@@ -16,6 +16,11 @@ public interface BenefitEnrollmentRepository extends JpaRepository<BenefitEnroll
 
     List<BenefitEnrollment> findByStatusOrderByStartDateDesc(EnrollmentStatus status);
 
+    // ── HCM_11 — tenant-scoped variants (GLOBAL RULE 4) ─────────────────────────
+    List<BenefitEnrollment> findByTenantId(String tenantId);
+
+    List<BenefitEnrollment> findByTenantIdAndStatusOrderByStartDateDesc(String tenantId, EnrollmentStatus status);
+
     long countByPlanIdAndStatus(UUID planId, EnrollmentStatus status);
 
     boolean existsByEmployeeIdAndPlanIdAndStatus(UUID employeeId, UUID planId, EnrollmentStatus status);

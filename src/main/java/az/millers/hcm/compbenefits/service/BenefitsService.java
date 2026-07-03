@@ -50,6 +50,7 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.ActionRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.ActionType;
@@ -67,6 +68,7 @@ public class BenefitsService {
 
     private static final Logger log = LoggerFactory.getLogger(BenefitsService.class);
 
+    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String PLAN_ENTITY = "BenefitPlan";
     private static final String ENROLLMENT_ENTITY = "BenefitEnrollment";
@@ -83,6 +85,7 @@ public class BenefitsService {
     private final WorkflowService workflows;
     private final BenefitDeductionService benefitDeductions;
     private final NotificationService notifications;
+    private final AccessScopeService accessScope;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final TransactionTemplate requiresNew;
@@ -98,6 +101,7 @@ public class BenefitsService {
                            WorkflowService workflows,
                            BenefitDeductionService benefitDeductions,
                            NotificationService notifications,
+                           AccessScopeService accessScope,
                            AuditService audit,
                            CurrentRequest currentRequest,
                            PlatformTransactionManager txManager) {
@@ -112,6 +116,7 @@ public class BenefitsService {
         this.workflows = workflows;
         this.benefitDeductions = benefitDeductions;
         this.notifications = notifications;
+        this.accessScope = accessScope;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.requiresNew = new TransactionTemplate(txManager);
@@ -137,8 +142,8 @@ public class BenefitsService {
     @Transactional(readOnly = true)
     public List<PlanResponse> listPlans(boolean activeOnly) {
         List<BenefitPlan> rows = activeOnly
-                ? plans.findByActiveTrueOrderByBenefitTypeAscNameAsc()
-                : plans.findAllByOrderByBenefitTypeAscNameAsc();
+                ? plans.findByTenantIdAndActiveTrueOrderByBenefitTypeAscNameAsc(TENANT)
+                : plans.findByTenantIdOrderByBenefitTypeAscNameAsc(TENANT);
         Map<UUID, String> providerNames = new HashMap<>();
         Map<UUID, String> categoryNames = new HashMap<>();
         return rows.stream()
@@ -168,10 +173,11 @@ public class BenefitsService {
     @Transactional
     public PlanResponse createPlan(PlanRequest req) {
         validatePlanRequest(req);
-        if (plans.existsByCode(req.code())) {
+        if (plans.existsByTenantIdAndCode(TENANT, req.code())) {
             throw new BadRequestException("Benefit plan code already exists: " + req.code());
         }
         BenefitPlan p = new BenefitPlan();
+        p.setTenantId(TENANT);
         applyPlan(p, req);
         p.setCreatedBy(currentRequest.username());
         BenefitPlan saved = plans.save(p);
@@ -189,7 +195,7 @@ public class BenefitsService {
         long active = enrollments.countByPlanIdAndStatus(id, EnrollmentStatus.ENROLLED);
         PlanResponse before = PlanResponse.from(p, active,
                 providerName(p.getProviderId()), categoryName(p.getCategoryId()));
-        if (!p.getCode().equals(req.code()) && plans.existsByCode(req.code())) {
+        if (!p.getCode().equals(req.code()) && plans.existsByTenantIdAndCode(TENANT, req.code())) {
             throw new BadRequestException("Benefit plan code already exists: " + req.code());
         }
         applyPlan(p, req);
@@ -253,6 +259,10 @@ public class BenefitsService {
 
     @Transactional(readOnly = true)
     public List<EnrollmentResponse> listEnrolmentsForEmployee(UUID employeeId) {
+        // Hierarchy scope (GLOBAL RULE 7): managers only see their reports; HR/admin unrestricted.
+        if (!accessScope.isAccessible(employeeId)) {
+            return List.of();
+        }
         List<BenefitEnrollment> rows = enrollments.findByEmployeeIdOrderByStartDateDesc(employeeId);
         return decorate(rows);
     }
@@ -260,10 +270,10 @@ public class BenefitsService {
     @Transactional(readOnly = true)
     public List<EnrollmentResponse> listEnrolmentsByStatus(EnrollmentStatus status) {
         List<BenefitEnrollment> rows = status == null
-                ? enrollments.findAll().stream()
+                ? enrollments.findByTenantId(TENANT).stream()
                     .sorted(Comparator.comparing(BenefitEnrollment::getStartDate).reversed())
                     .toList()
-                : enrollments.findByStatusOrderByStartDateDesc(status);
+                : enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TENANT, status);
         return decorate(rows);
     }
 

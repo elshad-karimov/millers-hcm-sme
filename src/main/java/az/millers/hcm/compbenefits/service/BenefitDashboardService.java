@@ -50,10 +50,10 @@ public class BenefitDashboardService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
-        List<BenefitPlan> allPlans = plans.findAll();
+        List<BenefitPlan> allPlans = plans.findByTenantId(TENANT);
         long activePlans = allPlans.stream().filter(BenefitPlan::isActive).count();
 
-        List<BenefitEnrollment> allEnr = enrollments.findAll();
+        List<BenefitEnrollment> allEnr = enrollments.findByTenantId(TENANT);
         Map<String, Long> byStatus = allEnr.stream()
                 .collect(Collectors.groupingBy(e -> e.getStatus().name(),
                         LinkedHashMap::new, Collectors.counting()));
@@ -61,7 +61,8 @@ public class BenefitDashboardService {
         long pending = byStatus.getOrDefault(EnrollmentStatus.PENDING_APPROVAL.name(), 0L);
 
         BigDecimal employerMonthly = costs.currentEmployerMonthlySpend();
-        BigDecimal employeeMonthly = enrollments.findByStatusOrderByStartDateDesc(EnrollmentStatus.ENROLLED).stream()
+        BigDecimal employeeMonthly = enrollments
+                .findByTenantIdAndStatusOrderByStartDateDesc(TENANT, EnrollmentStatus.ENROLLED).stream()
                 .map(e -> e.getEmployeeContribution() == null ? BigDecimal.ZERO : e.getEmployeeContribution())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
