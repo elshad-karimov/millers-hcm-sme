@@ -46,6 +46,10 @@ public interface PayrollDeductionRepository extends JpaRepository<PayrollDeducti
     /** M351: an advance is recovered exactly once, so a single row keyed by the advance is enough. */
     Optional<PayrollDeduction> findBySourceAdvanceId(UUID sourceAdvanceId);
 
+    /** HCM_11 M378: the ACTIVE recurring deduction (if any) for a benefit enrollment. */
+    Optional<PayrollDeduction> findFirstBySourceBenefitEnrollmentIdAndStatus(
+            UUID sourceBenefitEnrollmentId, String status);
+
     /**
      * M352: a loan is recovered over many periods, so idempotency is per (loan, period).
      * One row per installment, keyed by the originating loan and the period it applies to.

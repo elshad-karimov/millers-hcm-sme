@@ -37,6 +37,9 @@ public class PayrollDeduction {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;
 
@@ -92,6 +95,10 @@ public class PayrollDeduction {
     /** M352 — payroll loan that originated this deduction (nullable for non-loan deductions). */
     @Column(name = "source_loan_id")
     private UUID sourceLoanId;
+
+    /** HCM_11 M378 — benefit enrollment that originated this recurring contribution deduction. */
+    @Column(name = "source_benefit_enrollment_id")
+    private UUID sourceBenefitEnrollmentId;
 
     @Column(name = "created_by")
     private String createdBy;

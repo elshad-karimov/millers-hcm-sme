@@ -79,6 +79,7 @@ public class BenefitsService {
     private final BenefitEnrollmentDependentRepository enrollmentDependents;
     private final EmployeeRepository employees;
     private final WorkflowService workflows;
+    private final BenefitDeductionService benefitDeductions;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final TransactionTemplate requiresNew;
@@ -92,6 +93,7 @@ public class BenefitsService {
                            BenefitEnrollmentDependentRepository enrollmentDependents,
                            EmployeeRepository employees,
                            WorkflowService workflows,
+                           BenefitDeductionService benefitDeductions,
                            AuditService audit,
                            CurrentRequest currentRequest,
                            PlatformTransactionManager txManager) {
@@ -104,6 +106,7 @@ public class BenefitsService {
         this.enrollmentDependents = enrollmentDependents;
         this.employees = employees;
         this.workflows = workflows;
+        this.benefitDeductions = benefitDeductions;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.requiresNew = new TransactionTemplate(txManager);
@@ -540,7 +543,8 @@ public class BenefitsService {
      * post-approval. M378 wires the payroll-deduction bridge here.
      */
     protected void onEnrollmentActivated(BenefitEnrollment e) {
-        // M378: create the recurring payroll deduction for the employee contribution.
+        // M378 — bridge the employee contribution to payroll as a recurring deduction.
+        benefitDeductions.ensureDeduction(e);
     }
 
     /**
@@ -548,7 +552,8 @@ public class BenefitsService {
      * payroll deduction here.
      */
     protected void onEnrollmentDeactivated(BenefitEnrollment e) {
-        // M378: cancel the recurring payroll deduction.
+        // M378 — stop the recurring payroll deduction.
+        benefitDeductions.cancelDeduction(e);
     }
 
     @Transactional
