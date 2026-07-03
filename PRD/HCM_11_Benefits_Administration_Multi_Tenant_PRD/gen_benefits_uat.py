@@ -52,6 +52,32 @@ CASES = [
  ("DED-03","Payroll bridge (M378)","HR Admin","Terminate (or Suspend) the DED-01 enrolment, then re-check that employee's deductions.","The benefit-contribution deduction is now CANCELLED (not deleted). Re-running payroll for a later month no longer deducts it."),
  ("DED-04","Payroll bridge (M378)","Payroll Specialist","Run payroll for a period where the DED-01 employee is enrolled; open their payslip.","Net pay is reduced by the benefit employee-contribution (pre-tax: it lowers taxable gross before tax/DSMF/MMI). The deduction shows in the payslip breakdown."),
  ("SEC-B1","Permissions (Phase B)","HR Specialist","Sign in as HR Specialist and open Benefits → Enrolments.","You can view enrolments but cannot enrol / submit / approve / suspend / terminate (write is HR Admin / Benefits Manager only)."),
+ # ---------- Phase C.1: open enrollment windows (M379) ----------
+ ("OE-01","Open enrollment (M379)","HR Admin","Benefits → Open enrollment → 'New window…'. Plan year=2026, Name='2026 Annual OE', window = a range that INCLUDES today. Save.","The window appears; its 'Open now' column shows OPEN (because today is inside the range)."),
+ ("OE-02","Open enrollment (M379)","HR Admin","Create another window whose date range is entirely in the past (or future). Save.","'Open now' shows closed for that window."),
+ ("OE-03","Open enrollment (M379)","HR Admin","Create a window with end date BEFORE start date. Save.","Rejected — end must be on/after start (error shown)."),
+ # ---------- Phase C.2: qualifying life events (M380) ----------
+ ("LE-01","Life events (M380)","HR Admin","Benefits → Life events → 'Report life event…'. Paste an employee UUID, Event type=Marriage, Event date=today, Window days=30. Report.","A PENDING life event appears for that employee; the special-window column shows closed (not yet approved)."),
+ ("LE-02","Life events (M380)","HR Admin","On the PENDING life event click Approve.","Status becomes APPROVED and 'Special window' shows OPEN (event date + 30 days covers today)."),
+ ("LE-03","Life events (M380)","HR Admin","Report another event and click Reject.","Status becomes REJECTED; no special window opens."),
+ # ---------- Phase D: benefit claims (M381/M382) ----------
+ ("CL-01","Claims (M381)","HR Admin","Benefits → Claims → 'New claim…'. Paste an employee UUID, Claim date=today, add 2 line items with descriptions + amounts (e.g. 40 and 60). Create draft.","A DRAFT claim BC-#### appears with Total = 100. Expand the row to see the two line items."),
+ ("CL-02","Claims (M382)","HR Admin","On the DRAFT claim click Submit, then Approve.","Status goes DRAFT → SUBMITTED → APPROVED (approved amount = total unless changed)."),
+ ("CL-03","Claims (M382)","HR Admin","On the APPROVED claim click 'Mark paid'.","Status becomes PAID; a payment reference is recorded (expand row to see it). Note: payment is tracking-only — it is NOT pushed to payroll."),
+ ("CL-04","Claims (M382)","HR Admin","Create another claim, Submit it, then Reject it.","Status becomes REJECTED."),
+ ("CL-05","Claims (M382)","Employee","Sign in as the claim's employee → My Workspace → Benefits tab → My claims.","The employee sees their own claims and statuses (and only their own)."),
+ # ---------- Phase E.1: total-comp seam + cost report (M383) ----------
+ ("CST-01","Total-Comp benefits (M383)","HR Admin","Make sure the employee has an ACTIVE enrolment with an employer contribution (e.g. 100/mo). Then Compensation → Total Comp Statements → Generate for that employee's year → open/download.","The statement's 'Employer benefits' line is NON-ZERO (≈ employer monthly × active months), and the Total includes it. (Previously this was always 0.)"),
+ # ---------- Phase E.2: provider-file reconciliation (M384) ----------
+ ("REC-01","Reconciliation (M384)","HR Admin","Benefits → Providers → 'Reconcile file…'. Pick a provider that has plans with active enrolments. In the paste box enter lines 'employeeNo,amount' — include one matching member with the correct total, one with a WRONG amount, and one employeeNo that is NOT enrolled. Reconcile.","The report shows: MATCHED for the correct one, AMOUNT MISMATCH for the wrong amount, EXTRA IN FILE for the non-enrolled one, and MISSING IN FILE for any enrolled member you left out. Counts + system/file totals are shown."),
+ # ---------- Phase F.1: dashboard (M386) ----------
+ ("DSH-01","Dashboard (M386)","HR Admin","Benefits → Dashboard.","Stat cards populate: active enrolments, active/total plans, pending approvals, expiring plans (60d), employer & employee monthly spend, employer annual, open life-event windows — with sensible numbers."),
+ ("DSH-02","Dashboard (M386)","HR Admin","Look at 'Employer spend by category' and the 'Enrolments by status' / 'Claims' cards.","The category table sums employer/employee monthly per category; status tags show the enrolment + claim counts; total paid claims is shown."),
+ # ---------- Phase F.2: employee self-service (M385) ----------
+ ("SS-01","Self-service (M385)","Employee","Sign in as an enrolled Employee → My Workspace → Benefits tab.","Shows active plans, your monthly contribution, employer contribution, each plan (tier, dependants covered) and your claims — only your own data."),
+ # ---------- Phase F.3: notifications (M387) ----------
+ ("NT-01","Notifications (M387)","HR Admin / Employee","Activate an enrolment (direct enrol or approve a submitted one) for an employee who has a user login; then approve/reject one of their claims. Sign in as that employee and check the notifications bell.","The employee receives in-app notifications: 'coverage active' on enrolment activation, and claim approved/rejected on the claim decision."),
+ ("SEC-CF","Permissions (Phase C–F)","HR Specialist","As HR Specialist, open Open enrollment / Life events / Claims / Reconcile / Dashboard.","Read surfaces are visible per role; create/approve/reject/reconcile write actions are unavailable (write = HR Admin / Benefits Manager)."),
 ]
 
 wb = Workbook()
@@ -67,7 +93,7 @@ ws.cell(2,2,"HCM_11 Benefits Administration  •  front-end (browser) testing  �
 for r,l,v in [
  (4,"How to use","Open the 'Test Cases' sheet. Do exactly what the Steps say (which tab, which button, what to type), compare to the Expected Result, and pick Pass / Fail / Blocked / Not Run in the Result column. Add anything unusual under Tester Notes. Fill the Sign-off sheet at the end."),
  (6,"Application URL","http://localhost:5180 — sign in first. Benefits features are under the top-nav 'Benefits' page."),
- (7,"Delivered so far","Phases A–B COMPLETE. A: Categories (M373), Providers (M374), Plans + coverage tiers + eligibility rules (M375). B: enrolment with tiers + dependant-level coverage (M376), enrolment approval workflow (M377), and the payroll deduction bridge — employee contributions flow to payroll as recurring pre-tax deductions (M378). Open enrolment, life events, claims, dashboards and letters arrive in later phases."),
+ (7,"Delivered so far","Phases A–F COMPLETE (the whole module). A: Categories (M373), Providers (M374), Plans + coverage tiers + eligibility rules (M375). B: enrolment with tiers + dependant-level coverage (M376), enrolment approval workflow (M377), payroll deduction bridge — pre-tax recurring deductions (M378). C: open-enrolment windows (M379), qualifying life events (M380). D: benefit claims + approval/payout (M381/M382). E: Total-Comp employer-benefits + cost report (M383), provider-file reconciliation (M384). F: employee self-service Benefits tab (M385), benefits dashboard (M386), notifications (M387)."),
  (9,"Logins you will need","HR Admin (full benefits access), HR Specialist (read-only), Payroll Specialist (payroll runs), Employee (self-service). If you only have an admin login, mark the role-restriction rows Blocked with a note."),
  (11,"Result values","Pass = worked as expected.  Fail = did not match (add a note).  Blocked = could not run (missing login/data).  Not Run = skipped."),
  (12,"Good to know","Categories drive tax treatment + whether a plan needs a provider. Plans link to a category, a plan year and a provider from the master. Coverage tiers set the employer/employee split per coverage level; eligibility rules decide who may enrol (enforced from Phase B)."),
@@ -105,7 +131,9 @@ for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
     c=so.cell(3,i,h); c.font=Font(name=FONT,bold=True,color=white); c.fill=PatternFill("solid",fgColor=blue); c.border=border
 areas=["Categories (CAT)","Providers (PRV)","Plans + Tiers + Eligibility (PLN)",
        "Enrolment: tiers + dependants (ENR)","Enrolment approval (APR)","Suspend / Resume (SUS)",
-       "Payroll deduction bridge (DED)","Permissions (SEC)"]
+       "Payroll deduction bridge (DED)","Open enrollment (OE)","Life events (LE)","Claims (CL)",
+       "Total-Comp + reconciliation (CST/REC)","Dashboard + self-service (DSH/SS)",
+       "Notifications (NT)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)
