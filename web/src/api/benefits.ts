@@ -12,7 +12,15 @@ export type BenefitType =
   | 'WELLNESS'
   | 'OTHER'
 
-export type EnrollmentStatus = 'ENROLLED' | 'WAIVED' | 'TERMINATED'
+export type EnrollmentStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'ENROLLED'
+  | 'WAIVED'
+  | 'SUSPENDED'
+  | 'TERMINATED'
+  | 'CANCELLED'
+  | 'REJECTED'
 
 export interface PlanRequest {
   code: string
@@ -63,8 +71,15 @@ export interface EnrollmentRequest {
   employeeId: string
   startDate: string
   status?: EnrollmentStatus
+  coverageTierCode?: CoverageTier | null
+  dependentIds?: string[]
   dependentsCovered?: number
   notes?: string
+}
+
+export interface CoveredDependent {
+  id: string
+  name?: string | null
 }
 
 export interface TerminateRequest {
@@ -81,15 +96,19 @@ export interface EnrollmentResponse {
   employeeId: string
   employeeName?: string | null
   status: EnrollmentStatus
+  coverageTierCode?: CoverageTier | null
+  planYear?: number | null
   startDate: string
   endDate?: string | null
   dependentsCovered: number
+  coveredDependents?: CoveredDependent[]
   notes?: string | null
   enrolledBy?: string | null
   enrolledAt: string
   terminatedBy?: string | null
   terminatedAt?: string | null
   terminationReason?: string | null
+  currency?: string | null
   employerContribution?: number | null
   employeeContribution?: number | null
 }
@@ -117,9 +136,14 @@ export const BENEFIT_TYPE_COLOR: Record<BenefitType, string> = {
 }
 
 export const ENROLLMENT_STATUS_COLOR: Record<EnrollmentStatus, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'gold',
   ENROLLED: 'green',
   WAIVED: 'default',
+  SUSPENDED: 'orange',
   TERMINATED: 'red',
+  CANCELLED: 'default',
+  REJECTED: 'red',
 }
 
 // ─── Benefit categories (HCM_11 M373) ────────────────────────────────────────
@@ -313,6 +337,14 @@ export const benefitsApi = {
   terminate: (id: string, req: TerminateRequest) =>
     api
       .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/terminate`, req)
+      .then((r) => r.data),
+  suspend: (id: string) =>
+    api
+      .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/suspend`)
+      .then((r) => r.data),
+  resume: (id: string) =>
+    api
+      .post<EnrollmentResponse>(`/compbenefits/benefits/enrollments/${id}/resume`)
       .then((r) => r.data),
   myEnrolments: () =>
     api.get<EnrollmentResponse[]>('/compbenefits/benefits/me').then((r) => r.data),

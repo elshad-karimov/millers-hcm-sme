@@ -56,6 +56,7 @@ import {
   type PlanResponse,
   type PlanTier,
 } from '../api/benefits'
+import { profileTabsApi, type Dependent } from '../api/profileTabs'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -1076,10 +1077,14 @@ function EnrolmentsTab() {
     employeeId: string
     startDate: ReturnType<typeof dayjs>
     status: EnrollmentStatus
+    coverageTierCode?: CoverageTier
+    dependentIds?: string[]
     dependentsCovered?: number
     notes?: string
   }>()
   const [saving, setSaving] = useState(false)
+  const [enrolTiers, setEnrolTiers] = useState<PlanTier[]>([])
+  const [enrolDeps, setEnrolDeps] = useState<Dependent[]>([])
   const [terminating, setTerminating] = useState<EnrollmentResponse | null>(null)
   const [termForm] = Form.useForm<{
     endDate: ReturnType<typeof dayjs>
@@ -1106,7 +1111,26 @@ function EnrolmentsTab() {
       startDate: dayjs(),
       dependentsCovered: 0,
     })
+    setEnrolTiers([])
+    setEnrolDeps([])
     setOpen(true)
+  }
+
+  const onPlanChange = (planId?: string) => {
+    enrolForm.setFieldsValue({ coverageTierCode: undefined })
+    if (!planId) { setEnrolTiers([]); return }
+    benefitPlanConfigApi.listTiers(planId)
+      .then((t) => setEnrolTiers(t.filter((x) => x.active !== false)))
+      .catch(() => setEnrolTiers([]))
+  }
+
+  const loadDeps = (employeeId?: string) => {
+    enrolForm.setFieldsValue({ dependentIds: [] })
+    const id = (employeeId ?? '').trim()
+    if (!/^[0-9a-fA-F-]{36}$/.test(id)) { setEnrolDeps([]); return }
+    profileTabsApi.listDependents(id, true)
+      .then((d) => setEnrolDeps(d.filter((x) => x.benefitEligible || x.insuranceEligible)))
+      .catch(() => setEnrolDeps([]))
   }
 
   const submitEnrol = async () => {
@@ -1116,6 +1140,8 @@ function EnrolmentsTab() {
       employeeId: v.employeeId,
       startDate: v.startDate.format('YYYY-MM-DD'),
       status: v.status,
+      coverageTierCode: v.coverageTierCode ?? null,
+      dependentIds: v.dependentIds ?? [],
       dependentsCovered: v.dependentsCovered ?? 0,
       notes: v.notes,
     }
@@ -1144,6 +1170,18 @@ function EnrolmentsTab() {
       })
       message.success('Enrolment terminated')
       setTerminating(null)
+      load()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed',
+      )
+    }
+  }
+
+  const doSuspendResume = async (r: EnrollmentResponse, action: 'suspend' | 'resume') => {
+    try {
+      await (action === 'suspend' ? benefitsApi.suspend(r.id) : benefitsApi.resume(r.id))
+      message.success(action === 'suspend' ? 'Enrolment suspended' : 'Enrolment resumed')
       load()
     } catch (e) {
       message.error(
@@ -1190,10 +1228,21 @@ function EnrolmentsTab() {
     { title: 'Start', dataIndex: 'startDate', width: 110 },
     { title: 'End', dataIndex: 'endDate', width: 110, render: (v) => v ?? '—' },
     {
+      title: 'Tier',
+      width: 150,
+      render: (_, r) => r.coverageTierCode
+        ? <Tag>{COVERAGE_TIER_LABEL[r.coverageTierCode]}</Tag> : <Text type="secondary">flat</Text>,
+    },
+    {
       title: 'Deps',
-      dataIndex: 'dependentsCovered',
       width: 70,
       align: 'center',
+      render: (_, r) => {
+        const names = (r.coveredDependents ?? []).map((d) => d.name).filter(Boolean).join(', ')
+        return names
+          ? <Tooltip title={names}><span>{r.dependentsCovered}</span></Tooltip>
+          : r.dependentsCovered
+      },
     },
     {
       title: 'Employer / mo',
@@ -1202,21 +1251,43 @@ function EnrolmentsTab() {
       render: (_, r) => fmt(r.employerContribution),
     },
     {
+      title: 'Employee / mo',
+      align: 'right',
+      width: 130,
+      render: (_, r) => fmt(r.employeeContribution),
+    },
+    {
       title: '',
-      width: 110,
-      render: (_, r) => canEnrol && r.status !== 'TERMINATED' ? (
-        <Popconfirm
-          title="Terminate enrolment?"
-          description="You'll enter the end date next."
-          onConfirm={() => {
-            termForm.resetFields()
-            termForm.setFieldsValue({ endDate: dayjs() })
-            setTerminating(r)
-          }}
-        >
-          <Button size="small" danger>Terminate</Button>
-        </Popconfirm>
-      ) : null,
+      width: 200,
+      render: (_, r) => {
+        if (!canEnrol) return null
+        const ended = r.status === 'TERMINATED' || r.status === 'CANCELLED' || r.status === 'REJECTED'
+        return (
+          <Space size={4}>
+            {r.status === 'ENROLLED' && (
+              <Popconfirm title="Suspend this enrolment?" onConfirm={() => doSuspendResume(r, 'suspend')}>
+                <Button size="small">Suspend</Button>
+              </Popconfirm>
+            )}
+            {r.status === 'SUSPENDED' && (
+              <Button size="small" onClick={() => doSuspendResume(r, 'resume')}>Resume</Button>
+            )}
+            {!ended && (
+              <Popconfirm
+                title="Terminate enrolment?"
+                description="You'll enter the end date next."
+                onConfirm={() => {
+                  termForm.resetFields()
+                  termForm.setFieldsValue({ endDate: dayjs() })
+                  setTerminating(r)
+                }}
+              >
+                <Button size="small" danger>Terminate</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        )
+      },
     },
   ]
 
@@ -1234,8 +1305,12 @@ function EnrolmentsTab() {
             onChange={(v) => setFilterStatus(v as EnrollmentStatus | undefined)}
             options={[
               { value: 'ENROLLED', label: 'Enrolled' },
+              { value: 'PENDING_APPROVAL', label: 'Pending approval' },
+              { value: 'SUSPENDED', label: 'Suspended' },
               { value: 'WAIVED', label: 'Waived' },
               { value: 'TERMINATED', label: 'Terminated' },
+              { value: 'CANCELLED', label: 'Cancelled' },
+              { value: 'REJECTED', label: 'Rejected' },
             ]}
             placeholder="All statuses"
           />
@@ -1268,6 +1343,7 @@ function EnrolmentsTab() {
             <Select
               showSearch
               optionFilterProp="label"
+              onChange={(v) => onPlanChange(v)}
               options={plans.map((p) => ({
                 value: p.id,
                 label: `${p.code} — ${p.name} (${BENEFIT_TYPE_LABEL[p.benefitType]})`,
@@ -1276,8 +1352,9 @@ function EnrolmentsTab() {
             />
           </Form.Item>
           <Form.Item name="employeeId" label="Employee ID" rules={[{ required: true }]}
-            extra="Paste the employee UUID from their profile page.">
-            <Input placeholder="00000000-0000-0000-0000-000000000000" />
+            extra="Paste the employee UUID from their profile page; eligible dependants load below.">
+            <Input placeholder="00000000-0000-0000-0000-000000000000"
+              onChange={(e) => loadDeps(e.target.value)} />
           </Form.Item>
           <Row gutter={12}>
             <Col span={8}>
@@ -1294,11 +1371,33 @@ function EnrolmentsTab() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="dependentsCovered" label="Dependants">
-                <InputNumber min={0} style={{ width: '100%' }} />
+              <Form.Item name="coverageTierCode" label="Coverage tier"
+                tooltip="Sets the employer/employee split. Leave blank to use the plan's flat rate.">
+                <Select
+                  allowClear
+                  disabled={enrolTiers.length === 0}
+                  placeholder={enrolTiers.length ? 'Pick a tier' : 'No tiers on this plan'}
+                  options={enrolTiers.map((t) => ({
+                    value: t.tierCode,
+                    label: `${COVERAGE_TIER_LABEL[t.tierCode]} — Er ${fmt(t.employerContribution)} / Ee ${fmt(t.employeeContribution)}`,
+                  }))}
+                />
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="dependentIds" label="Covered dependants"
+            extra={enrolDeps.length ? undefined : 'Enter the employee ID above to load their benefit-eligible dependants.'}>
+            <Select
+              mode="multiple"
+              allowClear
+              disabled={enrolDeps.length === 0}
+              placeholder={enrolDeps.length ? 'Select dependants to cover' : 'No eligible dependants'}
+              options={enrolDeps.map((d) => ({
+                value: d.id,
+                label: `${d.firstName} ${d.lastName} (${d.relationshipType})`,
+              }))}
+            />
+          </Form.Item>
           <Form.Item name="notes" label="Notes (optional)">
             <Input.TextArea rows={2} placeholder="Special arrangement, custom coverage, etc." />
           </Form.Item>

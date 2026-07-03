@@ -22,15 +22,23 @@ import az.millers.hcm.compbenefits.api.dto.BenefitDtos.PlanRequest;
 import az.millers.hcm.compbenefits.api.dto.BenefitDtos.PlanResponse;
 import az.millers.hcm.compbenefits.api.dto.BenefitDtos.TerminateRequest;
 import az.millers.hcm.compbenefits.domain.BenefitCategory;
+import az.millers.hcm.compbenefits.domain.BenefitCoverageTier;
 import az.millers.hcm.compbenefits.domain.BenefitEnrollment;
+import az.millers.hcm.compbenefits.domain.BenefitEnrollmentDependent;
 import az.millers.hcm.compbenefits.domain.BenefitPlan;
+import az.millers.hcm.compbenefits.domain.BenefitPlanTier;
 import az.millers.hcm.compbenefits.domain.BenefitProvider;
 import az.millers.hcm.compbenefits.domain.EnrollmentStatus;
+import az.millers.hcm.compbenefits.api.dto.BenefitDtos.CoveredDependent;
 import az.millers.hcm.compbenefits.repo.BenefitCategoryRepository;
+import az.millers.hcm.compbenefits.repo.BenefitEnrollmentDependentRepository;
 import az.millers.hcm.compbenefits.repo.BenefitEnrollmentRepository;
 import az.millers.hcm.compbenefits.repo.BenefitPlanRepository;
+import az.millers.hcm.compbenefits.repo.BenefitPlanTierRepository;
 import az.millers.hcm.compbenefits.repo.BenefitProviderRepository;
 import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.domain.EmployeeDependent;
+import az.millers.hcm.corehr.repo.EmployeeDependentRepository;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
 
@@ -50,6 +58,9 @@ public class BenefitsService {
     private final BenefitEnrollmentRepository enrollments;
     private final BenefitProviderRepository providers;
     private final BenefitCategoryRepository categories;
+    private final BenefitPlanTierRepository tiers;
+    private final EmployeeDependentRepository dependents;
+    private final BenefitEnrollmentDependentRepository enrollmentDependents;
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
@@ -58,6 +69,9 @@ public class BenefitsService {
                            BenefitEnrollmentRepository enrollments,
                            BenefitProviderRepository providers,
                            BenefitCategoryRepository categories,
+                           BenefitPlanTierRepository tiers,
+                           EmployeeDependentRepository dependents,
+                           BenefitEnrollmentDependentRepository enrollmentDependents,
                            EmployeeRepository employees,
                            AuditService audit,
                            CurrentRequest currentRequest) {
@@ -65,6 +79,9 @@ public class BenefitsService {
         this.enrollments = enrollments;
         this.providers = providers;
         this.categories = categories;
+        this.tiers = tiers;
+        this.dependents = dependents;
+        this.enrollmentDependents = enrollmentDependents;
         this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
@@ -229,6 +246,15 @@ public class BenefitsService {
         if (rows.isEmpty()) return List.of();
         Map<UUID, BenefitPlan> planCache = new HashMap<>();
         Map<UUID, Employee> empCache = new HashMap<>();
+        Map<UUID, String> depNameCache = new HashMap<>();
+        // Batch-load covered-dependent links, grouped by enrollment.
+        Map<UUID, List<CoveredDependent>> depsByEnrollment = new HashMap<>();
+        List<UUID> ids = rows.stream().map(BenefitEnrollment::getId).toList();
+        for (BenefitEnrollmentDependent link : enrollmentDependents.findByEnrollmentIdIn(ids)) {
+            depsByEnrollment.computeIfAbsent(link.getEnrollmentId(), k -> new ArrayList<>())
+                    .add(new CoveredDependent(link.getDependentId(),
+                            depNameCache.computeIfAbsent(link.getDependentId(), this::dependentName)));
+        }
         List<EnrollmentResponse> out = new ArrayList<>(rows.size());
         for (BenefitEnrollment e : rows) {
             BenefitPlan plan = planCache.computeIfAbsent(e.getPlanId(),
@@ -237,9 +263,16 @@ public class BenefitsService {
                     id -> employees.findById(id).orElse(null));
             String name = emp == null ? null
                     : (emp.getFirstName() + " " + emp.getLastName());
-            out.add(EnrollmentResponse.from(e, plan, name));
+            out.add(EnrollmentResponse.from(e, plan, name,
+                    depsByEnrollment.getOrDefault(e.getId(), List.of())));
         }
         return out;
+    }
+
+    private String dependentName(UUID depId) {
+        return dependents.findById(depId)
+                .map(d -> (d.getFirstName() + " " + d.getLastName()).trim())
+                .orElse(null);
     }
 
     @Transactional
@@ -261,23 +294,114 @@ public class BenefitsService {
             throw new BadRequestException("Employee is already actively enrolled in this plan");
         }
 
+        // Resolve the contribution snapshot from the chosen coverage tier, else the flat plan rate.
+        BigDecimal employerContribution = plan.getEmployerContribution();
+        BigDecimal employeeContribution = plan.getEmployeeContribution();
+        if (req.coverageTierCode() != null) {
+            BenefitPlanTier tier = tiers.findByPlanIdAndActiveTrueOrderByDisplayOrderAsc(req.planId())
+                    .stream().filter(t -> t.getTierCode() == req.coverageTierCode()).findFirst()
+                    .orElseThrow(() -> new BadRequestException(
+                            "Plan has no active tier " + req.coverageTierCode()));
+            employerContribution = tier.getEmployerContribution();
+            employeeContribution = tier.getEmployeeContribution();
+        }
+
+        // Validate the requested dependents belong to this employee and are benefit-eligible.
+        List<UUID> depIds = req.dependentIds() == null ? List.of() : req.dependentIds();
+        List<EmployeeDependent> validDeps = validateDependents(req.employeeId(), depIds);
+
         BenefitEnrollment e = new BenefitEnrollment();
         e.setPlanId(req.planId());
         e.setEmployeeId(req.employeeId());
         e.setStatus(targetStatus);
+        e.setCoverageTierCode(req.coverageTierCode());
+        e.setPlanYear(plan.getPlanYear());
+        e.setEmployerContribution(employerContribution);
+        e.setEmployeeContribution(employeeContribution);
+        e.setCurrency(plan.getCurrency());
         e.setStartDate(req.startDate());
-        e.setDependentsCovered(req.dependentsCovered() == null ? 0 : req.dependentsCovered());
+        e.setDependentsCovered(validDeps.isEmpty()
+                ? (req.dependentsCovered() == null ? 0 : req.dependentsCovered())
+                : validDeps.size());
         e.setNotes(req.notes());
         e.setEnrolledBy(currentRequest.username());
         e.setEnrolledAt(OffsetDateTime.now());
         BenefitEnrollment saved = enrollments.save(e);
+
+        // Link the covered dependents.
+        List<CoveredDependent> covered = new ArrayList<>();
+        for (EmployeeDependent d : validDeps) {
+            BenefitEnrollmentDependent link = new BenefitEnrollmentDependent();
+            link.setEnrollmentId(saved.getId());
+            link.setDependentId(d.getId());
+            enrollmentDependents.save(link);
+            covered.add(new CoveredDependent(d.getId(), (d.getFirstName() + " " + d.getLastName()).trim()));
+        }
+
         Employee emp = employees.findById(saved.getEmployeeId()).orElse(null);
         String name = emp == null ? null : (emp.getFirstName() + " " + emp.getLastName());
-        EnrollmentResponse response = EnrollmentResponse.from(saved, plan, name);
+        EnrollmentResponse response = EnrollmentResponse.from(saved, plan, name, covered);
         audit.record(MODULE, ENROLLMENT_ENTITY, saved.getId().toString(),
                 targetStatus == EnrollmentStatus.WAIVED ? "WAIVE" : "ENROL",
                 null, response);
         return response;
+    }
+
+    /** Validate dependents belong to the employee, are active + benefit/insurance-eligible + not eligibility-ended. */
+    private List<EmployeeDependent> validateDependents(UUID employeeId, List<UUID> depIds) {
+        if (depIds.isEmpty()) return List.of();
+        LocalDate today = LocalDate.now();
+        List<EmployeeDependent> out = new ArrayList<>(depIds.size());
+        for (UUID depId : depIds) {
+            EmployeeDependent d = dependents.findById(depId)
+                    .orElseThrow(() -> new BadRequestException("Dependent not found: " + depId));
+            if (!employeeId.equals(d.getEmployeeId())) {
+                throw new BadRequestException("Dependent does not belong to this employee: " + depId);
+            }
+            if (!d.isActive()) {
+                throw new BadRequestException("Dependent is not active: " + depId);
+            }
+            if (!d.isBenefitEligible() && !d.isInsuranceEligible()) {
+                throw new BadRequestException("Dependent is not benefit/insurance eligible: " + depId);
+            }
+            if (d.getEligibilityEndDate() != null && !d.getEligibilityEndDate().isAfter(today)) {
+                throw new BadRequestException("Dependent eligibility has ended: " + depId);
+            }
+            out.add(d);
+        }
+        return out;
+    }
+
+    /** Suspend an active enrollment (e.g. unpaid leave). Deduction paused by M378. */
+    @Transactional
+    public EnrollmentResponse suspend(UUID id) {
+        BenefitEnrollment e = enrollments.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrolment not found: " + id));
+        if (e.getStatus() != EnrollmentStatus.ENROLLED) {
+            throw new BadRequestException("Only ENROLLED enrolments can be suspended");
+        }
+        e.setStatus(EnrollmentStatus.SUSPENDED);
+        BenefitEnrollment saved = enrollments.save(e);
+        audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "SUSPEND", null, saved.getStatus());
+        return decorateOne(saved);
+    }
+
+    /** Resume a suspended enrollment back to ENROLLED. */
+    @Transactional
+    public EnrollmentResponse resume(UUID id) {
+        BenefitEnrollment e = enrollments.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrolment not found: " + id));
+        if (e.getStatus() != EnrollmentStatus.SUSPENDED) {
+            throw new BadRequestException("Only SUSPENDED enrolments can be resumed");
+        }
+        e.setStatus(EnrollmentStatus.ENROLLED);
+        BenefitEnrollment saved = enrollments.save(e);
+        audit.record(MODULE, ENROLLMENT_ENTITY, id.toString(), "RESUME", null, saved.getStatus());
+        return decorateOne(saved);
+    }
+
+    private EnrollmentResponse decorateOne(BenefitEnrollment e) {
+        return decorate(List.of(e)).get(0);
     }
 
     @Transactional

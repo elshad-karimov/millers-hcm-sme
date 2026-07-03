@@ -94,6 +94,8 @@ public final class BenefitDtos {
             @NotNull UUID employeeId,
             @NotNull LocalDate startDate,
             EnrollmentStatus status,
+            az.millers.hcm.compbenefits.domain.BenefitCoverageTier coverageTierCode,
+            java.util.List<UUID> dependentIds,
             @PositiveOrZero Integer dependentsCovered,
             String notes) {
     }
@@ -103,6 +105,9 @@ public final class BenefitDtos {
             @NotNull LocalDate endDate,
             String terminationReason) {
     }
+
+    /** A dependent covered by an enrollment. */
+    public record CoveredDependent(UUID id, String name) {}
 
     /** Read view of a {@link BenefitEnrollment}. */
     public record EnrollmentResponse(
@@ -114,21 +119,32 @@ public final class BenefitDtos {
             UUID employeeId,
             String employeeName,
             EnrollmentStatus status,
+            az.millers.hcm.compbenefits.domain.BenefitCoverageTier coverageTierCode,
+            Integer planYear,
             LocalDate startDate,
             LocalDate endDate,
             int dependentsCovered,
+            java.util.List<CoveredDependent> coveredDependents,
             String notes,
             String enrolledBy,
             OffsetDateTime enrolledAt,
             String terminatedBy,
             OffsetDateTime terminatedAt,
             String terminationReason,
+            String currency,
             BigDecimal employerContribution,
             BigDecimal employeeContribution) {
 
         public static EnrollmentResponse from(BenefitEnrollment e,
                                               BenefitPlan plan,
                                               String employeeName) {
+            return from(e, plan, employeeName, java.util.List.of());
+        }
+
+        public static EnrollmentResponse from(BenefitEnrollment e,
+                                              BenefitPlan plan,
+                                              String employeeName,
+                                              java.util.List<CoveredDependent> coveredDependents) {
             return new EnrollmentResponse(
                     e.getId(),
                     e.getPlanId(),
@@ -138,17 +154,27 @@ public final class BenefitDtos {
                     e.getEmployeeId(),
                     employeeName,
                     e.getStatus(),
+                    e.getCoverageTierCode(),
+                    e.getPlanYear(),
                     e.getStartDate(),
                     e.getEndDate(),
                     e.getDependentsCovered(),
+                    coveredDependents,
                     e.getNotes(),
                     e.getEnrolledBy(),
                     e.getEnrolledAt(),
                     e.getTerminatedBy(),
                     e.getTerminatedAt(),
                     e.getTerminationReason(),
-                    plan == null ? null : plan.getEmployerContribution(),
-                    plan == null ? null : plan.getEmployeeContribution());
+                    e.getCurrency(),
+                    // Prefer the enrolment snapshot; fall back to the plan for legacy rows.
+                    snapshotOr(e.getEmployerContribution(), plan == null ? null : plan.getEmployerContribution()),
+                    snapshotOr(e.getEmployeeContribution(), plan == null ? null : plan.getEmployeeContribution()));
+        }
+
+        private static BigDecimal snapshotOr(BigDecimal snapshot, BigDecimal planValue) {
+            if (snapshot != null && snapshot.signum() != 0) return snapshot;
+            return snapshot != null ? snapshot : planValue;
         }
     }
 }

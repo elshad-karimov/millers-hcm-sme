@@ -40,6 +40,24 @@ public class BenefitEnrollment {
     @Column(nullable = false, length = 20)
     private EnrollmentStatus status = EnrollmentStatus.ENROLLED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "coverage_tier_code", length = 30)
+    private BenefitCoverageTier coverageTierCode;
+
+    @Column(name = "plan_year")
+    private Integer planYear;
+
+    /** Snapshot of the employer monthly contribution at enrolment time (from the tier or plan). */
+    @Column(name = "employer_contribution", nullable = false, precision = 14, scale = 2)
+    private java.math.BigDecimal employerContribution = java.math.BigDecimal.ZERO;
+
+    /** Snapshot of the employee monthly contribution — what the payroll deduction uses (M378). */
+    @Column(name = "employee_contribution", nullable = false, precision = 14, scale = 2)
+    private java.math.BigDecimal employeeContribution = java.math.BigDecimal.ZERO;
+
+    @Column(nullable = false, length = 10)
+    private String currency = "AZN";
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 

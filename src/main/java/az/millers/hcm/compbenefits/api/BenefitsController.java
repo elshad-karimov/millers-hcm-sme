@@ -106,6 +106,18 @@ public class BenefitsController {
         return service.terminate(id, req);
     }
 
+    @PostMapping("/enrollments/{id}/suspend")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public EnrollmentResponse suspend(@PathVariable UUID id) {
+        return service.suspend(id);
+    }
+
+    @PostMapping("/enrollments/{id}/resume")
+    @PreAuthorize(SecurityRoles.WRITE_HR)
+    public EnrollmentResponse resume(@PathVariable UUID id) {
+        return service.resume(id);
+    }
+
     // ---------- Self-service ----------
 
     /** Employee's own enrolments — anybody authenticated can call. */
