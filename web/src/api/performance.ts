@@ -299,6 +299,93 @@ export const ratingScalesApi = {
     api.put<RatingScaleResponse>(`/performance/rating-scales/${id}`, req).then((r) => r.data),
 }
 
+// ─── Review templates (HCM_12 M389) ──────────────────────────────────────────
+
+export type PerfSectionType =
+  | 'GOALS'
+  | 'KPI'
+  | 'OKR'
+  | 'COMPETENCY'
+  | 'VALUES'
+  | 'BEHAVIORAL'
+  | 'MANAGER_COMMENTS'
+  | 'EMPLOYEE_COMMENTS'
+  | 'DEVELOPMENT_PLAN'
+  | 'FINAL_RATING'
+  | 'PROMOTION_RECOMMENDATION'
+  | 'COMPENSATION_RECOMMENDATION'
+  | 'SUMMARY'
+  | 'SIGNATURE'
+
+export const SECTION_TYPE_LABEL: Record<PerfSectionType, string> = {
+  GOALS: 'Goals',
+  KPI: 'KPIs',
+  OKR: 'OKRs',
+  COMPETENCY: 'Competencies',
+  VALUES: 'Company Values',
+  BEHAVIORAL: 'Behavioral',
+  MANAGER_COMMENTS: 'Manager Comments',
+  EMPLOYEE_COMMENTS: 'Employee Comments',
+  DEVELOPMENT_PLAN: 'Development Plan',
+  FINAL_RATING: 'Final Rating',
+  PROMOTION_RECOMMENDATION: 'Promotion Recommendation',
+  COMPENSATION_RECOMMENDATION: 'Compensation Recommendation',
+  SUMMARY: 'Summary',
+  SIGNATURE: 'Signature',
+}
+
+export const SCORING_SECTIONS: PerfSectionType[] = [
+  'GOALS', 'KPI', 'OKR', 'COMPETENCY', 'VALUES', 'BEHAVIORAL',
+]
+
+export interface TemplateSection {
+  id?: string
+  sectionType: PerfSectionType
+  sectionOrder?: number
+  title?: string | null
+  weightPercent?: number
+  required?: boolean
+  scoring?: boolean
+}
+
+export interface PerfTemplateRequest {
+  templateCode: string
+  templateName: string
+  description?: string
+  legalEntityId?: string | null
+  departmentId?: string | null
+  gradeId?: string | null
+  employeeType?: string | null
+  active?: boolean
+  sections: TemplateSection[]
+}
+
+export interface PerfTemplateResponse {
+  id: string
+  templateCode: string
+  templateName: string
+  description?: string | null
+  legalEntityId?: string | null
+  departmentId?: string | null
+  gradeId?: string | null
+  employeeType?: string | null
+  active: boolean
+  sections: TemplateSection[]
+  scoringWeightTotal: number
+  createdAt: string
+}
+
+export const perfTemplatesApi = {
+  list: (activeOnly = false) =>
+    api
+      .get<PerfTemplateResponse[]>('/performance/templates', { params: { activeOnly } })
+      .then((r) => r.data),
+  create: (req: PerfTemplateRequest) =>
+    api.post<PerfTemplateResponse>('/performance/templates', req).then((r) => r.data),
+  update: (id: string, req: PerfTemplateRequest) =>
+    api.put<PerfTemplateResponse>(`/performance/templates/${id}`, req).then((r) => r.data),
+}
+
 export const performanceApi = {
   cycles: (status?: CycleStatus) =>
     api.get<ReviewCycle[]>('/performance/cycles', { params: { status } }).then((r) => r.data),

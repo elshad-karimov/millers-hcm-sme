@@ -62,6 +62,32 @@ public class ReviewCycle {
     @Column(nullable = false, length = 24)
     private CycleStatus status;
 
+    // ── HCM_12 M389 — scale/template links + scoping/eligibility (§5.1/§10.2) ──
+
+    /** Rating scale for this cycle (null → tenant default scale). */
+    @Column(name = "rating_scale_id")
+    private UUID ratingScaleId;
+
+    /** Default review template for this cycle (null → best applicability match). */
+    @Column(name = "template_id")
+    private UUID templateId;
+
+    @Column(name = "legal_entity_id")
+    private UUID legalEntityId;
+
+    @Column(name = "department_id")
+    private UUID departmentId;
+
+    @Column(name = "grade_id")
+    private UUID gradeId;
+
+    @Column(name = "employee_type", length = 40)
+    private String employeeType;
+
+    /** Minimum months of service to be eligible for this cycle (§10.2). */
+    @Column(name = "min_service_months")
+    private Integer minServiceMonths;
+
     @Column(columnDefinition = "text")
     private String description;
 

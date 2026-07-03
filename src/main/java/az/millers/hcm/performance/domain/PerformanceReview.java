@@ -37,6 +37,10 @@ public class PerformanceReview {
     @Column(name = "cycle_id", nullable = false)
     private UUID cycleId;
 
+    /** HCM_12 M389 — template this review form was generated from (frozen at launch). */
+    @Column(name = "template_id")
+    private UUID templateId;
+
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;
 
