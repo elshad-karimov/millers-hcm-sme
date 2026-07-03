@@ -24,7 +24,10 @@ import az.millers.hcm.compbenefits.domain.BenefitPlan;
 import az.millers.hcm.compbenefits.repo.BenefitClaimItemRepository;
 import az.millers.hcm.compbenefits.repo.BenefitClaimRepository;
 import az.millers.hcm.compbenefits.repo.BenefitPlanRepository;
+import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.notifications.NotificationService;
+import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
 
 /**
@@ -43,6 +46,7 @@ public class BenefitClaimService {
     private final BenefitClaimItemRepository items;
     private final BenefitPlanRepository plans;
     private final EmployeeRepository employees;
+    private final NotificationService notifications;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -50,14 +54,29 @@ public class BenefitClaimService {
                                BenefitClaimItemRepository items,
                                BenefitPlanRepository plans,
                                EmployeeRepository employees,
+                               NotificationService notifications,
                                AuditService audit,
                                CurrentRequest currentRequest) {
         this.claims = claims;
         this.items = items;
         this.plans = plans;
         this.employees = employees;
+        this.notifications = notifications;
         this.audit = audit;
         this.currentRequest = currentRequest;
+    }
+
+    /** Non-fatal notification to the claim's employee about a decision. */
+    private void notifyEmployee(BenefitClaim c, String title, String body) {
+        try {
+            Employee emp = employees.findById(c.getEmployeeId()).orElse(null);
+            if (emp != null && emp.getUsername() != null && !emp.getUsername().isBlank()) {
+                notifications.notifyAll(NotificationCategory.BENEFIT_ENROLLMENT, emp.getUsername(),
+                        title, body, MODULE, ENTITY, c.getId().toString());
+            }
+        } catch (Exception ex) {
+            // best-effort
+        }
     }
 
     // ── Reads ────────────────────────────────────────────────────────────────
@@ -167,6 +186,9 @@ public class BenefitClaimService {
         c.setReviewNotes(notes);
         claims.save(c);
         audit.record(MODULE, ENTITY, id.toString(), "APPROVE", null, c.getApprovedAmount());
+        notifyEmployee(c, "Benefit claim approved: " + c.getClaimNo(),
+                "Your benefit claim " + c.getClaimNo() + " was approved for "
+                        + c.getApprovedAmount() + " " + c.getCurrency() + ".");
         return get(id);
     }
 
@@ -180,6 +202,9 @@ public class BenefitClaimService {
         c.setReviewNotes(notes);
         claims.save(c);
         audit.record(MODULE, ENTITY, id.toString(), "REJECT", null, notes);
+        notifyEmployee(c, "Benefit claim rejected: " + c.getClaimNo(),
+                "Your benefit claim " + c.getClaimNo() + " was rejected"
+                        + (notes == null || notes.isBlank() ? "." : ": " + notes));
         return get(id);
     }
 

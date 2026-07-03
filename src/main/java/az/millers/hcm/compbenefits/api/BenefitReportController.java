@@ -11,17 +11,27 @@ import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.compbenefits.service.BenefitCostService;
 import az.millers.hcm.compbenefits.service.BenefitCostService.CategorySpend;
+import az.millers.hcm.compbenefits.service.BenefitDashboardService;
 import az.millers.hcm.security.SecurityRoles;
 
-/** Benefit cost / finance report API (HCM_11 M383). */
+/** Benefit cost / finance report + dashboard API (HCM_11 M383/M386). */
 @RestController
 @RequestMapping("/api/compbenefits/reports")
 public class BenefitReportController {
 
     private final BenefitCostService costs;
+    private final BenefitDashboardService dashboard;
 
-    public BenefitReportController(BenefitCostService costs) {
+    public BenefitReportController(BenefitCostService costs, BenefitDashboardService dashboard) {
         this.costs = costs;
+        this.dashboard = dashboard;
+    }
+
+    /** Benefits dashboard overview (M386). */
+    @GetMapping("/dashboard")
+    @PreAuthorize(SecurityRoles.READ_BENEFITS)
+    public Map<String, Object> dashboard() {
+        return dashboard.overview();
     }
 
     /** Current monthly employer spend + per-category breakdown. */

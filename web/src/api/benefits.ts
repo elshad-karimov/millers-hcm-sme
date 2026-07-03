@@ -331,6 +331,23 @@ export interface EmployerCostReport {
   byCategory: CategorySpend[]
 }
 
+export interface BenefitDashboard {
+  totalPlans: number
+  activePlans: number
+  totalEnrollments: number
+  activeEnrollments: number
+  pendingApprovals: number
+  employerMonthly: number
+  employeeMonthly: number
+  employerAnnual: number
+  enrollmentsByStatus: Record<string, number>
+  byCategory: CategorySpend[]
+  claimsByStatus: Record<string, number>
+  claimsPaidTotal: number
+  openLifeEventWindows: number
+  expiringPlans: number
+}
+
 export const benefitReconcileApi = {
   reconcile: (providerId: string, rows: { reference: string; amount: number }[]) =>
     api
@@ -338,6 +355,8 @@ export const benefitReconcileApi = {
       .then((r) => r.data),
   employerCost: () =>
     api.get<EmployerCostReport>('/compbenefits/reports/employer-cost').then((r) => r.data),
+  dashboard: () =>
+    api.get<BenefitDashboard>('/compbenefits/reports/dashboard').then((r) => r.data),
 }
 
 export const benefitProvidersApi = {

@@ -36,6 +36,14 @@ import type { BusinessTrip } from '../api/businessTrip'
 import type { Timesheet } from '../api/timesheet'
 import { payrollApi, type PayslipInfo, type SalaryAdvance } from '../api/payroll'
 import { compensationApi } from '../api/compensation'
+import {
+  benefitsApi,
+  claimsApi,
+  ENROLLMENT_STATUS_COLOR,
+  CLAIM_STATUS_COLOR,
+  type EnrollmentResponse,
+  type ClaimResponse,
+} from '../api/benefits'
 import type { Enrollment, Certificate, EmployeeCompetency } from '../api/learning'
 import {
   pathAssignmentsApi,
@@ -448,6 +456,74 @@ function TimesheetsTab() {
     <Card title="My timesheets" size="small">
       <Table rowKey="id" size="small" columns={cols} dataSource={rows} pagination={false} />
     </Card>
+  )
+}
+
+// ============================================================================
+//  My Benefits tab (HCM_11 M385)
+// ============================================================================
+function BenefitsTab() {
+  const { message } = AntdApp.useApp()
+  const { Title, Text } = Typography
+  const [enrolments, setEnrolments] = useState<EnrollmentResponse[]>([])
+  const [claims, setClaims] = useState<ClaimResponse[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([benefitsApi.myEnrolments(), claimsApi.mine().catch(() => [])])
+      .then(([e, c]) => { setEnrolments(e); setClaims(c) })
+      .catch((err) => message.error(err?.response?.data?.message ?? 'Failed to load benefits'))
+      .finally(() => setLoading(false))
+  }, [message])
+
+  if (loading) return <Spin />
+
+  const active = enrolments.filter((e) => e.status === 'ENROLLED')
+  const myEmployee = active.reduce((s, e) => s + (e.employeeContribution ?? 0), 0)
+  const myEmployer = active.reduce((s, e) => s + (e.employerContribution ?? 0), 0)
+  const fmt2 = (n?: number | null) => (n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+
+  const claimCols: ColumnsType<ClaimResponse> = [
+    { title: 'Claim #', dataIndex: 'claimNo', width: 110 },
+    { title: 'Date', dataIndex: 'claimDate', width: 110 },
+    { title: 'Total', align: 'right', width: 110, render: (_, r) => `${fmt2(r.totalAmount)} ${r.currency}` },
+    { title: 'Approved', align: 'right', width: 110, render: (_, r) => (r.approvedAmount != null ? fmt2(r.approvedAmount) : '—') },
+    { title: 'Status', width: 110, render: (_, r) => <Tag color={CLAIM_STATUS_COLOR[r.status]}>{r.status}</Tag> },
+  ]
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Row gutter={16}>
+        <Col span={8}><Statistic title="Active plans" value={active.length} /></Col>
+        <Col span={8}><Statistic title="Your contribution / mo" value={myEmployee} precision={2} suffix="AZN" /></Col>
+        <Col span={8}><Statistic title="Employer contribution / mo" value={myEmployer} precision={2} suffix="AZN" /></Col>
+      </Row>
+
+      {enrolments.length === 0 ? (
+        <Empty description="You aren't enrolled in any benefits yet. Ask HR if you think this is wrong." />
+      ) : (
+        enrolments.map((r) => (
+          <Card key={r.id} size="small"
+            title={<Space><Text strong>{r.planName ?? '—'}</Text><Tag color={ENROLLMENT_STATUS_COLOR[r.status]}>{r.status}</Tag></Space>}>
+            <Row gutter={16}>
+              <Col span={6}><Statistic title="Start" value={r.startDate} /></Col>
+              <Col span={6}><Statistic title="Tier" value={r.coverageTierCode ?? 'flat'} /></Col>
+              <Col span={6}><Statistic title="Your share / mo" value={r.employeeContribution ?? 0} precision={2} suffix="AZN" /></Col>
+              <Col span={6}><Statistic title="Dependants" value={r.dependentsCovered} /></Col>
+            </Row>
+            {(r.coveredDependents ?? []).length > 0 && (
+              <Text type="secondary">Covers: {(r.coveredDependents ?? []).map((d) => d.name).filter(Boolean).join(', ')}</Text>
+            )}
+          </Card>
+        ))
+      )}
+
+      {claims.length > 0 && (
+        <Card size="small" title={<Title level={5} style={{ margin: 0 }}>My claims</Title>}>
+          <Table rowKey="id" columns={claimCols} dataSource={claims} size="small" pagination={{ pageSize: 10 }} />
+        </Card>
+      )}
+    </Space>
   )
 }
 
@@ -979,6 +1055,7 @@ export function MyWorkspacePage() {
           { key: 'businessTrips', label: t('tabs.businessTrips'),  children: <BusinessTripsTab /> },
           { key: 'timesheets',    label: t('tabs.timesheets'),     children: <TimesheetsTab /> },
           { key: 'payroll',       label: 'Payroll',                children: <PayrollTab /> },
+          { key: 'benefits',      label: 'Benefits',               children: <BenefitsTab /> },
           { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
           { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
         ]}

@@ -47,6 +47,8 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmployeeDependent;
 import az.millers.hcm.corehr.repo.EmployeeDependentRepository;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.notifications.NotificationService;
+import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.workflow.api.dto.ActionRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
@@ -80,6 +82,7 @@ public class BenefitsService {
     private final EmployeeRepository employees;
     private final WorkflowService workflows;
     private final BenefitDeductionService benefitDeductions;
+    private final NotificationService notifications;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final TransactionTemplate requiresNew;
@@ -94,6 +97,7 @@ public class BenefitsService {
                            EmployeeRepository employees,
                            WorkflowService workflows,
                            BenefitDeductionService benefitDeductions,
+                           NotificationService notifications,
                            AuditService audit,
                            CurrentRequest currentRequest,
                            PlatformTransactionManager txManager) {
@@ -107,6 +111,7 @@ public class BenefitsService {
         this.employees = employees;
         this.workflows = workflows;
         this.benefitDeductions = benefitDeductions;
+        this.notifications = notifications;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.requiresNew = new TransactionTemplate(txManager);
@@ -545,6 +550,23 @@ public class BenefitsService {
     protected void onEnrollmentActivated(BenefitEnrollment e) {
         // M378 — bridge the employee contribution to payroll as a recurring deduction.
         benefitDeductions.ensureDeduction(e);
+        // M387 — notify the employee that their coverage is active (non-fatal).
+        try {
+            Employee emp = employees.findById(e.getEmployeeId()).orElse(null);
+            BenefitPlan plan = plans.findById(e.getPlanId()).orElse(null);
+            if (emp != null && emp.getUsername() != null && !emp.getUsername().isBlank()) {
+                String planName = plan == null ? "a benefit plan" : plan.getName();
+                notifications.notifyAll(NotificationCategory.BENEFIT_ENROLLMENT, emp.getUsername(),
+                        "Benefit coverage active: " + planName,
+                        "Your enrollment in \"" + planName + "\" is now active"
+                                + (e.getEmployeeContribution() != null && e.getEmployeeContribution().signum() > 0
+                                    ? ". Your contribution of " + e.getEmployeeContribution() + " " + e.getCurrency()
+                                      + "/month will be deducted via payroll." : "."),
+                        MODULE, ENROLLMENT_ENTITY, e.getId().toString());
+            }
+        } catch (Exception ex) {
+            log.warn("Benefit activation notification failed for enrollment {}: {}", e.getId(), ex.getMessage());
+        }
     }
 
     /**

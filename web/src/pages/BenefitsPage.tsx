@@ -50,6 +50,7 @@ import {
   openEnrollmentApi,
   type BenefitCategoryRequest,
   type BenefitCategoryResponse,
+  type BenefitDashboard,
   type BenefitProviderRequest,
   type BenefitProviderResponse,
   type BenefitProviderType,
@@ -2072,6 +2073,79 @@ function ClaimsTab() {
   )
 }
 
+// ─── Dashboard tab (HCM_11 M386) ─────────────────────────────────────────────
+
+function DashboardTab() {
+  const { message } = AntdApp.useApp()
+  const [d, setD] = useState<BenefitDashboard | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    benefitReconcileApi.dashboard()
+      .then(setD)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load dashboard'))
+      .finally(() => setLoading(false))
+  }, [message])
+
+  if (loading) return <Spin />
+  if (!d) return <Empty description="No dashboard data" />
+
+  const catCols: ColumnsType<BenefitDashboard['byCategory'][number]> = [
+    { title: 'Category', dataIndex: 'category' },
+    { title: 'Enrolments', dataIndex: 'enrollments', align: 'center', width: 110 },
+    { title: 'Employer / mo', align: 'right', width: 130, render: (_, r) => fmt(r.employerMonthly) },
+    { title: 'Employee / mo', align: 'right', width: 130, render: (_, r) => fmt(r.employeeMonthly) },
+  ]
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Row gutter={16}>
+        <Col span={6}><Card size="small"><Statistic title="Active enrolments" value={d.activeEnrollments} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="Active plans" value={d.activePlans} suffix={`/ ${d.totalPlans}`} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="Pending approvals" value={d.pendingApprovals} valueStyle={{ color: d.pendingApprovals ? '#d48806' : undefined }} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="Expiring plans (60d)" value={d.expiringPlans} valueStyle={{ color: d.expiringPlans ? '#cf1322' : undefined }} /></Card></Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={6}><Card size="small"><Statistic title="Employer / month" value={d.employerMonthly} precision={2} suffix="AZN" /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="Employer / year" value={d.employerAnnual} precision={2} suffix="AZN" /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="Employee / month" value={d.employeeMonthly} precision={2} suffix="AZN" /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="Open life-event windows" value={d.openLifeEventWindows} /></Card></Col>
+      </Row>
+
+      <Card size="small" title="Employer spend by category">
+        <Table rowKey="category" columns={catCols} dataSource={d.byCategory} size="small" pagination={false}
+          locale={{ emptyText: <Empty description="No active enrolments" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }} />
+      </Card>
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Card size="small" title="Enrolments by status">
+            <Space wrap>
+              {Object.entries(d.enrollmentsByStatus).map(([k, v]) => (
+                <Tag key={k} color={ENROLLMENT_STATUS_COLOR[k as EnrollmentStatus] ?? 'default'}>{k}: {v}</Tag>
+              ))}
+              {!Object.keys(d.enrollmentsByStatus).length && <Text type="secondary">—</Text>}
+            </Space>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card size="small" title="Claims">
+            <Space direction="vertical">
+              <Space wrap>
+                {Object.entries(d.claimsByStatus).map(([k, v]) => (
+                  <Tag key={k} color={CLAIM_STATUS_COLOR[k as keyof typeof CLAIM_STATUS_COLOR] ?? 'default'}>{k}: {v}</Tag>
+                ))}
+                {!Object.keys(d.claimsByStatus).length && <Text type="secondary">No claims</Text>}
+              </Space>
+              <Text>Total paid: <Text strong>{fmt(d.claimsPaidTotal)} AZN</Text></Text>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </Space>
+  )
+}
+
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
 export function BenefitsPage() {
@@ -2081,6 +2155,7 @@ export function BenefitsPage() {
   // For non-HR employees, only show the self-service tab.
   const items = isHr
     ? [
+        { key: 'dashboard', label: 'Dashboard', children: <DashboardTab /> },
         { key: 'categories', label: 'Categories', children: <CategoriesTab /> },
         { key: 'providers', label: 'Providers', children: <ProvidersTab /> },
         { key: 'plans', label: 'Plans catalog', children: <PlansTab /> },
@@ -2099,7 +2174,7 @@ export function BenefitsPage() {
         Health, pension, life-insurance and other plans, plus per-employee enrolment.
         HR Admin manages the catalog; HR specialists handle day-to-day enrol/waive/terminate.
       </Text>
-      <Tabs items={items} defaultActiveKey={isHr ? 'plans' : 'me'} />
+      <Tabs items={items} defaultActiveKey={isHr ? 'dashboard' : 'me'} />
     </Space>
   )
 }
