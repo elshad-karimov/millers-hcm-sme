@@ -25,6 +25,7 @@ public final class BenefitDtos {
             String description,
             @NotNull BenefitType benefitType,
             String provider,
+            UUID providerId,
             String coverageDetails,
             String eligibility,
             @PositiveOrZero BigDecimal employerContribution,
@@ -43,6 +44,8 @@ public final class BenefitDtos {
             String description,
             BenefitType benefitType,
             String provider,
+            UUID providerId,
+            String providerName,
             String coverageDetails,
             String eligibility,
             BigDecimal employerContribution,
@@ -56,13 +59,18 @@ public final class BenefitDtos {
             OffsetDateTime createdAt) {
 
         public static PlanResponse from(BenefitPlan p) {
-            return from(p, 0L);
+            return from(p, 0L, null);
         }
 
         public static PlanResponse from(BenefitPlan p, long activeEnrolments) {
+            return from(p, activeEnrolments, null);
+        }
+
+        public static PlanResponse from(BenefitPlan p, long activeEnrolments, String providerName) {
             return new PlanResponse(
                     p.getId(), p.getCode(), p.getName(), p.getDescription(),
-                    p.getBenefitType(), p.getProvider(), p.getCoverageDetails(), p.getEligibility(),
+                    p.getBenefitType(), p.getProvider(), p.getProviderId(), providerName,
+                    p.getCoverageDetails(), p.getEligibility(),
                     p.getEmployerContribution(), p.getEmployeeContribution(), p.totalContribution(),
                     p.getCurrency(), p.getEffectiveFrom(), p.getEffectiveTo(),
                     p.isActive(), activeEnrolments, p.getCreatedAt());

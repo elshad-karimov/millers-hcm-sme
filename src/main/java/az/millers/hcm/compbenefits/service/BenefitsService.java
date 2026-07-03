@@ -23,9 +23,11 @@ import az.millers.hcm.compbenefits.api.dto.BenefitDtos.PlanResponse;
 import az.millers.hcm.compbenefits.api.dto.BenefitDtos.TerminateRequest;
 import az.millers.hcm.compbenefits.domain.BenefitEnrollment;
 import az.millers.hcm.compbenefits.domain.BenefitPlan;
+import az.millers.hcm.compbenefits.domain.BenefitProvider;
 import az.millers.hcm.compbenefits.domain.EnrollmentStatus;
 import az.millers.hcm.compbenefits.repo.BenefitEnrollmentRepository;
 import az.millers.hcm.compbenefits.repo.BenefitPlanRepository;
+import az.millers.hcm.compbenefits.repo.BenefitProviderRepository;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -44,20 +46,29 @@ public class BenefitsService {
 
     private final BenefitPlanRepository plans;
     private final BenefitEnrollmentRepository enrollments;
+    private final BenefitProviderRepository providers;
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public BenefitsService(BenefitPlanRepository plans,
                            BenefitEnrollmentRepository enrollments,
+                           BenefitProviderRepository providers,
                            EmployeeRepository employees,
                            AuditService audit,
                            CurrentRequest currentRequest) {
         this.plans = plans;
         this.enrollments = enrollments;
+        this.providers = providers;
         this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
+    }
+
+    /** Resolve a provider's display name, or null if unset / not found. */
+    private String providerName(UUID providerId) {
+        if (providerId == null) return null;
+        return providers.findById(providerId).map(BenefitProvider::getName).orElse(null);
     }
 
     // -------------------------------------------------------------------------
@@ -69,9 +80,12 @@ public class BenefitsService {
         List<BenefitPlan> rows = activeOnly
                 ? plans.findByActiveTrueOrderByBenefitTypeAscNameAsc()
                 : plans.findAllByOrderByBenefitTypeAscNameAsc();
+        Map<UUID, String> providerNames = new HashMap<>();
         return rows.stream()
                 .map(p -> PlanResponse.from(p,
-                        enrollments.countByPlanIdAndStatus(p.getId(), EnrollmentStatus.ENROLLED)))
+                        enrollments.countByPlanIdAndStatus(p.getId(), EnrollmentStatus.ENROLLED),
+                        p.getProviderId() == null ? null
+                                : providerNames.computeIfAbsent(p.getProviderId(), this::providerName)))
                 .toList();
     }
 
@@ -85,7 +99,8 @@ public class BenefitsService {
     public PlanResponse getPlanResponse(UUID id) {
         BenefitPlan p = getPlan(id);
         return PlanResponse.from(p,
-                enrollments.countByPlanIdAndStatus(p.getId(), EnrollmentStatus.ENROLLED));
+                enrollments.countByPlanIdAndStatus(p.getId(), EnrollmentStatus.ENROLLED),
+                providerName(p.getProviderId()));
     }
 
     @Transactional
@@ -98,7 +113,7 @@ public class BenefitsService {
         applyPlan(p, req);
         p.setCreatedBy(currentRequest.username());
         BenefitPlan saved = plans.save(p);
-        PlanResponse response = PlanResponse.from(saved, 0L);
+        PlanResponse response = PlanResponse.from(saved, 0L, providerName(saved.getProviderId()));
         audit.record(MODULE, PLAN_ENTITY, saved.getId().toString(),
                 "CREATE", null, response);
         return response;
@@ -109,13 +124,13 @@ public class BenefitsService {
         validatePlanRequest(req);
         BenefitPlan p = getPlan(id);
         long active = enrollments.countByPlanIdAndStatus(id, EnrollmentStatus.ENROLLED);
-        PlanResponse before = PlanResponse.from(p, active);
+        PlanResponse before = PlanResponse.from(p, active, providerName(p.getProviderId()));
         if (!p.getCode().equals(req.code()) && plans.existsByCode(req.code())) {
             throw new BadRequestException("Benefit plan code already exists: " + req.code());
         }
         applyPlan(p, req);
         BenefitPlan saved = plans.save(p);
-        PlanResponse response = PlanResponse.from(saved, active);
+        PlanResponse response = PlanResponse.from(saved, active, providerName(saved.getProviderId()));
         audit.record(MODULE, PLAN_ENTITY, id.toString(),
                 "UPDATE", before, response);
         return response;
@@ -127,6 +142,10 @@ public class BenefitsService {
         p.setDescription(req.description());
         p.setBenefitType(req.benefitType());
         p.setProvider(req.provider());
+        if (req.providerId() != null && !providers.existsById(req.providerId())) {
+            throw new BadRequestException("Benefit provider not found: " + req.providerId());
+        }
+        p.setProviderId(req.providerId());
         p.setCoverageDetails(req.coverageDetails());
         p.setEligibility(req.eligibility());
         p.setEmployerContribution(zeroIfNull(req.employerContribution()));

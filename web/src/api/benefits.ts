@@ -20,6 +20,7 @@ export interface PlanRequest {
   description?: string
   benefitType: BenefitType
   provider?: string
+  providerId?: string | null
   coverageDetails?: string
   eligibility?: string
   employerContribution?: number
@@ -37,6 +38,8 @@ export interface PlanResponse {
   description?: string | null
   benefitType: BenefitType
   provider?: string | null
+  providerId?: string | null
+  providerName?: string | null
   coverageDetails?: string | null
   eligibility?: string | null
   employerContribution: number
@@ -150,6 +153,72 @@ export const benefitCategoriesApi = {
   update: (id: string, req: BenefitCategoryRequest) =>
     api
       .put<BenefitCategoryResponse>(`/compbenefits/benefit-categories/${id}`, req)
+      .then((r) => r.data),
+}
+
+// ─── Benefit providers / vendors (HCM_11 M374) ───────────────────────────────
+
+export type BenefitProviderType =
+  | 'INSURER'
+  | 'PENSION_FUND'
+  | 'CLINIC'
+  | 'VENDOR'
+  | 'BANK'
+  | 'OTHER'
+
+export const PROVIDER_TYPE_LABEL: Record<BenefitProviderType, string> = {
+  INSURER: 'Insurer',
+  PENSION_FUND: 'Pension fund',
+  CLINIC: 'Clinic',
+  VENDOR: 'Vendor',
+  BANK: 'Bank',
+  OTHER: 'Other',
+}
+
+export interface BenefitProviderRequest {
+  code: string
+  name: string
+  providerType: BenefitProviderType
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  website?: string
+  contractNo?: string
+  contractStart?: string
+  contractEnd?: string
+  notes?: string
+  active?: boolean
+}
+
+export interface BenefitProviderResponse {
+  id: string
+  code: string
+  name: string
+  providerType: BenefitProviderType
+  contactName?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  website?: string | null
+  contractNo?: string | null
+  contractStart?: string | null
+  contractEnd?: string | null
+  notes?: string | null
+  active: boolean
+  createdAt: string
+}
+
+export const benefitProvidersApi = {
+  list: (activeOnly = false) =>
+    api
+      .get<BenefitProviderResponse[]>('/compbenefits/benefit-providers', {
+        params: { activeOnly },
+      })
+      .then((r) => r.data),
+  create: (req: BenefitProviderRequest) =>
+    api.post<BenefitProviderResponse>('/compbenefits/benefit-providers', req).then((r) => r.data),
+  update: (id: string, req: BenefitProviderRequest) =>
+    api
+      .put<BenefitProviderResponse>(`/compbenefits/benefit-providers/${id}`, req)
       .then((r) => r.data),
 }
 

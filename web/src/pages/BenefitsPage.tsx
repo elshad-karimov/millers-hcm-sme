@@ -35,10 +35,15 @@ import {
   BENEFIT_TYPE_COLOR,
   BENEFIT_TYPE_LABEL,
   ENROLLMENT_STATUS_COLOR,
+  PROVIDER_TYPE_LABEL,
   benefitCategoriesApi,
+  benefitProvidersApi,
   benefitsApi,
   type BenefitCategoryRequest,
   type BenefitCategoryResponse,
+  type BenefitProviderRequest,
+  type BenefitProviderResponse,
+  type BenefitProviderType,
   type BenefitType,
   type EnrollmentRequest,
   type EnrollmentResponse,
@@ -247,6 +252,251 @@ function CategoriesTab() {
   )
 }
 
+// ─── Providers tab (HCM_11 M374) ─────────────────────────────────────────────
+
+const PROVIDER_TYPE_OPTIONS: { value: BenefitProviderType; label: string }[] = (
+  Object.keys(PROVIDER_TYPE_LABEL) as BenefitProviderType[]
+).map((k) => ({ value: k, label: PROVIDER_TYPE_LABEL[k] }))
+
+function ProvidersTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
+
+  const [rows, setRows] = useState<BenefitProviderResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeOnly, setActiveOnly] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<BenefitProviderResponse | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<{
+    code: string
+    name: string
+    providerType: BenefitProviderType
+    contactName?: string
+    contactEmail?: string
+    contactPhone?: string
+    website?: string
+    contractNo?: string
+    contract?: [ReturnType<typeof dayjs> | undefined, ReturnType<typeof dayjs> | undefined]
+    notes?: string
+    active: boolean
+  }>()
+
+  const load = () => {
+    setLoading(true)
+    benefitProvidersApi
+      .list(activeOnly)
+      .then(setRows)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load providers'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [activeOnly])
+
+  const startCreate = () => {
+    setEditing(null)
+    form.resetFields()
+    form.setFieldsValue({ providerType: 'INSURER', active: true })
+    setOpen(true)
+  }
+  const startEdit = (p: BenefitProviderResponse) => {
+    setEditing(p)
+    form.setFieldsValue({
+      code: p.code,
+      name: p.name,
+      providerType: p.providerType,
+      contactName: p.contactName ?? undefined,
+      contactEmail: p.contactEmail ?? undefined,
+      contactPhone: p.contactPhone ?? undefined,
+      website: p.website ?? undefined,
+      contractNo: p.contractNo ?? undefined,
+      contract: [
+        p.contractStart ? dayjs(p.contractStart) : undefined,
+        p.contractEnd ? dayjs(p.contractEnd) : undefined,
+      ],
+      notes: p.notes ?? undefined,
+      active: p.active,
+    })
+    setOpen(true)
+  }
+  const submit = async () => {
+    const v = await form.validateFields()
+    const [start, end] = v.contract ?? [undefined, undefined]
+    const req: BenefitProviderRequest = {
+      code: v.code,
+      name: v.name,
+      providerType: v.providerType,
+      contactName: v.contactName,
+      contactEmail: v.contactEmail,
+      contactPhone: v.contactPhone,
+      website: v.website,
+      contractNo: v.contractNo,
+      contractStart: start ? start.format('YYYY-MM-DD') : undefined,
+      contractEnd: end ? end.format('YYYY-MM-DD') : undefined,
+      notes: v.notes,
+      active: v.active,
+    }
+    setSaving(true)
+    try {
+      if (editing) {
+        await benefitProvidersApi.update(editing.id, req)
+        message.success('Provider updated')
+      } else {
+        await benefitProvidersApi.create(req)
+        message.success('Provider created')
+      }
+      setOpen(false)
+      load()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Save failed',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const cols: ColumnsType<BenefitProviderResponse> = [
+    {
+      title: 'Code',
+      dataIndex: 'code',
+      width: 120,
+      render: (v, r) => <a onClick={() => canEdit && startEdit(r)}>{v}</a>,
+    },
+    { title: 'Name', dataIndex: 'name' },
+    {
+      title: 'Type',
+      dataIndex: 'providerType',
+      width: 130,
+      render: (t: BenefitProviderType) => <Tag>{PROVIDER_TYPE_LABEL[t]}</Tag>,
+    },
+    { title: 'Contact', dataIndex: 'contactName', width: 150, render: (v) => v ?? '—' },
+    { title: 'Contract #', dataIndex: 'contractNo', width: 130, render: (v) => v ?? '—' },
+    {
+      title: 'Contract window',
+      width: 190,
+      render: (_, r) => (
+        <Text style={{ fontSize: 12 }}>
+          {r.contractStart ?? '—'} → {r.contractEnd ?? 'open'}
+        </Text>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'active',
+      width: 90,
+      align: 'center',
+      render: (v: boolean) => (v ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>),
+    },
+  ]
+
+  if (loading) return <Spin />
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        Insurers, pension funds, clinics and vendors that supply benefit plans. Plans link to a
+        provider so you can track contracts and reconcile against provider files.
+      </Paragraph>
+      <Space>
+        <Switch
+          checked={activeOnly}
+          onChange={setActiveOnly}
+          checkedChildren="Active only"
+          unCheckedChildren="All"
+        />
+        {canEdit && <Button type="primary" onClick={startCreate}>New provider…</Button>}
+      </Space>
+      <Card>
+        <Table
+          rowKey="id"
+          columns={cols}
+          dataSource={rows}
+          size="small"
+          pagination={{ pageSize: 25 }}
+          locale={{ emptyText: <Empty description="No providers yet" /> }}
+        />
+      </Card>
+
+      <Modal
+        open={open}
+        title={editing ? `Edit provider — ${editing.code}` : 'New benefit provider'}
+        onCancel={() => setOpen(false)}
+        onOk={submit}
+        confirmLoading={saving}
+        width={680}
+        okText={editing ? 'Save' : 'Create'}
+      >
+        <Form form={form} layout="vertical">
+          <Row gutter={12}>
+            <Col span={7}>
+              <Form.Item name="code" label="Code"
+                rules={[{ required: true, message: 'Required' }, { max: 40 }]}>
+                <Input placeholder="PASHA-INS" disabled={!!editing} />
+              </Form.Item>
+            </Col>
+            <Col span={11}>
+              <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+                <Input placeholder="Pasha Insurance OJSC" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="providerType" label="Type" rules={[{ required: true }]}>
+                <Select options={PROVIDER_TYPE_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item name="contactName" label="Contact name">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="contactEmail" label="Contact email"
+                rules={[{ type: 'email', message: 'Invalid email' }]}>
+                <Input placeholder="account@provider.az" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="contactPhone" label="Contact phone">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="website" label="Website">
+                <Input placeholder="https://…" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="contractNo" label="Contract number">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={12}>
+            <Col span={16}>
+              <Form.Item name="contract" label="Contract window (start / end)">
+                <DatePicker.RangePicker style={{ width: '100%' }} allowEmpty={[true, true]} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="active" label="Active" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Space>
+  )
+}
+
 // ─── Plans tab ───────────────────────────────────────────────────────────────
 
 function PlansTab() {
@@ -255,6 +505,7 @@ function PlansTab() {
   const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [plans, setPlans] = useState<PlanResponse[]>([])
+  const [providers, setProviders] = useState<BenefitProviderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [activeOnly, setActiveOnly] = useState(false)
   const [open, setOpen] = useState(false)
@@ -265,6 +516,7 @@ function PlansTab() {
     description?: string
     benefitType: BenefitType
     provider?: string
+    providerId?: string | null
     coverageDetails?: string
     eligibility?: string
     employerContribution?: number
@@ -285,6 +537,9 @@ function PlansTab() {
   }
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [activeOnly])
+  useEffect(() => {
+    benefitProvidersApi.list(true).then(setProviders).catch(() => setProviders([]))
+  }, [])
 
   const totals = useMemo(() => {
     const active = plans.filter((p) => p.active).length
@@ -316,6 +571,7 @@ function PlansTab() {
       description: plan.description ?? undefined,
       benefitType: plan.benefitType,
       provider: plan.provider ?? undefined,
+      providerId: plan.providerId ?? undefined,
       coverageDetails: plan.coverageDetails ?? undefined,
       eligibility: plan.eligibility ?? undefined,
       employerContribution: plan.employerContribution,
@@ -336,6 +592,7 @@ function PlansTab() {
       description: v.description,
       benefitType: v.benefitType,
       provider: v.provider,
+      providerId: v.providerId ?? null,
       coverageDetails: v.coverageDetails,
       eligibility: v.eligibility,
       employerContribution: v.employerContribution ?? 0,
@@ -381,7 +638,7 @@ function PlansTab() {
         <Tag color={BENEFIT_TYPE_COLOR[t]}>{BENEFIT_TYPE_LABEL[t]}</Tag>
       ),
     },
-    { title: 'Provider', dataIndex: 'provider', width: 160, render: (v) => v ?? '—' },
+    { title: 'Provider', width: 170, render: (_, r) => r.providerName ?? r.provider ?? '—' },
     {
       title: 'Employer / mo',
       align: 'right',
@@ -485,9 +742,29 @@ function PlansTab() {
             </Col>
           </Row>
 
-          <Form.Item name="provider" label="Provider">
-            <Input placeholder="Pasha Insurance" />
-          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="providerId" label="Provider (from master)"
+                tooltip="Link to the provider master for contract tracking & reconciliation.">
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Pick a provider…"
+                  options={providers.map((p) => ({
+                    value: p.id,
+                    label: `${p.name} (${PROVIDER_TYPE_LABEL[p.providerType]})`,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="provider" label="Provider (free text)"
+                tooltip="Legacy free-text name; used when there's no provider-master entry.">
+                <Input placeholder="Pasha Insurance" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} placeholder="One-liner — what does this plan cover?" />
@@ -910,6 +1187,7 @@ export function BenefitsPage() {
   const items = isHr
     ? [
         { key: 'categories', label: 'Categories', children: <CategoriesTab /> },
+        { key: 'providers', label: 'Providers', children: <ProvidersTab /> },
         { key: 'plans', label: 'Plans catalog', children: <PlansTab /> },
         { key: 'enrolments', label: 'Enrolments', children: <EnrolmentsTab /> },
         { key: 'me', label: 'My benefits', children: <MyBenefitsTab /> },

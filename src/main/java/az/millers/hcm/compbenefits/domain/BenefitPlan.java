@@ -48,8 +48,13 @@ public class BenefitPlan {
     @Column(name = "benefit_type", nullable = false, length = 20)
     private BenefitType benefitType;
 
+    /** Legacy free-text provider name (M108). Kept for back-compat. */
     @Column(length = 160)
     private String provider;
+
+    /** M374 — optional link to the benefit provider / vendor master. */
+    @Column(name = "provider_id")
+    private UUID providerId;
 
     @Column(name = "coverage_details", columnDefinition = "text")
     private String coverageDetails;
