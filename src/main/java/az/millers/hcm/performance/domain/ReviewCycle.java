@@ -88,6 +88,16 @@ public class ReviewCycle {
     @Column(name = "min_service_months")
     private Integer minServiceMonths;
 
+    // ── HCM_12 M395 — §13.4 per-cycle 360° reviewer rules ──
+
+    /** Minimum reviewers required for a complete 360° (null = no minimum). */
+    @Column(name = "feedback_min_reviewers")
+    private Integer feedbackMinReviewers;
+
+    /** Maximum reviewers allowed per subject (null = unlimited). */
+    @Column(name = "feedback_max_reviewers")
+    private Integer feedbackMaxReviewers;
+
     @Column(columnDefinition = "text")
     private String description;
 

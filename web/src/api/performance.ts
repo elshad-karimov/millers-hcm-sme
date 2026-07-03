@@ -540,6 +540,142 @@ export const kpisApi = {
     api.get<KpiResultResponse[]>(`/performance/kpis/assignments/${id}/history`).then((r) => r.data),
 }
 
+// ─── 360° nominations + questionnaires (HCM_12 M395) ─────────────────────────
+
+export type NominationStatus =
+  | 'NOMINATED'
+  | 'APPROVED'
+  | 'DECLINED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+export type FeedbackQuestionType = 'RATING' | 'TEXT'
+export type FeedbackQuestionCategory =
+  | 'COMPETENCY'
+  | 'BEHAVIORAL'
+  | 'COLLABORATION'
+  | 'LEADERSHIP'
+  | 'STRENGTHS'
+  | 'IMPROVEMENT'
+  | 'OPEN'
+
+export interface FeedbackQuestion360 {
+  id?: string
+  questionOrder?: number
+  questionText: string
+  questionType?: FeedbackQuestionType
+  category?: FeedbackQuestionCategory | null
+  required?: boolean
+}
+
+export interface Questionnaire360 {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  active: boolean
+  questions: FeedbackQuestion360[]
+  createdAt: string
+}
+
+export interface Questionnaire360Request {
+  code: string
+  name: string
+  description?: string
+  active?: boolean
+  questions: FeedbackQuestion360[]
+}
+
+export interface Nomination360 {
+  id: string
+  cycleId: string
+  subjectEmployeeId: string
+  subjectName?: string | null
+  reviewerEmployeeId: string
+  reviewerName?: string | null
+  relationship: FeedbackRelationship
+  questionnaireId?: string | null
+  questionnaireName?: string | null
+  anonymous: boolean
+  status: NominationStatus
+  nominatedBy?: string | null
+  dueDate?: string | null
+  declineReason?: string | null
+  feedbackId?: string | null
+  createdAt: string
+}
+
+export interface Nominate360Request {
+  cycleId: string
+  subjectEmployeeId: string
+  reviewerEmployeeId: string
+  relationship: FeedbackRelationship
+  questionnaireId?: string | null
+  anonymous?: boolean
+  dueDate?: string | null
+}
+
+export interface Nomination360Summary {
+  nominated: number
+  approved: number
+  completed: number
+  declined: number
+  minReviewers?: number | null
+  maxReviewers?: number | null
+  meetsMinimum: boolean
+}
+
+export const feedback360Api = {
+  questionnaires: (activeOnly = false) =>
+    api
+      .get<Questionnaire360[]>('/performance/feedback360/questionnaires', {
+        params: { activeOnly },
+      })
+      .then((r) => r.data),
+  createQuestionnaire: (req: Questionnaire360Request) =>
+    api
+      .post<Questionnaire360>('/performance/feedback360/questionnaires', req)
+      .then((r) => r.data),
+  updateQuestionnaire: (id: string, req: Questionnaire360Request) =>
+    api
+      .put<Questionnaire360>(`/performance/feedback360/questionnaires/${id}`, req)
+      .then((r) => r.data),
+  requests: (params: { cycleId?: string; subjectEmployeeId?: string; reviewerEmployeeId?: string }) =>
+    api
+      .get<Nomination360[]>('/performance/feedback360/requests', { params })
+      .then((r) => r.data),
+  nominate: (req: Nominate360Request) =>
+    api.post<Nomination360>('/performance/feedback360/requests', req).then((r) => r.data),
+  approve: (id: string) =>
+    api.post<Nomination360>(`/performance/feedback360/requests/${id}/approve`).then((r) => r.data),
+  decline: (id: string, reason?: string) =>
+    api
+      .post<Nomination360>(`/performance/feedback360/requests/${id}/decline`, null, {
+        params: { reason },
+      })
+      .then((r) => r.data),
+  cancelRequest: (id: string) =>
+    api.post<Nomination360>(`/performance/feedback360/requests/${id}/cancel`).then((r) => r.data),
+  complete: (
+    id: string,
+    content: {
+      overallRating?: number
+      strengths?: string
+      improvements?: string
+      comments?: string
+      competencies?: Record<string, unknown>
+    },
+  ) =>
+    api
+      .post<Nomination360>(`/performance/feedback360/requests/${id}/complete`, content)
+      .then((r) => r.data),
+  summary: (cycleId: string, subjectEmployeeId: string) =>
+    api
+      .get<Nomination360Summary>('/performance/feedback360/summary', {
+        params: { cycleId, subjectEmployeeId },
+      })
+      .then((r) => r.data),
+}
+
 // ─── Competency assessment (HCM_12 M393) ─────────────────────────────────────
 
 export interface CompetencyAssessment {
