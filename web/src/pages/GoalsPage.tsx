@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Col,
+  Drawer,
   Form,
   Input,
   InputNumber,
@@ -14,6 +15,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Timeline,
   Tooltip,
   Tree,
   Typography,
@@ -25,7 +27,9 @@ import type { DataNode } from 'antd/es/tree'
 import {
   performanceApi,
   type Goal,
+  type GoalApprovalStatus,
   type GoalCategory,
+  type GoalProgressUpdate,
   type GoalRequest,
   type GoalStatus,
   type GoalTreeNode,
@@ -55,6 +59,14 @@ const STATUS_COLOR: Record<GoalStatus, string> = {
   ACHIEVED: 'cyan',
   MISSED: 'volcano',
   CANCELLED: 'default',
+}
+
+// M392 — plan-level approval state
+const APPROVAL_COLOR: Record<GoalApprovalStatus, string> = {
+  NOT_SUBMITTED: 'default',
+  PENDING_APPROVAL: 'gold',
+  APPROVED: 'green',
+  REJECTED: 'red',
 }
 
 interface NewGoalForm {
@@ -100,6 +112,12 @@ export function GoalsPage() {
   const [progressForm] = Form.useForm<ProgressForm>()
   const [rateOpen, setRateOpen] = useState<Goal | null>(null)
   const [rateForm] = Form.useForm<RatingForm>()
+
+  // M392 — goal-plan approval + §6.4 progress trail
+  const [submitting, setSubmitting] = useState(false)
+  const [historyFor, setHistoryFor] = useState<Goal | null>(null)
+  const [history, setHistory] = useState<GoalProgressUpdate[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   // M130 — OKR tree + cascade
   const [view, setView] = useState<'list' | 'tree'>('list')
@@ -270,6 +288,42 @@ export function GoalsPage() {
     }
   }
 
+  // M392 — submit the employee's DRAFT plan for manager approval (weights must total 100)
+  const weightTotal = useMemo(
+    () =>
+      rows
+        .filter((g) => g.status !== 'CANCELLED')
+        .reduce((s, g) => s + Number(g.weightPercent ?? 0), 0),
+    [rows],
+  )
+
+  const onSubmitPlan = async () => {
+    if (!cycleId || !employeeId) return
+    setSubmitting(true)
+    try {
+      const updated = await performanceApi.submitGoalPlan(cycleId, employeeId)
+      message.success(`Goal plan submitted — ${updated.length} goals awaiting manager approval`)
+      load()
+    } catch (err) {
+      message.error(
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          'Submit failed',
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openHistory = (g: Goal) => {
+    setHistoryFor(g)
+    setLoadingHistory(true)
+    performanceApi
+      .goalProgressHistory(g.id)
+      .then(setHistory)
+      .catch(() => message.error('Failed to load progress history'))
+      .finally(() => setLoadingHistory(false))
+  }
+
   const onSaveRating = async (v: RatingForm) => {
     if (!rateOpen) return
     try {
@@ -323,6 +377,17 @@ export function GoalsPage() {
       render: (s: GoalStatus) => <Tag color={STATUS_COLOR[s]}>{s.replace(/_/g, ' ')}</Tag>,
     },
     {
+      title: 'Approval',
+      dataIndex: 'approvalStatus',
+      width: 120,
+      render: (s: GoalApprovalStatus) =>
+        s === 'NOT_SUBMITTED' ? (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ) : (
+          <Tag color={APPROVAL_COLOR[s]}>{s.replace(/_/g, ' ')}</Tag>
+        ),
+    },
+    {
       title: 'LMS link',
       dataIndex: 'sourceCourseId',
       width: 90,
@@ -339,7 +404,7 @@ export function GoalsPage() {
     { title: 'Rating', dataIndex: 'rating', width: 80, render: (r: number | null) => r ?? '—' },
     {
       title: '',
-      width: 180,
+      width: 240,
       render: (_, r) => (
         <Space size={4}>
           <Button size="small" onClick={() => {
@@ -347,6 +412,9 @@ export function GoalsPage() {
             setProgressOpen(r)
           }}>
             Progress
+          </Button>
+          <Button size="small" onClick={() => openHistory(r)}>
+            History
           </Button>
           {canManage && (
             <Button size="small" onClick={() => {
@@ -400,6 +468,33 @@ export function GoalsPage() {
           value={employeeId}
           onChange={setEmployeeId}
         />
+        {/* M392 — submit the selected employee's DRAFT plan (weights must total 100) */}
+        {employeeId && rows.length > 0 && (
+          <Tooltip
+            title={
+              weightTotal === 100
+                ? 'Send this employee’s goal plan to their manager for approval'
+                : `Goal weights must total exactly 100 to submit (currently ${weightTotal})`
+            }
+          >
+            <Button
+              type="primary"
+              ghost
+              loading={submitting}
+              disabled={
+                weightTotal !== 100 ||
+                rows.some((g) => g.approvalStatus === 'PENDING_APPROVAL') ||
+                !rows.some((g) => g.status === 'DRAFT' && g.approvalStatus !== 'APPROVED')
+              }
+              onClick={onSubmitPlan}
+            >
+              Submit plan for approval
+            </Button>
+          </Tooltip>
+        )}
+        {employeeId && rows.length > 0 && (
+          <Tag color={weightTotal === 100 ? 'green' : 'red'}>weights {weightTotal}%</Tag>
+        )}
       </Space>
       <Tabs
         activeKey={view}
@@ -572,6 +667,39 @@ export function GoalsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* M392 — §6.4 progress-update trail */}
+      <Drawer
+        title={historyFor ? `Progress history — ${historyFor.goalNo} ${historyFor.title}` : ''}
+        open={!!historyFor}
+        onClose={() => setHistoryFor(null)}
+        width={520}
+      >
+        {loadingHistory ? (
+          <Typography.Text type="secondary">Loading…</Typography.Text>
+        ) : history.length === 0 ? (
+          <Typography.Text type="secondary">No progress updates recorded yet.</Typography.Text>
+        ) : (
+          <Timeline
+            items={history.map((u) => ({
+              children: (
+                <Space direction="vertical" size={0}>
+                  <Typography.Text>
+                    {u.oldProgress ?? 0}% → <strong>{u.newProgress}%</strong>
+                    {u.oldStatus !== u.newStatus && u.newStatus && (
+                      <Tag style={{ marginLeft: 8 }}>{u.newStatus.replace(/_/g, ' ')}</Tag>
+                    )}
+                  </Typography.Text>
+                  {u.note && <Typography.Text type="secondary">{u.note}</Typography.Text>}
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {u.recordedBy ?? '—'} · {new Date(u.recordedAt).toLocaleString()}
+                  </Typography.Text>
+                </Space>
+              ),
+            }))}
+          />
+        )}
+      </Drawer>
     </Card>
   )
 }

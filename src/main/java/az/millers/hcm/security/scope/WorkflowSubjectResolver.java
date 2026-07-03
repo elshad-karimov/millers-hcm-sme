@@ -90,6 +90,9 @@ public class WorkflowSubjectResolver {
             case "ChecklistTaskStatus" -> checklistTasks.findById(subjectId)
                     .flatMap(ts -> checklistAssignments.findById(ts.getAssignmentId()))
                     .map(a -> a.getEmployeeId());
+            // M392 — goal-plan approval: the subject id IS the employee id
+            // (one GOAL_APPROVAL instance covers the employee's plan for a cycle).
+            case "GoalPlan"            -> Optional.of(subjectId);
             // Org-wide / batch subjects (OrgVersion, PayrollRun, …) are
             // gated by role alone — no employee dimension to filter on.
             default                    -> Optional.empty();
@@ -101,7 +104,8 @@ public class WorkflowSubjectResolver {
         return entity != null && switch (entity) {
             case "LeaveRequest", "PermissionRequest", "BusinessTripRequest",
                  "Timesheet", "TerminationRequest", "ResignationRequest",
-                 "ContractChange", "PerformanceReview", "ChecklistTaskStatus" -> true;
+                 "ContractChange", "PerformanceReview", "ChecklistTaskStatus",
+                 "GoalPlan" -> true;
             default -> false;
         };
     }

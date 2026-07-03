@@ -18,11 +18,14 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.performance.api.dto.GoalCascadeRequest;
+import az.millers.hcm.performance.api.dto.GoalPlanSubmitRequest;
 import az.millers.hcm.performance.api.dto.GoalProgressRequest;
+import az.millers.hcm.performance.api.dto.GoalProgressUpdateResponse;
 import az.millers.hcm.performance.api.dto.GoalRatingRequest;
 import az.millers.hcm.performance.api.dto.GoalRequest;
 import az.millers.hcm.performance.api.dto.GoalResponse;
 import az.millers.hcm.performance.api.dto.GoalTreeNode;
+import az.millers.hcm.performance.service.GoalApprovalService;
 import az.millers.hcm.performance.service.GoalCascadeService;
 import az.millers.hcm.performance.service.GoalService;
 import jakarta.validation.Valid;
@@ -33,10 +36,13 @@ public class GoalController {
 
     private final GoalService service;
     private final GoalCascadeService cascadeService;
+    private final GoalApprovalService approvalService;
 
-    public GoalController(GoalService service, GoalCascadeService cascadeService) {
+    public GoalController(GoalService service, GoalCascadeService cascadeService,
+                          GoalApprovalService approvalService) {
         this.service = service;
         this.cascadeService = cascadeService;
+        this.approvalService = approvalService;
     }
 
     @GetMapping
@@ -79,6 +85,28 @@ public class GoalController {
     @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
     public GoalResponse rate(@PathVariable UUID id, @Valid @RequestBody GoalRatingRequest req) {
         return GoalResponse.from(service.rate(id, req));
+    }
+
+    // ── M392 — goal-plan approval + progress trail ───────────────────────
+
+    /**
+     * Submit the employee's DRAFT goal plan for the cycle (§6.2). Weights must
+     * total exactly 100 (§37.5). Starts one GOAL_APPROVAL workflow routed to
+     * the employee's manager.
+     */
+    @PostMapping("/submit")
+    @PreAuthorize("isAuthenticated()")
+    public List<GoalResponse> submit(@Valid @RequestBody GoalPlanSubmitRequest req) {
+        return approvalService.submit(req.cycleId(), req.employeeId()).stream()
+                .map(GoalResponse::from).toList();
+    }
+
+    /** §6.4 progress-update trail, newest first. */
+    @GetMapping("/{id}/progress-history")
+    @PreAuthorize("isAuthenticated()")
+    public List<GoalProgressUpdateResponse> progressHistory(@PathVariable UUID id) {
+        return service.progressHistory(id).stream()
+                .map(GoalProgressUpdateResponse::from).toList();
     }
 
     // ── M130 — OKR cascade ───────────────────────────────────────────────

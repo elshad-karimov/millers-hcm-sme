@@ -94,6 +94,18 @@ public class Goal {
     @Column(name = "cascaded_at")
     private OffsetDateTime cascadedAt;
 
+    /**
+     * M392 — plan-level approval state (PRD §6.2). NOT_SUBMITTED |
+     * PENDING_APPROVAL | APPROVED | REJECTED. Set on the whole goal plan
+     * (employee + cycle) when submitted through the GOAL_APPROVAL workflow.
+     */
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private String approvalStatus = "NOT_SUBMITTED";
+
+    /** M392 — the GOAL_APPROVAL workflow instance covering this goal's plan. */
+    @Column(name = "workflow_instance_id")
+    private UUID workflowInstanceId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

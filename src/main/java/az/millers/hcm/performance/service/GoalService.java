@@ -17,8 +17,10 @@ import az.millers.hcm.performance.api.dto.GoalRequest;
 import az.millers.hcm.performance.api.dto.GoalResponse;
 import az.millers.hcm.performance.domain.CycleStatus;
 import az.millers.hcm.performance.domain.Goal;
+import az.millers.hcm.performance.domain.GoalProgressUpdate;
 import az.millers.hcm.performance.domain.GoalStatus;
 import az.millers.hcm.performance.domain.ReviewCycle;
+import az.millers.hcm.performance.repo.GoalProgressUpdateRepository;
 import az.millers.hcm.performance.repo.GoalRepository;
 import az.millers.hcm.performance.repo.ReviewCycleRepository;
 import az.millers.hcm.security.CurrentRequest;
@@ -32,17 +34,20 @@ public class GoalService {
     private final GoalRepository goals;
     private final ReviewCycleRepository cycles;
     private final EmployeeRepository employees;
+    private final GoalProgressUpdateRepository progressUpdates;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public GoalService(GoalRepository goals,
                        ReviewCycleRepository cycles,
                        EmployeeRepository employees,
+                       GoalProgressUpdateRepository progressUpdates,
                        AuditService audit,
                        CurrentRequest currentRequest) {
         this.goals = goals;
         this.cycles = cycles;
         this.employees = employees;
+        this.progressUpdates = progressUpdates;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -101,6 +106,12 @@ public class GoalService {
         if (g.getStatus() == GoalStatus.ACHIEVED || g.getStatus() == GoalStatus.MISSED) {
             throw new BadRequestException("Cannot edit a finalised goal");
         }
+        // M392 — a goal awaiting manager approval is frozen; an already-approved
+        // goal drops back to NOT_SUBMITTED on structural edit (traceable, must resubmit).
+        if ("PENDING_APPROVAL".equals(g.getApprovalStatus())) {
+            throw new BadRequestException("Goal is awaiting manager approval — withdraw or wait for the decision");
+        }
+        boolean wasApproved = "APPROVED".equals(g.getApprovalStatus());
         // M130 — reject parent assignments that would close a cycle in
         // the OKR tree. Cheap walk: load every (id, parent_id) for this
         // cycle once and consult GoalTreeMath.wouldCreateCycle.
@@ -121,6 +132,10 @@ public class GoalService {
         validateProgress(req.progressPercent());
         GoalResponse before = GoalResponse.from(g);
         apply(g, req);
+        if (wasApproved) {
+            g.setApprovalStatus("NOT_SUBMITTED");
+            g.setWorkflowInstanceId(null);
+        }
         g.setUpdatedBy(currentRequest.username());
         Goal saved = goals.save(g);
         audit.record(MODULE, ENTITY, id.toString(),
@@ -133,6 +148,21 @@ public class GoalService {
         Goal g = get(id);
         validateProgress(req.progressPercent());
         GoalResponse before = GoalResponse.from(g);
+
+        // M392 — §6.4 traceable progress trail (old → new, who, when, note).
+        GoalProgressUpdate trail = new GoalProgressUpdate();
+        trail.setTenantId(g.getTenantId());
+        trail.setGoalId(g.getId());
+        trail.setOldProgress(g.getProgressPercent());
+        trail.setNewProgress(req.progressPercent());
+        trail.setOldStatus(g.getStatus() == null ? null : g.getStatus().name());
+        trail.setNewStatus(req.status() == null
+                ? (g.getStatus() == null ? null : g.getStatus().name())
+                : req.status().name());
+        trail.setNote(req.note());
+        trail.setRecordedBy(currentRequest.username());
+        progressUpdates.save(trail);
+
         g.setProgressPercent(req.progressPercent());
         if (req.status() != null) g.setStatus(req.status());
         g.setUpdatedBy(currentRequest.username());
@@ -140,6 +170,13 @@ public class GoalService {
         audit.record(MODULE, ENTITY, id.toString(), "PROGRESS",
                 before, GoalResponse.from(saved));
         return saved;
+    }
+
+    /** M392 — §6.4 progress-update history, newest first. */
+    @Transactional(readOnly = true)
+    public List<GoalProgressUpdate> progressHistory(UUID goalId) {
+        get(goalId); // 404 on unknown goal
+        return progressUpdates.findByGoalIdOrderByRecordedAtDesc(goalId);
     }
 
     @Transactional

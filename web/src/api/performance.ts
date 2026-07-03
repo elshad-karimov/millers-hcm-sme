@@ -111,10 +111,27 @@ export interface Goal {
   /** M130 — set when the goal was created by the cascade action. */
   cascadedBy?: string | null
   cascadedAt?: string | null
+  /** M392 — NOT_SUBMITTED | PENDING_APPROVAL | APPROVED | REJECTED. */
+  approvalStatus: GoalApprovalStatus
+  workflowInstanceId?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
   updatedBy?: string | null
+}
+
+// M392 — goal-plan approval + §6.4 progress trail
+export type GoalApprovalStatus = 'NOT_SUBMITTED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+
+export interface GoalProgressUpdate {
+  id: string
+  oldProgress?: number | null
+  newProgress: number
+  oldStatus?: string | null
+  newStatus?: string | null
+  note?: string | null
+  recordedBy?: string | null
+  recordedAt: string
 }
 
 /** M130 — flat tree node for the OKR view on GoalsPage. */
@@ -659,6 +676,14 @@ export const performanceApi = {
     api.post<Goal>('/performance/goals', payload).then((r) => r.data),
   updateGoal: (id: string, payload: GoalRequest) =>
     api.put<Goal>(`/performance/goals/${id}`, payload).then((r) => r.data),
+  // M392 — submit the employee's DRAFT goal plan for manager approval (§6.2/§37.5)
+  submitGoalPlan: (cycleId: string, employeeId: string) =>
+    api.post<Goal[]>('/performance/goals/submit', { cycleId, employeeId }).then((r) => r.data),
+  // M392 — §6.4 progress-update trail
+  goalProgressHistory: (id: string) =>
+    api
+      .get<GoalProgressUpdate[]>(`/performance/goals/${id}/progress-history`)
+      .then((r) => r.data),
   updateGoalProgress: (id: string, progressPercent: number, status?: GoalStatus, note?: string) =>
     api
       .post<Goal>(`/performance/goals/${id}/progress`, { progressPercent, status, note })

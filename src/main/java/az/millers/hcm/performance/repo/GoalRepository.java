@@ -19,6 +19,9 @@ public interface GoalRepository extends JpaRepository<Goal, UUID> {
 
     List<Goal> findByEmployeeIdOrderByCreatedAtDesc(UUID employeeId);
 
+    /** M392 — the goal plan covered by one GOAL_APPROVAL workflow instance. */
+    List<Goal> findByWorkflowInstanceId(UUID workflowInstanceId);
+
     /**
      * Returns all open DEVELOPMENT goals linked to the given course + employee.
      * Used by {@link az.millers.hcm.performance.service.GoalAutoRatingService}

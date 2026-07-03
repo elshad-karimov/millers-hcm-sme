@@ -30,6 +30,9 @@ public record GoalResponse(
         /** M130 — set when the goal was created by the cascade action. */
         String cascadedBy,
         OffsetDateTime cascadedAt,
+        /** M392 — NOT_SUBMITTED | PENDING_APPROVAL | APPROVED | REJECTED. */
+        String approvalStatus,
+        UUID workflowInstanceId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -42,6 +45,7 @@ public record GoalResponse(
                 g.getWeightPercent(), g.getProgressPercent(), g.getStatus(), g.getDueDate(),
                 g.getRating(), g.getRatingNote(), g.getSourceCourseId(),
                 g.getCascadedBy(), g.getCascadedAt(),
+                g.getApprovalStatus(), g.getWorkflowInstanceId(),
                 g.getCreatedAt(), g.getUpdatedAt(), g.getCreatedBy(), g.getUpdatedBy());
     }
 }
