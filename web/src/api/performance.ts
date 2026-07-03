@@ -189,6 +189,17 @@ export interface PerformanceReview {
   finalBand?: string | null
   calibrationNotes?: string | null
   goalScore?: number | null
+  /** M394 — §18.2 section scores + weighted overall + §18.3 band. */
+  kpiScore?: number | null
+  competencyScore?: number | null
+  valuesScore?: number | null
+  overallScore?: number | null
+  overallBand?: string | null
+  /** M394 — §18.4 override trail (original preserved). */
+  originalRating?: number | null
+  overrideReason?: string | null
+  overriddenBy?: string | null
+  overriddenAt?: string | null
   recommendation?: string | null
   bonusPercent?: number | null
   note?: string | null
@@ -769,6 +780,19 @@ export const performanceApi = {
     api.post<PerformanceReview>(`/performance/reviews/${id}/submit`).then((r) => r.data),
   calibrate: (id: string, payload: CalibrationRequest) =>
     api.post<PerformanceReview>(`/performance/reviews/${id}/calibrate`, payload).then((r) => r.data),
+  // M394 — §18 weighted scoring + HR override
+  computeScores: (id: string, valuesScore?: number) =>
+    api
+      .post<PerformanceReview>(`/performance/reviews/${id}/compute-scores`, null, {
+        params: { valuesScore },
+      })
+      .then((r) => r.data),
+  overrideRating: (id: string, rating: number, reason: string) =>
+    api
+      .post<PerformanceReview>(`/performance/reviews/${id}/override`, null, {
+        params: { rating, reason },
+      })
+      .then((r) => r.data),
   closeReview: (id: string) =>
     api.post<PerformanceReview>(`/performance/reviews/${id}/close`).then((r) => r.data),
 

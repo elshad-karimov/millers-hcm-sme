@@ -92,6 +92,41 @@ public class PerformanceReview {
     @Column(name = "goal_score", precision = 6, scale = 3)
     private BigDecimal goalScore;
 
+    // ── M394 — §18 weighted section scoring + override ─────────────────────
+
+    /** Weighted average of MEASURED KPI-assignment ratings (§18.2). */
+    @Column(name = "kpi_score", precision = 6, scale = 3)
+    private BigDecimal kpiScore;
+
+    /** Average final competency level from the M393 assessment (§18.2). */
+    @Column(name = "competency_score", precision = 6, scale = 3)
+    private BigDecimal competencyScore;
+
+    /** Company-values rating, entered by the manager (§18.2). */
+    @Column(name = "values_score", precision = 6, scale = 3)
+    private BigDecimal valuesScore;
+
+    /** §18.2 — Σ(section score × template weight) / Σ(participating weights). */
+    @Column(name = "overall_score", precision = 6, scale = 3)
+    private BigDecimal overallScore;
+
+    /** §18.3 — rating-scale band label for the overall score. */
+    @Column(name = "overall_band", length = 120)
+    private String overallBand;
+
+    /** §18.4 — the pre-override computed rating, preserved once set. */
+    @Column(name = "original_rating", precision = 6, scale = 3)
+    private BigDecimal originalRating;
+
+    @Column(name = "override_reason", length = 1000)
+    private String overrideReason;
+
+    @Column(name = "overridden_by", length = 80)
+    private String overriddenBy;
+
+    @Column(name = "overridden_at")
+    private OffsetDateTime overriddenAt;
+
     @Column(length = 40)
     private String recommendation;
 

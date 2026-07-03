@@ -98,6 +98,12 @@ export function PerformanceReviewDetailPage() {
   const [mgrForm] = Form.useForm<{ rating: number; comments?: string }>()
   const [calForm] = Form.useForm<CalibrationRequest>()
 
+  // M394 — §18 weighted scoring + HR override
+  const [computing, setComputing] = useState(false)
+  const [valuesScoreInput, setValuesScoreInput] = useState<number | null>(null)
+  const [overrideOpen, setOverrideOpen] = useState(false)
+  const [overrideForm] = Form.useForm<{ rating: number; reason: string }>()
+
   const load = async () => {
     if (!id) return
     setLoading(true)
@@ -301,6 +307,159 @@ export function PerformanceReviewDetailPage() {
 
         {/* HCM_12 M393 — structured competency assessment (§17) */}
         <CompetencyAssessmentCard reviewId={r.id} canEdit={canManager} />
+
+        {/* HCM_12 M394 — §18 weighted scoring + override */}
+        <Card
+          size="small"
+          title="Weighted scores (§18)"
+          style={{ marginTop: 16 }}
+          extra={
+            <Space size={8}>
+              {canManager && (
+                <>
+                  <InputNumber
+                    size="small"
+                    min={0}
+                    max={5}
+                    step={0.5}
+                    placeholder="Values score"
+                    value={valuesScoreInput}
+                    onChange={(v) => setValuesScoreInput(v as number | null)}
+                    style={{ width: 120 }}
+                  />
+                  <Button
+                    size="small"
+                    type="primary"
+                    loading={computing}
+                    onClick={async () => {
+                      setComputing(true)
+                      try {
+                        await performanceApi.computeScores(r.id, valuesScoreInput ?? undefined)
+                        message.success('Scores recomputed')
+                        load()
+                      } catch (err) {
+                        message.error(
+                          (err as { response?: { data?: { message?: string } } }).response?.data
+                            ?.message ?? 'Compute failed',
+                        )
+                      } finally {
+                        setComputing(false)
+                      }
+                    }}
+                  >
+                    Compute scores
+                  </Button>
+                </>
+              )}
+              {canCalibrate && (
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => {
+                    overrideForm.setFieldsValue({
+                      rating: Number(r.finalRating ?? r.overallScore ?? 3),
+                    })
+                    setOverrideOpen(true)
+                  }}
+                >
+                  Override rating
+                </Button>
+              )}
+            </Space>
+          }
+        >
+          <Descriptions size="small" column={3} bordered>
+            <Descriptions.Item label="Goals">
+              {r.goalScore != null ? Number(r.goalScore).toFixed(2) : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="KPIs">
+              {r.kpiScore != null ? Number(r.kpiScore).toFixed(2) : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Competencies">
+              {r.competencyScore != null ? Number(r.competencyScore).toFixed(2) : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Values">
+              {r.valuesScore != null ? Number(r.valuesScore).toFixed(2) : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Overall (weighted)">
+              {r.overallScore != null ? (
+                <Typography.Text strong>
+                  {Number(r.overallScore).toFixed(2)}
+                  {r.overallBand ? ` — ${r.overallBand}` : ''}
+                </Typography.Text>
+              ) : (
+                '—'
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Override">
+              {r.overriddenAt ? (
+                <Space direction="vertical" size={0}>
+                  <Typography.Text>
+                    {Number(r.finalRating).toFixed(2)}{' '}
+                    <Tag color="orange">overridden</Tag>
+                  </Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    original {r.originalRating != null ? Number(r.originalRating).toFixed(2) : '—'}
+                    {' · '}
+                    {r.overriddenBy} · {r.overrideReason}
+                  </Typography.Text>
+                </Space>
+              ) : (
+                '—'
+              )}
+            </Descriptions.Item>
+          </Descriptions>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Overall = Σ(section score × template weight) ÷ Σ(weights of scored sections). Goals
+            roll up from rated goals, KPIs from measured assignments, Competencies from final
+            levels; Values is entered above. Band comes from the cycle&apos;s rating scale
+            (score × 20 → percentage bands).
+          </Typography.Text>
+        </Card>
+
+        {/* M394 — §18.4 override modal */}
+        <Modal
+          open={overrideOpen}
+          title="Override final rating (HR)"
+          onCancel={() => setOverrideOpen(false)}
+          onOk={() => overrideForm.submit()}
+          okText="Override"
+          okButtonProps={{ danger: true }}
+        >
+          <Form
+            form={overrideForm}
+            layout="vertical"
+            onFinish={async (v: { rating: number; reason: string }) => {
+              try {
+                await performanceApi.overrideRating(r.id, v.rating, v.reason)
+                message.success('Rating overridden — original preserved')
+                setOverrideOpen(false)
+                overrideForm.resetFields()
+                load()
+              } catch (err) {
+                message.error(
+                  (err as { response?: { data?: { message?: string } } }).response?.data
+                    ?.message ?? 'Override failed',
+                )
+              }
+            }}
+          >
+            <Form.Item
+              name="rating"
+              label="New final rating (0–5)"
+              rules={[{ required: true, type: 'number', min: 0, max: 5 }]}
+            >
+              <InputNumber min={0} max={5} step={0.1} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="reason"
+              label="Reason (required — audited, original rating is preserved)"
+              rules={[{ required: true, min: 5 }]}
+            >
+              <Input.TextArea rows={2} maxLength={1000} />
+            </Form.Item>
+          </Form>
+        </Modal>
 
         <Card title="Actions">
           <Space wrap>

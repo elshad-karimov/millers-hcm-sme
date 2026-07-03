@@ -25,6 +25,7 @@ import az.millers.hcm.performance.api.dto.ReviewStartRequest;
 import az.millers.hcm.performance.api.dto.SelfReviewRequest;
 import az.millers.hcm.performance.domain.PerformanceReview;
 import az.millers.hcm.performance.domain.ReviewStatus;
+import az.millers.hcm.performance.service.PerfScoringService;
 import az.millers.hcm.performance.service.PerformanceReviewService;
 import jakarta.validation.Valid;
 
@@ -33,9 +34,11 @@ import jakarta.validation.Valid;
 public class PerformanceReviewController {
 
     private final PerformanceReviewService service;
+    private final PerfScoringService scoring;
 
-    public PerformanceReviewController(PerformanceReviewService service) {
+    public PerformanceReviewController(PerformanceReviewService service, PerfScoringService scoring) {
         this.service = service;
+        this.scoring = scoring;
     }
 
     @GetMapping
@@ -94,6 +97,29 @@ public class PerformanceReviewController {
     @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public PerformanceReviewResponse close(@PathVariable UUID id) {
         return PerformanceReviewResponse.from(service.close(id));
+    }
+
+    // ── M394 — §18 weighted scoring + override ────────────────────────────
+
+    /**
+     * Recompute section scores + §18.2 weighted overall + §18.3 band.
+     * Optional valuesScore sets the manager-entered VALUES section.
+     */
+    @PostMapping("/{id}/compute-scores")
+    @PreAuthorize(SecurityRoles.WRITE_HR_PLUS_MANAGERS)
+    public PerformanceReviewResponse computeScores(
+            @PathVariable UUID id,
+            @RequestParam(required = false) java.math.BigDecimal valuesScore) {
+        return PerformanceReviewResponse.from(scoring.computeScores(id, valuesScore));
+    }
+
+    /** §18.4 — HR-only rating override; reason required, original preserved. */
+    @PostMapping("/{id}/override")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
+    public PerformanceReviewResponse override(@PathVariable UUID id,
+                                              @RequestParam java.math.BigDecimal rating,
+                                              @RequestParam String reason) {
+        return PerformanceReviewResponse.from(scoring.override(id, rating, reason));
     }
 
     /** M218 — HR_ADMIN can cancel a review that is PENDING_APPROVAL. */

@@ -25,6 +25,17 @@ public record PerformanceReviewResponse(
         String finalBand,
         String calibrationNotes,
         BigDecimal goalScore,
+        /** M394 — §18.2 section scores + weighted overall + §18.3 band. */
+        BigDecimal kpiScore,
+        BigDecimal competencyScore,
+        BigDecimal valuesScore,
+        BigDecimal overallScore,
+        String overallBand,
+        /** M394 — §18.4 override trail (original preserved). */
+        BigDecimal originalRating,
+        String overrideReason,
+        String overriddenBy,
+        OffsetDateTime overriddenAt,
         String recommendation,
         BigDecimal bonusPercent,
         String note,
@@ -39,7 +50,11 @@ public record PerformanceReviewResponse(
                 r.getSelfRating(), r.getSelfComments(), r.getSelfSubmittedAt(),
                 r.getManagerRating(), r.getManagerComments(), r.getManagerSubmittedAt(),
                 r.getFinalRating(), r.getFinalBand(), r.getCalibrationNotes(),
-                r.getGoalScore(), r.getRecommendation(), r.getBonusPercent(), r.getNote(),
+                r.getGoalScore(),
+                r.getKpiScore(), r.getCompetencyScore(), r.getValuesScore(),
+                r.getOverallScore(), r.getOverallBand(),
+                r.getOriginalRating(), r.getOverrideReason(), r.getOverriddenBy(), r.getOverriddenAt(),
+                r.getRecommendation(), r.getBonusPercent(), r.getNote(),
                 r.getCreatedAt(), r.getCreatedBy(), r.getClosedAt());
     }
 }
