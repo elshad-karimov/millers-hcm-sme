@@ -43,6 +43,7 @@ import {
   benefitCategoriesApi,
   benefitPlanConfigApi,
   benefitProvidersApi,
+  benefitReconcileApi,
   benefitsApi,
   claimsApi,
   lifeEventsApi,
@@ -69,6 +70,7 @@ import {
   type PlanRequest,
   type PlanResponse,
   type PlanTier,
+  type ReconcileResponse,
 } from '../api/benefits'
 import { profileTabsApi, type Dependent } from '../api/profileTabs'
 import { useAuth } from '../auth/AuthContext'
@@ -278,11 +280,82 @@ const PROVIDER_TYPE_OPTIONS: { value: BenefitProviderType; label: string }[] = (
   Object.keys(PROVIDER_TYPE_LABEL) as BenefitProviderType[]
 ).map((k) => ({ value: k, label: PROVIDER_TYPE_LABEL[k] }))
 
+function ReconcileModal({
+  providers,
+  open,
+  onClose,
+}: {
+  providers: BenefitProviderResponse[]
+  open: boolean
+  onClose: () => void
+}) {
+  const { message } = AntdApp.useApp()
+  const [providerId, setProviderId] = useState<string | undefined>(undefined)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<ReconcileResponse | null>(null)
+
+  const run = async () => {
+    if (!providerId) { message.error('Pick a provider'); return }
+    // Parse "reference,amount" lines (CSV/paste from the provider roster).
+    const parsed = text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+      const [ref, amt] = l.split(/[,;\t]/)
+      return { reference: (ref ?? '').trim(), amount: Number((amt ?? '0').trim()) || 0 }
+    }).filter((r) => r.reference)
+    if (!parsed.length) { message.error('Paste at least one "employeeNo,amount" line'); return }
+    setBusy(true)
+    try { setResult(await benefitReconcileApi.reconcile(providerId, parsed)) }
+    catch (e) { message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Reconcile failed') }
+    finally { setBusy(false) }
+  }
+
+  const RESULT_COLOR: Record<string, string> = {
+    MATCHED: 'green', AMOUNT_MISMATCH: 'orange', MISSING_IN_FILE: 'red', EXTRA_IN_FILE: 'gold',
+  }
+  const cols: ColumnsType<ReconcileResponse['lines'][number]> = [
+    { title: 'Employee #', dataIndex: 'reference', width: 130 },
+    { title: 'Name', dataIndex: 'employeeName', render: (v) => v ?? '—' },
+    { title: 'System', align: 'right', width: 110, render: (_, r) => r.systemAmount != null ? fmt(r.systemAmount) : '—' },
+    { title: 'File', align: 'right', width: 110, render: (_, r) => r.fileAmount != null ? fmt(r.fileAmount) : '—' },
+    { title: 'Result', width: 160, render: (_, r) => <Tag color={RESULT_COLOR[r.result]}>{r.result.replace(/_/g, ' ')}</Tag> },
+  ]
+
+  return (
+    <Modal open={open} title="Reconcile provider roster file" width={760}
+      onCancel={() => { setResult(null); onClose() }} onOk={run} confirmLoading={busy} okText="Reconcile"
+      cancelText="Close">
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Select style={{ width: '100%' }} placeholder="Provider" value={providerId} onChange={setProviderId}
+          showSearch optionFilterProp="label"
+          options={providers.map((p) => ({ value: p.id, label: p.name }))} />
+        <div>
+          <Text type="secondary">Paste the provider's roster, one member per line: <code>employeeNo,amount</code></Text>
+          <Input.TextArea rows={5} value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={'E-00012,150\nE-00015,190'} />
+        </div>
+        {result && (
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space wrap>
+              <Tag color="green">Matched {result.matched}</Tag>
+              <Tag color="orange">Amount mismatch {result.amountMismatch}</Tag>
+              <Tag color="red">Missing in file {result.missingInFile}</Tag>
+              <Tag color="gold">Extra in file {result.extraInFile}</Tag>
+              <Text type="secondary">System total {fmt(result.systemTotal)} · File total {fmt(result.fileTotal)}</Text>
+            </Space>
+            <Table rowKey="reference" columns={cols} dataSource={result.lines} size="small" pagination={{ pageSize: 10 }} />
+          </Space>
+        )}
+      </Space>
+    </Modal>
+  )
+}
+
 function ProvidersTab() {
   const { message } = AntdApp.useApp()
   const { hasRole } = useAuth()
   const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
+  const [reconcileOpen, setReconcileOpen] = useState(false)
   const [rows, setRows] = useState<BenefitProviderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [activeOnly, setActiveOnly] = useState(false)
@@ -426,6 +499,7 @@ function ProvidersTab() {
           unCheckedChildren="All"
         />
         {canEdit && <Button type="primary" onClick={startCreate}>New provider…</Button>}
+        {canEdit && <Button onClick={() => setReconcileOpen(true)}>Reconcile file…</Button>}
       </Space>
       <Card>
         <Table
@@ -513,6 +587,8 @@ function ProvidersTab() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <ReconcileModal providers={rows} open={reconcileOpen} onClose={() => setReconcileOpen(false)} />
     </Space>
   )
 }

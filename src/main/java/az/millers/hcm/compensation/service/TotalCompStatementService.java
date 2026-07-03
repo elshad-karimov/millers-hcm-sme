@@ -74,6 +74,7 @@ public class TotalCompStatementService {
     private final AnnualPayrollSummaryRepository annualSummaries;
     private final PayrollResultRepository payrollResults;
     private final AttachmentService attachmentService;
+    private final az.millers.hcm.compbenefits.service.BenefitCostService benefitCost;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
@@ -87,6 +88,7 @@ public class TotalCompStatementService {
                                       AnnualPayrollSummaryRepository annualSummaries,
                                       PayrollResultRepository payrollResults,
                                       AttachmentService attachmentService,
+                                      az.millers.hcm.compbenefits.service.BenefitCostService benefitCost,
                                       AuditService audit,
                                       CurrentRequest currentRequest) {
         this.statements = statements;
@@ -99,6 +101,7 @@ public class TotalCompStatementService {
         this.annualSummaries = annualSummaries;
         this.payrollResults = payrollResults;
         this.attachmentService = attachmentService;
+        this.benefitCost = benefitCost;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -115,7 +118,9 @@ public class TotalCompStatementService {
         BigDecimal incentivesTotal = calculateIncentives(employeeId, year);
         BigDecimal commissionTotal = calculateCommissions(employeeId, year);
         BigDecimal employerContributionsTotal = calculateEmployerContributions(employeeId, year);
-        BigDecimal employerBenefitsTotal = BigDecimal.ZERO; // Placeholder
+        // HCM_11 M383 — employer benefit cost (was a ZERO placeholder): annual employer
+        // contribution across the employee's benefit enrollments overlapping the year.
+        BigDecimal employerBenefitsTotal = benefitCost.annualEmployerCost(employeeId, year);
 
         BigDecimal totalComp = baseSalary
                 .add(allowancesTotal)

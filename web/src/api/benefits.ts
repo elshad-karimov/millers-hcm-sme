@@ -295,6 +295,51 @@ export interface BenefitProviderResponse {
   createdAt: string
 }
 
+// ─── Provider-file reconciliation + cost report (HCM_11 M383/M384) ───────────
+
+export interface ReconcileLine {
+  reference: string
+  employeeName?: string | null
+  systemAmount?: number | null
+  fileAmount?: number | null
+  result: 'MATCHED' | 'AMOUNT_MISMATCH' | 'MISSING_IN_FILE' | 'EXTRA_IN_FILE'
+}
+
+export interface ReconcileResponse {
+  providerName: string
+  systemMembers: number
+  fileMembers: number
+  matched: number
+  amountMismatch: number
+  missingInFile: number
+  extraInFile: number
+  systemTotal: number
+  fileTotal: number
+  lines: ReconcileLine[]
+}
+
+export interface CategorySpend {
+  category: string
+  enrollments: number
+  employerMonthly: number
+  employeeMonthly: number
+}
+
+export interface EmployerCostReport {
+  employerMonthly: number
+  employerAnnual: number
+  byCategory: CategorySpend[]
+}
+
+export const benefitReconcileApi = {
+  reconcile: (providerId: string, rows: { reference: string; amount: number }[]) =>
+    api
+      .post<ReconcileResponse>('/compbenefits/reconcile', { providerId, rows })
+      .then((r) => r.data),
+  employerCost: () =>
+    api.get<EmployerCostReport>('/compbenefits/reports/employer-cost').then((r) => r.data),
+}
+
 export const benefitProvidersApi = {
   list: (activeOnly = false) =>
     api
