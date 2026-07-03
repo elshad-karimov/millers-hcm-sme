@@ -27,6 +27,9 @@ public class BenefitEnrollment {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(name = "plan_id", nullable = false)
     private UUID planId;
 

@@ -32,6 +32,9 @@ public class BenefitPlan {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(nullable = false, unique = true, length = 40)
     private String code;
 

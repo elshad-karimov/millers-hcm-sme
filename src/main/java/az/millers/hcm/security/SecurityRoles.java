@@ -53,6 +53,7 @@ public final class SecurityRoles {
     public static final String R_PAYROLL_SPECIALIST  = "PAYROLL_SPECIALIST";
     public static final String R_FINANCE_USER        = "FINANCE_USER";
     public static final String R_COMPENSATION_MANAGER = "COMPENSATION_MANAGER";
+    public static final String R_BENEFITS_MANAGER    = "BENEFITS_MANAGER";
 
     // ── Building blocks ─────────────────────────────────────────────────────
     // Small primitives that the named role-sets below compose. Kept package-
@@ -67,6 +68,7 @@ public final class SecurityRoles {
     private static final String PAYR    = "'" + R_PAYROLL_SPECIALIST + "'";
     private static final String FIN     = "'" + R_FINANCE_USER + "'";
     private static final String COMP    = "'" + R_COMPENSATION_MANAGER + "'";
+    private static final String BEN     = "'" + R_BENEFITS_MANAGER + "'";
 
     // ── HR (employee directory, profile, lifecycle) ─────────────────────────
 
@@ -159,4 +161,22 @@ public final class SecurityRoles {
     /** Compensation write OR HR admin — edit plans, payouts, approve. */
     public static final String WRITE_COMPENSATION_OR_HR_ADMIN =
             "hasAnyRole(" + SA + "," + HRA + "," + COMP + ")";
+
+    // ── Benefits (HCM_11) ────────────────────────────────────────────────────
+
+    /** Benefits admin read — categories, providers, plans, config, enrolment queues. */
+    public static final String READ_BENEFITS =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + BEN + "," + AUD + ")";
+
+    /**
+     * Benefits read + direct-line department manager — plan/enrolment views a
+     * manager can see for their team. Same shape as {@link #READ_HR_PLUS_MANAGERS}
+     * plus the benefits manager.
+     */
+    public static final String READ_BENEFITS_PLUS_MANAGERS =
+            "hasAnyRole(" + SA + "," + HRA + "," + HRS + "," + DM + "," + BEN + "," + AUD + ")";
+
+    /** Benefits write — manage categories, providers, plans, enrolments, claims. */
+    public static final String WRITE_BENEFITS =
+            "hasAnyRole(" + SA + "," + HRA + "," + BEN + ")";
 }

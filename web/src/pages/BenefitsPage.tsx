@@ -35,7 +35,10 @@ import {
   BENEFIT_TYPE_COLOR,
   BENEFIT_TYPE_LABEL,
   ENROLLMENT_STATUS_COLOR,
+  benefitCategoriesApi,
   benefitsApi,
+  type BenefitCategoryRequest,
+  type BenefitCategoryResponse,
   type BenefitType,
   type EnrollmentRequest,
   type EnrollmentResponse,
@@ -55,6 +58,193 @@ const BENEFIT_TYPE_OPTIONS: { value: BenefitType; label: string }[] = (
 function fmt(n?: number | null) {
   if (n == null) return '—'
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ─── Categories tab (HCM_11 M373) ────────────────────────────────────────────
+
+function CategoriesTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
+
+  const [rows, setRows] = useState<BenefitCategoryResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeOnly, setActiveOnly] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<BenefitCategoryResponse | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<BenefitCategoryRequest>()
+
+  const load = () => {
+    setLoading(true)
+    benefitCategoriesApi
+      .list(activeOnly)
+      .then(setRows)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load categories'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [activeOnly])
+
+  const startCreate = () => {
+    setEditing(null)
+    form.resetFields()
+    form.setFieldsValue({
+      taxable: false,
+      requiresProvider: false,
+      displayOrder: (rows.at(-1)?.displayOrder ?? 0) + 1,
+      active: true,
+    })
+    setOpen(true)
+  }
+  const startEdit = (c: BenefitCategoryResponse) => {
+    setEditing(c)
+    form.setFieldsValue({
+      code: c.code,
+      name: c.name,
+      description: c.description ?? undefined,
+      taxable: c.taxable,
+      requiresProvider: c.requiresProvider,
+      displayOrder: c.displayOrder,
+      active: c.active,
+    })
+    setOpen(true)
+  }
+  const submit = async () => {
+    const v = await form.validateFields()
+    setSaving(true)
+    try {
+      if (editing) {
+        await benefitCategoriesApi.update(editing.id, v)
+        message.success('Category updated')
+      } else {
+        await benefitCategoriesApi.create(v)
+        message.success('Category created')
+      }
+      setOpen(false)
+      load()
+    } catch (e) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Save failed',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const cols: ColumnsType<BenefitCategoryResponse> = [
+    { title: '#', dataIndex: 'displayOrder', width: 50, align: 'center' },
+    {
+      title: 'Code',
+      dataIndex: 'code',
+      width: 130,
+      render: (v, r) => <a onClick={() => canEdit && startEdit(r)}>{v}</a>,
+    },
+    { title: 'Name', dataIndex: 'name' },
+    { title: 'Description', dataIndex: 'description', render: (v) => v ?? '—' },
+    {
+      title: 'Taxable',
+      dataIndex: 'taxable',
+      width: 90,
+      align: 'center',
+      render: (v: boolean) => (v ? <Tag color="orange">Taxable</Tag> : <Tag>Exempt</Tag>),
+    },
+    {
+      title: 'Provider',
+      dataIndex: 'requiresProvider',
+      width: 110,
+      align: 'center',
+      render: (v: boolean) => (v ? <Tag color="blue">Required</Tag> : '—'),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'active',
+      width: 90,
+      align: 'center',
+      render: (v: boolean) => (v ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag>),
+    },
+  ]
+
+  if (loading) return <Spin />
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        Benefit categories classify plans and drive tax treatment and provider requirements.
+        Eight Azerbaijan defaults are seeded; add your own or deactivate ones you don't use.
+      </Paragraph>
+      <Space>
+        <Switch
+          checked={activeOnly}
+          onChange={setActiveOnly}
+          checkedChildren="Active only"
+          unCheckedChildren="All"
+        />
+        {canEdit && <Button type="primary" onClick={startCreate}>New category…</Button>}
+      </Space>
+      <Card>
+        <Table
+          rowKey="id"
+          columns={cols}
+          dataSource={rows}
+          size="small"
+          pagination={false}
+          locale={{ emptyText: <Empty description="No categories" /> }}
+        />
+      </Card>
+
+      <Modal
+        open={open}
+        title={editing ? `Edit category — ${editing.code}` : 'New benefit category'}
+        onCancel={() => setOpen(false)}
+        onOk={submit}
+        confirmLoading={saving}
+        okText={editing ? 'Save' : 'Create'}
+      >
+        <Form form={form} layout="vertical">
+          <Row gutter={12}>
+            <Col span={10}>
+              <Form.Item name="code" label="Code"
+                rules={[{ required: true, message: 'Required' }, { max: 40 }]}>
+                <Input placeholder="HEALTH" disabled={!!editing} />
+              </Form.Item>
+            </Col>
+            <Col span={14}>
+              <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+                <Input placeholder="Health Insurance" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="description" label="Description">
+            <Input.TextArea rows={2} placeholder="What kind of benefit is this?" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={8}>
+              <Form.Item name="taxable" label="Taxable benefit-in-kind" valuePropName="checked"
+                tooltip="Employer-paid portion is taxed (cash-like allowances).">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="requiresProvider" label="Requires provider" valuePropName="checked"
+                tooltip="Plans in this category need an external insurer/vendor.">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="displayOrder" label="Order">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="active" label="Active" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+    </Space>
+  )
 }
 
 // ─── Plans tab ───────────────────────────────────────────────────────────────
@@ -719,6 +909,7 @@ export function BenefitsPage() {
   // For non-HR employees, only show the self-service tab.
   const items = isHr
     ? [
+        { key: 'categories', label: 'Categories', children: <CategoriesTab /> },
         { key: 'plans', label: 'Plans catalog', children: <PlansTab /> },
         { key: 'enrolments', label: 'Enrolments', children: <EnrolmentsTab /> },
         { key: 'me', label: 'My benefits', children: <MyBenefitsTab /> },

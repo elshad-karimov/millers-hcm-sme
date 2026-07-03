@@ -114,6 +114,45 @@ export const ENROLLMENT_STATUS_COLOR: Record<EnrollmentStatus, string> = {
   TERMINATED: 'red',
 }
 
+// ─── Benefit categories (HCM_11 M373) ────────────────────────────────────────
+
+export interface BenefitCategoryRequest {
+  code: string
+  name: string
+  description?: string
+  taxable?: boolean
+  requiresProvider?: boolean
+  displayOrder?: number
+  active?: boolean
+}
+
+export interface BenefitCategoryResponse {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  taxable: boolean
+  requiresProvider: boolean
+  displayOrder: number
+  active: boolean
+  createdAt: string
+}
+
+export const benefitCategoriesApi = {
+  list: (activeOnly = false) =>
+    api
+      .get<BenefitCategoryResponse[]>('/compbenefits/benefit-categories', {
+        params: { activeOnly },
+      })
+      .then((r) => r.data),
+  create: (req: BenefitCategoryRequest) =>
+    api.post<BenefitCategoryResponse>('/compbenefits/benefit-categories', req).then((r) => r.data),
+  update: (id: string, req: BenefitCategoryRequest) =>
+    api
+      .put<BenefitCategoryResponse>(`/compbenefits/benefit-categories/${id}`, req)
+      .then((r) => r.data),
+}
+
 export const benefitsApi = {
   listPlans: (activeOnly = false) =>
     api
