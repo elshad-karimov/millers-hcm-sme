@@ -34,6 +34,7 @@ import dayjs from 'dayjs'
 import {
   BENEFIT_TYPE_COLOR,
   BENEFIT_TYPE_LABEL,
+  CLAIM_STATUS_COLOR,
   COVERAGE_TIER_LABEL,
   ENROLLMENT_STATUS_COLOR,
   LIFE_EVENT_LABEL,
@@ -43,6 +44,7 @@ import {
   benefitPlanConfigApi,
   benefitProvidersApi,
   benefitsApi,
+  claimsApi,
   lifeEventsApi,
   openEnrollmentApi,
   type BenefitCategoryRequest,
@@ -51,6 +53,9 @@ import {
   type BenefitProviderResponse,
   type BenefitProviderType,
   type BenefitType,
+  type ClaimItemRequest,
+  type ClaimRequest,
+  type ClaimResponse,
   type CoverageTier,
   type EligibilityRule,
   type EnrollmentRequest,
@@ -1816,6 +1821,181 @@ function LifeEventsTab() {
   )
 }
 
+// ─── Claims tab (HCM_11 M381/M382) ───────────────────────────────────────────
+
+function ClaimsTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canEdit = hasRole(...RoleSets.HR_WRITE)
+
+  const [rows, setRows] = useState<ClaimResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined)
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [items, setItems] = useState<ClaimItemRequest[]>([{ description: '', amount: 0 }])
+  const [form] = Form.useForm<{
+    employeeId: string
+    claimDate: ReturnType<typeof dayjs>
+    description?: string
+  }>()
+
+  const load = () => {
+    setLoading(true)
+    claimsApi.list({ status: filterStatus })
+      .then(setRows)
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load claims'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [filterStatus])
+
+  const startCreate = () => {
+    form.resetFields()
+    form.setFieldsValue({ claimDate: dayjs() })
+    setItems([{ description: '', amount: 0 }])
+    setOpen(true)
+  }
+  const total = useMemo(() => items.reduce((s, i) => s + (Number(i.amount) || 0), 0), [items])
+  const submit = async () => {
+    const v = await form.validateFields()
+    const valid = items.filter((i) => i.description.trim())
+    if (!valid.length) { message.error('Add at least one line item'); return }
+    const req: ClaimRequest = {
+      employeeId: v.employeeId,
+      claimDate: v.claimDate.format('YYYY-MM-DD'),
+      description: v.description,
+      items: valid,
+    }
+    setSaving(true)
+    try { await claimsApi.create(req); message.success('Claim created (draft)'); setOpen(false); load() }
+    catch (e) { message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed') }
+    finally { setSaving(false) }
+  }
+  const act = async (fn: () => Promise<unknown>, ok: string) => {
+    try { await fn(); message.success(ok); load() }
+    catch (e) { message.error((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed') }
+  }
+
+  const cols: ColumnsType<ClaimResponse> = [
+    { title: 'Claim #', dataIndex: 'claimNo', width: 110 },
+    { title: 'Employee', render: (_, r) => r.employeeName ?? r.employeeId.slice(0, 8) },
+    { title: 'Plan', render: (_, r) => r.planName ?? '—' },
+    { title: 'Date', dataIndex: 'claimDate', width: 110 },
+    { title: 'Total', align: 'right', width: 110, render: (_, r) => `${fmt(r.totalAmount)} ${r.currency}` },
+    { title: 'Approved', align: 'right', width: 110, render: (_, r) => r.approvedAmount != null ? fmt(r.approvedAmount) : '—' },
+    { title: 'Status', width: 110, render: (_, r) => <Tag color={CLAIM_STATUS_COLOR[r.status]}>{r.status}</Tag> },
+    {
+      title: '',
+      width: 230,
+      render: (_, r) => {
+        if (!canEdit) return null
+        return (
+          <Space size={4} wrap>
+            {r.status === 'DRAFT' && <Button size="small" type="primary" onClick={() => act(() => claimsApi.submit(r.id), 'Submitted')}>Submit</Button>}
+            {r.status === 'SUBMITTED' && <Button size="small" type="primary" onClick={() => act(() => claimsApi.approve(r.id), 'Approved')}>Approve</Button>}
+            {r.status === 'SUBMITTED' && (
+              <Popconfirm title="Reject claim?" onConfirm={() => act(() => claimsApi.reject(r.id), 'Rejected')}>
+                <Button size="small" danger>Reject</Button>
+              </Popconfirm>
+            )}
+            {r.status === 'APPROVED' && (
+              <Popconfirm title="Mark this claim paid?" description="Records the payment (tracking only)."
+                onConfirm={() => act(() => claimsApi.pay(r.id, `PAY-${r.claimNo}`), 'Marked paid')}>
+                <Button size="small">Mark paid</Button>
+              </Popconfirm>
+            )}
+            {(r.status === 'DRAFT' || r.status === 'SUBMITTED') && (
+              <Popconfirm title="Cancel claim?" onConfirm={() => act(() => claimsApi.cancel(r.id), 'Cancelled')}>
+                <Button size="small">Cancel</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        )
+      },
+    },
+  ]
+
+  if (loading) return <Spin />
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        Benefit reimbursement claims: DRAFT → SUBMITTED → APPROVED / REJECTED → PAID. Payment is
+        recorded for tracking (not auto-pushed to payroll).
+      </Paragraph>
+      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Select style={{ width: 180 }} allowClear placeholder="All statuses" value={filterStatus}
+          onChange={setFilterStatus}
+          options={['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'PAID', 'CANCELLED'].map((s) => ({ value: s, label: s }))} />
+        {canEdit && <Button type="primary" onClick={startCreate}>New claim…</Button>}
+      </Space>
+      <Card>
+        <Table
+          rowKey="id" columns={cols} dataSource={rows} size="small" pagination={{ pageSize: 25 }}
+          expandable={{
+            expandedRowRender: (r) => (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {r.items.map((it) => (
+                  <Text key={it.id}>
+                    • {it.serviceDate ?? '—'} — {it.description}: {fmt(it.amount)} {r.currency}
+                  </Text>
+                ))}
+                {r.reviewNotes && <Text type="secondary">Review: {r.reviewNotes}</Text>}
+                {r.paymentReference && <Text type="secondary">Payment ref: {r.paymentReference}</Text>}
+              </Space>
+            ),
+          }}
+          locale={{ emptyText: <Empty description="No claims" /> }}
+        />
+      </Card>
+
+      <Modal open={open} title="New benefit claim" width={680} onCancel={() => setOpen(false)}
+        onOk={submit} confirmLoading={saving} okText="Create draft">
+        <Form form={form} layout="vertical">
+          <Row gutter={12}>
+            <Col span={16}>
+              <Form.Item name="employeeId" label="Employee ID" rules={[{ required: true }]}
+                extra="Paste the employee UUID from their profile page.">
+                <Input placeholder="00000000-0000-0000-0000-000000000000" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="claimDate" label="Claim date" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="description" label="Description"><Input placeholder="e.g. Q3 outpatient reimbursement" /></Form.Item>
+          <Text strong>Line items</Text>
+          {items.map((it, i) => (
+            <Row gutter={8} key={i} align="middle" style={{ marginTop: 6 }}>
+              <Col span={7}>
+                <DatePicker style={{ width: '100%' }} placeholder="Service date"
+                  value={it.serviceDate ? dayjs(it.serviceDate) : undefined}
+                  onChange={(d) => setItems((c) => c.map((x, idx) => idx === i ? { ...x, serviceDate: d ? d.format('YYYY-MM-DD') : undefined } : x))} />
+              </Col>
+              <Col span={10}>
+                <Input placeholder="Description" value={it.description}
+                  onChange={(e) => setItems((c) => c.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} />
+              </Col>
+              <Col span={5}>
+                <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="Amount" value={it.amount}
+                  onChange={(v) => setItems((c) => c.map((x, idx) => idx === i ? { ...x, amount: v ?? 0 } : x))} />
+              </Col>
+              <Col span={2}>
+                {items.length > 1 && <Button size="small" danger onClick={() => setItems((c) => c.filter((_, idx) => idx !== i))}>✕</Button>}
+              </Col>
+            </Row>
+          ))}
+          <div style={{ marginTop: 8 }}>
+            <Button size="small" onClick={() => setItems((c) => [...c, { description: '', amount: 0 }])}>Add item</Button>
+            <Text strong style={{ float: 'right' }}>Total: {fmt(total)}</Text>
+          </div>
+        </Form>
+      </Modal>
+    </Space>
+  )
+}
+
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
 export function BenefitsPage() {
@@ -1831,6 +2011,7 @@ export function BenefitsPage() {
         { key: 'enrolments', label: 'Enrolments', children: <EnrolmentsTab /> },
         { key: 'openEnrollment', label: 'Open enrollment', children: <OpenEnrollmentTab /> },
         { key: 'lifeEvents', label: 'Life events', children: <LifeEventsTab /> },
+        { key: 'claims', label: 'Claims', children: <ClaimsTab /> },
         { key: 'me', label: 'My benefits', children: <MyBenefitsTab /> },
       ]
     : [{ key: 'me', label: 'My benefits', children: <MyBenefitsTab /> }]

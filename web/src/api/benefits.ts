@@ -432,6 +432,88 @@ export const lifeEventsApi = {
       .then((r) => r.data),
 }
 
+// ─── Benefit claims (HCM_11 M381/M382) ───────────────────────────────────────
+
+export type ClaimStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'PAID' | 'CANCELLED'
+
+export const CLAIM_STATUS_COLOR: Record<ClaimStatus, string> = {
+  DRAFT: 'default',
+  SUBMITTED: 'gold',
+  APPROVED: 'blue',
+  REJECTED: 'red',
+  PAID: 'green',
+  CANCELLED: 'default',
+}
+
+export interface ClaimItemRequest {
+  serviceDate?: string
+  description: string
+  amount: number
+}
+
+export interface ClaimItem {
+  id: string
+  serviceDate?: string | null
+  description: string
+  amount: number
+}
+
+export interface ClaimRequest {
+  employeeId: string
+  enrollmentId?: string | null
+  planId?: string | null
+  claimDate: string
+  currency?: string
+  description?: string
+  items: ClaimItemRequest[]
+}
+
+export interface ClaimResponse {
+  id: string
+  claimNo: string
+  employeeId: string
+  employeeName?: string | null
+  enrollmentId?: string | null
+  planId?: string | null
+  planName?: string | null
+  claimDate: string
+  currency: string
+  totalAmount: number
+  approvedAmount?: number | null
+  status: ClaimStatus
+  description?: string | null
+  submittedBy?: string | null
+  submittedAt?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNotes?: string | null
+  paidBy?: string | null
+  paidAt?: string | null
+  paymentReference?: string | null
+  items: ClaimItem[]
+  createdAt: string
+}
+
+export const claimsApi = {
+  list: (params: { status?: string; employeeId?: string } = {}) =>
+    api.get<ClaimResponse[]>('/compbenefits/claims', { params }).then((r) => r.data),
+  mine: () => api.get<ClaimResponse[]>('/compbenefits/claims/me').then((r) => r.data),
+  create: (req: ClaimRequest) =>
+    api.post<ClaimResponse>('/compbenefits/claims', req).then((r) => r.data),
+  submit: (id: string) =>
+    api.post<ClaimResponse>(`/compbenefits/claims/${id}/submit`).then((r) => r.data),
+  approve: (id: string, approvedAmount?: number, reviewNotes?: string) =>
+    api
+      .post<ClaimResponse>(`/compbenefits/claims/${id}/approve`, { approvedAmount, reviewNotes })
+      .then((r) => r.data),
+  reject: (id: string, reviewNotes?: string) =>
+    api.post<ClaimResponse>(`/compbenefits/claims/${id}/reject`, { reviewNotes }).then((r) => r.data),
+  pay: (id: string, paymentReference?: string) =>
+    api.post<ClaimResponse>(`/compbenefits/claims/${id}/pay`, { paymentReference }).then((r) => r.data),
+  cancel: (id: string) =>
+    api.post<ClaimResponse>(`/compbenefits/claims/${id}/cancel`).then((r) => r.data),
+}
+
 export const benefitsApi = {
   listPlans: (activeOnly = false) =>
     api
