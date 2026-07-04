@@ -57,6 +57,7 @@ import { ChecklistTasksWidget } from '../components/ChecklistTasksWidget'
 import { InternalJobsWidget } from '../components/InternalJobsWidget'
 import { HrRequestsWidget } from '../components/HrRequestsWidget'
 import { AnnouncementsCard } from '../components/AnnouncementsCard'
+import { api } from '../api/client'
 
 // ============================================================================
 //  Dashboard tab
@@ -528,6 +529,73 @@ function BenefitsTab() {
         <Card size="small" title={<Title level={5} style={{ margin: 0 }}>My claims</Title>}>
           <Table rowKey="id" columns={claimCols} dataSource={claims} size="small" pagination={{ pageSize: 10 }} />
         </Card>
+      )}
+    </Space>
+  )
+}
+
+// ============================================================================
+//  Team calendar tab (M431)
+// ============================================================================
+function TeamCalendarTab() {
+  const { message } = AntdApp.useApp()
+  const [loading, setLoading] = useState(true)
+  const [isManager, setIsManager] = useState<boolean | null>(null)
+  const [calendarData, setCalendarData] = useState<any>(null)
+
+  useEffect(() => {
+    api
+      .get('/self/team-calendar')
+      .then((r) => {
+        if (r.data.manager === false) {
+          setIsManager(false)
+        } else {
+          setIsManager(true)
+          setCalendarData(r.data.calendar)
+        }
+      })
+      .catch((err) =>
+        message.error(err?.response?.data?.message ?? 'Failed to load team calendar'),
+      )
+      .finally(() => setLoading(false))
+  }, [message])
+
+  if (loading) return <Spin />
+  if (isManager === false) return null
+
+  // Group entries by day
+  const grouped = new Map<string, any[]>()
+  if (calendarData?.entries) {
+    calendarData.entries.forEach((entry: any) => {
+      if (!grouped.has(entry.date)) {
+        grouped.set(entry.date, [])
+      }
+      grouped.get(entry.date)!.push(entry)
+    })
+  }
+
+  const sortedDates = Array.from(grouped.keys()).sort()
+
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {sortedDates.length === 0 ? (
+        <Empty description="No team leave in the selected window" />
+      ) : (
+        sortedDates.map((date) => (
+          <Card key={date} size="small" title={date}>
+            <Table
+              rowKey={(r) => r.employeeId + r.leaveTypeCode}
+              dataSource={grouped.get(date)}
+              columns={[
+                { title: 'Employee', dataIndex: 'employeeName' },
+                { title: 'Leave type', dataIndex: 'leaveTypeName' },
+                { title: 'Days', dataIndex: 'daysCount', width: 80 },
+              ]}
+              pagination={false}
+              size="small"
+            />
+          </Card>
+        ))
       )}
     </Space>
   )
@@ -1064,6 +1132,7 @@ export function MyWorkspacePage() {
           { key: 'benefits',      label: 'Benefits',               children: <BenefitsTab /> },
           { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
           { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
+          { key: 'teamCalendar',  label: 'Team Calendar',          children: <TeamCalendarTab /> },
         ]}
       />
       {summary.mandatoryCoursesPending > 0 && (
