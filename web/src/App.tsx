@@ -81,6 +81,8 @@ import { CommissionPlansPage } from './pages/CommissionPlansPage'
 import { MarketDataPage } from './pages/MarketDataPage'
 import { TotalCompStatementsPage } from './pages/TotalCompStatementsPage'
 import { CompPayrollTransferPage } from './pages/CompPayrollTransferPage'
+import { BudgetCyclesPage } from './pages/BudgetCyclesPage'
+import { DepartmentBudgetsPage } from './pages/DepartmentBudgetsPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -437,6 +439,10 @@ export default function App() {
           {/* M247 — workforce plans + scenarios */}
           <Route path="workforce-plans" element={<WorkforcePlansPage />} />
           <Route path="workforce-plans/:id" element={<WorkforcePlanDetailPage />} />
+
+          {/* M425 — budgeting */}
+          <Route path="budgets/cycles" element={<BudgetCyclesPage />} />
+          <Route path="budgets/departments" element={<DepartmentBudgetsPage />} />
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />

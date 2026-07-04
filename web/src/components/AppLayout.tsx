@@ -126,6 +126,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compensation/total-comp-statements', module: 'compensation', screen: 'compensation-total-comp-statements' },
   { prefix: '/compensation/payroll-transfer', module: 'compensation', screen: 'compensation-payroll-transfer' },
   { prefix: '/compensation/config', module: 'compensation', screen: 'compensation-config' },
+  { prefix: '/budgets/cycles', module: 'budgeting', screen: 'budgets-cycles' },
+  { prefix: '/budgets/departments', module: 'budgeting', screen: 'budgets-departments' },
   { prefix: '/recruitment/vacancies', module: 'recruitment', screen: 'recruitment-vacancies' },
   { prefix: '/recruitment/candidates', module: 'recruitment', screen: 'recruitment-candidates' },
   { prefix: '/recruitment/interview-kits', module: 'recruitment', screen: 'recruitment-interview-kits' },
@@ -689,6 +691,29 @@ export function AppLayout() {
                 key: 'compensation-config',
                 icon: <SettingOutlined />,
                 label: <Link to="/compensation/config">Settings</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Budgeting (HR only, M425+) ──────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'budgeting',
+            icon: <FundOutlined />,
+            label: 'Budgeting',
+            children: [
+              {
+                key: 'budgets-cycles',
+                icon: <CalendarOutlined />,
+                label: <Link to="/budgets/cycles">Budget Cycles</Link>,
+              },
+              {
+                key: 'budgets-departments',
+                icon: <BankOutlined />,
+                label: <Link to="/budgets/departments">Department Budgets</Link>,
               },
             ],
           } satisfies ItemType,
