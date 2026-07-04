@@ -43,6 +43,28 @@ public record PerformanceReviewResponse(
         String createdBy,
         OffsetDateTime closedAt) {
 
+    /**
+     * M397 — §19.3/§31.3: calibration notes, potential notes and the override
+     * reason are HR/committee-facing; employees viewing their own review get
+     * them masked.
+     */
+    public static PerformanceReviewResponse from(PerformanceReview r, boolean hideCalibration) {
+        PerformanceReviewResponse full = from(r);
+        if (!hideCalibration) return full;
+        return new PerformanceReviewResponse(
+                full.id(), full.reviewNo(), full.cycleId(), full.employeeId(), full.managerId(),
+                full.status(), full.workflowInstanceId(),
+                full.selfRating(), full.selfComments(), full.selfSubmittedAt(),
+                full.managerRating(), full.managerComments(), full.managerSubmittedAt(),
+                full.finalRating(), full.finalBand(), null /* calibrationNotes */,
+                full.goalScore(),
+                full.kpiScore(), full.competencyScore(), full.valuesScore(),
+                full.overallScore(), full.overallBand(),
+                full.originalRating(), null /* overrideReason */, full.overriddenBy(), full.overriddenAt(),
+                full.recommendation(), full.bonusPercent(), full.note(),
+                full.createdAt(), full.createdBy(), full.closedAt());
+    }
+
     public static PerformanceReviewResponse from(PerformanceReview r) {
         return new PerformanceReviewResponse(
                 r.getId(), r.getReviewNo(), r.getCycleId(), r.getEmployeeId(), r.getManagerId(),

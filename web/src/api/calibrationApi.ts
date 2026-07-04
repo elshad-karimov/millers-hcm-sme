@@ -162,4 +162,65 @@ export const calibrationApi = {
         targets,
       )
       .then((r) => r.data),
+
+  // ── M397 — §19.1 committee + outliers ────────────────────────────────────
+
+  members: (sessionId: string) =>
+    api
+      .get<CommitteeMember[]>(`/performance/calibration-sessions/${sessionId}/members`)
+      .then((r) => r.data),
+
+  addMember: (sessionId: string, employeeId: string, memberRole: CommitteeRole) =>
+    api
+      .post<CommitteeMember>(`/performance/calibration-sessions/${sessionId}/members`, {
+        employeeId,
+        memberRole,
+      })
+      .then((r) => r.data),
+
+  removeMember: (sessionId: string, memberId: string) =>
+    api
+      .delete<void>(`/performance/calibration-sessions/${sessionId}/members/${memberId}`)
+      .then((r) => r.data),
+
+  outliers: (cycleId: string) =>
+    api
+      .get<OutlierReport>(`/performance/cycles/${cycleId}/calibration-outliers`)
+      .then((r) => r.data),
+}
+
+// ── M397 types ────────────────────────────────────────────────────────────────
+
+export type CommitteeRole = 'CHAIR' | 'MEMBER' | 'OBSERVER' | 'HR_FACILITATOR'
+
+export interface CommitteeMember {
+  id: string
+  sessionId: string
+  employeeId: string
+  memberRole: CommitteeRole
+  addedBy?: string | null
+  addedAt: string
+}
+
+export interface ManagerStats {
+  managerId: string
+  managerName?: string | null
+  rated: number
+  avgRating: number
+  deltaVsCycle: number
+}
+
+export interface OutlierEntry {
+  reviewId: string
+  employeeId: string
+  employeeName?: string | null
+  rating: number
+  deltaVsCycle: number
+}
+
+export interface OutlierReport {
+  cycleAverage?: number | null
+  ratedCount: number
+  managerStats: ManagerStats[]
+  outliers: OutlierEntry[]
 }

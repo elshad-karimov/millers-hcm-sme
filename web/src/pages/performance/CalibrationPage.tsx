@@ -32,6 +32,9 @@ import {
   CalibrationLockTag,
   CalibrationTargetEditor,
 } from './CalibrationV2Widgets'
+import { CommitteeDrawer, OutliersCard } from './CalibrationCommitteeOutliers'
+import { useAuth } from '../../auth/AuthContext'
+import { RoleSets } from '../../auth/roleSets'
 
 const { Title, Text } = Typography
 
@@ -94,6 +97,11 @@ export function CalibrationPage() {
   // M121 — v2 modals/drawers
   const [targetEditorOpen, setTargetEditorOpen] = useState(false)
   const [editLogSession, setEditLogSession] = useState<CalibrationSession | null>(null)
+
+  // M397 — §19.1 committee drawer
+  const { hasRole } = useAuth()
+  const canHrAdmin = hasRole(...RoleSets.HR_ADMIN_WRITE)
+  const [committeeSession, setCommitteeSession] = useState<CalibrationSession | null>(null)
 
   // Per-row edit state, keyed by reviewId
   const [edits, setEdits] = useState<Record<string, BoardRowEdit>>({})
@@ -305,6 +313,10 @@ export function CalibrationPage() {
               Edit log
             </Button>
           )}
+          {/* M397 — §19.1 committee */}
+          <Button size="small" onClick={() => setCommitteeSession(s)}>
+            Committee
+          </Button>
         </Space>
       ),
     },
@@ -607,6 +619,16 @@ export function CalibrationPage() {
         open={!!editLogSession}
         onClose={() => setEditLogSession(null)}
       />
+
+      {/* M397 — §19.1 committee + outlier / leniency view */}
+      <CommitteeDrawer
+        sessionId={committeeSession?.id ?? null}
+        sessionName={committeeSession?.name ?? ''}
+        open={!!committeeSession}
+        canEdit={canHrAdmin}
+        onClose={() => setCommitteeSession(null)}
+      />
+      {cycleId && <OutliersCard cycleId={cycleId} />}
     </Space>
   )
 }

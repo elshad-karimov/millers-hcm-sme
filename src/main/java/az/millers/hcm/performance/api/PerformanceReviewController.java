@@ -27,6 +27,7 @@ import az.millers.hcm.performance.domain.PerformanceReview;
 import az.millers.hcm.performance.domain.ReviewStatus;
 import az.millers.hcm.performance.service.PerfScoringService;
 import az.millers.hcm.performance.service.PerformanceReviewService;
+import az.millers.hcm.security.CurrentRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -35,10 +36,24 @@ public class PerformanceReviewController {
 
     private final PerformanceReviewService service;
     private final PerfScoringService scoring;
+    private final CurrentRequest currentRequest;
 
-    public PerformanceReviewController(PerformanceReviewService service, PerfScoringService scoring) {
+    public PerformanceReviewController(PerformanceReviewService service, PerfScoringService scoring,
+                                       CurrentRequest currentRequest) {
         this.service = service;
         this.scoring = scoring;
+        this.currentRequest = currentRequest;
+    }
+
+    /**
+     * M397 — §19.3/§31.3: calibration + potential notes and override reasons are
+     * masked for callers without an HR/manager read role (i.e., plain employees
+     * viewing their own review).
+     */
+    private boolean hideCalibrationNotes() {
+        return !(currentRequest.hasRole("HR_ADMIN") || currentRequest.hasRole("HR_SPECIALIST")
+                || currentRequest.hasRole("SYSTEM_ADMIN") || currentRequest.hasRole("DEPARTMENT_MANAGER")
+                || currentRequest.hasRole("AUDITOR"));
     }
 
     @GetMapping
@@ -49,14 +64,15 @@ public class PerformanceReviewController {
             @RequestParam(required = false) ReviewStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        boolean hide = hideCalibrationNotes();
         Page<PerformanceReview> result = service.list(cycleId, employeeId, status, PageRequest.of(page, size));
-        return PageResponse.of(result, PerformanceReviewResponse::from);
+        return PageResponse.of(result, r -> PerformanceReviewResponse.from(r, hide));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public PerformanceReviewResponse get(@PathVariable UUID id) {
-        return PerformanceReviewResponse.from(service.get(id));
+        return PerformanceReviewResponse.from(service.get(id), hideCalibrationNotes());
     }
 
     @PostMapping("/start")

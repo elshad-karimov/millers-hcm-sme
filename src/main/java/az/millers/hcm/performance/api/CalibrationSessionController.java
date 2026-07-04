@@ -68,7 +68,10 @@ public class CalibrationSessionController {
     }
 
     @GetMapping("/api/performance/cycles/{cycleId}/calibration-board")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
     public CalibrationBoardResponse board(@PathVariable UUID cycleId) {
+        // M397 — managers reach the board only through committee membership.
+        service.assertBoardAccess(cycleId);
         return service.getBoard(cycleId);
     }
 
@@ -79,7 +82,9 @@ public class CalibrationSessionController {
         return service.startSession(sessionId);
     }
 
+    /** M397 — committee CHAIR/MEMBER managers may calibrate (service enforces §19.1). */
     @PostMapping("/api/performance/calibration-sessions/{sessionId}/reviews/{reviewId}/calibrate")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','SYSTEM_ADMIN','DEPARTMENT_MANAGER')")
     public PerformanceReviewResponse calibrate(
             @PathVariable UUID sessionId,
             @PathVariable UUID reviewId,
@@ -117,5 +122,36 @@ public class CalibrationSessionController {
             @PathVariable UUID cycleId,
             @RequestBody Map<String, BigDecimal> body) {
         return targets.save(cycleId, body);
+    }
+
+    // ── M397 — §19.1 committee + outlier view ───────────────────────────────
+
+    public record AddMemberRequest(UUID employeeId, String memberRole) {}
+
+    @GetMapping("/api/performance/calibration-sessions/{sessionId}/members")
+    public List<az.millers.hcm.performance.domain.CalibrationCommitteeMember> members(
+            @PathVariable UUID sessionId) {
+        return service.listMembers(sessionId);
+    }
+
+    @PostMapping("/api/performance/calibration-sessions/{sessionId}/members")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    public az.millers.hcm.performance.domain.CalibrationCommitteeMember addMember(
+            @PathVariable UUID sessionId, @RequestBody AddMemberRequest req) {
+        return service.addMember(sessionId, req.employeeId(), req.memberRole());
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping(
+            "/api/performance/calibration-sessions/{sessionId}/members/{memberId}")
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    public void removeMember(@PathVariable UUID sessionId, @PathVariable UUID memberId) {
+        service.removeMember(sessionId, memberId);
+    }
+
+    /** Distribution depth: per-manager leniency + individual outliers (≥1.0 off cycle avg). */
+    @GetMapping("/api/performance/cycles/{cycleId}/calibration-outliers")
+    public CalibrationSessionService.OutlierReport outliers(@PathVariable UUID cycleId) {
+        return service.outliers(cycleId);
     }
 }

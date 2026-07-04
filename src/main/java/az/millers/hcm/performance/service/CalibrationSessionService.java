@@ -50,6 +50,9 @@ public class CalibrationSessionService {
     /** M121 — target-distribution lookup + edit-log writes. */
     private final az.millers.hcm.performance.repo.CycleCalibrationTargetRepository targets;
     private final az.millers.hcm.performance.repo.CalibrationEditLogRepository editLogs;
+    /** M397 — §19.1 committee membership + current-employee resolution. */
+    private final az.millers.hcm.performance.repo.CalibrationCommitteeMemberRepository committee;
+    private final az.millers.hcm.selfservice.service.EmployeeContextService employeeContext;
 
     public CalibrationSessionService(CalibrationSessionRepository sessions,
                                      ReviewCycleRepository cycles,
@@ -58,7 +61,9 @@ public class CalibrationSessionService {
                                      PerformanceReviewService reviewService,
                                      CurrentRequest currentRequest,
                                      az.millers.hcm.performance.repo.CycleCalibrationTargetRepository targets,
-                                     az.millers.hcm.performance.repo.CalibrationEditLogRepository editLogs) {
+                                     az.millers.hcm.performance.repo.CalibrationEditLogRepository editLogs,
+                                     az.millers.hcm.performance.repo.CalibrationCommitteeMemberRepository committee,
+                                     az.millers.hcm.selfservice.service.EmployeeContextService employeeContext) {
         this.sessions = sessions;
         this.cycles = cycles;
         this.reviews = reviews;
@@ -67,6 +72,8 @@ public class CalibrationSessionService {
         this.currentRequest = currentRequest;
         this.targets = targets;
         this.editLogs = editLogs;
+        this.committee = committee;
+        this.employeeContext = employeeContext;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -277,6 +284,7 @@ public class CalibrationSessionService {
     @Transactional
     public PerformanceReview calibrateReview(UUID sessionId, UUID reviewId, CalibrationRequest req) {
         CalibrationSession session = findSession(sessionId);
+        assertCommitteeEditAccess(sessionId);   // M397 — §19.1
         if (!STATUS_IN_PROGRESS.equals(session.getStatus())) {
             throw new BadRequestException(
                     "Calibration is only allowed when the session is IN_PROGRESS (current: " + session.getStatus() + ")");
@@ -332,6 +340,166 @@ public class CalibrationSessionService {
     public List<az.millers.hcm.performance.domain.CalibrationEditLog> editLogForSession(UUID sessionId) {
         findSession(sessionId); // 404 on unknown
         return editLogs.findBySessionIdOrderByEditedAtDesc(sessionId);
+    }
+
+    // ── M397 — §19.1 calibration committee ─────────────────────────────────
+
+    /**
+     * HR admins always may calibrate; anyone else must be a CHAIR or MEMBER of
+     * this session's committee (OBSERVERs and HR facilitators watch, not edit).
+     */
+    private void assertCommitteeEditAccess(UUID sessionId) {
+        if (currentRequest.hasRole("HR_ADMIN") || currentRequest.hasRole("SYSTEM_ADMIN")) return;
+        UUID me;
+        try {
+            me = employeeContext.currentEmployee().getId();
+        } catch (Exception ex) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Calibration requires committee membership");
+        }
+        boolean member = committee.existsBySessionIdAndEmployeeIdAndMemberRoleIn(
+                sessionId, me, List.of("CHAIR", "MEMBER"));
+        if (!member) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only committee CHAIR/MEMBERs (or HR admins) may calibrate in this session");
+        }
+    }
+
+    /**
+     * HR roles read the board freely; a DEPARTMENT_MANAGER must sit on a
+     * committee (any role, OBSERVER included) of some session in this cycle.
+     */
+    @Transactional(readOnly = true)
+    public void assertBoardAccess(UUID cycleId) {
+        if (currentRequest.hasRole("HR_ADMIN") || currentRequest.hasRole("HR_SPECIALIST")
+                || currentRequest.hasRole("SYSTEM_ADMIN")) return;
+        UUID me;
+        try {
+            me = employeeContext.currentEmployee().getId();
+        } catch (Exception ex) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Board access requires committee membership");
+        }
+        boolean member = sessions.findByCycleIdOrderByScheduledAtDesc(cycleId).stream()
+                .anyMatch(s -> committee.existsBySessionIdAndEmployeeId(s.getId(), me));
+        if (!member) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only calibration-committee members (or HR) may view this board");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<az.millers.hcm.performance.domain.CalibrationCommitteeMember> listMembers(UUID sessionId) {
+        findSession(sessionId);
+        return committee.findBySessionIdOrderByAddedAtAsc(sessionId);
+    }
+
+    @Transactional
+    public az.millers.hcm.performance.domain.CalibrationCommitteeMember addMember(
+            UUID sessionId, UUID employeeId, String memberRole) {
+        findSession(sessionId);
+        String role = memberRole == null ? "MEMBER" : memberRole;
+        if (!List.of("CHAIR", "MEMBER", "OBSERVER", "HR_FACILITATOR").contains(role)) {
+            throw new BadRequestException("Unknown committee role: " + role);
+        }
+        if (committee.existsBySessionIdAndEmployeeId(sessionId, employeeId)) {
+            throw new BadRequestException("This employee is already on the committee");
+        }
+        var m = new az.millers.hcm.performance.domain.CalibrationCommitteeMember();
+        m.setSessionId(sessionId);
+        m.setEmployeeId(employeeId);
+        m.setMemberRole(role);
+        m.setAddedBy(currentRequest.username());
+        return committee.save(m);
+    }
+
+    @Transactional
+    public void removeMember(UUID sessionId, UUID memberId) {
+        var m = committee.findById(memberId)
+                .orElseThrow(() -> new ResourceNotFoundException("Committee member not found: " + memberId));
+        if (!m.getSessionId().equals(sessionId)) {
+            throw new BadRequestException("Member does not belong to this session");
+        }
+        committee.delete(m);
+    }
+
+    // ── M397 — outlier / manager-leniency view (§19 distribution depth) ─────
+
+    public record ManagerStats(UUID managerId, String managerName, long rated,
+                               java.math.BigDecimal avgRating, java.math.BigDecimal deltaVsCycle) {}
+
+    public record OutlierEntry(UUID reviewId, UUID employeeId, String employeeName,
+                               java.math.BigDecimal rating, java.math.BigDecimal deltaVsCycle) {}
+
+    public record OutlierReport(java.math.BigDecimal cycleAverage, long ratedCount,
+                                List<ManagerStats> managerStats, List<OutlierEntry> outliers) {}
+
+    /**
+     * Per-manager average vs the cycle average (leniency/severity) plus individual
+     * reviews deviating ≥ 1.0 rating point from the cycle average.
+     */
+    @Transactional(readOnly = true)
+    public OutlierReport outliers(UUID cycleId) {
+        cycles.findById(cycleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cycle not found: " + cycleId));
+        List<PerformanceReview> rows = reviews.findByCycleIdOrderByCreatedAtDesc(cycleId).stream()
+                .filter(r -> effectiveRating(r) != null)
+                .toList();
+        if (rows.isEmpty()) {
+            return new OutlierReport(null, 0, List.of(), List.of());
+        }
+        java.math.BigDecimal sum = java.math.BigDecimal.ZERO;
+        for (PerformanceReview r : rows) sum = sum.add(effectiveRating(r));
+        java.math.BigDecimal cycleAvg = sum.divide(
+                java.math.BigDecimal.valueOf(rows.size()), 3, java.math.RoundingMode.HALF_UP);
+
+        // name lookup (non-encrypted projection, same trick as the board)
+        java.util.Set<UUID> ids = new java.util.HashSet<>();
+        rows.forEach(r -> { ids.add(r.getEmployeeId()); if (r.getManagerId() != null) ids.add(r.getManagerId()); });
+        Map<UUID, String> names = new java.util.HashMap<>();
+        if (!ids.isEmpty()) {
+            jdbc.queryForList(
+                    "SELECT id::text AS id, first_name || ' ' || last_name AS full_name "
+                            + "FROM core_hr.employee WHERE id IN (:ids)",
+                    new MapSqlParameterSource("ids", ids))
+                    .forEach(row -> names.put(UUID.fromString((String) row.get("id")),
+                            (String) row.get("full_name")));
+        }
+
+        Map<UUID, List<java.math.BigDecimal>> byManager = new LinkedHashMap<>();
+        for (PerformanceReview r : rows) {
+            if (r.getManagerId() == null) continue;
+            byManager.computeIfAbsent(r.getManagerId(), k -> new java.util.ArrayList<>())
+                    .add(effectiveRating(r));
+        }
+        List<ManagerStats> managerStats = byManager.entrySet().stream()
+                .map(e -> {
+                    java.math.BigDecimal s = java.math.BigDecimal.ZERO;
+                    for (var v : e.getValue()) s = s.add(v);
+                    java.math.BigDecimal avg = s.divide(
+                            java.math.BigDecimal.valueOf(e.getValue().size()), 3,
+                            java.math.RoundingMode.HALF_UP);
+                    return new ManagerStats(e.getKey(), names.get(e.getKey()),
+                            e.getValue().size(), avg, avg.subtract(cycleAvg));
+                })
+                .sorted((a, b) -> b.deltaVsCycle().abs().compareTo(a.deltaVsCycle().abs()))
+                .toList();
+
+        java.math.BigDecimal threshold = java.math.BigDecimal.ONE;
+        List<OutlierEntry> outliers = rows.stream()
+                .filter(r -> effectiveRating(r).subtract(cycleAvg).abs().compareTo(threshold) >= 0)
+                .map(r -> new OutlierEntry(r.getId(), r.getEmployeeId(),
+                        names.get(r.getEmployeeId()), effectiveRating(r),
+                        effectiveRating(r).subtract(cycleAvg)))
+                .sorted((a, b) -> b.deltaVsCycle().abs().compareTo(a.deltaVsCycle().abs()))
+                .toList();
+
+        return new OutlierReport(cycleAvg, rows.size(), managerStats, outliers);
+    }
+
+    /** Final rating when calibrated, otherwise the manager rating. */
+    private static java.math.BigDecimal effectiveRating(PerformanceReview r) {
+        return r.getFinalRating() != null ? r.getFinalRating() : r.getManagerRating();
     }
 
     // ──────────────────────────────────────────────────────────────────────────
