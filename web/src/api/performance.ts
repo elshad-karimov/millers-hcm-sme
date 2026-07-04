@@ -200,6 +200,10 @@ export interface PerformanceReview {
   overrideReason?: string | null
   overriddenBy?: string | null
   overriddenAt?: string | null
+  /** M396 — §25 acknowledgement. */
+  acknowledgedAt?: string | null
+  acknowledgedComments?: string | null
+  acknowledgementDisputed?: boolean
   recommendation?: string | null
   bonusPercent?: number | null
   note?: string | null
@@ -538,6 +542,71 @@ export const kpisApi = {
     api.post<KpiAssignmentResponse>(`/performance/kpis/assignments/${id}/cancel`).then((r) => r.data),
   history: (id: string) =>
     api.get<KpiResultResponse[]>(`/performance/kpis/assignments/${id}/history`).then((r) => r.data),
+}
+
+// ─── Acknowledgement + appeals (HCM_12 M396) ─────────────────────────────────
+
+export type AppealStatus =
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RETURNED'
+  | 'CLOSED'
+
+export interface PerformanceAppeal {
+  id: string
+  reviewId: string
+  employeeId: string
+  reason: string
+  status: AppealStatus
+  originalRating?: number | null
+  adjustedRating?: number | null
+  decisionNotes?: string | null
+  submittedBy?: string | null
+  submittedAt: string
+  decidedBy?: string | null
+  decidedAt?: string | null
+  closedAt?: string | null
+}
+
+export const appealsApi = {
+  acknowledge: (reviewId: string, comments: string | undefined, disputed: boolean) =>
+    api
+      .post<PerformanceReview>(`/performance/reviews/${reviewId}/acknowledge`, {
+        comments,
+        disputed,
+      })
+      .then((r) => r.data),
+  list: (params: { reviewId?: string; status?: AppealStatus } = {}) =>
+    api.get<PerformanceAppeal[]>('/performance/appeals', { params }).then((r) => r.data),
+  submit: (reviewId: string, reason: string) =>
+    api
+      .post<PerformanceAppeal>(`/performance/reviews/${reviewId}/appeals`, { reason })
+      .then((r) => r.data),
+  takeUnderReview: (id: string) =>
+    api.post<PerformanceAppeal>(`/performance/appeals/${id}/under-review`).then((r) => r.data),
+  decide: (
+    id: string,
+    decision: 'APPROVED' | 'REJECTED' | 'RETURNED',
+    adjustedRating?: number,
+    notes?: string,
+  ) =>
+    api
+      .post<PerformanceAppeal>(`/performance/appeals/${id}/decide`, {
+        decision,
+        adjustedRating,
+        notes,
+      })
+      .then((r) => r.data),
+  resubmit: (id: string, extraInfo?: string) =>
+    api
+      .post<PerformanceAppeal>(`/performance/appeals/${id}/resubmit`, null, {
+        params: { extraInfo },
+      })
+      .then((r) => r.data),
+  close: (id: string) =>
+    api.post<PerformanceAppeal>(`/performance/appeals/${id}/close`).then((r) => r.data),
 }
 
 // ─── 360° nominations + questionnaires (HCM_12 M395) ─────────────────────────

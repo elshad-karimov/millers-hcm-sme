@@ -127,6 +127,18 @@ public class PerformanceReview {
     @Column(name = "overridden_at")
     private OffsetDateTime overriddenAt;
 
+    // ── M396 — §25 employee acknowledgement ─────────────────────────────────
+
+    @Column(name = "acknowledged_at")
+    private OffsetDateTime acknowledgedAt;
+
+    @Column(name = "acknowledged_comments", length = 2000)
+    private String acknowledgedComments;
+
+    /** Employee acknowledged but disputes the result (§25 → may appeal §26). */
+    @Column(name = "acknowledgement_disputed", nullable = false)
+    private boolean acknowledgementDisputed = false;
+
     @Column(length = 40)
     private String recommendation;
 

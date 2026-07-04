@@ -28,6 +28,7 @@ import {
 } from '../api/performance'
 import { employeesApi, type Employee } from '../api/employees'
 import { CompetencyAssessmentCard } from './performance/CompetencyAssessmentCard'
+import { AckAppealsCard } from './performance/AckAppealsCard'
 import { FormPageShell } from '../components/FormPageShell'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -307,6 +308,9 @@ export function PerformanceReviewDetailPage() {
 
         {/* HCM_12 M393 — structured competency assessment (§17) */}
         <CompetencyAssessmentCard reviewId={r.id} canEdit={canManager} />
+
+        {/* HCM_12 M396 — acknowledgement + appeals (§25–§26) */}
+        <AckAppealsCard review={r} canHr={canCalibrate} onChanged={load} />
 
         {/* HCM_12 M394 — §18 weighted scoring + override */}
         <Card
