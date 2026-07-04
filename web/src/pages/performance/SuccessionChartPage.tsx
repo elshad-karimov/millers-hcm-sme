@@ -102,7 +102,7 @@ export function SuccessionChartPage() {
     setAttachOpen(true)
     // Load dev plans for this employee
     api
-      .get<DevPlan[]>(`/performance/development-plans/employees/${employeeId}`)
+      .get<DevPlan[]>('/performance/dev-plans', { params: { employeeId } })
       .then((r) => setDevPlans(r.data))
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load dev plans'))
   }

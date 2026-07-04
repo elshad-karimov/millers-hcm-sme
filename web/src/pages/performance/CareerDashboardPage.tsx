@@ -83,12 +83,16 @@ export function CareerDashboardPage() {
   }
 
   useEffect(() => {
-    // Load own employee ID from /api/self or similar endpoint
-    // For simplicity, use a mock or user input
-    // In a real app, fetch from /api/self context
-    const mockEmpId = 'YOUR_EMPLOYEE_UUID' // Replace with actual context
-    setEmployeeId(mockEmpId)
-    // load(mockEmpId)
+    api
+      .get<{ id: string }>('/self/employee')
+      .then((r) => {
+        setEmployeeId(r.data.id)
+        load(r.data.id)
+      })
+      .catch(() => {
+        setLoading(false)
+        message.error('No employee record is linked to your user')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -125,8 +129,11 @@ export function CareerDashboardPage() {
     }
   }
 
-  if (loading || !data) {
+  if (loading) {
     return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+  }
+  if (!data) {
+    return <Empty description="No employee record is linked to your user" style={{ marginTop: 80 }} />
   }
 
   return (
