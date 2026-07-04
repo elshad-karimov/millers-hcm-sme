@@ -83,6 +83,8 @@ import { TotalCompStatementsPage } from './pages/TotalCompStatementsPage'
 import { CompPayrollTransferPage } from './pages/CompPayrollTransferPage'
 import { BudgetCyclesPage } from './pages/BudgetCyclesPage'
 import { DepartmentBudgetsPage } from './pages/DepartmentBudgetsPage'
+import { BudgetForecastPage } from './pages/BudgetForecastPage'
+import { VarianceDashboardPage } from './pages/VarianceDashboardPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -443,6 +445,10 @@ export default function App() {
           {/* M425 — budgeting */}
           <Route path="budgets/cycles" element={<BudgetCyclesPage />} />
           <Route path="budgets/departments" element={<DepartmentBudgetsPage />} />
+          {/* M426 — payroll forecast */}
+          <Route path="budgets/forecast" element={<BudgetForecastPage />} />
+          {/* M427 — variance */}
+          <Route path="budgets/variance" element={<VarianceDashboardPage />} />
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />
