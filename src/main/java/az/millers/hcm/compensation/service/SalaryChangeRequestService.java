@@ -53,6 +53,8 @@ import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.service.WorkflowService;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.notifications.domain.NotificationCategory;
+import az.millers.hcm.budgeting.service.BudgetControlService;
+import az.millers.hcm.budgeting.domain.TriggerPoint;
 
 /**
  * M361 — Salary change request + approval workflow.
@@ -85,6 +87,7 @@ public class SalaryChangeRequestService {
     private final CurrentRequest currentRequest;
     private final TransactionTemplate requiresNew;
     private final NotificationService notifications;
+    private final BudgetControlService budgetControl;
 
     public SalaryChangeRequestService(SalaryChangeRequestRepository repo,
                                        EmployeeRepository employees,
@@ -100,7 +103,8 @@ public class SalaryChangeRequestService {
                                        AuditService audit,
                                        CurrentRequest currentRequest,
                                        PlatformTransactionManager txManager,
-                                       NotificationService notifications) {
+                                       NotificationService notifications,
+                                       BudgetControlService budgetControl) {
         this.repo = repo;
         this.employees = employees;
         this.compensations = compensations;
@@ -117,6 +121,7 @@ public class SalaryChangeRequestService {
         this.requiresNew = new TransactionTemplate(txManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.notifications = notifications;
+        this.budgetControl = budgetControl;
     }
 
     @Transactional
@@ -283,6 +288,32 @@ public class SalaryChangeRequestService {
 
         audit.record(MODULE, ENTITY, id.toString(), "SUBMITTED", null,
                 Map.of("workflowInstanceId", instance.getId().toString()));
+
+        // M428 budget control: non-fatal WARN/BLOCK check
+        if (emp.getOrgUnitId() != null) {
+            try {
+                BigDecimal annualIncrement = scr.getProposedSalary().subtract(
+                        scr.getCurrentSalary() != null ? scr.getCurrentSalary() : BigDecimal.ZERO
+                ).multiply(BigDecimal.valueOf(12));
+                Map<String, Object> budgetCheck = budgetControl.check(
+                        TriggerPoint.SALARY_CHANGE,
+                        emp.getOrgUnitId(),
+                        annualIncrement
+                );
+                String result = (String) budgetCheck.get("result");
+                String message = (String) budgetCheck.get("message");
+                if ("WARN".equals(result)) {
+                    log.warn("Budget control WARN for salary change {}: {}", id, message);
+                    audit.record(MODULE, ENTITY, id.toString(), "BUDGET_WARN", null, message);
+                } else if ("BLOCK".equals(result)) {
+                    log.warn("Budget control BLOCK for salary change {}: {}", id, message);
+                    audit.record(MODULE, ENTITY, id.toString(), "BUDGET_BLOCK", null, message);
+                    // Note: not throwing — request still submitted, but audited
+                }
+            } catch (Exception e) {
+                log.warn("Budget control check failed for salary change {}: {}", id, e.getMessage());
+            }
+        }
 
         // M371 notification: notify manager on submission (non-fatal)
         try {

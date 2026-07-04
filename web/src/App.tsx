@@ -85,6 +85,7 @@ import { BudgetCyclesPage } from './pages/BudgetCyclesPage'
 import { DepartmentBudgetsPage } from './pages/DepartmentBudgetsPage'
 import { BudgetForecastPage } from './pages/BudgetForecastPage'
 import { VarianceDashboardPage } from './pages/VarianceDashboardPage'
+import { BudgetSettingsPage } from './pages/BudgetSettingsPage'
 import { VacanciesPage } from './pages/VacanciesPage'
 import { VacancyFormPage } from './pages/VacancyFormPage'
 import { VacancyDetailPage } from './pages/VacancyDetailPage'
@@ -449,6 +450,8 @@ export default function App() {
           <Route path="budgets/forecast" element={<BudgetForecastPage />} />
           {/* M427 — variance */}
           <Route path="budgets/variance" element={<VarianceDashboardPage />} />
+          {/* M428 — settings */}
+          <Route path="budgets/settings" element={<BudgetSettingsPage />} />
 
           {/* Letter templates (HR admin) */}
           <Route path="letters/templates" element={<LetterTemplatesPage />} />

@@ -33,6 +33,8 @@ import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.budgeting.service.BudgetControlService;
+import az.millers.hcm.budgeting.domain.TriggerPoint;
 
 @Service
 public class OfferService {
@@ -60,6 +62,8 @@ public class OfferService {
     private final WorkflowService workflowService;
     // M284 — counteroffer / revision history (PRD §33).
     private final az.millers.hcm.recruitment.repo.OfferRevisionRepository revisions;
+    // M428 — budget control (non-fatal).
+    private final BudgetControlService budgetControl;
 
     public OfferService(OfferRepository offers,
                          ApplicationRepository applications,
@@ -69,7 +73,8 @@ public class OfferService {
                          PositionHeadcountService headcountGate,
                          PositionRepository positions,
                          WorkflowService workflowService,
-                         az.millers.hcm.recruitment.repo.OfferRevisionRepository revisions) {
+                         az.millers.hcm.recruitment.repo.OfferRevisionRepository revisions,
+                         BudgetControlService budgetControl) {
         this.offers = offers;
         this.applications = applications;
         this.audit = audit;
@@ -79,6 +84,7 @@ public class OfferService {
         this.positions = positions;
         this.workflowService = workflowService;
         this.revisions = revisions;
+        this.budgetControl = budgetControl;
     }
 
     @Transactional(readOnly = true)
@@ -127,6 +133,35 @@ public class OfferService {
         audit.record(MODULE, ENTITY, saved.getId().toString(),
                 before == null ? "CREATE" : "UPDATE",
                 before, OfferResponse.from(saved));
+
+        // M428 budget control: non-fatal WARN/BLOCK check for NEW_HIRE
+        Vacancy vac = vacancies.findById(app.getVacancyId()).orElse(null);
+        if (vac != null && vac.getPositionId() != null) {
+            Position pos = positions.findById(vac.getPositionId()).orElse(null);
+            if (pos != null && pos.getOrgUnitId() != null) {
+                try {
+                    BigDecimal annualSalary = saved.getProposedSalary().multiply(BigDecimal.valueOf(12));
+                    Map<String, Object> budgetCheck = budgetControl.check(
+                            TriggerPoint.NEW_HIRE,
+                            pos.getOrgUnitId(),
+                            annualSalary
+                    );
+                    String result = (String) budgetCheck.get("result");
+                    String message = (String) budgetCheck.get("message");
+                    if ("WARN".equals(result)) {
+                        log.warn("Budget control WARN for new hire offer {}: {}", saved.getId(), message);
+                        audit.record(MODULE, ENTITY, saved.getId().toString(), "BUDGET_WARN", null, message);
+                    } else if ("BLOCK".equals(result)) {
+                        log.warn("Budget control BLOCK for new hire offer {}: {}", saved.getId(), message);
+                        audit.record(MODULE, ENTITY, saved.getId().toString(), "BUDGET_BLOCK", null, message);
+                        // Note: not throwing — offer still created, but audited
+                    }
+                } catch (Exception e) {
+                    log.warn("Budget control check failed for offer {}: {}", saved.getId(), e.getMessage());
+                }
+            }
+        }
+
         return saved;
     }
 
