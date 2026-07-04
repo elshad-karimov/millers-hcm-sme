@@ -49,6 +49,14 @@ public class Competency {
     @Column(name = "parent_id")
     private UUID parentId;
 
+    /**
+     * M421 — skill type classification: HARD_SKILL, SOFT_SKILL, TECHNICAL,
+     * BEHAVIORAL, LANGUAGE, TOOL, COMPLIANCE.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "skill_type", length = 20)
+    private SkillType skillType;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

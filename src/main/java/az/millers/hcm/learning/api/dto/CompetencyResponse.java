@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import az.millers.hcm.learning.domain.Competency;
 import az.millers.hcm.learning.domain.CompetencyCategory;
+import az.millers.hcm.learning.domain.SkillType;
 
 public record CompetencyResponse(
         UUID id,
@@ -12,12 +13,13 @@ public record CompetencyResponse(
         String name,
         String description,
         CompetencyCategory category,
+        SkillType skillType,
         boolean active,
         OffsetDateTime createdAt) {
 
     public static CompetencyResponse from(Competency c) {
         return new CompetencyResponse(
                 c.getId(), c.getCode(), c.getName(), c.getDescription(),
-                c.getCategory(), c.isActive(), c.getCreatedAt());
+                c.getCategory(), c.getSkillType(), c.isActive(), c.getCreatedAt());
     }
 }

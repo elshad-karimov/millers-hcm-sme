@@ -94,6 +94,7 @@ public class CompetencyService {
         c.setName(req.name());
         c.setDescription(req.description());
         c.setCategory(req.category());
+        c.setSkillType(req.skillType());
         c.setActive(req.active() == null ? true : req.active());
     }
 

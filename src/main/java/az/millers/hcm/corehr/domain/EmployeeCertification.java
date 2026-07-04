@@ -65,6 +65,13 @@ public class EmployeeCertification implements ExpiryTrackable {
     @Column(name = "required_for_position_id")
     private UUID requiredForPositionId;
 
+    /**
+     * M421 — Optional link to competency. When set and cert is verified,
+     * auto-award/upsert the linked competency at a default level.
+     */
+    @Column(name = "competency_id")
+    private UUID competencyId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status", nullable = false, length = 20)
     private VerificationStatus verificationStatus = VerificationStatus.UNVERIFIED;

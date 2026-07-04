@@ -13,5 +13,6 @@ public record CertificationRequest(
         LocalDate issueDate,
         LocalDate expiryDate,
         UUID requiredForPositionId,
+        UUID competencyId,
         @Size(max = 4000) String notes) {
 }

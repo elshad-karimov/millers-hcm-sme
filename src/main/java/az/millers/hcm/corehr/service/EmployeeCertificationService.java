@@ -15,9 +15,13 @@ import az.millers.hcm.corehr.domain.EmployeeCertification;
 import az.millers.hcm.corehr.domain.VerificationStatus;
 import az.millers.hcm.corehr.repo.EmployeeCertificationRepository;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.learning.domain.EmployeeCompetency;
+import az.millers.hcm.learning.repo.EmployeeCompetencyRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.PiiAccessRoles;
 import az.millers.hcm.security.scope.AccessScopeService;
+
+import java.util.Optional;
 
 /**
  * CRUD + verify for {@link EmployeeCertification} (M65 / P1-13).
@@ -33,17 +37,20 @@ public class EmployeeCertificationService {
 
     private final EmployeeCertificationRepository repository;
     private final EmployeeRepository employees;
+    private final EmployeeCompetencyRepository employeeCompetencies;
     private final AuditService audit;
     private final AccessScopeService accessScope;
     private final CurrentRequest currentRequest;
 
     public EmployeeCertificationService(EmployeeCertificationRepository repository,
                                          EmployeeRepository employees,
+                                         EmployeeCompetencyRepository employeeCompetencies,
                                          AuditService audit,
                                          AccessScopeService accessScope,
                                          CurrentRequest currentRequest) {
         this.repository = repository;
         this.employees = employees;
+        this.employeeCompetencies = employeeCompetencies;
         this.audit = audit;
         this.accessScope = accessScope;
         this.currentRequest = currentRequest;
@@ -122,6 +129,15 @@ public class EmployeeCertificationService {
         c.setUpdatedBy(currentRequest.username());
         EmployeeCertification saved = repository.save(c);
 
+        // M421: If VERIFIED and competency linked, auto-award competency at default level 3
+        if (newStatus == VerificationStatus.VERIFIED && c.getCompetencyId() != null) {
+            try {
+                autoAwardCompetency(c.getEmployeeId(), c.getCompetencyId());
+            } catch (Exception e) {
+                // Non-fatal — certification is verified even if competency award fails
+            }
+        }
+
         audit.record(MODULE, ENTITY, id.toString(),
                 "VERIFY_" + newStatus, before, CertificationResponse.from(saved, true));
         return CertificationResponse.from(saved, callerCanSeePlaintextNumber());
@@ -145,7 +161,37 @@ public class EmployeeCertificationService {
         c.setIssueDate(req.issueDate());
         c.setExpiryDate(req.expiryDate());
         c.setRequiredForPositionId(req.requiredForPositionId());
+        c.setCompetencyId(req.competencyId());
         c.setNotes(req.notes());
+    }
+
+    /**
+     * M421: Auto-award/upsert competency when cert is verified.
+     * Default level = 3 (mid-level proficiency).
+     */
+    private void autoAwardCompetency(UUID employeeId, UUID competencyId) {
+        Optional<EmployeeCompetency> existing = employeeCompetencies
+                .findByEmployeeIdOrderByAwardedAtDesc(employeeId)
+                .stream()
+                .filter(ec -> ec.getCompetencyId().equals(competencyId))
+                .findFirst();
+
+        if (existing.isPresent()) {
+            // Update if level is lower
+            EmployeeCompetency ec = existing.get();
+            if (ec.getProficiency() < 3) {
+                ec.setProficiency(3);
+                employeeCompetencies.save(ec);
+            }
+        } else {
+            // Create new
+            EmployeeCompetency ec = new EmployeeCompetency();
+            ec.setEmployeeId(employeeId);
+            ec.setCompetencyId(competencyId);
+            ec.setProficiency(3);
+            ec.setSource("MANUAL");
+            employeeCompetencies.save(ec);
+        }
     }
 
     private void validateDates(CertificationRequest req) {
