@@ -27,6 +27,9 @@ public class Position {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(nullable = false, unique = true)
     private String code;
 

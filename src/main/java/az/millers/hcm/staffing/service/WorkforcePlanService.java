@@ -42,6 +42,7 @@ public class WorkforcePlanService {
 
     private static final String MODULE = "STAFFING";
     private static final String ENTITY = "WorkforcePlan";
+    private static final String TENANT = "default";
 
     private final WorkforcePlanRepository plans;
     private final WorkforcePlanLineRepository lines;
@@ -398,7 +399,7 @@ public class WorkforcePlanService {
         // legal-entity FK on the position. For now we sum across all
         // ACTIVE positions which is acceptable until M141's LE linkage
         // lands on each position row.
-        var posList = positions.findAll();
+        var posList = positions.findByTenantId(TENANT);
         int actualHc = 0;
         BigDecimal actualCost = BigDecimal.ZERO;
         for (Position p : posList) {

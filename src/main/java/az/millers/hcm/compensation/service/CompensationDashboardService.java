@@ -97,7 +97,7 @@ public class CompensationDashboardService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findAll()) {
+        for (Position p : positions.findByTenantId(TENANT)) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);
@@ -227,7 +227,7 @@ public class CompensationDashboardService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findAll()) {
+        for (Position p : positions.findByTenantId(TENANT)) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);
@@ -293,7 +293,7 @@ public class CompensationDashboardService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findAll()) {
+        for (Position p : positions.findByTenantId(TENANT)) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);

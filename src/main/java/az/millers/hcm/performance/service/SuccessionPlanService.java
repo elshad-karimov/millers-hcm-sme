@@ -270,7 +270,7 @@ public class SuccessionPlanService {
     @Transactional(readOnly = true)
     public CriticalRolesReport criticalRolesAtRisk() {
         List<Position> critical = positions
-                .findByCriticalFlagTrueOrderByBusinessImpactScoreDescTitleAsc();
+                .findByTenantIdAndCriticalFlagTrueOrderByBusinessImpactScoreDescTitleAsc("default");
 
         List<CriticalRoleRow> rows = new ArrayList<>(critical.size());
         int atRiskCount = 0;

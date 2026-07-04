@@ -40,6 +40,7 @@ public class JobPostingService {
 
     private static final String MODULE = "RECRUITMENT";
     private static final String ENTITY = "JobPosting";
+    private static final String TENANT = "default";
 
     private final JobPostingRepository postings;
     private final VacancyRepository vacancies;
@@ -63,7 +64,7 @@ public class JobPostingService {
     public List<JobPosting> listForVacancy(UUID vacancyId) {
         // Confidential gate for free: get() 404s for outsiders (M277).
         vacancyService.get(vacancyId);
-        return postings.findByVacancyIdOrderByCreatedAtDesc(vacancyId);
+        return postings.findByTenantIdAndVacancyIdOrderByCreatedAtDesc(TENANT, vacancyId);
     }
 
     @Transactional
@@ -210,7 +211,7 @@ public class JobPostingService {
     @Scheduled(cron = "0 30 0 * * *")
     @Transactional
     public void expireOverduePostings() {
-        List<JobPosting> overdue = postings.findExpired(LocalDate.now());
+        List<JobPosting> overdue = postings.findExpired(TENANT, LocalDate.now());
         for (JobPosting p : overdue) {
             p.setStatus(JobPosting.Status.EXPIRED);
             p.setUpdatedBy("system");
