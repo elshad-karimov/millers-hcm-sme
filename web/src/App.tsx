@@ -167,6 +167,7 @@ import { LocationsPage } from './pages/LocationsPage'
 import { HrPartnersPage } from './pages/HrPartnersPage'
 import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
 import HrServiceQueuePage from './pages/HrServiceQueuePage'
+import AnnouncementsPage from './pages/AnnouncementsPage'
 import { OrgNativeReportsPage } from './pages/OrgNativeReportsPage'
 import { OrgUnitDocumentsPage } from './pages/OrgUnitDocumentsPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
@@ -290,6 +291,8 @@ export default function App() {
           <Route path="personal-info-changes" element={<PersonalInfoChangesPage />} />
           {/* M429 — HR service queue */}
           <Route path="hr/service-requests" element={<HrServiceQueuePage />} />
+          {/* M430 — Announcements admin */}
+          <Route path="hr/announcements" element={<AnnouncementsPage />} />
 
           {/* Employee-Management reports (M80) — scope-restricted in service */}
           <Route path="reports/emp-mgmt" element={<EmployeeManagementReportsPage />} />

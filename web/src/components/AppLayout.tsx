@@ -106,6 +106,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/personal-info/request', module: 'personal-info', screen: 'personal-info-request' },
   { prefix: '/personal-info-changes', module: 'personal-info', screen: 'personal-info-queue' },
   { prefix: '/hr/service-requests', module: 'hr', screen: 'service-queue' },
+  { prefix: '/hr/announcements', module: 'hr', screen: 'announcements' },
   { prefix: '/reports/emp-mgmt', module: 'reports', screen: 'reports-emp-mgmt' },
   { prefix: '/reports/span-of-control', module: 'reports', screen: 'reports-span' },
   { prefix: '/reports/org', module: 'reports', screen: 'reports-org' },
@@ -567,6 +568,11 @@ export function AppLayout() {
             key: 'hr-service-queue',
             icon: <ProfileOutlined />,
             label: <Link to="/hr/service-requests">HR Service Queue</Link>,
+          } satisfies ItemType,
+          {
+            key: 'hr-announcements',
+            icon: <ProfileOutlined />,
+            label: <Link to="/hr/announcements">Announcements</Link>,
           } satisfies ItemType,
         ]
       : []),

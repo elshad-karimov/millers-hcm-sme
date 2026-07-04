@@ -56,6 +56,7 @@ import { ApprovalLimitsWidget } from '../components/ApprovalLimitsWidget'
 import { ChecklistTasksWidget } from '../components/ChecklistTasksWidget'
 import { InternalJobsWidget } from '../components/InternalJobsWidget'
 import { HrRequestsWidget } from '../components/HrRequestsWidget'
+import { AnnouncementsCard } from '../components/AnnouncementsCard'
 
 // ============================================================================
 //  Dashboard tab
@@ -76,6 +77,8 @@ function Dashboard({
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {/* M430 — Announcements card (top, dismissible). */}
+      <AnnouncementsCard />
       {/* M266 — "✅ Onboarding checklist" widget. Renders nothing once
           all checklist tasks are done; appears first so the new hire
           sees their to-dos at the top. */}
