@@ -55,6 +55,7 @@ import { RequiredDocumentsWidget } from '../components/RequiredDocumentsWidget'
 import { ApprovalLimitsWidget } from '../components/ApprovalLimitsWidget'
 import { ChecklistTasksWidget } from '../components/ChecklistTasksWidget'
 import { InternalJobsWidget } from '../components/InternalJobsWidget'
+import { HrRequestsWidget } from '../components/HrRequestsWidget'
 
 // ============================================================================
 //  Dashboard tab
@@ -90,6 +91,8 @@ function Dashboard({
       {/* M281 — "💼 Internal opportunities" widget (Recruitment PRD §10).
           Renders nothing while no INTERNAL-channel postings are live. */}
       <InternalJobsWidget />
+      {/* M429 — "HR Requests" widget on the dashboard. */}
+      <HrRequestsWidget />
       <Card>
         <Row gutter={16} align="middle">
           <Col flex="auto">

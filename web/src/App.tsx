@@ -166,6 +166,7 @@ import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { HrPartnersPage } from './pages/HrPartnersPage'
 import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
+import HrServiceQueuePage from './pages/HrServiceQueuePage'
 import { OrgNativeReportsPage } from './pages/OrgNativeReportsPage'
 import { OrgUnitDocumentsPage } from './pages/OrgUnitDocumentsPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
@@ -287,6 +288,8 @@ export default function App() {
 
           {/* Personal-info change requests — scope-restricted in service */}
           <Route path="personal-info-changes" element={<PersonalInfoChangesPage />} />
+          {/* M429 — HR service queue */}
+          <Route path="hr/service-requests" element={<HrServiceQueuePage />} />
 
           {/* Employee-Management reports (M80) — scope-restricted in service */}
           <Route path="reports/emp-mgmt" element={<EmployeeManagementReportsPage />} />

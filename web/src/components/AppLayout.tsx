@@ -105,6 +105,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/letters', module: 'letters', screen: 'letters-requests' },
   { prefix: '/personal-info/request', module: 'personal-info', screen: 'personal-info-request' },
   { prefix: '/personal-info-changes', module: 'personal-info', screen: 'personal-info-queue' },
+  { prefix: '/hr/service-requests', module: 'hr', screen: 'service-queue' },
   { prefix: '/reports/emp-mgmt', module: 'reports', screen: 'reports-emp-mgmt' },
   { prefix: '/reports/span-of-control', module: 'reports', screen: 'reports-span' },
   { prefix: '/reports/org', module: 'reports', screen: 'reports-org' },
@@ -555,6 +556,17 @@ export function AppLayout() {
             key: 'personal-info-queue',
             icon: <ProfileOutlined />,
             label: <Link to="/personal-info-changes">{tNav('sub.personalInfo.changes')}</Link>,
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── HR Service Queue (M429) — HR only ─────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'hr-service-queue',
+            icon: <ProfileOutlined />,
+            label: <Link to="/hr/service-requests">HR Service Queue</Link>,
           } satisfies ItemType,
         ]
       : []),

@@ -1,0 +1,290 @@
+import { useEffect, useState } from 'react'
+import {
+  Card,
+  Table,
+  Tag,
+  Button,
+  Space,
+  Select,
+  Modal,
+  Form,
+  Input,
+  Checkbox,
+  Typography,
+  App as AntdApp,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  hrServiceQueueApi,
+  type HrServiceRequest,
+  type ServiceRequestCategory,
+  type ServiceRequestStatus,
+  type ServiceRequestPriority,
+  REQUEST_CATEGORY_COLOR,
+  REQUEST_STATUS_COLOR,
+  REQUEST_PRIORITY_COLOR,
+} from '../api/hrRequests'
+
+const { TextArea } = Input
+
+export default function HrServiceQueuePage() {
+  const { message } = AntdApp.useApp()
+  const [loading, setLoading] = useState(false)
+  const [requests, setRequests] = useState<HrServiceRequest[]>([])
+  const [categoryFilter, setCategoryFilter] = useState<ServiceRequestCategory | undefined>()
+  const [statusFilter, setStatusFilter] = useState<ServiceRequestStatus | undefined>()
+  const [overdueOnly, setOverdueOnly] = useState(false)
+  const [selectedRequest, setSelectedRequest] = useState<HrServiceRequest | null>(null)
+  const [action, setAction] = useState<'assign' | 'resolve' | null>(null)
+  const [form] = Form.useForm()
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await hrServiceQueueApi.queue({
+        category: categoryFilter,
+        status: statusFilter,
+        overdue: overdueOnly,
+      })
+      setRequests(res.data)
+    } catch (err: any) {
+      message.error('Failed to load queue: ' + (err.message || ''))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [categoryFilter, statusFilter, overdueOnly])
+
+  const handleAssign = async () => {
+    if (!selectedRequest) return
+    try {
+      const values = await form.validateFields()
+      await hrServiceQueueApi.assign(selectedRequest.id, values.assignToUsername)
+      message.success('Request assigned')
+      setAction(null)
+      setSelectedRequest(null)
+      form.resetFields()
+      load()
+    } catch (err: any) {
+      message.error('Failed to assign: ' + (err.message || ''))
+    }
+  }
+
+  const handleStart = async (id: string) => {
+    try {
+      await hrServiceQueueApi.start(id)
+      message.success('Request started')
+      load()
+    } catch (err: any) {
+      message.error('Failed to start: ' + (err.message || ''))
+    }
+  }
+
+  const handleResolve = async () => {
+    if (!selectedRequest) return
+    try {
+      const values = await form.validateFields()
+      await hrServiceQueueApi.resolve(selectedRequest.id, values.resolutionNotes)
+      message.success('Request resolved')
+      setAction(null)
+      setSelectedRequest(null)
+      form.resetFields()
+      load()
+    } catch (err: any) {
+      message.error('Failed to resolve: ' + (err.message || ''))
+    }
+  }
+
+  const handleClose = async (id: string) => {
+    try {
+      await hrServiceQueueApi.close(id)
+      message.success('Request closed')
+      load()
+    } catch (err: any) {
+      message.error('Failed to close: ' + (err.message || ''))
+    }
+  }
+
+  const handleReopen = async (id: string) => {
+    try {
+      await hrServiceQueueApi.reopen(id)
+      message.success('Request reopened')
+      load()
+    } catch (err: any) {
+      message.error('Failed to reopen: ' + (err.message || ''))
+    }
+  }
+
+  const isOverdue = (req: HrServiceRequest): boolean => {
+    if (!req.slaDue) return false
+    return new Date(req.slaDue) < new Date() && req.status !== 'RESOLVED' && req.status !== 'CLOSED'
+  }
+
+  const columns: ColumnsType<HrServiceRequest> = [
+    {
+      title: 'Request No',
+      dataIndex: 'requestNo',
+      width: 120,
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      width: 150,
+      render: (cat: ServiceRequestCategory) => (
+        <Tag color={REQUEST_CATEGORY_COLOR[cat]}>{cat.replace(/_/g, ' ')}</Tag>
+      ),
+    },
+    {
+      title: 'Subject',
+      dataIndex: 'subject',
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      width: 100,
+      render: (p: any) => <Tag color={REQUEST_PRIORITY_COLOR[p as ServiceRequestPriority]}>{p}</Tag>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      width: 120,
+      render: (s: any) => <Tag color={REQUEST_STATUS_COLOR[s as ServiceRequestStatus]}>{s}</Tag>,
+    },
+    {
+      title: 'SLA Due',
+      dataIndex: 'slaDue',
+      width: 120,
+      render: (d, rec) => (
+        <span style={{ color: isOverdue(rec) ? 'red' : 'inherit', fontWeight: isOverdue(rec) ? 'bold' : 'normal' }}>
+          {d ? new Date(d).toLocaleDateString() : '—'}
+        </span>
+      ),
+    },
+    {
+      title: 'Assigned To',
+      dataIndex: 'assignedToUsername',
+      width: 120,
+      render: (u) => u || '—',
+    },
+    {
+      title: 'Actions',
+      width: 280,
+      render: (_, rec) => (
+        <Space size="small">
+          {rec.status === 'OPEN' && (
+            <>
+              <Button size="small" onClick={() => handleStart(rec.id)}>Start</Button>
+              <Button size="small" onClick={() => { setSelectedRequest(rec); setAction('assign'); }}>Assign</Button>
+            </>
+          )}
+          {rec.status === 'IN_PROGRESS' && (
+            <Button size="small" type="primary" onClick={() => { setSelectedRequest(rec); setAction('resolve'); }}>
+              Resolve
+            </Button>
+          )}
+          {rec.status === 'RESOLVED' && (
+            <>
+              <Button size="small" onClick={() => handleClose(rec.id)}>Close</Button>
+              <Button size="small" onClick={() => handleReopen(rec.id)}>Reopen</Button>
+            </>
+          )}
+          {rec.status === 'CLOSED' && (
+            <Button size="small" onClick={() => handleReopen(rec.id)}>Reopen</Button>
+          )}
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <Card title={<Typography.Title level={4} style={{ margin: 0 }}>HR Service Queue</Typography.Title>}>
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Select
+          style={{ width: 180 }}
+          placeholder="Filter by category"
+          allowClear
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+        >
+          <Select.Option value="SALARY_CERT">Salary Certificate</Select.Option>
+          <Select.Option value="EMPLOYMENT_LETTER">Employment Letter</Select.Option>
+          <Select.Option value="PAYROLL_INQUIRY">Payroll Inquiry</Select.Option>
+          <Select.Option value="POLICY_QUESTION">Policy Question</Select.Option>
+          <Select.Option value="GRIEVANCE">Grievance</Select.Option>
+          <Select.Option value="OTHER">Other</Select.Option>
+        </Select>
+        <Select
+          style={{ width: 150 }}
+          placeholder="Filter by status"
+          allowClear
+          value={statusFilter}
+          onChange={setStatusFilter}
+        >
+          <Select.Option value="OPEN">Open</Select.Option>
+          <Select.Option value="IN_PROGRESS">In Progress</Select.Option>
+          <Select.Option value="RESOLVED">Resolved</Select.Option>
+          <Select.Option value="CLOSED">Closed</Select.Option>
+        </Select>
+        <Checkbox checked={overdueOnly} onChange={(e) => setOverdueOnly(e.target.checked)}>
+          Overdue only
+        </Checkbox>
+      </Space>
+      <Table
+        loading={loading}
+        dataSource={requests}
+        columns={columns}
+        rowKey="id"
+        pagination={{ pageSize: 20 }}
+      />
+
+      {/* Assign Modal */}
+      <Modal
+        title="Assign Request"
+        open={action === 'assign'}
+        onCancel={() => { setAction(null); form.resetFields(); }}
+        onOk={handleAssign}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="assignToUsername"
+            label="Assign To (username)"
+            rules={[{ required: true, message: 'Please enter username' }]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Resolve Modal */}
+      <Modal
+        title="Resolve Request"
+        open={action === 'resolve'}
+        onCancel={() => { setAction(null); form.resetFields(); }}
+        onOk={handleResolve}
+        width={600}
+      >
+        {selectedRequest && (
+          <div style={{ marginBottom: 16 }}>
+            <p><strong>Request:</strong> {selectedRequest.requestNo}</p>
+            <p><strong>Subject:</strong> {selectedRequest.subject}</p>
+            {selectedRequest.description && (
+              <p><strong>Description:</strong> {selectedRequest.description}</p>
+            )}
+          </div>
+        )}
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="resolutionNotes"
+            label="Resolution Notes"
+            rules={[{ required: true, message: 'Please enter resolution notes' }]}
+          >
+            <TextArea rows={4} maxLength={4000} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Card>
+  )
+}
