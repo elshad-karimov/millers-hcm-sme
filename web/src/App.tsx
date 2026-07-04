@@ -132,6 +132,7 @@ import { MyLearningPage } from './pages/MyLearningPage'
 import { LearningPathsPage } from './pages/LearningPathsPage'
 import { TrainingPlansPage } from './pages/TrainingPlansPage'
 import { ClassroomTrainingPage } from './pages/learning/ClassroomTrainingPage'
+import { MandatoryTrainingPage } from './pages/learning/MandatoryTrainingPage'
 import { CertificatesPage } from './pages/CertificatesPage'
 import { CompetenciesPage } from './pages/CompetenciesPage'
 import { BonusMatrixPage } from './pages/BonusMatrixPage'
@@ -364,6 +365,8 @@ export default function App() {
           <Route path="learning/training-plans" element={<TrainingPlansPage />} />
           {/* HCM_14 M404/M405 — classroom sessions + instructors + rooms */}
           <Route path="learning/classroom" element={<ClassroomTrainingPage />} />
+          {/* HCM_14 M406 — mandatory/compliance training rules */}
+          <Route path="learning/mandatory" element={<MandatoryTrainingPage />} />
 
           {/* Approvals inbox */}
           <Route path="inbox" element={<InboxPage />} />

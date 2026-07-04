@@ -935,6 +935,11 @@ export function AppLayout() {
                 icon: <CalendarOutlined />,
                 label: <Link to="/learning/classroom">Classroom training</Link>,
               },
+              {
+                key: 'learning-mandatory',
+                icon: <ProfileOutlined />,
+                label: <Link to="/learning/mandatory">Mandatory training</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
