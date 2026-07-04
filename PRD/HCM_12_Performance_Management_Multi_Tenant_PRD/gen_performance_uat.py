@@ -66,6 +66,24 @@ CASES = [
  ("OVR-01","HR override (M394)","HR Admin","On the scored review click 'Override rating'. New rating=4.5, Reason='Calibration committee decision'. Confirm.","Final rating becomes 4.50 with an 'overridden' tag; the Override cell shows the ORIGINAL computed rating, who overrode and the reason (original preserved — §18.4)."),
  ("OVR-02","Override guards (M394)","HR Admin / HR Specialist","Try overriding without a reason; then sign in as HR Specialist and look for the Override button.","No reason → rejected (reason is required). HR Specialist doesn't see the Override button (HR Admin only)."),
  ("SEC-B1","Permissions (Phase B)","Employee","Sign in as an Employee. Open another employee's review URL directly (/performance/reviews/<id>).","The competency and scoring data of another employee is NOT accessible (hierarchy guard — access denied / error)."),
+ # ---------- Phase C: 360° nominations + questionnaires (M395) ----------
+ ("Q36-01","Questionnaires (M395)","HR Admin","Performance → 360° nominations → Questionnaires tab → 'New questionnaire'. Code=STD_360, Name='Standard 360'. Add 3 questions: a RATING/COMPETENCY, a RATING/LEADERSHIP and a TEXT/IMPROVEMENT one. Save.","The questionnaire appears with 3 questions (expand the row to see types/categories/required tags)."),
+ ("N36-01","Nomination (M395)","HR Admin","Nominations tab → pick a cycle → 'Nominate reviewer'. Subject=employee A, Reviewer=employee B, Relationship=PEER, Questionnaire=STD_360, Anonymous ON. Nominate.","A NOMINATED row appears with the PEER tag, questionnaire name and 'anonymous' tag."),
+ ("N36-02","Duplicate guard (M395)","HR Admin","Nominate the SAME reviewer for the SAME subject in the SAME cycle again.","Rejected — this reviewer is already nominated for the subject in this cycle."),
+ ("N36-03","Approve + respond (M395)","HR Admin","On the NOMINATED row click Approve, then Respond. The STD_360 questions render (stars for RATING, text area for TEXT). Answer required questions, set Overall rating 4, strengths/improvements. Submit.","Status becomes COMPLETED. Performance → Feedback shows a new ANONYMOUS PEER feedback for subject A (answers stored under competencies)."),
+ ("N36-04","Decline (M395)","HR Admin","Nominate another reviewer, then Decline with a reason.","Status becomes DECLINED and the reason shows on the row."),
+ ("N36-05","Min/max rules (M395)","HR Admin","Edit the review cycle: set Max reviewers=2 and Min reviewers=2 (cycle form). Then try nominating a 3rd live reviewer for the same subject.","Rejected — maximum reviewers reached. The summary tags next to the filters show 'completed / min' in red until 2 responses are completed."),
+ # ---------- Phase D.1: acknowledgement + appeals (M396) ----------
+ ("ACK-01","Acknowledgement (M396)","HR Admin","Open a review that HAS a final rating. In 'Acknowledgement & appeals' click 'Acknowledge result' with a comment, dispute OFF.","The card shows 'Acknowledged <time>' with a green 'accepted' tag; the Acknowledge button disappears (one-shot)."),
+ ("ACK-02","Ack guards (M396)","HR Admin","Try acknowledging the same review again (or a review with NO final rating).","Already acknowledged → rejected; no final rating → the button is not offered / rejected."),
+ ("APL-01","Appeal happy path (M396)","HR Admin","On a review with a final rating click 'Submit appeal' with a reason. Then (as HR) 'Take under review' → 'Decide' → APPROVED with Adjusted rating 4.2 and notes.","Appeal goes SUBMITTED → UNDER_REVIEW → APPROVED. The review's final rating becomes 4.20 with the 'overridden' tag and the ORIGINAL rating preserved in the Weighted-scores card (§37.12). Close the appeal → CLOSED."),
+ ("APL-02","Appeal reject/return (M396)","HR Admin","Submit an appeal on another review; decide REJECTED (rating unchanged). Submit a third; decide RETURNED, then click Resubmit.","REJECTED keeps the rating; RETURNED lets the employee resubmit (status back to SUBMITTED). Only ONE live appeal per review is allowed."),
+ # ---------- Phase D.2: calibration committee + outliers (M397) ----------
+ ("COM-01","Committee (M397)","HR Admin","Performance → Review cycles → open a cycle's Calibration page. On a session click 'Committee'. Add a manager as MEMBER and someone as OBSERVER.","Both appear with role tags. (CHAIR/MEMBER may calibrate; OBSERVER is read-only.)"),
+ ("COM-02","Committee gate (M397)","Manager","Sign in as a manager NOT on any committee and open the calibration board URL for the cycle.","Access denied — the board requires committee membership for managers (HR roles always may)."),
+ ("COM-03","Committee calibrate (M397)","Manager","Add the manager to the committee as MEMBER (as HR), start the session, then as that manager calibrate a review on the board.","The calibrate saves — committee MEMBERs may calibrate while the session is IN_PROGRESS."),
+ ("VIS-01","Notes visibility (M397)","Employee","As an employee whose review has calibration notes, open your own review.","Calibration notes (and any override reason) are NOT visible to you — they are HR/committee-only (§19.3). Signing in as HR shows them."),
+ ("OUT-01","Outliers (M397)","HR Admin","On the Calibration page scroll to 'Outliers & manager leniency'.","Shows the cycle average, a per-manager average with Δ tags (orange/red when ≥0.5 off), and individual reviews ≥1.0 from the cycle average."),
 ]
 
 wb = Workbook()
@@ -81,7 +99,7 @@ ws.cell(2,2,"HCM_12 Performance Management  •  front-end (browser) testing  �
 for r,l,v in [
  (4,"How to use","Open the 'Test Cases' sheet. Do exactly what the Steps say (which tab, which button, what to type), compare to the Expected Result, and pick Pass / Fail / Blocked / Not Run in the Result column. Add anything unusual under Tester Notes. Fill the Sign-off sheet at the end."),
  (6,"Application URL","http://localhost:5180 — sign in first. Performance features are under the top-nav 'Performance' menu."),
- (7,"Delivered so far","Phase A (configuration foundation): rating scales with score bands (M388), review templates with weighted sections + cycle audience scoping (M389), KPI library + per-cycle assignments with automatic achievement/rating scoring (M390), OKR objectives + key results + check-ins with progress roll-up (M391). Phase B (goals & scoring): goal-plan approval workflow Employee→Manager with weights-must-total-100 validation + progress-update audit trail (M392), per-review competency assessment with position-requirement seeding and gap analysis (M393), §18 weighted section scoring + score→band conversion + HR rating override with preserved original (M394)."),
+ (7,"Delivered so far","Phase A: rating scales (M388), review templates + cycle scoping (M389), KPI library + auto-scored assignments (M390), OKR + check-ins (M391). Phase B: goal-plan approval workflow + progress trail (M392), competency assessment with gap analysis (M393), §18 weighted scoring + band conversion + HR override (M394). Phase C: 360° reviewer nominations + questionnaires + min/max rules (M395). Phase D: result acknowledgement + appeals with preserved original rating (M396), calibration committee access control + HR-only calibration notes + outlier/leniency view (M397)."),
  (9,"Logins you will need","HR Admin (full performance admin), HR Specialist (read-only checks), Manager (team KPI/OKR), Employee (self-service scoping checks). If you only have an admin login, mark role-restriction rows Blocked with a note."),
  (11,"Result values","Pass = worked as expected.  Fail = did not match (add a note).  Blocked = could not run (missing login/data).  Not Run = skipped."),
  (12,"Good to know","Rating-scale bands convert numeric scores to ratings during weighted scoring (Phase B). Templates fix which sections a review has and their weights (scoring sections must total 100). KPI ratings compute automatically: LINEAR = achievement ÷ 20 (100% → 5.0); THRESHOLD = bands ≥110→5 / ≥100→4 / ≥80→3 / ≥60→2 / else 1. OKR objective progress = weighted average of key-result progress."),
@@ -120,7 +138,9 @@ for i,h in enumerate(["Feature Area","Result","Tester","Date"],2):
 areas=["Rating scales (SCL)","Review templates + cycle scoping (TPL)",
        "KPI library + assignments + scoring (KPI)","OKR objectives + key results + check-ins (OKR)",
        "Goal-plan approval + progress trail (GPL/GPT)","Competency assessment (CMP)",
-       "Weighted scoring + override (SCR/OVR)","Permissions (SEC)"]
+       "Weighted scoring + override (SCR/OVR)","360° nominations + questionnaires (Q36/N36)",
+       "Acknowledgement + appeals (ACK/APL)","Calibration committee + outliers (COM/VIS/OUT)",
+       "Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)
