@@ -149,11 +149,12 @@ public class BonusRunService {
         // Anchor date for matrix lookup: first day of the bonus run's period.
         LocalDate anchor = LocalDate.of(req.periodYear(), req.periodMonth(), 1);
 
-        // Pull eligible reviews — APPROVED, CALIBRATING, COMPLETED.
+        // HCM_12 M402 — only FINALISED ratings feed compensation (§24/§37):
+        // APPROVED / COMPLETED. CALIBRATING reviews are still moving and would
+        // pay out pre-final numbers — excluded.
         List<PerformanceReview> eligible = reviews
                 .findByCycleIdOrderByCreatedAtDesc(cycle.getId()).stream()
                 .filter(r -> r.getStatus() == ReviewStatus.APPROVED
-                        || r.getStatus() == ReviewStatus.CALIBRATING
                         || r.getStatus() == ReviewStatus.COMPLETED)
                 .toList();
 

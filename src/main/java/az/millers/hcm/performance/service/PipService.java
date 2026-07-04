@@ -54,19 +54,35 @@ public class PipService {
     private final AccessScopeService accessScope;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final az.millers.hcm.notifications.NotificationService notifications;
 
     public PipService(PerformancePipRepository pips,
                       PipCheckpointRepository checkpoints,
                       EmployeeRepository employees,
                       AccessScopeService accessScope,
                       AuditService audit,
-                      CurrentRequest currentRequest) {
+                      CurrentRequest currentRequest,
+                      az.millers.hcm.notifications.NotificationService notifications) {
         this.pips = pips;
         this.checkpoints = checkpoints;
         this.employees = employees;
         this.accessScope = accessScope;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.notifications = notifications;
+    }
+
+    /** M402 — in-app note to the PIP's employee; never fatal (§29). */
+    private void notifyEmployee(PerformancePip p, String title, String body) {
+        try {
+            employees.findById(p.getEmployeeId())
+                    .map(e -> e.getUsername())
+                    .filter(u -> u != null && !u.isBlank())
+                    .ifPresent(u -> notifications.notifyAll(u, title, body,
+                            MODULE, ENTITY, p.getId().toString()));
+        } catch (Exception ignored) {
+            // notifications must never break the PIP flow
+        }
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +143,11 @@ public class PipService {
         assertStatus(p, "DRAFT");
         p.setStatus("ACTIVE");
         audit.record(MODULE, ENTITY, id.toString(), "ACTIVATE", "DRAFT", "ACTIVE");
-        return pips.save(p);
+        PerformancePip saved = pips.save(p);
+        notifyEmployee(saved, "Performance improvement plan activated",
+                "A PIP covering " + saved.getStartDate() + " → " + saved.getEndDate()
+                        + " is now active. Please review and acknowledge it.");
+        return saved;
     }
 
     /** §20.1 — employee acknowledgement (one-shot). */

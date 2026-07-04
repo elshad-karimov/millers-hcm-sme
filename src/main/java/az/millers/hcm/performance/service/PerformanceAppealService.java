@@ -41,19 +41,38 @@ public class PerformanceAppealService {
     private final AccessScopeService accessScope;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final az.millers.hcm.corehr.repo.EmployeeRepository employees;
+    private final az.millers.hcm.notifications.NotificationService notifications;
 
     public PerformanceAppealService(PerformanceAppealRepository appeals,
                                     PerformanceReviewRepository reviews,
                                     PerfScoringService scoring,
                                     AccessScopeService accessScope,
                                     AuditService audit,
-                                    CurrentRequest currentRequest) {
+                                    CurrentRequest currentRequest,
+                                    az.millers.hcm.corehr.repo.EmployeeRepository employees,
+                                    az.millers.hcm.notifications.NotificationService notifications) {
         this.appeals = appeals;
         this.reviews = reviews;
         this.scoring = scoring;
         this.accessScope = accessScope;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.employees = employees;
+        this.notifications = notifications;
+    }
+
+    /** M402 — in-app note to the appellant; never fatal (§29). */
+    private void notifyEmployee(UUID employeeId, String title, String body, UUID appealId) {
+        try {
+            employees.findById(employeeId)
+                    .map(e -> e.getUsername())
+                    .filter(u -> u != null && !u.isBlank())
+                    .ifPresent(u -> notifications.notifyAll(u, title, body,
+                            MODULE, "PerformanceAppeal", appealId.toString()));
+        } catch (Exception ignored) {
+            // notifications must never break the appeal flow
+        }
     }
 
     // ── §25 acknowledgement ──────────────────────────────────────────────────
@@ -164,6 +183,11 @@ public class PerformanceAppealService {
                 "UNDER_REVIEW", Map.of("decision", decision,
                         "adjustedRating", String.valueOf(adjustedRating),
                         "notes", String.valueOf(notes)));
+        notifyEmployee(saved.getEmployeeId(), "Appeal " + decision.toLowerCase(),
+                "Your performance appeal was " + decision.toLowerCase()
+                        + (adjustedRating != null ? " — adjusted rating " + adjustedRating : "")
+                        + (notes != null && !notes.isBlank() ? ". " + notes : "."),
+                saved.getId());
         return saved;
     }
 

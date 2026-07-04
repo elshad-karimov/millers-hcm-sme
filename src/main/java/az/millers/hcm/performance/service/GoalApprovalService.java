@@ -54,19 +54,35 @@ public class GoalApprovalService {
     private final EmployeeRepository employees;
     private final WorkflowService workflows;
     private final AuditService audit;
+    private final az.millers.hcm.notifications.NotificationService notifications;
     private final TransactionTemplate requiresNew;
 
     public GoalApprovalService(GoalRepository goals,
                                EmployeeRepository employees,
                                WorkflowService workflows,
                                AuditService audit,
+                               az.millers.hcm.notifications.NotificationService notifications,
                                PlatformTransactionManager txManager) {
         this.goals = goals;
         this.employees = employees;
         this.workflows = workflows;
         this.audit = audit;
+        this.notifications = notifications;
         this.requiresNew = new TransactionTemplate(txManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    /** M402 — in-app note to the plan's employee; never fatal. */
+    private void notifyEmployee(String subjectId, String title, String body) {
+        try {
+            employees.findById(UUID.fromString(subjectId))
+                    .map(Employee::getUsername)
+                    .filter(u -> u != null && !u.isBlank())
+                    .ifPresent(u -> notifications.notifyAll(u, title, body,
+                            MODULE, SUBJECT_ENTITY, subjectId));
+        } catch (Exception ex) {
+            log.warn("Goal-plan notification failed for {}: {}", subjectId, ex.getMessage());
+        }
     }
 
     /** Submit the employee's DRAFT goal plan for the cycle for manager approval. */
@@ -146,6 +162,8 @@ public class GoalApprovalService {
                     goals.saveAll(plan);
                     audit.record(MODULE, SUBJECT_ENTITY, event.subjectId(), "APPROVED",
                             null, Map.of("goals", String.valueOf(plan.size())));
+                    notifyEmployee(event.subjectId(), "Goal plan approved",
+                            "Your goal plan (" + plan.size() + " goals) was approved and is now active.");
                     log.info("Goal plan {} approved — {} goals activated", event.instanceId(), plan.size());
                 }
                 case REJECTED, RETURNED -> {
@@ -153,6 +171,8 @@ public class GoalApprovalService {
                     goals.saveAll(plan);
                     audit.record(MODULE, SUBJECT_ENTITY, event.subjectId(), "REJECTED",
                             null, Map.of("goals", String.valueOf(plan.size())));
+                    notifyEmployee(event.subjectId(), "Goal plan rejected",
+                            "Your goal plan was rejected — review the comments, adjust and resubmit.");
                 }
                 case CANCELLED -> {
                     for (Goal g : plan) {
