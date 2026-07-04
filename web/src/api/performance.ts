@@ -544,6 +544,108 @@ export const kpisApi = {
     api.get<KpiResultResponse[]>(`/performance/kpis/assignments/${id}/history`).then((r) => r.data),
 }
 
+// ─── PIP (HCM_12 M398) ───────────────────────────────────────────────────────
+
+export type PipStatus =
+  | 'DRAFT'
+  | 'ACTIVE'
+  | 'ACKNOWLEDGED'
+  | 'IN_PROGRESS'
+  | 'EXTENDED'
+  | 'COMPLETED_SUCCESS'
+  | 'FAILED'
+  | 'CANCELLED'
+export type PipOutcome =
+  | 'IMPROVED'
+  | 'EXTENDED'
+  | 'ROLE_CHANGE'
+  | 'TRAINING_REQUIRED'
+  | 'DISCIPLINARY'
+  | 'TERMINATION_RECOMMENDED'
+
+export interface Pip {
+  id: string
+  employeeId: string
+  reviewId?: string | null
+  managerOwnerId?: string | null
+  hrOwner?: string | null
+  reason: string
+  issueDescription?: string | null
+  objectives?: string | null
+  successCriteria?: string | null
+  supportActions?: string | null
+  consequences?: string | null
+  startDate: string
+  endDate: string
+  status: PipStatus
+  outcome?: PipOutcome | null
+  outcomeNotes?: string | null
+  acknowledgedAt?: string | null
+  acknowledgedComments?: string | null
+  createdBy?: string | null
+  createdAt: string
+}
+
+export interface PipRequestBody {
+  employeeId: string
+  reviewId?: string | null
+  managerOwnerId?: string | null
+  hrOwner?: string | null
+  reason: string
+  issueDescription?: string
+  objectives?: string
+  successCriteria?: string
+  supportActions?: string
+  consequences?: string
+  startDate: string
+  endDate: string
+}
+
+export interface PipCheckpoint {
+  id: string
+  pipId: string
+  checkpointDate: string
+  progressRating?: number | null
+  managerComments?: string | null
+  employeeComments?: string | null
+  recordedBy?: string | null
+  recordedAt: string
+}
+
+export const pipsApi = {
+  list: (params: { employeeId?: string; status?: PipStatus } = {}) =>
+    api.get<Pip[]>('/performance/pips', { params }).then((r) => r.data),
+  get: (id: string) => api.get<Pip>(`/performance/pips/${id}`).then((r) => r.data),
+  create: (req: PipRequestBody) => api.post<Pip>('/performance/pips', req).then((r) => r.data),
+  update: (id: string, req: PipRequestBody) =>
+    api.put<Pip>(`/performance/pips/${id}`, req).then((r) => r.data),
+  activate: (id: string) => api.post<Pip>(`/performance/pips/${id}/activate`).then((r) => r.data),
+  acknowledge: (id: string, comments?: string) =>
+    api
+      .post<Pip>(`/performance/pips/${id}/acknowledge`, null, { params: { comments } })
+      .then((r) => r.data),
+  addCheckpoint: (
+    id: string,
+    req: {
+      checkpointDate?: string
+      progressRating?: number
+      managerComments?: string
+      employeeComments?: string
+    },
+  ) => api.post<PipCheckpoint>(`/performance/pips/${id}/checkpoints`, req).then((r) => r.data),
+  checkpoints: (id: string) =>
+    api.get<PipCheckpoint[]>(`/performance/pips/${id}/checkpoints`).then((r) => r.data),
+  extend: (id: string, newEndDate: string) =>
+    api
+      .post<Pip>(`/performance/pips/${id}/extend`, null, { params: { newEndDate } })
+      .then((r) => r.data),
+  close: (id: string, outcome: PipOutcome, notes?: string) =>
+    api
+      .post<Pip>(`/performance/pips/${id}/close`, null, { params: { outcome, notes } })
+      .then((r) => r.data),
+  cancel: (id: string) => api.post<Pip>(`/performance/pips/${id}/cancel`).then((r) => r.data),
+}
+
 // ─── Acknowledgement + appeals (HCM_12 M396) ─────────────────────────────────
 
 export type AppealStatus =

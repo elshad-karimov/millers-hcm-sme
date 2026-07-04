@@ -838,6 +838,11 @@ export function AppLayout() {
                 label: <Link to="/performance/feedback360">360° nominations</Link>,
               },
               {
+                key: 'performance-pips',
+                icon: <ProfileOutlined />,
+                label: <Link to="/performance/pips">PIPs</Link>,
+              },
+              {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
                 label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,

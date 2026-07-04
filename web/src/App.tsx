@@ -112,6 +112,7 @@ import { ReviewTemplatesPage } from './pages/performance/ReviewTemplatesPage'
 import { KpiPage } from './pages/performance/KpiPage'
 import { OkrPage } from './pages/performance/OkrPage'
 import { Feedback360Page } from './pages/performance/Feedback360Page'
+import { PipPage } from './pages/performance/PipPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
@@ -319,6 +320,8 @@ export default function App() {
           <Route path="performance/okrs" element={<OkrPage />} />
           {/* HCM_12 M395 — 360° nominations + questionnaires */}
           <Route path="performance/feedback360" element={<Feedback360Page />} />
+          {/* HCM_12 M398 — performance improvement plans */}
+          <Route path="performance/pips" element={<PipPage />} />
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />
