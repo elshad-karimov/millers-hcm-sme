@@ -16,6 +16,7 @@ import {
   Space,
   Statistic,
   Table,
+  Tabs,
   Tag,
   Typography,
 } from 'antd'
@@ -28,7 +29,9 @@ import {
   workforcePlanApi,
   WORKFORCE_PLAN_STATUS_COLOR,
   WORKFORCE_PLAN_STATUS_LABEL,
+  type AttritionForecast,
   type CloneRequest,
+  type HiringPlanLine,
   type ScenarioType,
   type VarianceResult,
   type WorkforcePlan,
@@ -56,10 +59,13 @@ export function WorkforcePlanDetailPage() {
   const [plan, setPlan] = useState<WorkforcePlan | null>(null)
   const [lines, setLines] = useState<WorkforcePlanLine[]>([])
   const [variance, setVariance] = useState<VarianceResult | null>(null)
+  const [hiringPlan, setHiringPlan] = useState<HiringPlanLine[]>([])
+  const [attrition, setAttrition] = useState<AttritionForecast[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [lineModal, setLineModal] = useState<WorkforcePlanLine | 'new' | null>(null)
   const [cloneModal, setCloneModal] = useState(false)
+  const [transferring, setTransferring] = useState(false)
 
   // Same pattern as M244: locally re-shape the form values so DatePicker's
   // Dayjs field doesn't clash with the API record's string field.
@@ -92,6 +98,8 @@ export function WorkforcePlanDetailPage() {
     )
     workforcePlanApi.lines(id).then(setLines).catch(() => setLines([]))
     workforcePlanApi.variance(id).then(setVariance).catch(() => setVariance(null))
+    workforcePlanApi.getHiringPlan(id).then(setHiringPlan).catch(() => setHiringPlan([]))
+    workforcePlanApi.getAttritionForecast(id).then(setAttrition).catch(() => setAttrition([]))
       .finally(() => setLoading(false))
   }
   useEffect(refresh, [id])
@@ -230,6 +238,58 @@ export function WorkforcePlanDetailPage() {
       const e = err as { response?: { data?: { message?: string } } }
       message.error(e?.response?.data?.message ?? 'Clone failed')
     }
+  }
+
+  // ── M422: Hiring plan ────────────────────────────────────────────
+
+  const onGenerateHiringPlan = async () => {
+    if (!id) return
+    try {
+      const generated = await workforcePlanApi.generateHiringPlan(id)
+      setHiringPlan(generated)
+      message.success(`Generated ${generated.length} hiring plan line(s)`)
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } }
+      message.error(e?.response?.data?.message ?? 'Generation failed')
+    }
+  }
+
+  // ── M423: Attrition recalc ───────────────────────────────────────
+
+  const onRecalcAttrition = async () => {
+    if (!id) return
+    try {
+      const recalc = await workforcePlanApi.getAttritionForecast(id)
+      setAttrition(recalc)
+      message.success('Attrition forecast recalculated')
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } }
+      message.error(e?.response?.data?.message ?? 'Recalc failed')
+    }
+  }
+
+  // ── M424: Transfer to budget ─────────────────────────────────────
+
+  const onTransferToBudget = () => {
+    if (!id || !plan) return
+    modal.confirm({
+      title: 'Transfer this workforce plan to compensation budget?',
+      content: 'This will create budget records from approved plan totals.',
+      okText: 'Transfer',
+      onOk: async () => {
+        setTransferring(true)
+        try {
+          const budget = await workforcePlanApi.transferToBudget(id)
+          message.success(`Budget created: ${budget.scopeType} (${budget.currency} ${budget.amount})`)
+          refresh()
+        } catch (err: unknown) {
+          const e = err as { response?: { data?: { message?: string } } }
+          message.error(e?.response?.data?.message ?? 'Transfer failed')
+        } finally {
+          setTransferring(false)
+        }
+      },
+    })
   }
 
   // ── Totals + render ─────────────────────────────────────────────
@@ -449,26 +509,132 @@ export function WorkforcePlanDetailPage() {
         </Card>
       )}
 
-      {/* ── Lines ── */}
-      <Card
-        title="Plan lines"
-        extra={
-          editable && canWrite ? (
-            <Button type="primary" onClick={() => openLine('new')}>
-              + Add line
-            </Button>
-          ) : null
-        }
-      >
-        <Table
-          size="small"
-          rowKey="id"
-          columns={lineCols}
-          dataSource={lines}
-          pagination={false}
-          locale={{ emptyText: 'No lines yet.' }}
+      {/* ── Lines + Hiring + Attrition ── */}
+      <Card>
+        <Tabs
+          items={[
+            {
+              key: 'lines',
+              label: 'Plan lines',
+              children: (
+                <>
+                  {editable && canWrite && (
+                    <div style={{ marginBottom: 12, textAlign: 'right' }}>
+                      <Button type="primary" onClick={() => openLine('new')}>
+                        + Add line
+                      </Button>
+                    </div>
+                  )}
+                  <Table
+                    size="small"
+                    rowKey="id"
+                    columns={lineCols}
+                    dataSource={lines}
+                    pagination={false}
+                    locale={{ emptyText: 'No lines yet.' }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'hiring',
+              label: `Hiring plan (${hiringPlan.length})`,
+              children: (
+                <>
+                  {canWrite && plan?.status === 'APPROVED' && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Button onClick={onGenerateHiringPlan}>
+                        Generate from plan lines
+                      </Button>
+                    </div>
+                  )}
+                  <Table
+                    size="small"
+                    rowKey="id"
+                    dataSource={hiringPlan}
+                    columns={[
+                      { title: 'Position ID', dataIndex: 'positionId', width: 280, ellipsis: true },
+                      { title: 'Target start', dataIndex: 'targetStartDate', width: 120 },
+                      { title: 'HC', dataIndex: 'headcount', width: 60, align: 'right' as const },
+                      {
+                        title: 'Status',
+                        dataIndex: 'recruitmentStatus',
+                        width: 120,
+                        render: (v: string) => <Tag>{v}</Tag>,
+                      },
+                      {
+                        title: 'Vacancy',
+                        dataIndex: 'vacancyId',
+                        render: (v: string | null) =>
+                          v ? <Tag color="green">Linked</Tag> : <Typography.Text type="secondary">—</Typography.Text>,
+                      },
+                      { title: 'Notes', dataIndex: 'notes', ellipsis: true },
+                    ]}
+                    pagination={false}
+                    locale={{ emptyText: 'No hiring plan yet.' }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'attrition',
+              label: `Attrition forecast (${attrition.length})`,
+              children: (
+                <>
+                  {canWrite && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Button onClick={onRecalcAttrition}>Recalculate</Button>
+                    </div>
+                  )}
+                  <Table
+                    size="small"
+                    rowKey="id"
+                    dataSource={attrition}
+                    columns={[
+                      { title: 'Org Unit ID', dataIndex: 'orgUnitId', ellipsis: true },
+                      { title: 'Forecast date', dataIndex: 'forecastDate', width: 120 },
+                      {
+                        title: 'Expected exits',
+                        dataIndex: 'expectedExits',
+                        width: 120,
+                        align: 'right' as const,
+                        render: (v: number) => Number(v).toFixed(2),
+                      },
+                      {
+                        title: 'Basis',
+                        dataIndex: 'basis',
+                        width: 150,
+                        render: (v: string) => <Tag>{v}</Tag>,
+                      },
+                      { title: 'Detail', dataIndex: 'detail', ellipsis: true },
+                    ]}
+                    pagination={false}
+                    locale={{ emptyText: 'No attrition forecast yet.' }}
+                  />
+                </>
+              ),
+            },
+          ]}
         />
       </Card>
+
+      {/* ── M424: Transfer to budget ── */}
+      {canWrite && plan?.status === 'APPROVED' && (
+        <Card size="small">
+          <Space>
+            <Button
+              type="primary"
+              loading={transferring}
+              onClick={onTransferToBudget}
+            >
+              Transfer to budget
+            </Button>
+            <Typography.Text type="secondary">
+              Create compensation budget records from this approved plan
+            </Typography.Text>
+          </Space>
+        </Card>
+      )}
 
       {/* ── Line modal ── */}
       <Modal

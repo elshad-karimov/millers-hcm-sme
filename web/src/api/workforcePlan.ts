@@ -215,4 +215,63 @@ export const workforcePlanApi = {
     api
       .get<VarianceResult>(`/workforce-plans/${id}/variance-vs-actual`)
       .then((r) => r.data),
+
+  // M422: Hiring plan
+  getHiringPlan: (id: string) =>
+    api.get<HiringPlanLine[]>(`/workforce-plans/${id}/hiring-plan`).then((r) => r.data),
+  generateHiringPlan: (id: string) =>
+    api.post<HiringPlanLine[]>(`/workforce-plans/${id}/hiring-plan`, {}).then((r) => r.data),
+  linkVacancy: (planId: string, lineId: string, vacancyId: string) =>
+    api
+      .post<HiringPlanLine>(`/workforce-plans/${planId}/hiring-plan/${lineId}/link-vacancy`, {
+        vacancyId,
+      })
+      .then((r) => r.data),
+
+  // M423: Attrition forecast
+  getAttritionForecast: (planId?: string) =>
+    api
+      .get<AttritionForecast[]>('/workforce-plans/attrition-forecast', {
+        params: planId ? { planId } : {},
+      })
+      .then((r) => r.data),
+
+  // M424: Transfer to budget
+  transferToBudget: (id: string) =>
+    api.post<CompensationBudgetResponse>(`/workforce-plans/${id}/transfer-to-budget`, {}).then((r) => r.data),
+}
+
+export interface HiringPlanLine {
+  id: string
+  workforcePlanId: string
+  positionId: string
+  targetStartDate: string
+  recruiterEmployeeId?: string | null
+  recruitmentStatus: string
+  vacancyId?: string | null
+  headcount: number
+  notes?: string | null
+}
+
+export interface AttritionForecast {
+  id: string
+  planId: string
+  orgUnitId?: string | null
+  forecastDate: string
+  expectedExits: number
+  basis: string
+  detail?: string | null
+}
+
+export interface CompensationBudgetResponse {
+  id: string
+  scopeType: string
+  scopeRef?: string | null
+  budgetType: string
+  amount: number
+  currency: string
+  consumedAmount: number
+  effectiveFrom: string
+  effectiveTo?: string | null
+  isActive: boolean
 }
