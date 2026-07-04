@@ -925,6 +925,11 @@ export function AppLayout() {
                 icon: <BarChartOutlined />,
                 label: <Link to="/talent/replacement-chart">Replacement Chart</Link>,
               },
+              {
+                key: 'career-paths',
+                icon: <RocketOutlined />,
+                label: <Link to="/talent/career-paths">Career Paths</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
