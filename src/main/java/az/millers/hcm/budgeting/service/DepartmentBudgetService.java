@@ -75,6 +75,7 @@ public class DepartmentBudgetService {
     @Transactional(readOnly = true)
     public DepartmentBudget get(UUID id) {
         return repo.findById(id)
+                .filter(b -> TENANT.equals(b.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Department budget not found: " + id));
     }
 
