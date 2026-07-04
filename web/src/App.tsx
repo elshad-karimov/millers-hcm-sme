@@ -120,6 +120,7 @@ import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
 import { TalentPoolsPage } from './pages/performance/TalentPoolsPage'
+import { TalentReviewsPage } from './pages/performance/TalentReviewsPage'
 import CareerPage from './pages/career/CareerPage'
 import { ReviewCycleFormPage } from './pages/ReviewCycleFormPage'
 import { GoalsPage } from './pages/GoalsPage'
@@ -348,6 +349,8 @@ export default function App() {
           <Route path="performance/succession/nominations" element={<SuccessionNominationsPage />} />
           {/* HCM_15 M410 — employee talent pools */}
           <Route path="talent/pools" element={<TalentPoolsPage />} />
+          {/* HCM_15 M411 — talent reviews */}
+          <Route path="talent/reviews" element={<TalentReviewsPage />} />
           <Route path="career" element={<CareerPage />} />
           <Route path="performance/goals" element={<GoalsPage />} />
           <Route path="performance/reviews" element={<PerformanceReviewsPage />} />

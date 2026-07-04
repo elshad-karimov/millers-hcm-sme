@@ -905,6 +905,11 @@ export function AppLayout() {
                 icon: <TeamOutlined />,
                 label: <Link to="/talent/pools">Talent Pools</Link>,
               },
+              {
+                key: 'talent-reviews',
+                icon: <BarChartOutlined />,
+                label: <Link to="/talent/reviews">Talent Reviews</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
