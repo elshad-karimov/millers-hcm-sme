@@ -151,10 +151,11 @@ public class OfferService {
                     if ("WARN".equals(result)) {
                         log.warn("Budget control WARN for new hire offer {}: {}", saved.getId(), message);
                         audit.record(MODULE, ENTITY, saved.getId().toString(), "BUDGET_WARN", null, message);
+                        // WARN is non-fatal: allow the operation but log
                     } else if ("BLOCK".equals(result)) {
                         log.warn("Budget control BLOCK for new hire offer {}: {}", saved.getId(), message);
                         audit.record(MODULE, ENTITY, saved.getId().toString(), "BUDGET_BLOCK", null, message);
-                        // Note: not throwing — offer still created, but audited
+                        throw new BadRequestException("Budget control: " + message);
                     }
                 } catch (Exception e) {
                     log.warn("Budget control check failed for offer {}: {}", saved.getId(), e.getMessage());

@@ -305,10 +305,11 @@ public class SalaryChangeRequestService {
                 if ("WARN".equals(result)) {
                     log.warn("Budget control WARN for salary change {}: {}", id, message);
                     audit.record(MODULE, ENTITY, id.toString(), "BUDGET_WARN", null, message);
+                    // WARN is non-fatal: allow the operation but log
                 } else if ("BLOCK".equals(result)) {
                     log.warn("Budget control BLOCK for salary change {}: {}", id, message);
                     audit.record(MODULE, ENTITY, id.toString(), "BUDGET_BLOCK", null, message);
-                    // Note: not throwing — request still submitted, but audited
+                    throw new BadRequestException("Budget control: " + message);
                 }
             } catch (Exception e) {
                 log.warn("Budget control check failed for salary change {}: {}", id, e.getMessage());
