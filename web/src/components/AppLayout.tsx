@@ -189,6 +189,9 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/admin/warehouse', module: 'admin', screen: 'admin-warehouse' },
   { prefix: '/admin/api-keys', module: 'admin', screen: 'admin-api-keys' },
   { prefix: '/admin/audit-log', module: 'admin', screen: 'admin-audit-log' },
+  { prefix: '/admin/settings', module: 'admin', screen: 'admin-settings' },
+  { prefix: '/manager/analytics', module: 'my-team', screen: 'manager-analytics' },
+  { prefix: '/manager/movements', module: 'my-team', screen: 'manager-movements' },
 ]
 
 function resolveLocation(pathname: string) {
@@ -256,7 +259,24 @@ export function AppLayout() {
           {
             key: 'my-team',
             icon: <TeamOutlined />,
-            label: <Link to="/my/team">{tNav('myTeam')}</Link>,
+            label: tNav('myTeam'),
+            children: [
+              {
+                key: 'my-team',
+                icon: <TeamOutlined />,
+                label: <Link to="/my/team">Team Overview</Link>,
+              },
+              {
+                key: 'manager-analytics',
+                icon: <BarChartOutlined />,
+                label: <Link to="/manager/analytics">Analytics</Link>,
+              },
+              {
+                key: 'manager-movements',
+                icon: <SwapOutlined />,
+                label: <Link to="/manager/movements">Movement Requests</Link>,
+              },
+            ],
           },
         ]
       : []),
@@ -1256,6 +1276,15 @@ export function AppLayout() {
                       key: 'admin-audit-log',
                       icon: <FileSearchOutlined />,
                       label: <Link to="/admin/audit-log">{tNav('sub.admin.auditLog')}</Link>,
+                    },
+                  ]
+                : []),
+              ...(hasRole('HR_ADMIN')
+                ? [
+                    {
+                      key: 'admin-settings',
+                      icon: <SettingOutlined />,
+                      label: <Link to="/admin/settings">Tenant Settings</Link>,
                     },
                   ]
                 : []),

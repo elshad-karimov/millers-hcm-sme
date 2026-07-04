@@ -199,6 +199,9 @@ import { BackupsPage } from './pages/admin/BackupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { BiExportPage } from './pages/admin/BiExportPage'
 import { WarehouseAnalyticsPage } from './pages/admin/WarehouseAnalyticsPage'
+import { ManagerAnalyticsPage } from './pages/ManagerAnalyticsPage'
+import { TenantSettingsPage } from './pages/TenantSettingsPage'
+import { MovementRequestsPage } from './pages/MovementRequestsPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
@@ -587,6 +590,20 @@ export default function App() {
           <Route path="admin/warehouse" element={<WarehouseAnalyticsPage />} />
           {/* M120 — API keys + rate limiting */}
           <Route path="admin/api-keys" element={<ApiKeysPage />} />
+        </Route>
+
+        {/* ── HR_ADMIN — Tenant settings ─────────────────────────── */}
+        <Route element={<RequireRole roles={['HR_ADMIN']} />}>
+          {/* M433 — Tenant settings */}
+          <Route path="admin/settings" element={<TenantSettingsPage />} />
+        </Route>
+
+        {/* ── Manager-only pages ─────────────────────────────────── */}
+        <Route element={<RequireRole roles={['DEPARTMENT_MANAGER', 'HR_ADMIN']} />}>
+          {/* M434 — Manager analytics */}
+          <Route path="manager/analytics" element={<ManagerAnalyticsPage />} />
+          {/* M432 — Movement requests */}
+          <Route path="manager/movements" element={<MovementRequestsPage />} />
         </Route>
 
         {/* ── SYSTEM_ADMIN + AUDITOR ─────────────────────────────── */}
