@@ -9,15 +9,18 @@ import {
   Card,
   Col,
   DatePicker,
+  Divider,
   Drawer,
   Form,
   Input,
   InputNumber,
   Modal,
+  Rate,
   Row,
   Select,
   Space,
   Spin,
+  Statistic,
   Switch,
   Table,
   Tabs,
@@ -80,6 +83,32 @@ interface Attendance {
   note?: string | null
 }
 
+interface TrainingCost {
+  id: string
+  courseId?: string | null
+  sessionId?: string | null
+  costType: string
+  description?: string | null
+  amount: number
+  currency: string
+  incurredOn?: string | null
+  createdBy?: string | null
+  createdAt: string
+}
+
+interface TrainingFeedback {
+  id: string
+  sessionId?: string | null
+  courseId?: string | null
+  employeeId: string
+  overallRating: number
+  contentRating?: number | null
+  instructorRating?: number | null
+  comment?: string | null
+  anonymous: boolean
+  createdAt: string
+}
+
 const SESSION_COLOR: Record<SessionStatus, string> = {
   SCHEDULED: 'blue',
   IN_PROGRESS: 'gold',
@@ -93,6 +122,24 @@ const ATT_COLOR: Record<AttendanceStatus, string> = {
   LATE: 'gold',
   NO_SHOW: 'red',
   CANCELLED: 'default',
+}
+
+const COST_TYPES = [
+  { value: 'INSTRUCTOR', label: 'Instructor' },
+  { value: 'VENUE', label: 'Venue' },
+  { value: 'MATERIAL', label: 'Material' },
+  { value: 'TRAVEL', label: 'Travel' },
+  { value: 'CATERING', label: 'Catering' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+const COST_TYPE_COLOR: Record<string, string> = {
+  INSTRUCTOR: 'blue',
+  VENUE: 'purple',
+  MATERIAL: 'cyan',
+  TRAVEL: 'orange',
+  CATERING: 'green',
+  OTHER: 'default',
 }
 
 export function ClassroomTrainingPage() {
@@ -114,6 +161,14 @@ export function ClassroomTrainingPage() {
   const [attFor, setAttFor] = useState<TrainingSession | null>(null)
   const [attRows, setAttRows] = useState<Attendance[]>([])
   const [enrolEmployee, setEnrolEmployee] = useState<string | undefined>()
+
+  const [costs, setCosts] = useState<TrainingCost[]>([])
+  const [costOpen, setCostOpen] = useState(false)
+  const [costForm] = Form.useForm()
+
+  const [feedback, setFeedback] = useState<TrainingFeedback[]>([])
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackForm] = Form.useForm()
 
   const [instrOpen, setInstrOpen] = useState(false)
   const [editingInstr, setEditingInstr] = useState<Instructor | null>(null)
@@ -215,6 +270,22 @@ export function ClassroomTrainingPage() {
       .get<Attendance[]>(`/learning/training-sessions/${s.id}/attendance`)
       .then((r) => setAttRows(r.data))
       .catch(() => message.error('Failed to load attendance'))
+    loadCosts(s.id)
+    loadFeedback(s.id)
+  }
+
+  const loadCosts = (sessionId: string) => {
+    api
+      .get<TrainingCost[]>('/learning/training-costs', { params: { sessionId } })
+      .then((r) => setCosts(r.data))
+      .catch(() => message.error('Failed to load costs'))
+  }
+
+  const loadFeedback = (sessionId: string) => {
+    api
+      .get<TrainingFeedback[]>('/learning/training-feedback', { params: { sessionId } })
+      .then((r) => setFeedback(r.data))
+      .catch(() => message.error('Failed to load feedback'))
   }
 
   const enrol = async () => {
@@ -238,6 +309,65 @@ export function ClassroomTrainingPage() {
       if (attFor) loadAttendance(attFor)
     } catch (e) {
       err(e, 'Update failed')
+    }
+  }
+
+  // ── Costs ─────────────────────────────────────────────────────────────────
+
+  const openCostModal = () => {
+    costForm.resetFields()
+    costForm.setFieldsValue({ costType: 'OTHER', incurredOn: dayjs() })
+    setCostOpen(true)
+  }
+
+  const saveCost = async () => {
+    if (!attFor) return
+    const v = await costForm.validateFields()
+    try {
+      await api.post('/learning/training-costs', {
+        sessionId: attFor.id,
+        courseId: attFor.courseId,
+        costType: v.costType,
+        description: v.description,
+        amount: v.amount,
+        incurredOn: v.incurredOn?.format('YYYY-MM-DD'),
+      })
+      message.success('Cost added')
+      setCostOpen(false)
+      loadCosts(attFor.id)
+    } catch (e) {
+      err(e, 'Failed to add cost')
+    }
+  }
+
+
+  // ── Feedback ──────────────────────────────────────────────────────────────
+
+  const openFeedbackModal = () => {
+    feedbackForm.resetFields()
+    feedbackForm.setFieldsValue({ anonymous: true })
+    setFeedbackOpen(true)
+  }
+
+  const submitFeedback = async () => {
+    if (!attFor) return
+    const v = await feedbackForm.validateFields()
+    try {
+      await api.post('/learning/training-feedback', {
+        sessionId: attFor.id,
+        courseId: attFor.courseId,
+        employeeId: v.employeeId,
+        overallRating: v.overallRating,
+        contentRating: v.contentRating,
+        instructorRating: v.instructorRating,
+        comment: v.comment,
+        anonymous: v.anonymous,
+      })
+      message.success('Feedback submitted')
+      setFeedbackOpen(false)
+      loadFeedback(attFor.id)
+    } catch (e) {
+      err(e, 'Failed to submit feedback')
     }
   }
 
@@ -678,78 +808,304 @@ export function ClassroomTrainingPage() {
       <Drawer
         title={
           attFor
-            ? `Attendance — ${courseMap.get(attFor.courseId)?.title ?? ''} (${new Date(attFor.startAt).toLocaleDateString()})`
+            ? `Session — ${courseMap.get(attFor.courseId)?.title ?? ''} (${new Date(attFor.startAt).toLocaleDateString()})`
             : ''
         }
         open={!!attFor}
         onClose={() => setAttFor(null)}
-        width={640}
+        width={720}
       >
-        {canWrite && attFor && (attFor.status === 'SCHEDULED' || attFor.status === 'IN_PROGRESS') && (
-          <Space style={{ marginBottom: 12 }}>
+        {attFor && (
+          <Tabs
+            defaultActiveKey="attendance"
+            items={[
+              {
+                key: 'attendance',
+                label: `Attendance (${attRows.length})`,
+                children: (
+                  <>
+                    {canWrite &&
+                      (attFor.status === 'SCHEDULED' || attFor.status === 'IN_PROGRESS') && (
+                        <Space style={{ marginBottom: 12 }}>
+                          <Select
+                            showSearch
+                            optionFilterProp="label"
+                            style={{ minWidth: 300 }}
+                            placeholder="Enrol employee…"
+                            value={enrolEmployee}
+                            onChange={setEnrolEmployee}
+                            options={employees
+                              .filter((e) => !attRows.some((a) => a.employeeId === e.id))
+                              .map((e) => ({
+                                value: e.id,
+                                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
+                              }))}
+                          />
+                          <Button type="primary" disabled={!enrolEmployee} onClick={enrol}>
+                            Enrol
+                          </Button>
+                        </Space>
+                      )}
+                    <Table
+                      rowKey="id"
+                      size="small"
+                      columns={[
+                        {
+                          title: 'Employee',
+                          key: 'emp',
+                          render: (_: unknown, a: Attendance) => {
+                            const e = empMap.get(a.employeeId)
+                            return e ? `${e.firstName} ${e.lastName}` : a.employeeId
+                          },
+                        },
+                        {
+                          title: 'Status',
+                          dataIndex: 'status',
+                          width: 110,
+                          render: (v: AttendanceStatus) => (
+                            <Tag color={ATT_COLOR[v]}>{v.replace(/_/g, ' ')}</Tag>
+                          ),
+                        },
+                        {
+                          title: '',
+                          key: 'a',
+                          width: 240,
+                          render: (_: unknown, a: Attendance) =>
+                            canWrite &&
+                            a.status !== 'CANCELLED' && (
+                              <Space size={4}>
+                                <Button
+                                  size="small"
+                                  type="primary"
+                                  onClick={() => mark(a, 'ATTENDED')}
+                                >
+                                  Attended
+                                </Button>
+                                <Button size="small" onClick={() => mark(a, 'LATE')}>
+                                  Late
+                                </Button>
+                                <Button size="small" danger onClick={() => mark(a, 'NO_SHOW')}>
+                                  No-show
+                                </Button>
+                              </Space>
+                            ),
+                        },
+                      ]}
+                      dataSource={attRows}
+                      pagination={false}
+                      locale={{ emptyText: 'No one enrolled yet.' }}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'costs',
+                label: `Costs (${costs.length})`,
+                children: (
+                  <>
+                    <Row gutter={16} style={{ marginBottom: 16 }}>
+                      <Col span={12}>
+                        <Card size="small">
+                          <Statistic
+                            title="Total cost"
+                            value={costs.reduce((sum, c) => sum + c.amount, 0).toFixed(2)}
+                            suffix="₼"
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={12}>
+                        {canWrite && (
+                          <Button
+                            type="primary"
+                            style={{ marginTop: 8 }}
+                            onClick={openCostModal}
+                          >
+                            Add cost
+                          </Button>
+                        )}
+                      </Col>
+                    </Row>
+                    <Table
+                      rowKey="id"
+                      size="small"
+                      columns={[
+                        {
+                          title: 'Type',
+                          dataIndex: 'costType',
+                          width: 120,
+                          render: (v: string) => (
+                            <Tag color={COST_TYPE_COLOR[v] ?? 'default'}>
+                              {COST_TYPES.find((t) => t.value === v)?.label ?? v}
+                            </Tag>
+                          ),
+                        },
+                        {
+                          title: 'Description',
+                          dataIndex: 'description',
+                          ellipsis: true,
+                          render: (v) => v ?? '—',
+                        },
+                        {
+                          title: 'Amount',
+                          dataIndex: 'amount',
+                          width: 110,
+                          align: 'right',
+                          render: (v: number) => `${v.toFixed(2)} ₼`,
+                        },
+                        {
+                          title: 'Date',
+                          dataIndex: 'incurredOn',
+                          width: 110,
+                          render: (v) => (v ? new Date(v).toLocaleDateString() : '—'),
+                        },
+                      ]}
+                      dataSource={costs}
+                      pagination={false}
+                      locale={{ emptyText: 'No costs recorded yet.' }}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'feedback',
+                label: `Feedback (${feedback.length})`,
+                children: (
+                  <>
+                    {canWrite && (
+                      <Button
+                        type="primary"
+                        style={{ marginBottom: 12 }}
+                        onClick={openFeedbackModal}
+                      >
+                        Submit feedback
+                      </Button>
+                    )}
+                    <Table
+                      rowKey="id"
+                      size="small"
+                      columns={[
+                        {
+                          title: 'Employee',
+                          key: 'emp',
+                          width: 140,
+                          render: (_: unknown, f: TrainingFeedback) => {
+                            if (f.anonymous || f.employeeId === '00000000-0000-0000-0000-000000000000')
+                              return <Tag color="gold">Anonymous</Tag>
+                            const e = empMap.get(f.employeeId)
+                            return e ? `${e.firstName} ${e.lastName}` : f.employeeId
+                          },
+                        },
+                        {
+                          title: 'Overall',
+                          dataIndex: 'overallRating',
+                          width: 120,
+                          render: (v: number) => <Rate disabled value={v} />,
+                        },
+                        {
+                          title: 'Content',
+                          dataIndex: 'contentRating',
+                          width: 120,
+                          render: (v?: number | null) => (v ? <Rate disabled value={v} /> : '—'),
+                        },
+                        {
+                          title: 'Instructor',
+                          dataIndex: 'instructorRating',
+                          width: 120,
+                          render: (v?: number | null) => (v ? <Rate disabled value={v} /> : '—'),
+                        },
+                        {
+                          title: 'Comment',
+                          dataIndex: 'comment',
+                          ellipsis: true,
+                          render: (v) => v ?? '—',
+                        },
+                      ]}
+                      dataSource={feedback}
+                      pagination={false}
+                      locale={{ emptyText: 'No feedback submitted yet.' }}
+                    />
+                  </>
+                ),
+              },
+            ]}
+          />
+        )}
+      </Drawer>
+
+      {/* Cost modal */}
+      <Modal
+        title="Add training cost"
+        open={costOpen}
+        onCancel={() => setCostOpen(false)}
+        onOk={saveCost}
+        okText="Add"
+        destroyOnClose
+      >
+        <Form form={costForm} layout="vertical">
+          <Form.Item name="costType" label="Cost type" rules={[{ required: true }]}>
+            <Select options={COST_TYPES} />
+          </Form.Item>
+          <Form.Item name="amount" label="Amount (AZN)" rules={[{ required: true }]}>
+            <InputNumber min={0} precision={2} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="description" label="Description">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="incurredOn" label="Date incurred">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Feedback modal */}
+      <Modal
+        title="Submit training feedback"
+        open={feedbackOpen}
+        onCancel={() => setFeedbackOpen(false)}
+        onOk={submitFeedback}
+        okText="Submit"
+        width={600}
+        destroyOnClose
+      >
+        <Form form={feedbackForm} layout="vertical">
+          <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
             <Select
               showSearch
               optionFilterProp="label"
-              style={{ minWidth: 300 }}
-              placeholder="Enrol employee…"
-              value={enrolEmployee}
-              onChange={setEnrolEmployee}
-              options={employees
-                .filter((e) => !attRows.some((a) => a.employeeId === e.id))
-                .map((e) => ({
-                  value: e.id,
-                  label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                }))}
+              placeholder="Select participant…"
+              options={attRows
+                .filter((a) => a.status === 'ATTENDED' || a.status === 'LATE')
+                .map((a) => {
+                  const e = empMap.get(a.employeeId)
+                  return {
+                    value: a.employeeId,
+                    label: e ? `${e.firstName} ${e.lastName}` : a.employeeId,
+                  }
+                })}
             />
-            <Button type="primary" disabled={!enrolEmployee} onClick={enrol}>
-              Enrol
-            </Button>
-          </Space>
-        )}
-        <Table
-          rowKey="id"
-          size="small"
-          columns={[
-            {
-              title: 'Employee',
-              key: 'emp',
-              render: (_: unknown, a: Attendance) => {
-                const e = empMap.get(a.employeeId)
-                return e ? `${e.firstName} ${e.lastName}` : a.employeeId
-              },
-            },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              width: 110,
-              render: (v: AttendanceStatus) => <Tag color={ATT_COLOR[v]}>{v.replace(/_/g, ' ')}</Tag>,
-            },
-            {
-              title: '',
-              key: 'a',
-              width: 240,
-              render: (_: unknown, a: Attendance) =>
-                canWrite &&
-                a.status !== 'CANCELLED' && (
-                  <Space size={4}>
-                    <Button size="small" type="primary" onClick={() => mark(a, 'ATTENDED')}>
-                      Attended
-                    </Button>
-                    <Button size="small" onClick={() => mark(a, 'LATE')}>
-                      Late
-                    </Button>
-                    <Button size="small" danger onClick={() => mark(a, 'NO_SHOW')}>
-                      No-show
-                    </Button>
-                  </Space>
-                ),
-            },
-          ]}
-          dataSource={attRows}
-          pagination={false}
-          locale={{ emptyText: 'No one enrolled yet.' }}
-        />
-      </Drawer>
+          </Form.Item>
+          <Divider />
+          <Form.Item
+            name="overallRating"
+            label="Overall rating"
+            rules={[{ required: true, message: 'Overall rating is required' }]}
+          >
+            <Rate />
+          </Form.Item>
+          <Form.Item name="contentRating" label="Content rating">
+            <Rate />
+          </Form.Item>
+          <Form.Item name="instructorRating" label="Instructor rating">
+            <Rate />
+          </Form.Item>
+          <Form.Item name="comment" label="Comment">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="anonymous" label="Submit anonymously" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
