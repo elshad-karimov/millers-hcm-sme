@@ -935,6 +935,11 @@ export function AppLayout() {
                 icon: <TeamOutlined />,
                 label: <Link to="/talent/mentoring">Mentoring</Link>,
               },
+              {
+                key: 'career-dashboard',
+                icon: <DashboardOutlined />,
+                label: <Link to="/talent/career-dashboard">Career Dashboard</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
