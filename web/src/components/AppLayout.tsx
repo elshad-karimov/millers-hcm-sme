@@ -920,6 +920,11 @@ export function AppLayout() {
                 icon: <RocketOutlined />,
                 label: <Link to="/talent/succession-plans">Succession Plans</Link>,
               },
+              {
+                key: 'replacement-chart',
+                icon: <BarChartOutlined />,
+                label: <Link to="/talent/replacement-chart">Replacement Chart</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
