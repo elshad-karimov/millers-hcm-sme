@@ -101,12 +101,19 @@ public class CareerDashboardService {
     }
 
     private List<JobRecommendation> recommendJobs(UUID employeeId, List<CareerInterest> interestsList) {
-        // Load open internal job postings
+        // Load live internal job postings. Department lives on the vacancy,
+        // not the posting; confidential requisitions never surface here,
+        // mirroring JobPostingRepository.findLiveByChannel.
         List<JobPosting> openJobs = jdbc.query(
                 """
-                SELECT id::text, job_title, department, status
-                FROM recruitment.job_posting
-                WHERE status IN ('PUBLISHED', 'OPEN') AND is_internal = true
+                SELECT p.id::text, p.title AS job_title, v.department, p.status
+                FROM recruitment.job_posting p
+                JOIN recruitment.vacancy v ON v.id = p.vacancy_id
+                WHERE p.tenant_id = 'default'
+                  AND p.status = 'PUBLISHED'
+                  AND p.channel = 'INTERNAL'
+                  AND v.confidential = false
+                  AND (p.application_deadline IS NULL OR p.application_deadline >= CURRENT_DATE)
                 """,
                 (rs, i) -> new JobPosting(
                         UUID.fromString(rs.getString("id")),
@@ -144,7 +151,7 @@ public class CareerDashboardService {
     private UUID loadEmployeePosition(UUID empId) {
         var params = new MapSqlParameterSource("id", empId);
         List<String> positions = jdbc.query(
-                "SELECT position_id::text FROM core_hr.employee WHERE id = :id",
+                "SELECT position_id::text FROM core_hr.employee WHERE id = :id AND tenant_id = 'default'",
                 params,
                 (rs, i) -> rs.getString("position_id")
         );

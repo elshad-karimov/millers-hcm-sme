@@ -49,6 +49,7 @@ public class PositionHeadcountService {
 
     private static final String MODULE = "STAFFING";
     private static final String ENTITY = "Position";
+    private static final String TENANT = "default";
 
     private final PositionRepository positions;
     private final EmployeeRepository employees;
@@ -176,7 +177,7 @@ public class PositionHeadcountService {
 
     @Transactional(readOnly = true)
     public HeadcountSummary report() {
-        List<Position> all = positions.findByStatusOrderByOrgUnitLabelAscTitleAsc(PositionStatus.ACTIVE);
+        List<Position> all = positions.findByTenantIdAndStatusOrderByOrgUnitLabelAscTitleAsc(TENANT, PositionStatus.ACTIVE);
         Map<UUID, Long> actualByPos = groundTruth();
 
         // Pre-cache vacancy openings counts so we don't hit the DB N times.
@@ -268,7 +269,7 @@ public class PositionHeadcountService {
     @Transactional
     public List<Position> reconcile() {
         Map<UUID, Long> truth = groundTruth();
-        List<Position> all = positions.findByStatus(PositionStatus.ACTIVE);
+        List<Position> all = positions.findByTenantIdAndStatus(TENANT, PositionStatus.ACTIVE);
         List<Position> drifted = new ArrayList<>();
         for (Position p : all) {
             long actual = truth.getOrDefault(p.getId(), 0L);

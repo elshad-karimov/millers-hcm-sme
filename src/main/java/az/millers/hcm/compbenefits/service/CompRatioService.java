@@ -58,6 +58,8 @@ public class CompRatioService {
     /** Mid-band ceiling. */
     private static final BigDecimal MID_THRESHOLD = BigDecimal.valueOf(110);
 
+    private static final String TENANT = "default";
+
     private final EmployeeRepository employees;
     private final PositionRepository positions;
     private final GradeRepository grades;
@@ -89,7 +91,7 @@ public class CompRatioService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findAll()) {
+        for (Position p : positions.findByTenantId(TENANT)) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);

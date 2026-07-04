@@ -42,6 +42,9 @@ public class JobPosting {
     @Id
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false, length = 64)
+    private String tenantId = "default";
+
     @Column(name = "posting_no", nullable = false, unique = true)
     private String postingNo;
 

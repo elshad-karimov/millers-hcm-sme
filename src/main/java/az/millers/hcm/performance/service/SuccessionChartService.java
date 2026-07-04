@@ -165,7 +165,7 @@ public class SuccessionChartService {
         if (ids.isEmpty()) return Map.of();
         var params = new MapSqlParameterSource("ids", ids);
         return jdbc.query(
-                "SELECT id::text, code, title FROM staffing.position WHERE id IN (:ids)",
+                "SELECT id::text, code, title FROM staffing.position WHERE id IN (:ids) AND tenant_id = 'default'",
                 params,
                 (rs, i) -> new PositionInfo(
                         UUID.fromString(rs.getString("id")),

@@ -40,6 +40,7 @@ import az.millers.hcm.selfservice.service.EmployeeContextService;
 public class InternalCareersService {
 
     private static final String MODULE = "RECRUITMENT";
+    private static final String TENANT = "default";
 
     public record InternalJob(
             UUID postingId,
@@ -88,7 +89,7 @@ public class InternalCareersService {
     public List<InternalJob> listLive() {
         Employee me = context.currentEmployee();
         UUID myCandidateId = findMyCandidateId(me);
-        return postings.findLiveByChannel(JobPosting.Channel.INTERNAL, LocalDate.now()).stream()
+        return postings.findLiveByChannel(TENANT, JobPosting.Channel.INTERNAL, LocalDate.now()).stream()
                 .map(p -> {
                     Vacancy v = vacancies.findById(p.getVacancyId()).orElse(null);
                     if (v == null) return null;

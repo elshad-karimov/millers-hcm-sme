@@ -25,6 +25,7 @@ public class StaffingService {
 
     private static final String MODULE = "STAFFING";
     private static final String ENTITY = "Position";
+    private static final String TENANT = "default";
 
     private final PositionRepository repository;
     private final AuditService audit;
@@ -47,13 +48,12 @@ public class StaffingService {
     public Page<Position> list(String search, UUID orgUnitId, VacancyState vacancyState,
                                 PositionStatus status, Pageable pageable) {
         if (StringUtils.hasText(search)) {
-            return repository.findByTitleContainingIgnoreCaseOrCodeContainingIgnoreCase(
-                    search, search, pageable);
+            return repository.searchByTitleOrCode(TENANT, search, pageable);
         }
-        if (orgUnitId != null) return repository.findByOrgUnitId(orgUnitId, pageable);
-        if (vacancyState != null) return repository.findByVacancyState(vacancyState, pageable);
-        if (status != null) return repository.findByStatus(status, pageable);
-        return repository.findAll(pageable);
+        if (orgUnitId != null) return repository.findByTenantIdAndOrgUnitId(TENANT, orgUnitId, pageable);
+        if (vacancyState != null) return repository.findByTenantIdAndVacancyState(TENANT, vacancyState, pageable);
+        if (status != null) return repository.findByTenantIdAndStatus(TENANT, status, pageable);
+        return repository.findByTenantId(TENANT, pageable);
     }
 
     @Transactional(readOnly = true)

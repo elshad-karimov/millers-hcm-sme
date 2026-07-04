@@ -39,6 +39,7 @@ public class StaffingTableService {
 
     private static final String MODULE = "STAFFING";
     private static final String ENTITY = "StaffingTable";
+    private static final String TENANT = "default";
 
     private final StaffingTableRepository tables;
     private final StaffingTableLineRepository lines;
@@ -227,7 +228,7 @@ public class StaffingTableService {
         assertEditable(table);
 
         int nextLineNo = lines.findByStaffingTableIdOrderByLineNoAsc(staffingTableId).size() + 1;
-        List<Position> all = positions.findAll();
+        List<Position> all = positions.findByTenantId(TENANT);
         List<StaffingTableLine> created = new ArrayList<>();
         for (Position p : all) {
             // Only snapshot ACTIVE positions; staffing tables shouldn't
