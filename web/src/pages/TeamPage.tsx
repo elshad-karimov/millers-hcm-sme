@@ -14,6 +14,7 @@ import {
   Spin,
   Statistic,
   Table,
+  Tabs,
   Tag,
   Typography,
   App as AntdApp,
@@ -26,12 +27,27 @@ import {
   type TeamSummary,
   type UpcomingItem,
 } from '../api/team'
+import { api } from '../api/client'
+
+interface TeamCompensation {
+  employeeId: string
+  employeeNo: string
+  fullName: string
+  positionTitle: string | null
+  monthlyBaseSalary: number
+  currency: string
+}
 
 export function TeamPage() {
   const { message } = AntdApp.useApp()
   const [team, setTeam] = useState<TeamMember[]>([])
   const [summary, setSummary] = useState<TeamSummary | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // M433 — team compensation tab
+  const [compensation, setCompensation] = useState<TeamCompensation[] | null>(null)
+  const [compLoading, setCompLoading] = useState(false)
+  const [compError, setCompError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([teamApi.list(), teamApi.summary()])
@@ -45,6 +61,23 @@ export function TeamPage() {
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function loadCompensation() {
+    if (compensation !== null || compLoading) return
+    setCompLoading(true)
+    setCompError(null)
+    api
+      .get<TeamCompensation[]>('/self/team/compensation')
+      .then((r) => setCompensation(r.data))
+      .catch((err) => {
+        if (err?.response?.status === 403) {
+          setCompError('disabled')
+        } else {
+          setCompError(err?.response?.data?.message ?? 'Failed to load compensation data')
+        }
+      })
+      .finally(() => setCompLoading(false))
+  }
 
   const memberColumns: ColumnsType<TeamMember> = [
     {
@@ -80,6 +113,26 @@ export function TeamPage() {
       render: (v: string) => <Link to={`/employees/${v}`}>{v.slice(0, 8)}…</Link>,
     },
     { title: 'Item', dataIndex: 'label' },
+  ]
+
+  const compColumns: ColumnsType<TeamCompensation> = [
+    {
+      title: 'Employee no',
+      dataIndex: 'employeeNo',
+      render: (v: string, r) => <Link to={`/employees/${r.employeeId}`}>{v}</Link>,
+    },
+    { title: 'Name', dataIndex: 'fullName' },
+    { title: 'Position', dataIndex: 'positionTitle', render: (v) => v ?? '—' },
+    {
+      title: 'Monthly base salary',
+      dataIndex: 'monthlyBaseSalary',
+      render: (v: number, r) =>
+        new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: r.currency,
+          minimumFractionDigits: 2,
+        }).format(v),
+    },
   ]
 
   if (loading) {
@@ -135,42 +188,84 @@ export function TeamPage() {
               </Col>
             </Row>
 
-            <Row gutter={16}>
-              <Col xs={24} md={12}>
-                <Card title="Upcoming probation reviews" size="small">
-                  <Table
-                    rowKey={(r) => r.employeeId + r.date + r.label}
-                    columns={upcomingColumns}
-                    dataSource={summary.upcomingProbationReviews}
-                    pagination={false}
-                    size="small"
-                    locale={{ emptyText: <Empty description="None scheduled" /> }}
-                  />
-                </Card>
-              </Col>
-              <Col xs={24} md={12}>
-                <Card title="Upcoming contract ends" size="small">
-                  <Table
-                    rowKey={(r) => r.employeeId + r.date + r.label}
-                    columns={upcomingColumns}
-                    dataSource={summary.upcomingContractEnds}
-                    pagination={false}
-                    size="small"
-                    locale={{ emptyText: <Empty description="None ending soon" /> }}
-                  />
-                </Card>
-              </Col>
-            </Row>
-
-            <Card title="Direct reports" size="small">
-              <Table
-                rowKey="id"
-                columns={memberColumns}
-                dataSource={team}
-                pagination={false}
-                size="small"
-              />
-            </Card>
+            <Tabs
+              items={[
+                {
+                  key: 'team',
+                  label: 'Team',
+                  children: (
+                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                      <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                          <Card title="Upcoming probation reviews" size="small">
+                            <Table
+                              rowKey={(r) => r.employeeId + r.date + r.label}
+                              columns={upcomingColumns}
+                              dataSource={summary.upcomingProbationReviews}
+                              pagination={false}
+                              size="small"
+                              locale={{ emptyText: <Empty description="None scheduled" /> }}
+                            />
+                          </Card>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Card title="Upcoming contract ends" size="small">
+                            <Table
+                              rowKey={(r) => r.employeeId + r.date + r.label}
+                              columns={upcomingColumns}
+                              dataSource={summary.upcomingContractEnds}
+                              pagination={false}
+                              size="small"
+                              locale={{ emptyText: <Empty description="None ending soon" /> }}
+                            />
+                          </Card>
+                        </Col>
+                      </Row>
+                      <Card title="Direct reports" size="small">
+                        <Table
+                          rowKey="id"
+                          columns={memberColumns}
+                          dataSource={team}
+                          pagination={false}
+                          size="small"
+                        />
+                      </Card>
+                    </Space>
+                  ),
+                },
+                {
+                  key: 'compensation',
+                  label: 'Compensation',
+                  children: (
+                    <Card>
+                      {compLoading ? (
+                        <div style={{ textAlign: 'center', padding: 32 }}>
+                          <Spin />
+                        </div>
+                      ) : compError === 'disabled' ? (
+                        <Empty
+                          description="Salary visibility is disabled by your HR administrator"
+                        />
+                      ) : compError ? (
+                        <Alert type="error" message={compError} />
+                      ) : compensation && compensation.length > 0 ? (
+                        <Table
+                          rowKey="employeeId"
+                          columns={compColumns}
+                          dataSource={compensation}
+                          pagination={false}
+                        />
+                      ) : (
+                        <Empty description="No compensation data" />
+                      )}
+                    </Card>
+                  ),
+                },
+              ]}
+              onChange={(key) => {
+                if (key === 'compensation') loadCompensation()
+              }}
+            />
           </>
         )
       )}
