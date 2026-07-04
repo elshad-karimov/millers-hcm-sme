@@ -144,6 +144,7 @@ import { MandatoryTrainingPage } from './pages/learning/MandatoryTrainingPage'
 import { CertificatesPage } from './pages/CertificatesPage'
 import { CompetenciesPage } from './pages/CompetenciesPage'
 import { SkillVerificationsPage } from './pages/SkillVerificationsPage'
+import { SkillInventoryDashboardPage } from './pages/SkillInventoryDashboardPage'
 import { BonusMatrixPage } from './pages/BonusMatrixPage'
 import { AllowancesPage } from './pages/AllowancesPage'
 import { BonusRunsPage } from './pages/BonusRunsPage'
@@ -388,6 +389,8 @@ export default function App() {
           <Route path="learning/competencies" element={<CompetenciesPage />} />
           {/* M419 — Skill verifications */}
           <Route path="learning/skill-verifications" element={<SkillVerificationsPage />} />
+          {/* M420 — Skill inventory */}
+          <Route path="learning/skill-inventory" element={<SkillInventoryDashboardPage />} />
           {/* M157 — Training plans */}
           <Route path="learning/training-plans" element={<TrainingPlansPage />} />
           {/* HCM_14 M404/M405 — classroom sessions + instructors + rooms */}

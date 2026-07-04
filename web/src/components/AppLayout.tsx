@@ -156,6 +156,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/learning/certificates', module: 'learning', screen: 'learning-certificates' },
   { prefix: '/learning/competencies', module: 'learning', screen: 'learning-competencies' },
   { prefix: '/learning/skill-verifications', module: 'learning', screen: 'learning-skill-verifications' },
+  { prefix: '/learning/skill-inventory', module: 'learning', screen: 'learning-skill-inventory' },
   { prefix: '/learning/training-plans', module: 'learning', screen: 'learning-training-plans' },
   { prefix: '/compbenefits/matrix', module: 'compbenefits', screen: 'compbenefits-matrix' },
   { prefix: '/compbenefits/allowances', module: 'compbenefits', screen: 'compbenefits-allowances' },
@@ -983,6 +984,11 @@ export function AppLayout() {
                 key: 'learning-skill-verifications',
                 icon: <SafetyCertificateOutlined />,
                 label: <Link to="/learning/skill-verifications">Skill verifications</Link>,
+              },
+              {
+                key: 'learning-skill-inventory',
+                icon: <BarChartOutlined />,
+                label: <Link to="/learning/skill-inventory">Skill inventory</Link>,
               },
               {
                 key: 'learning-training-plans',
