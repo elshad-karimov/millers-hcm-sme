@@ -848,6 +848,11 @@ export function AppLayout() {
                 label: <Link to="/performance/dev-plans">Development plans</Link>,
               },
               {
+                key: 'performance-checkins',
+                icon: <CalendarOutlined />,
+                label: <Link to="/performance/checkins">Check-ins</Link>,
+              },
+              {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
                 label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,

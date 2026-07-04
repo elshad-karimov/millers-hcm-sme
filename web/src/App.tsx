@@ -114,6 +114,7 @@ import { OkrPage } from './pages/performance/OkrPage'
 import { Feedback360Page } from './pages/performance/Feedback360Page'
 import { PipPage } from './pages/performance/PipPage'
 import { DevPlansPage } from './pages/performance/DevPlansPage'
+import { CheckInsPage } from './pages/performance/CheckInsPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
@@ -325,6 +326,8 @@ export default function App() {
           <Route path="performance/pips" element={<PipPage />} />
           {/* HCM_12 M399 — development plans */}
           <Route path="performance/dev-plans" element={<DevPlansPage />} />
+          {/* HCM_12 M400 — continuous feedback + check-ins */}
+          <Route path="performance/checkins" element={<CheckInsPage />} />
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />
