@@ -843,6 +843,11 @@ export function AppLayout() {
                 label: <Link to="/performance/pips">PIPs</Link>,
               },
               {
+                key: 'performance-dev-plans',
+                icon: <ProfileOutlined />,
+                label: <Link to="/performance/dev-plans">Development plans</Link>,
+              },
+              {
                 key: 'performance-goals',
                 icon: <BarChartOutlined />,
                 label: <Link to="/performance/goals">{tNav('sub.performance.goals')}</Link>,

@@ -646,6 +646,93 @@ export const pipsApi = {
   cancel: (id: string) => api.post<Pip>(`/performance/pips/${id}/cancel`).then((r) => r.data),
 }
 
+// ─── Development plans (HCM_12 M399) ─────────────────────────────────────────
+
+export type DevPlanStatus = 'DRAFT' | 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+export type DevActionType =
+  | 'TRAINING_COURSE'
+  | 'CERTIFICATION'
+  | 'COACHING'
+  | 'MENTORING'
+  | 'JOB_ROTATION'
+  | 'STRETCH_ASSIGNMENT'
+  | 'PROJECT_ASSIGNMENT'
+  | 'SELF_STUDY'
+  | 'WORKSHOP'
+  | 'LEADERSHIP_PROGRAM'
+export type DevActionStatus = 'PLANNED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED'
+
+export interface DevPlan {
+  id: string
+  employeeId: string
+  reviewId?: string | null
+  competencyId?: string | null
+  careerGoal?: string | null
+  title: string
+  description?: string | null
+  targetDate?: string | null
+  ownerEmployeeId?: string | null
+  status: DevPlanStatus
+  progressPercent: number
+  managerComments?: string | null
+  employeeComments?: string | null
+  createdBy?: string | null
+  createdAt: string
+}
+
+export interface DevAction {
+  id: string
+  planId: string
+  actionType: DevActionType
+  description: string
+  courseId?: string | null
+  dueDate?: string | null
+  status: DevActionStatus
+  completedAt?: string | null
+}
+
+export interface DevActionRequest {
+  id?: string
+  actionType?: DevActionType
+  description: string
+  courseId?: string | null
+  dueDate?: string | null
+  status?: DevActionStatus
+}
+
+export interface DevPlanRequest {
+  employeeId: string
+  reviewId?: string | null
+  competencyId?: string | null
+  careerGoal?: string
+  title: string
+  description?: string
+  targetDate?: string | null
+  ownerEmployeeId?: string | null
+  managerComments?: string
+  employeeComments?: string
+  actions: DevActionRequest[]
+}
+
+export const devPlansApi = {
+  list: (params: { employeeId?: string; status?: DevPlanStatus } = {}) =>
+    api.get<DevPlan[]>('/performance/dev-plans', { params }).then((r) => r.data),
+  actions: (id: string) =>
+    api.get<DevAction[]>(`/performance/dev-plans/${id}/actions`).then((r) => r.data),
+  create: (req: DevPlanRequest) =>
+    api.post<DevPlan>('/performance/dev-plans', req).then((r) => r.data),
+  update: (id: string, req: DevPlanRequest) =>
+    api.put<DevPlan>(`/performance/dev-plans/${id}`, req).then((r) => r.data),
+  createFromReview: (reviewId: string) =>
+    api.post<DevPlan>(`/performance/dev-plans/from-review/${reviewId}`).then((r) => r.data),
+  changeStatus: (id: string, status: DevPlanStatus) =>
+    api.post<DevPlan>(`/performance/dev-plans/${id}/status/${status}`).then((r) => r.data),
+  markAction: (actionId: string, status: DevActionStatus) =>
+    api
+      .post<DevPlan>(`/performance/dev-plans/actions/${actionId}/status/${status}`)
+      .then((r) => r.data),
+}
+
 // ─── Acknowledgement + appeals (HCM_12 M396) ─────────────────────────────────
 
 export type AppealStatus =
