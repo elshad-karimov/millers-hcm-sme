@@ -37,35 +37,55 @@ public class GoalService {
     private final GoalProgressUpdateRepository progressUpdates;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final az.millers.hcm.security.scope.AccessScopeService accessScope;
 
     public GoalService(GoalRepository goals,
                        ReviewCycleRepository cycles,
                        EmployeeRepository employees,
                        GoalProgressUpdateRepository progressUpdates,
                        AuditService audit,
-                       CurrentRequest currentRequest) {
+                       CurrentRequest currentRequest,
+                       az.millers.hcm.security.scope.AccessScopeService accessScope) {
         this.goals = goals;
         this.cycles = cycles;
         this.employees = employees;
         this.progressUpdates = progressUpdates;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.accessScope = accessScope;
     }
 
+    /**
+     * GLOBAL RULES 7/8 (M402 security-gate fix) — every single-goal read/write
+     * path goes through here: employees reach only their own goals, managers
+     * only their team's.
+     */
     @Transactional(readOnly = true)
     public Goal get(UUID id) {
-        return goals.findById(id)
+        Goal g = goals.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Goal not found: " + id));
+        if (!accessScope.isAccessible(g.getEmployeeId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Goal is outside your access scope");
+        }
+        return g;
     }
 
     @Transactional(readOnly = true)
     public List<Goal> listForEmployee(UUID cycleId, UUID employeeId) {
+        if (!accessScope.isAccessible(employeeId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Employee is outside your access scope");
+        }
         return goals.findByCycleIdAndEmployeeIdOrderByCreatedAt(cycleId, employeeId);
     }
 
     @Transactional(readOnly = true)
     public List<Goal> listForCycle(UUID cycleId) {
-        return goals.findByCycleIdOrderByEmployeeIdAscCreatedAtAsc(cycleId);
+        // Scope-filter the cycle-wide listing (M402 security-gate fix).
+        return goals.findByCycleIdOrderByEmployeeIdAscCreatedAtAsc(cycleId).stream()
+                .filter(g -> accessScope.isAccessible(g.getEmployeeId()))
+                .toList();
     }
 
     @Transactional

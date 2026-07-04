@@ -48,19 +48,31 @@ public class OkrService {
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final az.millers.hcm.security.scope.AccessScopeService accessScope;
 
     public OkrService(OkrObjectiveRepository objectives,
                       OkrKeyResultRepository keyResults,
                       OkrCheckInRepository checkIns,
                       EmployeeRepository employees,
                       AuditService audit,
-                      CurrentRequest currentRequest) {
+                      CurrentRequest currentRequest,
+                      az.millers.hcm.security.scope.AccessScopeService accessScope) {
         this.objectives = objectives;
         this.keyResults = keyResults;
         this.checkIns = checkIns;
         this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.accessScope = accessScope;
+    }
+
+    /**
+     * GLOBAL RULES 7/8 (M402 security-gate fix) — org-level objectives
+     * (COMPANY…TEAM, no owner) are visible to every reader; INDIVIDUAL
+     * objectives only within the caller's hierarchy scope.
+     */
+    private boolean visible(OkrObjective o) {
+        return o.getOwnerEmployeeId() == null || accessScope.isAccessible(o.getOwnerEmployeeId());
     }
 
     // ── Objectives ───────────────────────────────────────────────────────────
@@ -79,12 +91,16 @@ public class OkrService {
         } else {
             rows = objectives.findByTenantIdOrderByCreatedAtDesc(TENANT);
         }
-        return decorate(rows);
+        return decorate(rows.stream().filter(this::visible).toList());
     }
 
     @Transactional(readOnly = true)
     public ObjectiveResponse get(UUID id) {
         OkrObjective o = require(id);
+        if (!visible(o)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Objective is outside your access scope");
+        }
         return decorate(List.of(o)).get(0);
     }
 

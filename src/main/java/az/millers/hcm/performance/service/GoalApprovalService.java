@@ -55,6 +55,7 @@ public class GoalApprovalService {
     private final WorkflowService workflows;
     private final AuditService audit;
     private final az.millers.hcm.notifications.NotificationService notifications;
+    private final az.millers.hcm.security.scope.AccessScopeService accessScope;
     private final TransactionTemplate requiresNew;
 
     public GoalApprovalService(GoalRepository goals,
@@ -62,12 +63,14 @@ public class GoalApprovalService {
                                WorkflowService workflows,
                                AuditService audit,
                                az.millers.hcm.notifications.NotificationService notifications,
+                               az.millers.hcm.security.scope.AccessScopeService accessScope,
                                PlatformTransactionManager txManager) {
         this.goals = goals;
         this.employees = employees;
         this.workflows = workflows;
         this.audit = audit;
         this.notifications = notifications;
+        this.accessScope = accessScope;
         this.requiresNew = new TransactionTemplate(txManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -88,6 +91,12 @@ public class GoalApprovalService {
     /** Submit the employee's DRAFT goal plan for the cycle for manager approval. */
     @Transactional
     public List<Goal> submit(UUID cycleId, UUID employeeId) {
+        // GLOBAL RULES 7/8 (M402 security-gate fix) — submitting is limited to
+        // your own plan / your team's / HR scope.
+        if (!accessScope.isAccessible(employeeId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Employee is outside your access scope");
+        }
         List<Goal> plan = goals.findByCycleIdAndEmployeeIdOrderByCreatedAt(cycleId, employeeId).stream()
                 .filter(g -> g.getStatus() != GoalStatus.CANCELLED)
                 .toList();
