@@ -45,33 +45,24 @@ COMMENT ON TABLE lifecycle.employee_movement_request IS
     'M432 — Manager-initiated employee movement requests (transfer/promotion). EMP_MOVEMENT workflow. HR approves, then executes manually.';
 
 -- ── Seed EMP_MOVEMENT workflow (HR_ADMIN step) ──────────────────────────────
-INSERT INTO workflow.workflow_definition (id, definition_code, definition_name, version, description, active, created_at, created_by, updated_at, updated_by)
+INSERT INTO workflow.workflow_definition (id, code, name, description, active, created_at, updated_at)
 VALUES (
     gen_random_uuid(),
     'EMP_MOVEMENT',
     'Employee Movement Approval',
-    1,
     'M432 — Manager-initiated transfer/promotion request approval. Single HR_ADMIN step.',
     true,
     now(),
-    'system',
-    now(),
-    'system'
-) ON CONFLICT (definition_code, version) DO NOTHING;
+    now()
+) ON CONFLICT (code) DO NOTHING;
 
-INSERT INTO workflow.workflow_step (id, workflow_definition_id, step_order, step_code, step_name, role_code, is_final, created_at, created_by, updated_at, updated_by)
+INSERT INTO workflow.workflow_step (id, definition_id, step_order, name, approver_role)
 SELECT
     gen_random_uuid(),
     wd.id,
     1,
-    'HR_APPROVAL',
     'HR Approval',
-    'HR_ADMIN',
-    true,
-    now(),
-    'system',
-    now(),
-    'system'
+    'ROLE_HR_ADMIN'
 FROM workflow.workflow_definition wd
-WHERE wd.definition_code = 'EMP_MOVEMENT' AND wd.version = 1
-ON CONFLICT DO NOTHING;
+WHERE wd.code = 'EMP_MOVEMENT'
+ON CONFLICT (definition_id, step_order) DO NOTHING;

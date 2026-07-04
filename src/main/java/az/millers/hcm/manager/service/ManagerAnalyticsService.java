@@ -28,7 +28,7 @@ public class ManagerAnalyticsService {
     @Transactional(readOnly = true)
     public Map<String, Object> analytics() {
         Employee me = context.currentEmployee();
-        String tenantId = me.getTenantId();
+        String tenantId = "default"; // tenant_id constant (Employee JPA entity doesn't map it)
         List<Employee> reports = employees.findDirectReports(me.getId());
         List<UUID> reportIds = reports.stream().map(Employee::getId).toList();
 
