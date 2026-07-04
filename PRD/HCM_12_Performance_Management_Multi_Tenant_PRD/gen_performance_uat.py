@@ -84,6 +84,23 @@ CASES = [
  ("COM-03","Committee calibrate (M397)","Manager","Add the manager to the committee as MEMBER (as HR), start the session, then as that manager calibrate a review on the board.","The calibrate saves — committee MEMBERs may calibrate while the session is IN_PROGRESS."),
  ("VIS-01","Notes visibility (M397)","Employee","As an employee whose review has calibration notes, open your own review.","Calibration notes (and any override reason) are NOT visible to you — they are HR/committee-only (§19.3). Signing in as HR shows them."),
  ("OUT-01","Outliers (M397)","HR Admin","On the Calibration page scroll to 'Outliers & manager leniency'.","Shows the cycle average, a per-manager average with Δ tags (orange/red when ≥0.5 off), and individual reviews ≥1.0 from the cycle average."),
+ # ---------- Phase E.1: PIP (M398) ----------
+ ("PIP-01","PIP create (M398)","HR Admin","Performance → PIPs → 'New PIP'. Pick an employee, reason, start today, end +60 days, objectives + success criteria. Save.","A DRAFT PIP appears. Trying to create a SECOND PIP for the same employee is rejected (one live PIP per employee)."),
+ ("PIP-02","PIP lifecycle (M398)","HR Admin","Open the PIP → Activate. Then 'Acknowledge (employee)' with a comment. Then record a checkpoint (rating 2, comment).","DRAFT → ACTIVE (employee is notified) → ACKNOWLEDGED → after the checkpoint IN_PROGRESS. Checkpoints are blocked until acknowledged; the timeline shows the 2/5 rating in red."),
+ ("PIP-03","PIP extend + close (M398)","HR Admin","Extend the PIP with a later end date; then 'Close with outcome' = IMPROVED with notes.","EXTENDED shows the new window; closing with IMPROVED → COMPLETED_SUCCESS (any other outcome → FAILED). Outcome decisions are HR-only; history stays (nothing is deleted)."),
+ ("PIP-04","PIP evidence (M398)","HR Admin","In the PIP drawer upload a file under 'Evidence / documents'.","The file attaches via the standard uploader (M16 registry) and reloads with the PIP."),
+ # ---------- Phase E.2: development plans (M399) ----------
+ ("DVP-01","Dev plan (M399)","HR Admin","Performance → Development plans → 'New plan'. Employee, title, 3 actions of different types (e.g. Training course / Coaching / Stretch assignment). Save.","The plan appears at 0%; expanding shows the 3 typed actions."),
+ ("DVP-02","Dev plan progress (M399)","HR Admin","Mark one action Done, one In progress.","Progress becomes 33.33% and status flips to IN PROGRESS. Marking ALL actions Done → 100% and the plan auto-COMPLETES."),
+ ("DVP-03","From-gaps plan (M399)","HR Admin","On a review with positive competency gaps call the from-review generation (POST /api/performance/dev-plans/from-review/<reviewId> — or verify via the API tool).","A plan 'Close competency gaps — review …' is created with one TRAINING_COURSE action per positive gap (§21.3)."),
+ # ---------- Phase E.3: continuous feedback + check-ins (M400) ----------
+ ("CFB-01","Feedback (M400)","HR Admin","Performance → Check-ins → pick an employee → 'Give feedback': PRAISE, employee-visible, tags 'teamwork'. Then a second one: kind NOTE, visibility 'Private manager note'.","Both appear in the Feedback timeline; the private one carries a red 'manager-private' tag."),
+ ("CFB-02","Private-note visibility (M400)","Employee","Sign in as that employee and load your feedback (via My Workspace/API).","The PRAISE note is visible; the MANAGER_PRIVATE note is NOT returned to the employee (§22.1)."),
+ ("CIN-01","Check-in (M400)","HR Admin","'Record check-in': today, One-to-one, discussion notes + action items + follow-up date. Save. Then click Acknowledge on the row.","The check-in row appears with notes/actions/follow-up; acknowledging turns the Ack column into a green 'acknowledged' tag (one-shot)."),
+ # ---------- Phase F: dashboard + notifications + comp guard (M401/M402) ----------
+ ("DSH-01","Dashboard (M401)","HR Admin","Performance → Dashboard → pick the test cycle.","Stat cards populate (reviews, pending acknowledgement, disputed, goal plans awaiting approval, open appeals, active PIPs, active dev plans) plus the status funnel, rating distribution and top/bottom-5 performers."),
+ ("NTF-01","Notifications (M402)","Employee","After a manager approves/rejects your goal plan, HR decides your appeal, or a PIP is activated for you — check the notifications bell.","In-app notifications arrive for each event (goal plan approved/rejected, appeal decision incl. adjusted rating, PIP activated)."),
+ ("CMP-G1","Comp-bridge guard (M402)","HR Admin","Create a bonus run (Comp & Benefits → Bonus runs) for a cycle where one review is APPROVED/COMPLETED and another is still CALIBRATING.","Only the FINALISED (APPROVED/COMPLETED) reviews produce bonus items — the CALIBRATING review is excluded (pre-final ratings never reach compensation)."),
 ]
 
 wb = Workbook()
@@ -99,7 +116,7 @@ ws.cell(2,2,"HCM_12 Performance Management  •  front-end (browser) testing  �
 for r,l,v in [
  (4,"How to use","Open the 'Test Cases' sheet. Do exactly what the Steps say (which tab, which button, what to type), compare to the Expected Result, and pick Pass / Fail / Blocked / Not Run in the Result column. Add anything unusual under Tester Notes. Fill the Sign-off sheet at the end."),
  (6,"Application URL","http://localhost:5180 — sign in first. Performance features are under the top-nav 'Performance' menu."),
- (7,"Delivered so far","Phase A: rating scales (M388), review templates + cycle scoping (M389), KPI library + auto-scored assignments (M390), OKR + check-ins (M391). Phase B: goal-plan approval workflow + progress trail (M392), competency assessment with gap analysis (M393), §18 weighted scoring + band conversion + HR override (M394). Phase C: 360° reviewer nominations + questionnaires + min/max rules (M395). Phase D: result acknowledgement + appeals with preserved original rating (M396), calibration committee access control + HR-only calibration notes + outlier/leniency view (M397)."),
+ (7,"Delivered so far","ALL PHASES A–F COMPLETE. A: rating scales (M388), review templates + cycle scoping (M389), KPI library + auto-scored assignments (M390), OKR + check-ins (M391). B: goal-plan approval workflow + progress trail (M392), competency assessment with gaps (M393), §18 weighted scoring + band + HR override (M394). C: 360° nominations + questionnaires + min/max rules (M395). D: acknowledgement + appeals (M396), calibration committee + HR-only notes + outliers (M397). E: PIPs (M398), development plans (M399), continuous feedback + check-ins (M400). F: HR dashboard (M401), notifications + comp-bridge finalised-only guard (M402)."),
  (9,"Logins you will need","HR Admin (full performance admin), HR Specialist (read-only checks), Manager (team KPI/OKR), Employee (self-service scoping checks). If you only have an admin login, mark role-restriction rows Blocked with a note."),
  (11,"Result values","Pass = worked as expected.  Fail = did not match (add a note).  Blocked = could not run (missing login/data).  Not Run = skipped."),
  (12,"Good to know","Rating-scale bands convert numeric scores to ratings during weighted scoring (Phase B). Templates fix which sections a review has and their weights (scoring sections must total 100). KPI ratings compute automatically: LINEAR = achievement ÷ 20 (100% → 5.0); THRESHOLD = bands ≥110→5 / ≥100→4 / ≥80→3 / ≥60→2 / else 1. OKR objective progress = weighted average of key-result progress."),
@@ -140,7 +157,8 @@ areas=["Rating scales (SCL)","Review templates + cycle scoping (TPL)",
        "Goal-plan approval + progress trail (GPL/GPT)","Competency assessment (CMP)",
        "Weighted scoring + override (SCR/OVR)","360° nominations + questionnaires (Q36/N36)",
        "Acknowledgement + appeals (ACK/APL)","Calibration committee + outliers (COM/VIS/OUT)",
-       "Permissions (SEC)"]
+       "PIPs (PIP)","Development plans (DVP)","Continuous feedback + check-ins (CFB/CIN)",
+       "Dashboard + notifications + comp guard (DSH/NTF/CMP-G)","Permissions (SEC)"]
 dv2=DataValidation(type="list",formula1='"Pass,Fail,Blocked,Not Run"',allow_blank=True); so.add_data_validation(dv2)
 for j,a in enumerate(areas):
     r=4+j; so.cell(r,2,a).font=Font(name=FONT,size=11)
