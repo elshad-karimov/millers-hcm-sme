@@ -219,6 +219,45 @@ public class WorkflowService {
         return List.copyOf(merged.values());
     }
 
+    /**
+     * M435 — Filtered inbox with optional type/module and SLA status filters.
+     */
+    @Transactional(readOnly = true)
+    public List<WorkflowInstance> inboxFor(List<String> roles, String typeFilter, String moduleFilter, String slaStatusFilter) {
+        List<WorkflowInstance> all = inboxFor(roles);
+        if (typeFilter == null && moduleFilter == null && slaStatusFilter == null) {
+            return all;
+        }
+
+        return all.stream()
+                .filter(i -> {
+                    if (typeFilter != null && !typeFilter.isEmpty() && !i.getDefinitionCode().equals(typeFilter)) {
+                        return false;
+                    }
+                    if (moduleFilter != null && !moduleFilter.isEmpty() && !i.getSubjectModule().equals(moduleFilter)) {
+                        return false;
+                    }
+                    if (slaStatusFilter != null && !slaStatusFilter.isEmpty()) {
+                        boolean isOverdue = isSlaOverdue(i);
+                        if ("OVERDUE".equals(slaStatusFilter) && !isOverdue) return false;
+                        if ("OK".equals(slaStatusFilter) && isOverdue) return false;
+                    }
+                    return true;
+                })
+                .toList();
+    }
+
+    private boolean isSlaOverdue(WorkflowInstance instance) {
+        if (instance.getCurrentStepEnteredAt() == null) return false;
+        WorkflowStep currentStep = stepsFor(instance.getDefinitionId()).stream()
+                .filter(s -> s.getStepOrder() == instance.getCurrentStepIndex())
+                .findFirst()
+                .orElse(null);
+        if (currentStep == null || currentStep.getSlaHours() == null) return false;
+        OffsetDateTime slaDeadline = instance.getCurrentStepEnteredAt().plusHours(currentStep.getSlaHours());
+        return OffsetDateTime.now().isAfter(slaDeadline);
+    }
+
     @Transactional(readOnly = true)
     public List<WorkflowInstance> initiatedBy(String username) {
         return instances.findByInitiatedByOrderByInitiatedAtDesc(username);
@@ -428,6 +467,34 @@ public class WorkflowService {
             default -> throw new BadRequestException(
                     "Action " + req.action() + " cannot be invoked directly");
         }
+    }
+
+    /**
+     * M435 — Bulk action: apply the same action (APPROVE or REJECT) to multiple
+     * instances. Each instance re-runs the full permission check via act().
+     * Returns a list of {id, ok, error} results; never aborts on one failure.
+     */
+    @Transactional
+    public List<java.util.Map<String, Object>> bulkAct(List<UUID> instanceIds, ActionType action, String comment) {
+        if (action != ActionType.APPROVE && action != ActionType.REJECT) {
+            throw new BadRequestException("Bulk action only supports APPROVE or REJECT");
+        }
+
+        List<java.util.Map<String, Object>> results = new java.util.ArrayList<>();
+        for (UUID id : instanceIds) {
+            java.util.Map<String, Object> result = new java.util.HashMap<>();
+            result.put("id", id);
+            try {
+                ActionRequest req = new ActionRequest(action, comment, null, null);
+                act(id, req);
+                result.put("ok", true);
+            } catch (Exception e) {
+                result.put("ok", false);
+                result.put("error", e.getMessage());
+            }
+            results.add(result);
+        }
+        return results;
     }
 
     // ---------- Revision loop ----------

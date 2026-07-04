@@ -38,10 +38,13 @@ public class WorkflowController {
     }
 
     @GetMapping("/inbox")
-    public List<WorkflowInstanceResponse> inbox(Authentication authentication) {
+    public List<WorkflowInstanceResponse> inbox(Authentication authentication,
+                                                 @RequestParam(required = false) String type,
+                                                 @RequestParam(required = false) String module,
+                                                 @RequestParam(required = false) String slaStatus) {
         List<String> myRoles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority).toList();
-        return service.inboxFor(myRoles).stream()
+        return service.inboxFor(myRoles, type, module, slaStatus).stream()
                 .map(WorkflowInstanceResponse::from).toList();
     }
 
@@ -84,5 +87,14 @@ public class WorkflowController {
     public WorkflowInstanceResponse resubmit(@PathVariable UUID id,
                                               @RequestParam(required = false) String comment) {
         return WorkflowInstanceResponse.from(service.resubmit(id, comment));
+    }
+
+    /**
+     * M435 — Bulk action: apply the same action to multiple instances.
+     * Each instance re-checks permission; failures are returned per-item.
+     */
+    @PostMapping("/bulk-act")
+    public List<java.util.Map<String, Object>> bulkAct(@Valid @RequestBody az.millers.hcm.workflow.api.dto.BulkActionRequest req) {
+        return service.bulkAct(req.instanceIds(), req.action(), req.comment());
     }
 }
