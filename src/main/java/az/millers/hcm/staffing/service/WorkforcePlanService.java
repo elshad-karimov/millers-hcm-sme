@@ -15,6 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.compensation.domain.BudgetScopeType;
+import az.millers.hcm.compensation.domain.BudgetType;
+import az.millers.hcm.compensation.domain.CompensationBudget;
+import az.millers.hcm.compensation.repo.CompensationBudgetRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.domain.Position;
 import az.millers.hcm.staffing.domain.PositionStatus;
@@ -46,17 +50,20 @@ public class WorkforcePlanService {
     private final WorkforcePlanRepository plans;
     private final WorkforcePlanLineRepository lines;
     private final PositionRepository positions;
+    private final CompensationBudgetRepository compensationBudgets;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
     public WorkforcePlanService(WorkforcePlanRepository plans,
                                  WorkforcePlanLineRepository lines,
                                  PositionRepository positions,
+                                 CompensationBudgetRepository compensationBudgets,
                                  AuditService audit,
                                  CurrentRequest currentRequest) {
         this.plans = plans;
         this.lines = lines;
         this.positions = positions;
+        this.compensationBudgets = compensationBudgets;
         this.audit = audit;
         this.currentRequest = currentRequest;
     }
@@ -455,5 +462,46 @@ public class WorkforcePlanService {
     private PlanSnapshot snapshot(WorkforcePlan p) {
         return new PlanSnapshot(p.getId(), p.getLegalEntityId(), p.getVersionCode(),
                 p.getScenarioType(), p.getStatus(), p.getEffectiveFrom());
+    }
+
+    // ── M424: Plan→Budget Transfer ────────────────────────────────────────
+
+    /**
+     * M424: Transfer approved workforce plan totals to compensation budget.
+     * Creates budget rows from plan totals. Idempotent (checks for existing transfer).
+     */
+    @Transactional
+    public CompensationBudget transferToBudget(UUID planId) {
+        WorkforcePlan plan = get(planId);
+
+        if (plan.getStatus() != WorkforcePlanStatus.APPROVED) {
+            throw new BadRequestException("Only APPROVED plans can be transferred to budget");
+        }
+
+        // Check if already transferred (idempotency)
+        String scopeRef = "PLAN:" + planId.toString();
+        if (compensationBudgets.existsByScopeTypeAndScopeRef(BudgetScopeType.GLOBAL, scopeRef)) {
+            throw new BadRequestException("Plan already transferred to budget");
+        }
+
+        List<WorkforcePlanLine> planLines = linesFor(planId);
+        BigDecimal totalAnnualCost = planLines.stream()
+                .map(WorkforcePlanLine::plannedAnnualCost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        CompensationBudget budget = new CompensationBudget();
+        budget.setTenantId("default");
+        budget.setScopeType(BudgetScopeType.GLOBAL);
+        budget.setScopeRef(scopeRef);
+        budget.setBudgetType(BudgetType.MERIT);
+        budget.setAmount(totalAnnualCost);
+        budget.setCurrency(planLines.isEmpty() ? "AZN" : planLines.get(0).getCurrency());
+        budget.setEffectiveFrom(plan.getEffectiveFrom());
+        budget.setEffectiveTo(plan.getEffectiveTo());
+        budget.setIsActive(true);
+
+        CompensationBudget saved = compensationBudgets.save(budget);
+        audit.record(MODULE, ENTITY, planId.toString(), "TRANSFER_TO_BUDGET", null, saved.getId());
+        return saved;
     }
 }

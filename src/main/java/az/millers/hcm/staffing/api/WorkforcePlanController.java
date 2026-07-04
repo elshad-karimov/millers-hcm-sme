@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.compensation.api.dto.CompensationBudgetResponse;
 import az.millers.hcm.security.SecurityRoles;
 import az.millers.hcm.staffing.api.dto.WorkforcePlanDtos.CloneRequest;
 import az.millers.hcm.staffing.api.dto.WorkforcePlanDtos.DiffResponse;
@@ -146,5 +147,13 @@ public class WorkforcePlanController {
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','HR_SPECIALIST','AUDITOR','FINANCE_USER')")
     public VarianceResponse variance(@PathVariable UUID id) {
         return VarianceResponse.from(service.varianceVsActual(id));
+    }
+
+    // ── M424: Transfer to Budget ───────────────────────────────────────
+
+    @PostMapping("/{id}/transfer-to-budget")
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    public CompensationBudgetResponse transferToBudget(@PathVariable UUID id) {
+        return CompensationBudgetResponse.from(service.transferToBudget(id));
     }
 }

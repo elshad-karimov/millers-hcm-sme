@@ -26,4 +26,6 @@ public interface CompensationBudgetRepository extends JpaRepository<Compensation
     @Query("SELECT b FROM CompensationBudget b WHERE b.tenantId = ?1 AND b.budgetType = ?2 " +
            "AND b.scopeType = 'GLOBAL' AND b.isActive = true")
     Optional<CompensationBudget> findActiveGlobalBudget(String tenantId, BudgetType budgetType);
+
+    boolean existsByScopeTypeAndScopeRef(BudgetScopeType scopeType, String scopeRef);
 }
