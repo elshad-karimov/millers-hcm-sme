@@ -115,6 +115,7 @@ import { Feedback360Page } from './pages/performance/Feedback360Page'
 import { PipPage } from './pages/performance/PipPage'
 import { DevPlansPage } from './pages/performance/DevPlansPage'
 import { CheckInsPage } from './pages/performance/CheckInsPage'
+import { PerformanceDashboardPage } from './pages/performance/PerformanceDashboardPage'
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
@@ -328,6 +329,8 @@ export default function App() {
           <Route path="performance/dev-plans" element={<DevPlansPage />} />
           {/* HCM_12 M400 — continuous feedback + check-ins */}
           <Route path="performance/checkins" element={<CheckInsPage />} />
+          {/* HCM_12 M401 — HR performance dashboard */}
+          <Route path="performance/dashboard" element={<PerformanceDashboardPage />} />
           <Route path="performance/cycles" element={<ReviewCyclesPage />} />
           <Route path="performance/cycles/new" element={<ReviewCycleFormPage />} />
           <Route path="performance/cycles/:id/edit" element={<ReviewCycleFormPage />} />
