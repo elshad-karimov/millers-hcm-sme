@@ -119,6 +119,7 @@ import { PerformanceDashboardPage } from './pages/performance/PerformanceDashboa
 import { SuccessionGridPage } from './pages/performance/SuccessionGridPage'
 import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
+import { TalentPoolsPage } from './pages/performance/TalentPoolsPage'
 import CareerPage from './pages/career/CareerPage'
 import { ReviewCycleFormPage } from './pages/ReviewCycleFormPage'
 import { GoalsPage } from './pages/GoalsPage'
@@ -345,6 +346,8 @@ export default function App() {
           <Route path="performance/succession/:cycleId/bench" element={<BenchDepthPage />} />
           {/* M103 — named successor nominations */}
           <Route path="performance/succession/nominations" element={<SuccessionNominationsPage />} />
+          {/* HCM_15 M410 — employee talent pools */}
+          <Route path="talent/pools" element={<TalentPoolsPage />} />
           <Route path="career" element={<CareerPage />} />
           <Route path="performance/goals" element={<GoalsPage />} />
           <Route path="performance/reviews" element={<PerformanceReviewsPage />} />

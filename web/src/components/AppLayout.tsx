@@ -892,6 +892,24 @@ export function AppLayout() {
         ]
       : []),
 
+    // ── Talent (HR-only) ───────────────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'talent',
+            icon: <ProfileOutlined />,
+            label: 'Talent',
+            children: [
+              {
+                key: 'talent-pools',
+                icon: <TeamOutlined />,
+                label: <Link to="/talent/pools">Talent Pools</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
     // ── Learning (HR + Manager) ────────────────────────────────────────────
     ...(hrOrManager
       ? [
