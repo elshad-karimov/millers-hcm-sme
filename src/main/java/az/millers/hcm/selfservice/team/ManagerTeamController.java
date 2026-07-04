@@ -40,4 +40,13 @@ public class ManagerTeamController {
     public TeamSummary summary() {
         return service.summary();
     }
+
+    /**
+     * M433 — Team compensation view: requires manager_can_view_salary setting.
+     * Returns current salaries for direct reports only.
+     */
+    @GetMapping("/compensation")
+    public List<az.millers.hcm.selfservice.team.TeamDtos.TeamCompensation> compensation() {
+        return service.teamCompensation();
+    }
 }
