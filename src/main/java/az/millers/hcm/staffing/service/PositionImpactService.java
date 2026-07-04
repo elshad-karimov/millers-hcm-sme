@@ -107,7 +107,7 @@ public class PositionImpactService {
         String currency = budgetOpt.map(PositionBudget::getCurrency).orElse(p.getCurrency());
 
         // ── Successor coverage ───────────────────────────────────
-        var noms = nominations.findByPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(positionId);
+        var noms = nominations.findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", positionId);
         int nominationCount = noms.size();
         boolean readyNow = noms.stream().anyMatch(n ->
                 n.getReadinessTier() == az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness.READY_NOW);

@@ -65,8 +65,8 @@ public class SuccessionNominationService {
         validateRiskImpact(req.impactOfLoss(), "impactOfLoss");
 
         // Guard: partial unique index handles the race; pre-check gives friendly message.
-        nominations.findByPositionIdAndNomineeEmployeeIdAndCancelledAtIsNull(
-                positionId, req.nomineeEmployeeId())
+        nominations.findByTenantIdAndPositionIdAndNomineeEmployeeIdAndCancelledAtIsNull(
+                "default", positionId, req.nomineeEmployeeId())
                 .ifPresent(existing -> {
                     throw new BadRequestException(
                             "An active nomination already exists for this (position, nominee) pair. "
@@ -116,7 +116,7 @@ public class SuccessionNominationService {
     public List<NominationResponse> forPosition(UUID positionId) {
         Position pos = positions.findById(positionId).orElse(null);
         return nominations
-                .findByPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(positionId).stream()
+                .findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", positionId).stream()
                 .map(n -> toResponse(n, pos))
                 .toList();
     }
@@ -124,7 +124,7 @@ public class SuccessionNominationService {
     @Transactional(readOnly = true)
     public List<NominationResponse> forNominee(UUID employeeId) {
         return nominations
-                .findByNomineeEmployeeIdAndCancelledAtIsNullOrderByCreatedAtDesc(employeeId).stream()
+                .findByTenantIdAndNomineeEmployeeIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", employeeId).stream()
                 .map(n -> {
                     Position pos = positions.findById(n.getPositionId()).orElse(null);
                     return toResponse(n, pos);

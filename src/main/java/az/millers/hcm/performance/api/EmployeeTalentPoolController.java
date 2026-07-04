@@ -140,7 +140,7 @@ public class EmployeeTalentPoolController {
         if (!pools.existsById(poolId)) {
             throw new ResourceNotFoundException("Talent pool not found: " + poolId);
         }
-        return members.findByPoolIdOrderByAddedAtDesc(poolId);
+        return members.findByTenantIdAndPoolIdOrderByAddedAtDesc(TENANT, poolId);
     }
 
     @PostMapping("/{poolId}/members")
@@ -154,7 +154,7 @@ public class EmployeeTalentPoolController {
         if (req.employeeId() == null || !employees.existsById(req.employeeId())) {
             throw new BadRequestException("Employee not found: " + req.employeeId());
         }
-        if (members.existsByPoolIdAndEmployeeId(poolId, req.employeeId())) {
+        if (members.existsByTenantIdAndPoolIdAndEmployeeId(TENANT, poolId, req.employeeId())) {
             throw new BadRequestException("Employee is already in this pool");
         }
         EmployeePoolMember member = new EmployeePoolMember();
@@ -173,10 +173,10 @@ public class EmployeeTalentPoolController {
     @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     @Transactional
     public void removeMember(@PathVariable UUID poolId, @PathVariable UUID employeeId) {
-        if (!members.existsByPoolIdAndEmployeeId(poolId, employeeId)) {
+        if (!members.existsByTenantIdAndPoolIdAndEmployeeId(TENANT, poolId, employeeId)) {
             throw new ResourceNotFoundException("Member not found in this pool");
         }
-        members.deleteByPoolIdAndEmployeeId(poolId, employeeId);
+        members.deleteByTenantIdAndPoolIdAndEmployeeId(TENANT, poolId, employeeId);
         audit.record(MODULE, "EmployeePoolMember", poolId + "/" + employeeId,
                 "REMOVE", employeeId.toString(), null);
     }

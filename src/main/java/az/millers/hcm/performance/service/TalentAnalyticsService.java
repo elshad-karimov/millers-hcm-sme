@@ -107,7 +107,7 @@ public class TalentAnalyticsService {
         List<PoolCoverage> poolCoverage = pools.findByTenantIdAndActiveTrueOrderByCodeAsc(TENANT)
                 .stream()
                 .map(pool -> {
-                    long count = members.findByPoolIdOrderByAddedAtDesc(pool.getId()).size();
+                    long count = members.findByTenantIdAndPoolIdOrderByAddedAtDesc(TENANT, pool.getId()).size();
                     return new PoolCoverage(pool.getCode(), pool.getName(), count);
                 })
                 .toList();

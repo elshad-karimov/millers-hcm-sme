@@ -28,6 +28,7 @@ import az.millers.hcm.learning.repo.TrainingFeedbackRepository;
 import az.millers.hcm.learning.repo.TrainingSessionRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.SecurityRoles;
+import az.millers.hcm.security.scope.AccessScopeService;
 
 /**
  * HCM_14 M407 (cost tracking §19) + M408 (feedback §20). Thin CRUD kept in the
@@ -53,6 +54,7 @@ public class TrainingCostFeedbackController {
     private final InstructorRepository instructors;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final AccessScopeService accessScope;
 
     public TrainingCostFeedbackController(TrainingCostRepository costs,
                                           TrainingFeedbackRepository feedback,
@@ -60,7 +62,8 @@ public class TrainingCostFeedbackController {
                                           TrainingAttendanceRepository attendance,
                                           InstructorRepository instructors,
                                           AuditService audit,
-                                          CurrentRequest currentRequest) {
+                                          CurrentRequest currentRequest,
+                                          AccessScopeService accessScope) {
         this.costs = costs;
         this.feedback = feedback;
         this.sessions = sessions;
@@ -68,6 +71,7 @@ public class TrainingCostFeedbackController {
         this.instructors = instructors;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.accessScope = accessScope;
     }
 
     // ── M407 costs ──────────────────────────────────────────────────────────
@@ -130,6 +134,11 @@ public class TrainingCostFeedbackController {
         }
         if (req.overallRating() == null || req.overallRating() < 1 || req.overallRating() > 5) {
             throw new BadRequestException("overallRating must be 1..5");
+        }
+        // Scope guard: prevent cross-hierarchy feedback forgery
+        if (!accessScope.isAccessible(req.employeeId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Employee is outside your access scope");
         }
         if (req.sessionId() != null) {
             if (!attendance.existsBySessionIdAndEmployeeId(req.sessionId(), req.employeeId())) {

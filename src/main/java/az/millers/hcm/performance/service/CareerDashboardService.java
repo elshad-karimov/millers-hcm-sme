@@ -69,7 +69,7 @@ public class CareerDashboardService {
                 .toList();
 
         // Mentoring relationships
-        List<MentoringRelationship> mentorList = mentoring.findByMentorEmployeeIdOrMenteeEmployeeId(employeeId, employeeId);
+        List<MentoringRelationship> mentorList = mentoring.findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId("default", employeeId, employeeId);
         List<MentoringInfo> mentoringInfos = mentorList.stream()
                 .map(m -> new MentoringInfo(
                         m.getId(),
@@ -154,7 +154,7 @@ public class CareerDashboardService {
     private CareerPathInfo loadCareerPath(UUID pathId) {
         var params = new MapSqlParameterSource("id", pathId);
         List<CareerPathInfo> paths = jdbc.query(
-                "SELECT id::text, code, name FROM staffing.career_path WHERE id = :id",
+                "SELECT id::text, code, name FROM staffing.career_path WHERE id = :id AND tenant_id = 'default'",
                 params,
                 (rs, i) -> new CareerPathInfo(
                         UUID.fromString(rs.getString("id")),

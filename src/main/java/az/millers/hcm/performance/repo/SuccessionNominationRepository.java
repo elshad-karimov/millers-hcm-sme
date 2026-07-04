@@ -10,10 +10,12 @@ import az.millers.hcm.performance.domain.SuccessionNomination;
 
 public interface SuccessionNominationRepository extends JpaRepository<SuccessionNomination, UUID> {
 
-    List<SuccessionNomination> findByPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(UUID positionId);
+    List<SuccessionNomination> findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(
+            String tenantId, UUID positionId);
 
-    List<SuccessionNomination> findByNomineeEmployeeIdAndCancelledAtIsNullOrderByCreatedAtDesc(UUID nomineeEmployeeId);
+    List<SuccessionNomination> findByTenantIdAndNomineeEmployeeIdAndCancelledAtIsNullOrderByCreatedAtDesc(
+            String tenantId, UUID nomineeEmployeeId);
 
-    Optional<SuccessionNomination> findByPositionIdAndNomineeEmployeeIdAndCancelledAtIsNull(
-            UUID positionId, UUID nomineeEmployeeId);
+    Optional<SuccessionNomination> findByTenantIdAndPositionIdAndNomineeEmployeeIdAndCancelledAtIsNull(
+            String tenantId, UUID positionId, UUID nomineeEmployeeId);
 }

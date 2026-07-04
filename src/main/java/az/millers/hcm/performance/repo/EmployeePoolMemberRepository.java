@@ -9,11 +9,11 @@ import az.millers.hcm.performance.domain.EmployeePoolMember;
 
 public interface EmployeePoolMemberRepository extends JpaRepository<EmployeePoolMember, UUID> {
 
-    List<EmployeePoolMember> findByPoolIdOrderByAddedAtDesc(UUID poolId);
+    List<EmployeePoolMember> findByTenantIdAndPoolIdOrderByAddedAtDesc(String tenantId, UUID poolId);
 
     List<EmployeePoolMember> findByTenantIdAndEmployeeIdOrderByAddedAtDesc(String tenantId, UUID employeeId);
 
-    boolean existsByPoolIdAndEmployeeId(UUID poolId, UUID employeeId);
+    boolean existsByTenantIdAndPoolIdAndEmployeeId(String tenantId, UUID poolId, UUID employeeId);
 
-    void deleteByPoolIdAndEmployeeId(UUID poolId, UUID employeeId);
+    void deleteByTenantIdAndPoolIdAndEmployeeId(String tenantId, UUID poolId, UUID employeeId);
 }

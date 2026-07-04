@@ -75,7 +75,7 @@ public class SuccessionChartService {
         // Load nominations for these positions
         Map<UUID, List<SuccessionNomination>> nomsMap = new HashMap<>();
         for (UUID posId : positionIds) {
-            nomsMap.put(posId, nominations.findByPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(posId));
+            nomsMap.put(posId, nominations.findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", posId));
         }
 
         // Load dev plans for all nominations
@@ -212,7 +212,7 @@ public class SuccessionChartService {
                 SELECT e.id::text AS emp_id, e.position_id::text AS pos_id,
                        e.first_name, e.last_name, e.employee_no
                 FROM core_hr.employee e
-                WHERE e.position_id IN (:ids) AND e.employment_status = 'ACTIVE'
+                WHERE e.position_id IN (:ids) AND e.employment_status = 'ACTIVE' AND e.tenant_id = 'default'
                 """,
                 params,
                 (rs, i) -> new IncumbentRow(
@@ -234,7 +234,7 @@ public class SuccessionChartService {
     private String loadEmployeeName(UUID empId) {
         var params = new MapSqlParameterSource("id", empId);
         List<String> names = jdbc.query(
-                "SELECT first_name || ' ' || last_name AS name FROM core_hr.employee WHERE id = :id",
+                "SELECT first_name || ' ' || last_name AS name FROM core_hr.employee WHERE id = :id AND tenant_id = 'default'",
                 params,
                 (rs, i) -> rs.getString("name")
         );
@@ -248,7 +248,7 @@ public class SuccessionChartService {
                 """
                 SELECT nomination_id::text, dev_plan_id::text
                 FROM performance.succession_dev_action
-                WHERE nomination_id IN (:ids)
+                WHERE nomination_id IN (:ids) AND tenant_id = 'default'
                 """,
                 params,
                 (rs, i) -> new DevPlanRow(

@@ -102,7 +102,7 @@ public class MentoringService {
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor profile not found: " + mentorProfileId));
 
         // Check if already requested/active
-        List<MentoringRelationship> existing = relationships.findActiveOrRequestedForPair(menteeId, mentor.getEmployeeId());
+        List<MentoringRelationship> existing = relationships.findActiveOrRequestedForPair("default", menteeId, mentor.getEmployeeId());
         if (!existing.isEmpty()) {
             throw new BadRequestException("Already have an active/requested relationship with this mentor");
         }
@@ -136,10 +136,13 @@ public class MentoringService {
             throw new AccessDeniedException("Only mentor or HR can approve");
         }
 
-        // Capacity check
+        // Capacity check with pessimistic lock to prevent race
         MentorProfile profile = profiles.findByTenantIdAndEmployeeId("default", rel.getMentorEmployeeId())
                 .orElseThrow(() -> new BadRequestException("Mentor profile not found"));
-        long activeCount = relationships.countActiveMenteesByMentor(rel.getMentorEmployeeId());
+        // Lock the profile row to prevent concurrent approvals
+        profiles.lockById(profile.getId())
+                .orElseThrow(() -> new BadRequestException("Mentor profile not found"));
+        long activeCount = relationships.countActiveMenteesByMentor("default", rel.getMentorEmployeeId());
         if (activeCount >= profile.getMaxMentees()) {
             throw new BadRequestException("Mentor at capacity (" + activeCount + "/" + profile.getMaxMentees() + ")");
         }
@@ -183,6 +186,7 @@ public class MentoringService {
         MentoringRelationship rel = mustFind(relationshipId);
         rel.setMeetingNotes(notes);
         relationships.save(rel);
+        audit.record(MODULE, "MentoringRelationship", relationshipId.toString(), "NOTES_UPDATE", null, null);
         return toRelationshipResponse(rel);
     }
 
@@ -192,13 +196,13 @@ public class MentoringService {
         boolean isHR = currentRequest.hasRole("HR_ADMIN") || currentRequest.hasRole("HR_SPECIALIST");
         if (isHR) {
             // HR sees all
-            return relationships.findAll().stream()
+            return relationships.findByTenantIdOrderByCreatedAtDesc("default").stream()
                     .map(this::toRelationshipResponse)
                     .toList();
         } else {
             // Non-HR: only see where they're mentor or mentee
             UUID empId = empContext.currentEmployee().getId();
-            return relationships.findByMentorEmployeeIdOrMenteeEmployeeId(empId, empId).stream()
+            return relationships.findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId("default", empId, empId).stream()
                     .map(this::toRelationshipResponse)
                     .toList();
         }
@@ -244,7 +248,7 @@ public class MentoringService {
     private String loadEmployeeName(UUID empId) {
         var params = new MapSqlParameterSource("id", empId);
         List<String> names = jdbc.query(
-                "SELECT first_name || ' ' || last_name AS name FROM core_hr.employee WHERE id = :id",
+                "SELECT first_name || ' ' || last_name AS name FROM core_hr.employee WHERE id = :id AND tenant_id = 'default'",
                 params,
                 (rs, i) -> rs.getString("name")
         );

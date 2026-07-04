@@ -276,7 +276,7 @@ public class SuccessionPlanService {
         int atRiskCount = 0;
         for (Position p : critical) {
             List<SuccessionNomination> active = nominations
-                    .findByPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(p.getId());
+                    .findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", p.getId());
             int total = active.size();
             int readyNow = 0, readySoon = 0, readyLong = 0;
             for (SuccessionNomination n : active) {

@@ -13,17 +13,23 @@ public interface MentoringRelationshipRepository extends JpaRepository<Mentoring
 
     @Query("""
         SELECT COUNT(*) FROM MentoringRelationship r
-        WHERE r.mentorEmployeeId = :mentorId AND r.status = 'ACTIVE'
+        WHERE r.tenantId = :tenantId AND r.mentorEmployeeId = :mentorId AND r.status = 'ACTIVE'
     """)
-    long countActiveMenteesByMentor(@Param("mentorId") UUID mentorId);
+    long countActiveMenteesByMentor(@Param("tenantId") String tenantId, @Param("mentorId") UUID mentorId);
 
-    List<MentoringRelationship> findByMentorEmployeeIdOrMenteeEmployeeId(UUID mentorId, UUID menteeId);
+    List<MentoringRelationship> findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId(
+            String tenantId, UUID mentorId, UUID menteeId);
 
     @Query("""
         SELECT r FROM MentoringRelationship r
-        WHERE (r.menteeEmployeeId = :menteeId AND r.mentorEmployeeId = :mentorId)
+        WHERE r.tenantId = :tenantId
+          AND (r.menteeEmployeeId = :menteeId AND r.mentorEmployeeId = :mentorId)
           AND r.status IN ('REQUESTED', 'ACTIVE')
     """)
     List<MentoringRelationship> findActiveOrRequestedForPair(
-            @Param("menteeId") UUID menteeId, @Param("mentorId") UUID mentorId);
+            @Param("tenantId") String tenantId,
+            @Param("menteeId") UUID menteeId,
+            @Param("mentorId") UUID mentorId);
+
+    List<MentoringRelationship> findByTenantIdOrderByCreatedAtDesc(String tenantId);
 }
