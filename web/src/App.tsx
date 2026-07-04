@@ -121,6 +121,7 @@ import { BenchDepthPage } from './pages/performance/BenchDepthPage'
 import { SuccessionNominationsPage } from './pages/performance/SuccessionNominationsPage'
 import { SuccessionChartPage } from './pages/performance/SuccessionChartPage'
 import { CareerPathsPage } from './pages/performance/CareerPathsPage'
+import { MentoringPage } from './pages/performance/MentoringPage'
 import { TalentPoolsPage } from './pages/performance/TalentPoolsPage'
 import { TalentReviewsPage } from './pages/performance/TalentReviewsPage'
 import { TalentAnalyticsPage } from './pages/performance/TalentAnalyticsPage'
@@ -355,6 +356,8 @@ export default function App() {
           <Route path="talent/replacement-chart" element={<SuccessionChartPage />} />
           {/* M416 — career paths */}
           <Route path="talent/career-paths" element={<CareerPathsPage />} />
+          {/* M417 — mentoring */}
+          <Route path="talent/mentoring" element={<MentoringPage />} />
           {/* HCM_15 M410 — employee talent pools */}
           <Route path="talent/pools" element={<TalentPoolsPage />} />
           {/* HCM_15 M411 — talent reviews */}

@@ -930,6 +930,11 @@ export function AppLayout() {
                 icon: <RocketOutlined />,
                 label: <Link to="/talent/career-paths">Career Paths</Link>,
               },
+              {
+                key: 'mentoring',
+                icon: <TeamOutlined />,
+                label: <Link to="/talent/mentoring">Mentoring</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
