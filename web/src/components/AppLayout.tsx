@@ -930,6 +930,11 @@ export function AppLayout() {
                 icon: <ProfileOutlined />,
                 label: <Link to="/learning/training-plans">{tNav('sub.learning.trainingPlans')}</Link>,
               },
+              {
+                key: 'learning-classroom',
+                icon: <CalendarOutlined />,
+                label: <Link to="/learning/classroom">Classroom training</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
