@@ -22,5 +22,9 @@ public record GoalRequest(
         GoalStatus status,
         LocalDate dueDate,
         /** Optional: links this DEVELOPMENT goal to a course for auto-rating (M49). */
-        UUID sourceCourseId) {
+        UUID sourceCourseId,
+        /** M403 — business goal type (PRD 13 §4) + org anchors for org-level goals. */
+        UUID goalTypeId,
+        UUID orgUnitId,
+        UUID legalEntityId) {
 }

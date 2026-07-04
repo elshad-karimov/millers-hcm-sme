@@ -114,10 +114,32 @@ export interface Goal {
   /** M392 — NOT_SUBMITTED | PENDING_APPROVAL | APPROVED | REJECTED. */
   approvalStatus: GoalApprovalStatus
   workflowInstanceId?: string | null
+  /** M403 — business goal type + org anchors. */
+  goalTypeId?: string | null
+  orgUnitId?: string | null
+  legalEntityId?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
   updatedBy?: string | null
+}
+
+// M403 — business goal-type catalog (HCM_13 §4)
+export interface GoalTypeEntry {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  defaultCategory: GoalCategory
+  sortOrder: number
+  active: boolean
+}
+
+export const goalTypesApi = {
+  list: (activeOnly = true) =>
+    api
+      .get<GoalTypeEntry[]>('/performance/goal-types', { params: { activeOnly } })
+      .then((r) => r.data),
 }
 
 // M392 — goal-plan approval + §6.4 progress trail
@@ -169,6 +191,10 @@ export interface GoalRequest {
   dueDate?: string
   /** Optional: link this DEVELOPMENT goal to an LMS course (M49). */
   sourceCourseId?: string
+  /** M403 — business goal type + org anchors. */
+  goalTypeId?: string
+  orgUnitId?: string
+  legalEntityId?: string
 }
 
 export interface PerformanceReview {

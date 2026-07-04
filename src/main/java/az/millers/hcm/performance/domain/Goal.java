@@ -106,6 +106,18 @@ public class Goal {
     @Column(name = "workflow_instance_id")
     private UUID workflowInstanceId;
 
+    // ── M403 — business goal type + organisational anchors (PRD 13 §4/§5) ──
+
+    @Column(name = "goal_type_id")
+    private UUID goalTypeId;
+
+    /** Department / business-unit anchor for org-level goals. */
+    @Column(name = "org_unit_id")
+    private UUID orgUnitId;
+
+    @Column(name = "legal_entity_id")
+    private UUID legalEntityId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

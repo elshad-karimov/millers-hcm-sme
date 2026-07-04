@@ -25,6 +25,7 @@ import { BookOutlined, BranchesOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DataNode } from 'antd/es/tree'
 import {
+  goalTypesApi,
   performanceApi,
   type Goal,
   type GoalApprovalStatus,
@@ -33,6 +34,7 @@ import {
   type GoalRequest,
   type GoalStatus,
   type GoalTreeNode,
+  type GoalTypeEntry,
   type ReviewCycle,
 } from '../api/performance'
 import { learningApi, type Course } from '../api/learning'
@@ -78,6 +80,8 @@ interface NewGoalForm {
   weightPercent?: number
   dueDate?: string
   sourceCourseId?: string
+  /** M403 — business goal type (auto-picks the category). */
+  goalTypeId?: string
 }
 
 interface ProgressForm {
@@ -100,6 +104,7 @@ export function GoalsPage() {
   const [cycles, setCycles] = useState<ReviewCycle[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [goalTypes, setGoalTypes] = useState<GoalTypeEntry[]>([])
   const [cycleId, setCycleId] = useState<string | undefined>()
   const [employeeId, setEmployeeId] = useState<string | undefined>()
   const [rows, setRows] = useState<Goal[]>([])
@@ -131,10 +136,12 @@ export function GoalsPage() {
       performanceApi.cycles(),
       employeesApi.list({ size: 500 }),
       learningApi.courses({ status: 'PUBLISHED', size: 500 }),
-    ]).then(([c, e, cs]) => {
+      goalTypesApi.list(),
+    ]).then(([c, e, cs, gt]) => {
       setCycles(c)
       setEmployees(e.content)
       setCourses(cs.content)
+      setGoalTypes(gt)
       if (c.length && !cycleId) {
         const open = c.find((x) => x.status === 'OPEN') ?? c[0]
         setCycleId(open.id)
@@ -257,6 +264,7 @@ export function GoalsPage() {
       dueDate: v.dueDate,
       status: 'ACTIVE',
       sourceCourseId: v.category === 'DEVELOPMENT' ? v.sourceCourseId : undefined,
+      goalTypeId: v.goalTypeId,
     }
     try {
       await performanceApi.createGoal(payload)
@@ -356,6 +364,16 @@ export function GoalsPage() {
       dataIndex: 'category',
       width: 130,
       render: (c: GoalCategory) => <Tag color={CATEGORY_COLOR[c]}>{c}</Tag>,
+    },
+    {
+      title: 'Type',
+      dataIndex: 'goalTypeId',
+      width: 150,
+      render: (id?: string | null) => {
+        if (!id) return <Typography.Text type="secondary">—</Typography.Text>
+        const t = goalTypes.find((x) => x.id === id)
+        return t ? <Tag color="purple">{t.name}</Tag> : '—'
+      },
     },
     {
       title: 'Weight',
@@ -578,6 +596,23 @@ export function GoalsPage() {
           </Form.Item>
           <Form.Item name="title" label="Title" rules={[{ required: true, max: 240 }]}>
             <Input />
+          </Form.Item>
+          {/* M403 — business goal type; picking one pre-selects the category */}
+          <Form.Item name="goalTypeId" label="Goal type">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="e.g. Sales goal, Compliance goal…"
+              options={goalTypes.map((t) => ({ value: t.id, label: t.name }))}
+              onChange={(id) => {
+                const t = goalTypes.find((x) => x.id === id)
+                if (t) {
+                  createForm.setFieldValue('category', t.defaultCategory)
+                  setCreateCategory(t.defaultCategory)
+                }
+              }}
+            />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>

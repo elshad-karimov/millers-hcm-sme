@@ -33,6 +33,10 @@ public record GoalResponse(
         /** M392 — NOT_SUBMITTED | PENDING_APPROVAL | APPROVED | REJECTED. */
         String approvalStatus,
         UUID workflowInstanceId,
+        /** M403 — business goal type + org anchors. */
+        UUID goalTypeId,
+        UUID orgUnitId,
+        UUID legalEntityId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -46,6 +50,7 @@ public record GoalResponse(
                 g.getRating(), g.getRatingNote(), g.getSourceCourseId(),
                 g.getCascadedBy(), g.getCascadedAt(),
                 g.getApprovalStatus(), g.getWorkflowInstanceId(),
+                g.getGoalTypeId(), g.getOrgUnitId(), g.getLegalEntityId(),
                 g.getCreatedAt(), g.getUpdatedAt(), g.getCreatedBy(), g.getUpdatedBy());
     }
 }

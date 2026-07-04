@@ -238,6 +238,10 @@ public class GoalService {
         g.setDueDate(req.dueDate());
         // M49: optional LMS course link for auto-rating on PASSED enrollment
         g.setSourceCourseId(req.sourceCourseId());
+        // M403: business goal type + org anchors (PRD 13 §4/§5)
+        g.setGoalTypeId(req.goalTypeId());
+        g.setOrgUnitId(req.orgUnitId());
+        g.setLegalEntityId(req.legalEntityId());
     }
 
     private void validateWeight(BigDecimal weight) {
