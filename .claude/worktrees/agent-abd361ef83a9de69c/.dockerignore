@@ -1,0 +1,24 @@
+# Ignore build outputs except the JAR that CI hands in
+target/
+!target/*.jar
+
+# Dev tooling
+.git/
+.github/
+.idea/
+*.iml
+*.class
+
+# Frontend build artifacts (separate Docker image or served via nginx)
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Local configuration overrides
+*.local.yml
+application-local.yml
+.env
+.env.*
+
+# macOS noise
+.DS_Store

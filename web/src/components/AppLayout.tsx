@@ -915,6 +915,11 @@ export function AppLayout() {
                 icon: <BarChartOutlined />,
                 label: <Link to="/talent/analytics">Analytics</Link>,
               },
+              {
+                key: 'succession-plans',
+                icon: <RocketOutlined />,
+                label: <Link to="/talent/succession-plans">Succession Plans</Link>,
+              },
             ],
           } satisfies ItemType,
         ]

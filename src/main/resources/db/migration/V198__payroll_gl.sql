@@ -26,7 +26,9 @@ CREATE INDEX idx_cca_tenant_employee ON payroll.cost_center_allocation (tenant_i
 CREATE TABLE payroll.payroll_result_cost_split (
     id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id        VARCHAR(64)  NOT NULL DEFAULT 'default',
-    result_id        UUID         NOT NULL REFERENCES payroll.payroll_result (id) ON DELETE CASCADE,
+    -- payroll_result is partitioned (composite PK), so no FK here; GLJournalService
+    -- replaces a result's cost splits when (re)generating the journal.
+    result_id        UUID         NOT NULL,
     cost_center_code VARCHAR(100) NOT NULL,
     gross_amount     NUMERIC(12, 2) NOT NULL,
     net_amount       NUMERIC(12, 2) NOT NULL,

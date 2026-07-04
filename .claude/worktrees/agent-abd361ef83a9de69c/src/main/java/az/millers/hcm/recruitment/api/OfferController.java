@@ -1,0 +1,96 @@
+package az.millers.hcm.recruitment.api;
+
+import java.util.UUID;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import az.millers.hcm.recruitment.api.dto.OfferRequest;
+import az.millers.hcm.recruitment.api.dto.OfferResponse;
+import az.millers.hcm.recruitment.domain.OfferStatus;
+import az.millers.hcm.recruitment.service.OfferService;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/recruitment/offers")
+public class OfferController {
+
+    private final OfferService service;
+    private final az.millers.hcm.recruitment.service.OfferLetterService offerLetterService;
+
+    public OfferController(OfferService service,
+                            az.millers.hcm.recruitment.service.OfferLetterService offerLetterService) {
+        this.service = service;
+        this.offerLetterService = offerLetterService;
+    }
+
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<OfferResponse> getForApplication(@RequestParam UUID applicationId) {
+        return service.findForApplication(applicationId)
+                .map(o -> ResponseEntity.ok(OfferResponse.from(o)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @PutMapping
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public OfferResponse upsert(@RequestParam UUID applicationId,
+                                 @Valid @RequestBody OfferRequest req) {
+        return OfferResponse.from(service.createOrUpdate(applicationId, req));
+    }
+
+    @PostMapping("/{id}/status/{status}")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public OfferResponse transition(@PathVariable UUID id,
+                                     @PathVariable OfferStatus status,
+                                     @RequestParam(required = false) String notes) {
+        return OfferResponse.from(service.transition(id, status, notes));
+    }
+
+    /** M276 — Recruitment PRD §29-§30: kick off the offer approval workflow. */
+    @PostMapping("/{id}/submit-approval")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public OfferResponse submitForApproval(@PathVariable UUID id) {
+        return OfferResponse.from(service.submitForApproval(id));
+    }
+
+    /**
+     * M284 — Recruitment PRD §33: apply revised terms (counteroffer /
+     * HR revision). Snapshots previous terms, drops the offer to DRAFT
+     * for re-approval through the M276 workflow.
+     */
+    @PostMapping("/{id}/revise")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public OfferResponse revise(@PathVariable UUID id,
+                                 @RequestBody az.millers.hcm.recruitment.service.OfferService.ReviseRequest req) {
+        return OfferResponse.from(service.revise(id, req));
+    }
+
+    /** M284 — negotiation history, newest first. */
+    @GetMapping("/{id}/revisions")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public java.util.List<az.millers.hcm.recruitment.domain.OfferRevision> revisions(@PathVariable UUID id) {
+        return service.revisions(id);
+    }
+
+    /** M283 — Recruitment PRD §31: render the offer letter PDF (AZ default). */
+    @GetMapping("/{id}/letter")
+    @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','RECRUITER')")
+    public org.springframework.http.ResponseEntity<byte[]> letter(
+            @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String lang) {
+        var letter = offerLetterService.render(id, lang);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + letter.filename() + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(letter.pdf());
+    }
+}

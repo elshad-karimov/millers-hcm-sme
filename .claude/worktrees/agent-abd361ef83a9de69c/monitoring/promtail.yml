@@ -1,0 +1,38 @@
+# M164 (PRD §18.3): Promtail scrapes Docker container stdout/stderr logs
+# and forwards them to Loki.  Labels are enriched from Docker metadata so
+# every container's logs are filterable by {container="hcm-*"} in Grafana.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker_containers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker_logs
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            stream: stream
+            attrs: attrs
+            tag: attrs.tag
+      - json:
+          source: attrs
+          expressions:
+            container_name: "com.docker.compose.service"
+      - labels:
+          stream:
+          container_name:
+      - output:
+          source: stream

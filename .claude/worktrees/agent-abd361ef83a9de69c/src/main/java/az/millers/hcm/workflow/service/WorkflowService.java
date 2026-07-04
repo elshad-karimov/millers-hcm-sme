@@ -1,0 +1,842 @@
+package az.millers.hcm.workflow.service;
+
+import java.time.OffsetDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
+
+import az.millers.hcm.config.CacheConfig;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import az.millers.hcm.common.BadRequestException;
+import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.organization.domain.OrgUnit;
+import az.millers.hcm.organization.repo.OrgUnitRepository;
+import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.scope.AccessScopeService;
+import az.millers.hcm.security.scope.WorkflowSubjectResolver;
+import az.millers.hcm.workflow.api.dto.ActionRequest;
+import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
+import az.millers.hcm.workflow.domain.ActionType;
+import az.millers.hcm.workflow.domain.SubstituteApprover;
+import az.millers.hcm.workflow.domain.WorkflowAction;
+import az.millers.hcm.workflow.domain.WorkflowDefinition;
+import az.millers.hcm.workflow.domain.WorkflowInstance;
+import az.millers.hcm.workflow.domain.WorkflowParallelVote;
+import az.millers.hcm.workflow.domain.WorkflowStatus;
+import az.millers.hcm.workflow.domain.WorkflowStep;
+import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
+import az.millers.hcm.workflow.repo.SubstituteApproverRepository;
+import az.millers.hcm.workflow.repo.WorkflowActionRepository;
+import az.millers.hcm.workflow.repo.WorkflowDefinitionRepository;
+import az.millers.hcm.workflow.repo.WorkflowInstanceRepository;
+import az.millers.hcm.workflow.repo.WorkflowParallelVoteRepository;
+import az.millers.hcm.workflow.repo.WorkflowStepRepository;
+
+/**
+ * Workflow Engine foundation (PRD Section 9).
+ *
+ * <p>This iteration supports <b>sequential</b> approvals only. Parallel,
+ * conditional, delegation, SLA-based escalation, and substitute approvers are
+ * deliberate later-work seams — the data model already accommodates them.
+ */
+@Service
+public class WorkflowService {
+
+    private static final Logger log = LoggerFactory.getLogger(WorkflowService.class);
+
+    private final WorkflowDefinitionRepository definitions;
+    private final WorkflowStepRepository steps;
+    private final WorkflowInstanceRepository instances;
+    private final WorkflowActionRepository actions;
+    private final WorkflowParallelVoteRepository votes;
+    private final SubstituteApproverRepository substitutes;
+    private final ApplicationEventPublisher events;
+    private final ObjectMapper objectMapper;
+    private final CurrentRequest currentRequest;
+    private final AccessScopeService accessScope;
+    private final WorkflowSubjectResolver subjectResolver;
+    private final EmployeeRepository employees;
+    private final OrgUnitRepository orgUnits;
+
+    public WorkflowService(WorkflowDefinitionRepository definitions,
+                           WorkflowStepRepository steps,
+                           WorkflowInstanceRepository instances,
+                           WorkflowActionRepository actions,
+                           WorkflowParallelVoteRepository votes,
+                           SubstituteApproverRepository substitutes,
+                           ApplicationEventPublisher events,
+                           ObjectMapper objectMapper,
+                           CurrentRequest currentRequest,
+                           AccessScopeService accessScope,
+                           WorkflowSubjectResolver subjectResolver,
+                           EmployeeRepository employees,
+                           OrgUnitRepository orgUnits) {
+        this.definitions = definitions;
+        this.steps = steps;
+        this.instances = instances;
+        this.actions = actions;
+        this.votes = votes;
+        this.substitutes = substitutes;
+        this.events = events;
+        this.objectMapper = objectMapper;
+        this.currentRequest = currentRequest;
+        this.accessScope = accessScope;
+        this.subjectResolver = subjectResolver;
+        this.employees = employees;
+        this.orgUnits = orgUnits;
+    }
+
+    // ---------- Definitions ----------
+
+    @Transactional(readOnly = true)
+    @Cacheable(CacheConfig.WORKFLOW_DEFS)
+    public List<WorkflowDefinition> listDefinitions() {
+        return definitions.findByActiveTrueOrderByCodeAsc();
+    }
+
+    @Transactional(readOnly = true)
+    public WorkflowDefinition getDefinition(String code) {
+        return definitions.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Workflow definition not found: " + code));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowStep> stepsFor(UUID definitionId) {
+        return steps.findByDefinitionIdOrderByStepOrderAsc(definitionId);
+    }
+
+    // ---------- Instance queries ----------
+
+    @Transactional(readOnly = true)
+    public WorkflowInstance get(UUID id) {
+        WorkflowInstance i = instances.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Workflow instance not found: " + id));
+        // ABAC: a scoped caller (DEPARTMENT_MANAGER, org-unit-scoped
+        // HR_SPECIALIST, EMPLOYEE) only sees workflow instances whose
+        // employee-owned subject is in their scope. Org-wide subjects
+        // (OrgVersion, PayrollRun) have no resolver and pass through —
+        // those rely on the @PreAuthorize role gate.
+        //
+        // 404 (not 403) keeps consistency with the rest of the ABAC story
+        // (M22/M24/M26) — an enumeration attempt can't confirm row
+        // existence. Acts as the single guard for both
+        // GET /api/workflow/instances/{id} and the action POST, which
+        // calls this method as its first step (PRD 14.9).
+        if (!accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId())) {
+            throw new ResourceNotFoundException("Workflow instance not found: " + id);
+        }
+        return i;
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowInstance> findForSubject(String module, String entity, String id) {
+        return instances.findBySubjectModuleAndSubjectEntityAndSubjectIdOrderByInitiatedAtDesc(
+                module, entity, id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowInstance> inboxFor(List<String> roles) {
+        if (roles.isEmpty()) return List.of();
+
+        // M35: role-based candidates
+        List<WorkflowInstance> candidates = instances.findByStatusAndCurrentStepRoleInOrderByInitiatedAtDesc(
+                WorkflowStatus.PENDING, roles);
+
+        // M162: also include instances explicitly delegated to this user by username.
+        String myUsername = currentRequest.username();
+        List<WorkflowInstance> delegated = instances.findByStatusAndDelegatedToOrderByInitiatedAtDesc(
+                WorkflowStatus.PENDING, myUsername);
+
+        // Merge: delegated items take precedence; avoid duplicates.
+        java.util.Map<UUID, WorkflowInstance> merged = new java.util.LinkedHashMap<>();
+        for (WorkflowInstance d : delegated) merged.put(d.getId(), d);
+
+        UUID myEmpId = currentEmployeeIdOrNull();
+        boolean isSystemAdmin = roles.contains("ROLE_SYSTEM_ADMIN");
+
+        candidates.stream()
+                .filter(i -> {
+                    if (!accessScope.isUnrestricted()
+                            && !accessScope.isWorkflowSubjectAccessible(
+                                    i.getSubjectEntity(), i.getSubjectId())) {
+                        return false;
+                    }
+                    if (isSystemAdmin) return true;
+                    return matchesResolvedApprover(i, myEmpId);
+                })
+                .forEach(i -> merged.putIfAbsent(i.getId(), i));
+
+        // M172 — also include parallel-gate instances where the user's role is still outstanding.
+        String[] rolesArray = roles.toArray(String[]::new);
+        instances.findPendingParallelForRoles(rolesArray)
+                .stream()
+                .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
+                        || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
+                .forEach(i -> merged.putIfAbsent(i.getId(), i));
+
+        // M176 — include instances where the user holds a role that actively
+        // substitutes the step's required role (role-level absence cover).
+        LocalDate today = LocalDate.now();
+        List<String> coveredPrincipalRoles = roles.stream()
+                .flatMap(role -> substitutes.findActiveBySubstituteRole(role, today)
+                        .stream().map(SubstituteApprover::getPrincipalRole))
+                .distinct()
+                .toList();
+        if (!coveredPrincipalRoles.isEmpty()) {
+            instances.findByStatusAndCurrentStepRoleInOrderByInitiatedAtDesc(
+                    WorkflowStatus.PENDING, coveredPrincipalRoles)
+                    .stream()
+                    .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
+                            || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
+                    .forEach(i -> merged.putIfAbsent(i.getId(), i));
+        }
+
+        return List.copyOf(merged.values());
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowInstance> initiatedBy(String username) {
+        return instances.findByInitiatedByOrderByInitiatedAtDesc(username);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowAction> history(UUID instanceId) {
+        // Pull the instance through get(id) so the same ABAC visibility
+        // check applies — a scoped caller who can't see the instance
+        // can't see its action history either (PRD 14.9).
+        get(instanceId);
+        return actions.findByInstanceIdOrderByCreatedAtAsc(instanceId);
+    }
+
+    // ---------- Lifecycle ----------
+
+    @Transactional
+    public WorkflowInstance start(StartWorkflowRequest req) {
+        WorkflowDefinition def = getDefinition(req.definitionCode());
+        if (!def.isActive()) {
+            throw new BadRequestException("Workflow definition is inactive: " + def.getCode());
+        }
+        List<WorkflowStep> defSteps = stepsFor(def.getId());
+
+        WorkflowInstance i = new WorkflowInstance();
+        i.setDefinitionId(def.getId());
+        i.setDefinitionCode(def.getCode());
+        i.setSubjectModule(req.subjectModule());
+        i.setSubjectEntity(req.subjectEntity());
+        i.setSubjectId(req.subjectId());
+        i.setTitle(req.title());
+        i.setInitiatedBy(currentRequest.username());
+        i.setPayload(toJson(req.payload()));
+
+        if (def.isAutoApprove() || defSteps.isEmpty()) {
+            i.setCurrentStepIndex(0);
+            i.setCurrentStepRole(null);
+            i.setStatus(WorkflowStatus.AUTO_APPROVED);
+            i.setCompletedAt(OffsetDateTime.now());
+            WorkflowInstance saved = instances.save(i);
+            recordAction(saved, 0, null, ActionType.AUTO_APPROVE, "Auto-approved (no approval steps).");
+            publishCompleted(saved, "Auto-approved (no approval steps).");
+            return saved;
+        }
+
+        WorkflowStep first = defSteps.get(0);
+        i.setCurrentStepIndex(first.getStepOrder());
+        i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — SLA timer starts now
+        i.setStatus(WorkflowStatus.PENDING);
+        applyStepEntry(i, first.getStepOrder(), defSteps); // M172 — sets role(s) correctly
+        WorkflowInstance saved = instances.save(i);
+        recordAction(saved, first.getStepOrder(), first.getName(), ActionType.START, null);
+        return saved;
+    }
+
+    @Transactional
+    public WorkflowInstance act(UUID instanceId, ActionRequest req) {
+        WorkflowInstance i = get(instanceId);
+        if (i.getStatus().isTerminal()) {
+            throw new BadRequestException("Workflow is already " + i.getStatus());
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            throw new BadRequestException("Not authenticated");
+        }
+
+        String actor = authentication.getName();
+        List<String> myRoles = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority).toList();
+        boolean isInitiator = actor.equals(i.getInitiatedBy());
+        boolean isAdmin = myRoles.contains("ROLE_SYSTEM_ADMIN");
+
+        List<WorkflowStep> defSteps = stepsFor(i.getDefinitionId());
+        WorkflowStep currentStep = defSteps.stream()
+                .filter(s -> s.getStepOrder() == i.getCurrentStepIndex())
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException(
+                        "Current step " + i.getCurrentStepIndex() + " missing from definition"));
+
+        switch (req.action()) {
+            case CANCEL -> {
+                require(isInitiator || isAdmin, "Only the initiator or a system admin can cancel");
+                i.setStatus(WorkflowStatus.CANCELLED);
+                i.setCompletedAt(OffsetDateTime.now());
+                i.setCurrentStepRole(null);
+                WorkflowInstance saved = instances.save(i);
+                recordAction(saved, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.CANCEL, req.comment());
+                publishCompleted(saved, req.comment());
+                return saved;
+            }
+            case COMMENT -> {
+                if (!StringUtils.hasText(req.comment())) {
+                    throw new BadRequestException("Comment text is required");
+                }
+                recordAction(i, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.COMMENT, req.comment());
+                return i;
+            }
+            case APPROVE -> {
+                requireRole(myRoles, currentStep.getApproverRole(),
+                        "You don't have the role required to approve this step ("
+                                + currentStep.getApproverRole() + ")");
+                requireResolvedApprover(i, currentStep, isAdmin,
+                        "Only the subject's direct manager can approve this step");
+                require(!isInitiator, "The initiator cannot approve their own request (segregation of duties)");
+
+                // M172 — parallel gate: record a per-step vote; advance only when all pass.
+                if (currentStep.isParallel()) {
+                    return handleParallelApprove(i, currentStep, defSteps, req.comment(), actor);
+                }
+
+                // Sequential (existing path).
+                recordAction(i, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.APPROVE, req.comment());
+                WorkflowStep next = nextStepSkippingConditional(defSteps, currentStep.getStepOrder(), i);
+                if (next == null) {
+                    i.setStatus(WorkflowStatus.APPROVED);
+                    i.setCompletedAt(OffsetDateTime.now());
+                    i.setCurrentStepRole(null);
+                    i.setCurrentStepRoles(null);
+                    WorkflowInstance saved = instances.save(i);
+                    publishCompleted(saved, req.comment());
+                    return saved;
+                }
+                i.setCurrentStepIndex(next.getStepOrder());
+                i.setCurrentStepEnteredAt(OffsetDateTime.now()); // M126 — restart SLA timer
+                i.setDelegatedTo(null); // M162 — clear delegation when step advances
+                applyStepEntry(i, next.getStepOrder(), defSteps); // M172 — roles for next step
+                return instances.save(i);
+            }
+            case REJECT -> {
+                requireRole(myRoles, currentStep.getApproverRole(),
+                        "You don't have the role required to reject this step");
+                requireResolvedApprover(i, currentStep, isAdmin,
+                        "Only the subject's direct manager can reject this step");
+                if (!StringUtils.hasText(req.comment())) {
+                    throw new BadRequestException("A reason is required to reject");
+                }
+                i.setStatus(WorkflowStatus.REJECTED);
+                i.setCompletedAt(OffsetDateTime.now());
+                i.setCurrentStepRole(null);
+                WorkflowInstance saved = instances.save(i);
+                recordAction(saved, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.REJECT, req.comment());
+                publishCompleted(saved, req.comment());
+                return saved;
+            }
+            case RETURN -> {
+                requireRole(myRoles, currentStep.getApproverRole(),
+                        "You don't have the role required to return this step");
+                requireResolvedApprover(i, currentStep, isAdmin,
+                        "Only the subject's direct manager can return this step");
+                if (!StringUtils.hasText(req.comment())) {
+                    throw new BadRequestException("A reason is required to return");
+                }
+                i.setStatus(WorkflowStatus.RETURNED);
+                i.setCompletedAt(OffsetDateTime.now());
+                i.setCurrentStepRole(null);
+                WorkflowInstance saved = instances.save(i);
+                recordAction(saved, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.RETURN, req.comment());
+                publishCompleted(saved, req.comment());
+                return saved;
+            }
+            case DELEGATE -> {
+                // M162: explicit hand-off to a named user (PRD §9.3).
+                requireRole(myRoles, currentStep.getApproverRole(),
+                        "You don't have the role required to delegate this step");
+                requireResolvedApprover(i, currentStep, isAdmin,
+                        "Only the current approver can delegate this step");
+                if (!StringUtils.hasText(req.delegateTo())) {
+                    throw new BadRequestException("delegateTo is required for DELEGATE action");
+                }
+                String delegateTo = req.delegateTo().trim();
+                if (delegateTo.equals(actor)) {
+                    throw new BadRequestException("Cannot delegate to yourself");
+                }
+                i.setDelegatedTo(delegateTo);
+                WorkflowInstance saved = instances.save(i);
+                String note = StringUtils.hasText(req.comment())
+                        ? req.comment()
+                        : "Delegated to " + delegateTo;
+                recordAction(saved, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.DELEGATE, note);
+                log.info("Workflow {} step {} delegated by {} to {}",
+                        instanceId, currentStep.getName(), actor, delegateTo);
+                return saved;
+            }
+            case ATTACH_DOCUMENT -> {
+                // M166: attach a supporting document to the current step (PRD §9.3).
+                // Any participant in the workflow (initiator or current-step approver
+                // or system admin) may attach a document; it does not advance the step.
+                if (!StringUtils.hasText(req.documentRef())) {
+                    throw new BadRequestException("documentRef is required for ATTACH_DOCUMENT action");
+                }
+                String docRef = req.documentRef().trim();
+                String docNote = StringUtils.hasText(req.comment())
+                        ? req.comment()
+                        : "Document attached: " + docRef;
+                recordAction(i, currentStep.getStepOrder(), currentStep.getName(),
+                        ActionType.ATTACH_DOCUMENT, docNote, docRef);
+                log.info("Workflow {} step {} — document attached by {}: {}",
+                        instanceId, currentStep.getName(), actor, docRef);
+                return i;
+            }
+            default -> throw new BadRequestException(
+                    "Action " + req.action() + " cannot be invoked directly");
+        }
+    }
+
+    // ---------- Revision loop ----------
+
+    /**
+     * M174 — Re-submits a {@link WorkflowStatus#RETURNED} instance after the
+     * initiator has made corrections. Resets the instance to PENDING at step 1
+     * so the full approval chain runs from scratch.
+     *
+     * <p>An advisory limit of 10 re-submissions prevents runaway loops; in
+     * practice HR will reject or escalate a chronically-returned request rather
+     * than allow unlimited cycles.
+     */
+    @Transactional
+    public WorkflowInstance resubmit(UUID instanceId, String comment) {
+        WorkflowInstance i = get(instanceId);
+        if (i.getStatus() != WorkflowStatus.RETURNED) {
+            throw new BadRequestException("Only a RETURNED instance can be re-submitted (current: " + i.getStatus() + ")");
+        }
+        String actor = currentRequest.username();
+        if (!actor.equals(i.getInitiatedBy())) {
+            throw new BadRequestException("Only the original initiator can re-submit a returned request");
+        }
+        if (i.getResubmitCount() >= 10) {
+            throw new BadRequestException("Maximum re-submission limit (10) reached; please contact HR to handle this request manually");
+        }
+
+        List<WorkflowStep> defSteps = stepsFor(i.getDefinitionId());
+        if (defSteps.isEmpty()) {
+            throw new BadRequestException("Workflow definition has no steps");
+        }
+        WorkflowStep first = defSteps.stream()
+                .min(java.util.Comparator.comparingInt(WorkflowStep::getStepOrder))
+                .orElseThrow();
+
+        i.setStatus(WorkflowStatus.PENDING);
+        i.setCompletedAt(null);
+        i.setCurrentStepIndex(first.getStepOrder());
+        i.setCurrentStepEnteredAt(OffsetDateTime.now());
+        i.setDelegatedTo(null);
+        i.setCurrentStepRoles(null);
+        i.setResubmitCount(i.getResubmitCount() + 1);
+        applyStepEntry(i, first.getStepOrder(), defSteps);
+
+        WorkflowInstance saved = instances.save(i);
+        recordAction(saved, first.getStepOrder(), first.getName(), ActionType.RESUBMIT, comment);
+        log.info("Workflow {} re-submitted by {} (resubmit_count={})",
+                instanceId, actor, saved.getResubmitCount());
+        return saved;
+    }
+
+    // ---------- Internals ----------
+
+    private WorkflowStep nextStep(List<WorkflowStep> all, int currentOrder) {
+        return all.stream()
+                .filter(s -> s.getStepOrder() > currentOrder)
+                .findFirst()
+                .orElse(null);
+    }
+
+    // ── M172: parallel + conditional helpers ──────────────────────────────────
+
+    /**
+     * Handles an APPROVE vote on a parallel-gate step. Records the vote; if
+     * all steps in the gate are now approved, advances the instance.
+     */
+    private WorkflowInstance handleParallelApprove(WorkflowInstance i, WorkflowStep step,
+                                                    List<WorkflowStep> defSteps, String comment, String actor) {
+        if (votes.findByInstanceIdAndStepId(i.getId(), step.getId()).isPresent()) {
+            throw new BadRequestException("You have already voted on this step");
+        }
+        WorkflowParallelVote vote = new WorkflowParallelVote();
+        vote.setInstanceId(i.getId());
+        vote.setStepId(step.getId());
+        vote.setStepOrder(step.getStepOrder());
+        vote.setVoter(actor);
+        vote.setApproved(true);
+        vote.setComment(comment);
+        votes.save(vote);
+        recordAction(i, step.getStepOrder(), step.getName(), ActionType.APPROVE, comment);
+
+        List<WorkflowStep> parallelGroup = defSteps.stream()
+                .filter(s -> s.getStepOrder() == step.getStepOrder() && s.isParallel())
+                .toList();
+        List<WorkflowParallelVote> existingVotes = votes.findByInstanceIdAndStepOrder(i.getId(), step.getStepOrder());
+        boolean allApproved = parallelGroup.stream()
+                .allMatch(ps -> existingVotes.stream()
+                        .anyMatch(v -> v.getStepId().equals(ps.getId()) && v.isApproved()));
+
+        if (!allApproved) {
+            // Remove the voted role from the outstanding-roles array.
+            String[] remaining = i.getCurrentStepRoles() == null ? new String[0]
+                    : Arrays.stream(i.getCurrentStepRoles())
+                            .filter(r -> !r.equals(step.getApproverRole()))
+                            .toArray(String[]::new);
+            i.setCurrentStepRoles(remaining.length > 0 ? remaining : null);
+            return instances.save(i);
+        }
+
+        // Gate passed — advance.
+        i.setCurrentStepRoles(null);
+        i.setDelegatedTo(null);
+        WorkflowStep next = nextStepSkippingConditional(defSteps, step.getStepOrder(), i);
+        if (next == null) {
+            i.setStatus(WorkflowStatus.APPROVED);
+            i.setCompletedAt(OffsetDateTime.now());
+            i.setCurrentStepRole(null);
+            WorkflowInstance saved = instances.save(i);
+            publishCompleted(saved, comment);
+            return saved;
+        }
+        i.setCurrentStepIndex(next.getStepOrder());
+        i.setCurrentStepEnteredAt(OffsetDateTime.now());
+        applyStepEntry(i, next.getStepOrder(), defSteps);
+        return instances.save(i);
+    }
+
+    /**
+     * Sets {@code currentStepRole} and {@code currentStepRoles} on the instance
+     * for the given step_order. For a sequential step: sets only {@code currentStepRole}.
+     * For a parallel gate: sets {@code currentStepRoles} to all outstanding roles
+     * AND sets {@code currentStepRole} to the first for SLA-timer compatibility.
+     */
+    private void applyStepEntry(WorkflowInstance i, int stepOrder, List<WorkflowStep> defSteps) {
+        List<WorkflowStep> atOrder = defSteps.stream()
+                .filter(s -> s.getStepOrder() == stepOrder)
+                .toList();
+        if (atOrder.isEmpty()) return;
+
+        boolean hasParallel = atOrder.stream().anyMatch(WorkflowStep::isParallel);
+        if (hasParallel) {
+            String[] roles = atOrder.stream()
+                    .filter(WorkflowStep::isParallel)
+                    .map(WorkflowStep::getApproverRole)
+                    .distinct()
+                    .toArray(String[]::new);
+            i.setCurrentStepRoles(roles);
+            i.setCurrentStepRole(roles.length > 0 ? roles[0] : null);
+        } else {
+            i.setCurrentStepRole(atOrder.get(0).getApproverRole());
+            i.setCurrentStepRoles(null);
+        }
+    }
+
+    /**
+     * Finds the next step after {@code currentOrder}, skipping any step whose
+     * {@code condition_spel} evaluates to {@code false} against the instance's
+     * payload JSON (M172 conditional routing).
+     */
+    private WorkflowStep nextStepSkippingConditional(List<WorkflowStep> all, int currentOrder,
+                                                      WorkflowInstance i) {
+        List<WorkflowStep> candidates = all.stream()
+                .filter(s -> s.getStepOrder() > currentOrder)
+                .sorted(java.util.Comparator.comparingInt(WorkflowStep::getStepOrder))
+                .toList();
+        // Deduplicate by step_order (take the first representative of each group)
+        java.util.Set<Integer> seen = new java.util.LinkedHashSet<>();
+        for (WorkflowStep c : candidates) {
+            if (seen.add(c.getStepOrder())) {
+                if (c.getConditionSpel() == null || evaluateCondition(c.getConditionSpel(), i.getPayload())) {
+                    return c;
+                }
+                log.debug("Skipping step {} (order {}) — condition false: {}", c.getName(), c.getStepOrder(), c.getConditionSpel());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Evaluates a SpEL expression against the instance's payload JSON map.
+     * Returns {@code true} (step included) when the expression cannot be parsed
+     * or throws — fail-open to prevent mis-configured conditions blocking approvals.
+     */
+    private boolean evaluateCondition(String spel, String payloadJson) {
+        try {
+            java.util.Map<String, Object> ctx = payloadJson != null
+                    ? objectMapper.readValue(payloadJson, new TypeReference<>() {})
+                    : java.util.Map.of();
+            ExpressionParser parser = new SpelExpressionParser();
+            EvaluationContext evalCtx = SimpleEvaluationContext
+                    .forReadOnlyDataBinding().withRootObject(ctx).build();
+            Object result = parser.parseExpression(spel).getValue(evalCtx);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            log.warn("Condition SpEL evaluation failed for '{}': {} — step included by default", spel, e.getMessage());
+            return true;
+        }
+    }
+
+    private void recordAction(WorkflowInstance i, int stepIndex, String stepName,
+                              ActionType type, String comment) {
+        recordAction(i, stepIndex, stepName, type, comment, null);
+    }
+
+    private void recordAction(WorkflowInstance i, int stepIndex, String stepName,
+                              ActionType type, String comment, String documentRef) {
+        WorkflowAction a = new WorkflowAction();
+        a.setInstanceId(i.getId());
+        a.setStepIndex(stepIndex);
+        a.setStepName(stepName);
+        a.setAction(type);
+        a.setActor(currentRequest.username());
+        a.setComment(comment);
+        a.setIpAddress(currentRequest.ipAddress());
+        a.setDocumentRef(documentRef);
+        actions.save(a);
+    }
+
+    private void publishCompleted(WorkflowInstance i, String comment) {
+        events.publishEvent(new WorkflowCompletedEvent(
+                i.getId(), i.getDefinitionCode(), i.getSubjectModule(),
+                i.getSubjectEntity(), i.getSubjectId(), i.getStatus(), comment,
+                currentRequest.username(),
+                i.getInitiatedBy()));
+    }
+
+    private String toJson(Object payload) {
+        if (payload == null) return null;
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException ex) {
+            return "{\"_serializationError\":\"" + ex.getOriginalMessage() + "\"}";
+        }
+    }
+
+    private void requireRole(List<String> myRoles, String required, String message) {
+        if (myRoles.contains("ROLE_SYSTEM_ADMIN")) return;
+        if (myRoles.contains(required)) return;
+        // M176 — also allow a user whose role is an active substitute for the required role.
+        LocalDate today = LocalDate.now();
+        boolean coveredBySubstitute = myRoles.stream()
+                .anyMatch(role -> substitutes.findActiveBySubstituteRole(role, today)
+                        .stream().anyMatch(s -> s.getPrincipalRole().equals(required)));
+        if (!coveredBySubstitute) {
+            throw new BadRequestException(message);
+        }
+    }
+
+    private void require(boolean condition, String message) {
+        if (!condition) throw new BadRequestException(message);
+    }
+
+    // ---------- M35: real MANAGER step resolution ----------
+
+    /**
+     * Resolves the caller (`currentRequest.username()`) to an
+     * {@link Employee} id, or {@code null} if no mapping exists. Used
+     * by the manager-step gate. Mirrors the EmployeeContextService
+     * lookup pattern but stays internal so we don't pull the whole
+     * self-service module in.
+     */
+    private UUID currentEmployeeIdOrNull() {
+        String username = currentRequest.username();
+        if (username == null) return null;
+        return employees.findByUsername(username).map(Employee::getId).orElse(null);
+    }
+
+    /**
+     * For a workflow instance whose current step {@code resolvesToManager},
+     * returns the id of the employee who should act on the step today.
+     *
+     * <p>Two-step resolution:
+     * <ol>
+     *   <li>Subject → {@code manager_id} (existing M35 lookup).</li>
+     *   <li>If the manager has an <em>active</em> delegation
+     *       ({@code delegate_manager_id} set + today() ∈
+     *       {@code [delegate_from, delegate_to]}), return the delegate's
+     *       id instead. Single hop only — no chain walk, so a delegate
+     *       who is themselves on leave doesn't recursively re-delegate.
+     *       That's a deliberate constraint: cycles are impossible by
+     *       construction (the SQL check refuses self-delegation), but
+     *       multi-hop fan-out makes the routing harder to reason about
+     *       than HR wants in practice (PRD 9 / 14.9 — M37).</li>
+     * </ol>
+     *
+     * <p>Returns {@code null} when the subject can't be resolved, isn't
+     * employee-scoped, or the manager has no {@code manager_id}
+     * (top-of-org).
+     */
+    private UUID resolveSubjectManagerId(WorkflowInstance i) {
+        Optional<UUID> subjectMgr = subjectResolver
+                .resolveEmployeeId(i.getSubjectEntity(), i.getSubjectId())
+                .flatMap(employees::findById)
+                .map(Employee::getManagerId);
+        if (subjectMgr.isEmpty()) return null;
+
+        return employees.findById(subjectMgr.get())
+                .map(this::effectiveApprover)
+                .orElse(subjectMgr.get());
+    }
+
+    /**
+     * Single-hop delegation walk. Returns the delegate's id when
+     * delegation is set AND today is within the window; otherwise
+     * returns {@code manager.id} unchanged.
+     */
+    private UUID effectiveApprover(Employee manager) {
+        UUID delegate = manager.getDelegateManagerId();
+        if (delegate == null) return manager.getId();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate from = manager.getDelegateFrom();
+        java.time.LocalDate to   = manager.getDelegateTo();
+        if (from == null || to == null) return manager.getId();
+        if (today.isBefore(from) || today.isAfter(to)) return manager.getId();
+        // Active delegation — log at INFO so an operator reading the
+        // backend log can correlate "why did Sara just see this row"
+        // with HR's earlier delegation decision.
+        log.info("Workflow approval routed to delegate {} (manager {}, window {}..{})",
+                delegate, manager.getId(), from, to);
+        return delegate;
+    }
+
+    /**
+     * M142 — resolves the HRBP employee id for a workflow instance.
+     *
+     * <p>Resolution chain:
+     * <ol>
+     *   <li>Subject → employee id (via {@link WorkflowSubjectResolver}).</li>
+     *   <li>Employee → {@code org_unit_id}.</li>
+     *   <li>Walk up the org tree (max 20 hops) looking for the first unit
+     *       with {@code hrbp_id} set.</li>
+     * </ol>
+     *
+     * <p>Returns {@code null} when the subject can't be resolved, has no
+     * org unit, or no ancestor carries an HRBP assignment.
+     */
+    private UUID resolveSubjectHrbpId(WorkflowInstance i) {
+        Optional<UUID> subjectEmpId = subjectResolver
+                .resolveEmployeeId(i.getSubjectEntity(), i.getSubjectId());
+        if (subjectEmpId.isEmpty()) return null;
+        Optional<Employee> emp = employees.findById(subjectEmpId.get());
+        if (emp.isEmpty() || emp.get().getOrgUnitId() == null) return null;
+        UUID unitId = emp.get().getOrgUnitId();
+        int depth = 0;
+        while (unitId != null && depth < 20) {
+            Optional<OrgUnit> unit = orgUnits.findById(unitId);
+            if (unit.isEmpty()) break;
+            if (unit.get().getHrbpId() != null) return unit.get().getHrbpId();
+            unitId = unit.get().getParentId();
+            depth++;
+        }
+        return null;
+    }
+
+    /**
+     * Inbox filter for manager- or HRBP-resolved steps. Returns true iff
+     * the row should show up for the caller. Behaviour:
+     * <ul>
+     *   <li>Step doesn't resolve to manager or HRBP → keep (role gate is
+     *       enough).</li>
+     *   <li>Caller isn't mapped to an Employee → drop.</li>
+     *   <li>Subject has no manager/HRBP → drop.</li>
+     *   <li>Otherwise → keep only if caller's empId equals the resolved id.</li>
+     * </ul>
+     */
+    private boolean matchesResolvedApprover(WorkflowInstance i, UUID callerEmpId) {
+        WorkflowStep step = currentStepFor(i);
+        if (step == null) return true;
+        if (step.isResolvesToManager()) {
+            if (callerEmpId == null) return false;
+            UUID expectedMgr = resolveSubjectManagerId(i);
+            return expectedMgr != null && expectedMgr.equals(callerEmpId);
+        }
+        if (step.isResolvesToHrbp()) {
+            if (callerEmpId == null) return false;
+            UUID expectedHrbp = resolveSubjectHrbpId(i);
+            return expectedHrbp != null && expectedHrbp.equals(callerEmpId);
+        }
+        return true;
+    }
+
+    /**
+     * Throws on a manager- or HRBP-resolved step when the caller isn't the
+     * expected approver. SYSTEM_ADMIN ({@code isAdmin}) bypasses.
+     */
+    private void requireResolvedApprover(WorkflowInstance i, WorkflowStep step,
+                                          boolean isAdmin, String message) {
+        if (isAdmin) return;
+        if (step.isResolvesToManager()) {
+            UUID expectedMgr = resolveSubjectManagerId(i);
+            if (expectedMgr == null) {
+                throw new BadRequestException(
+                        "This step requires a direct manager but the subject has none assigned");
+            }
+            if (!expectedMgr.equals(currentEmployeeIdOrNull())) {
+                throw new BadRequestException(message);
+            }
+        } else if (step.isResolvesToHrbp()) {
+            UUID expectedHrbp = resolveSubjectHrbpId(i);
+            if (expectedHrbp == null) {
+                throw new BadRequestException(
+                        "This step requires an HRBP but none is assigned to the subject's org unit");
+            }
+            if (!expectedHrbp.equals(currentEmployeeIdOrNull())) {
+                throw new BadRequestException(message);
+            }
+        }
+    }
+
+    /**
+     * Looks up the current step on an instance. Returns {@code null}
+     * if the step row is missing (defensive — should never happen on a
+     * live PENDING instance, but the inbox filter shouldn't crash on
+     * mis-seeded definitions).
+     */
+    private WorkflowStep currentStepFor(WorkflowInstance i) {
+        return stepsFor(i.getDefinitionId()).stream()
+                .filter(s -> s.getStepOrder() == i.getCurrentStepIndex())
+                .findFirst()
+                .orElse(null);
+    }
+}

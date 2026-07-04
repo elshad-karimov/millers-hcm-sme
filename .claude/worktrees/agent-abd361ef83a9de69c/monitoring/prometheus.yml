@@ -1,0 +1,34 @@
+# Prometheus scrape configuration for Millers HCM (M161 / PRD §18.3).
+# Scrapes the Spring Boot Actuator /actuator/prometheus endpoint every 15s.
+# The HCM application exposes standard JVM, Tomcat, JDBC, and custom HCM
+# business gauges via the micrometer-registry-prometheus dependency.
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: hcm-dev
+
+# Alert rules — empty for dev; production should mount rule files here.
+rule_files: []
+
+scrape_configs:
+
+  # Spring Boot HCM backend
+  - job_name: 'hcm-backend'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          service: hcm-backend
+          environment: local
+
+  # Self-monitoring — Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Optional: PostgreSQL exporter (uncomment when postgres-exporter is added)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']

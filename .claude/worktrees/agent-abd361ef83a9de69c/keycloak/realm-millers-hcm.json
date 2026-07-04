@@ -1,0 +1,145 @@
+{
+  "realm": "millers-hcm",
+  "enabled": true,
+  "displayName": "Millers HCM",
+  "displayNameHtml": "Millers HCM",
+  "loginTheme": "millers",
+  "sslRequired": "${env.KC_REALM_SSL_REQUIRED:none}",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+
+  "passwordPolicy": "length(12) and digits(1) and upperCase(1) and lowerCase(1) and specialChars(1) and notUsername(undefined) and passwordHistory(3)",
+
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 900,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 900,
+  "failureFactor": 5,
+
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      { "name": "SYSTEM_ADMIN",       "description": "Full administrative access" },
+      { "name": "HR_ADMIN",           "description": "HR administrator — approve/manage all HR" },
+      { "name": "HR_SPECIALIST",      "description": "HR specialist — submit / first-line approve" },
+      { "name": "AUDITOR",            "description": "Read-only auditor access" },
+      { "name": "DEPARTMENT_MANAGER", "description": "Line manager — approve team requests" },
+      { "name": "EMPLOYEE",           "description": "Self-service only" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "hcm-web",
+      "name": "Millers HCM Web (SPA)",
+      "baseUrl": "http://localhost:5180/",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5180/*##http://127.0.0.1:5180/*"
+      },
+      "redirectUris": [
+        "http://localhost:5180/*",
+        "http://127.0.0.1:5180/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5180",
+        "http://127.0.0.1:5180"
+      ],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "email": "admin@millers.example",
+      "credentials": [
+        { "type": "password", "value": "Admin#Pass123!", "temporary": false }
+      ],
+      "realmRoles": ["SYSTEM_ADMIN", "HR_ADMIN"]
+    },
+    {
+      "username": "hrspec",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Rashad",
+      "lastName": "Mammadov",
+      "email": "hrspec@millers.example",
+      "credentials": [
+        { "type": "password", "value": "HRspec#2026!", "temporary": false }
+      ],
+      "realmRoles": ["HR_SPECIALIST"]
+    },
+    {
+      "username": "employee",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Aliya",
+      "lastName": "Aliyeva",
+      "email": "employee@millers.example",
+      "credentials": [
+        { "type": "password", "value": "Employee#123!", "temporary": false }
+      ],
+      "realmRoles": ["EMPLOYEE"]
+    },
+    {
+      "username": "manager",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Rashad",
+      "lastName": "Aliyev",
+      "email": "manager@millers.example",
+      "credentials": [
+        { "type": "password", "value": "Manager#123!", "temporary": false }
+      ],
+      "realmRoles": ["DEPARTMENT_MANAGER", "EMPLOYEE"]
+    },
+    {
+      "username": "mfauser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "MFA",
+      "lastName": "Demo",
+      "email": "mfa-demo@millers.example",
+      "credentials": [
+        { "type": "password", "value": "Mfa#Demo123!", "temporary": false }
+      ],
+      "realmRoles": ["EMPLOYEE"],
+      "requiredActions": ["CONFIGURE_TOTP"]
+    }
+  ]
+}

@@ -1,0 +1,285 @@
+spring:
+  application:
+    name: hcm-platform
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Validates incoming bearer tokens against the Keycloak realm.
+          # The realm's RSA public key is fetched once at startup from
+          # the JWKS endpoint advertised by /.well-known/openid-configuration.
+          #
+          # Issuer matches Keycloak's KC_HOSTNAME_URL (docker-compose).
+          # In dev that's http://localhost:5180 — the SPA origin — so
+          # the browser-issued `iss` claim matches what the backend
+          # validates against. Keycloak resolves through Vite's dev
+          # proxy (web/vite.config.ts), so JWKS fetching from this URL
+          # actually lands on https://localhost:8443 via Vite with
+          # secure:false. The KeycloakJwtConfig truststore is no
+          # longer needed for the HTTP path; leave the property set so
+          # a production swap to https:// just works.
+          # Production: set HCM_OIDC_ISSUER to the public Keycloak URL.
+          issuer-uri: ${HCM_OIDC_ISSUER:http://localhost:5180/realms/millers-hcm}
+  datasource:
+    url: jdbc:postgresql://localhost:5433/hcm
+    username: hcm
+    password: hcm
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: core_hr
+        format_sql: true
+  flyway:
+    enabled: true
+    schemas:
+      - core_hr
+      - audit
+      - organization
+      - staffing
+      - workflow
+      - attendance
+      - leave_mgmt
+      - business_trip
+      - permission
+      - timesheet
+      - payroll
+      - recruitment
+      - lifecycle
+      - performance
+      - learning
+      - comp_benefits
+      - compbenefits
+      - reporting
+      - notification
+      - backup
+    default-schema: core_hr
+    create-schemas: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  # M168: Redis cache (PRD §15.2)
+  data:
+    redis:
+      host: ${HCM_REDIS_HOST:localhost}
+      port: ${HCM_REDIS_PORT:6380}
+      # No password in dev; production: set HCM_REDIS_PASSWORD
+      password: ${HCM_REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 5 minutes default TTL (ms)
+      cache-null-values: false
+  mail:
+    # MailHog by default (dev). Production swap: point at the real SMTP relay
+    # via HCM_MAIL_HOST / HCM_MAIL_PORT / HCM_MAIL_USERNAME / HCM_MAIL_PASSWORD.
+    host: ${HCM_MAIL_HOST:localhost}
+    port: ${HCM_MAIL_PORT:1025}
+    username: ${HCM_MAIL_USERNAME:}
+    password: ${HCM_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${HCM_MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${HCM_MAIL_SMTP_STARTTLS:false}
+          # Fail fast in dev — don't hang for 30 s when MailHog is down.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+server:
+  port: 8082
+
+hcm:
+  keycloak:
+    admin:
+      # Keycloak Admin REST API access (used by UserManagementController only).
+      # The admin-cli client on the master realm is used for password-grant;
+      # no confidential client secret is needed in the default Keycloak setup.
+      # Dev: port 8090 is bound to 127.0.0.1 in docker-compose so the backend
+      # can call the Admin REST API directly via HTTP.  Loopback access bypasses
+      # Keycloak's sslRequired:external check on the master realm.
+      # Production: set HCM_KEYCLOAK_ADMIN_URL to the internal service URL.
+      server-url: ${HCM_KEYCLOAK_ADMIN_URL:http://localhost:8090}
+      realm: millers-hcm
+      master-realm: master
+      admin-client-id: admin-cli
+      username: ${HCM_KEYCLOAK_ADMIN_USERNAME:admin}
+      password: ${HCM_KEYCLOAK_ADMIN_PASSWORD:admin}
+  security:
+    encryption:
+      # Base64-encoded 32-byte (256-bit) AES key for column-level PII encryption.
+      # Demo key — generate a fresh one for production and inject via env.
+      data-key: ${HCM_SECURITY_DATA_KEY:nIayl2HEqr7zVQp/JbXcKtoyT2QwxN4ueivOJqOjT94=}
+      # Optional rotation key (M48 — AES-256-GCM key rotation).
+      # When set, new writes use enc:v2:… and both enc:v1: and enc:v2: are
+      # readable.  Run POST /api/admin/key-rotation/run after deploying to
+      # re-encrypt all enc:v1: rows.  Then promote: data-key ← data-key-v2,
+      # remove data-key-v2, redeploy.
+      data-key-v2: ${HCM_SECURITY_DATA_KEY_V2:}
+    keycloak:
+      # PKCS12 truststore containing the cert that signs Keycloak's TLS
+      # endpoint. Used by KeycloakJwtConfig to build a custom JwtDecoder
+      # whose JWKS fetches trust our self-signed dev cert without
+      # shadowing the rest of the JDK trust (milestone 33). Leave the
+      # path blank to fall back to the JDK default cacerts — appropriate
+      # in production where the cert is signed by a real CA.
+      #
+      # Dev now defaults to empty: backend talks plain HTTP to Vite at
+      # http://localhost:5180 which proxies to the nginx HTTPS leg.
+      # Set HCM_KEYCLOAK_TRUSTSTORE explicitly if you want to bypass the
+      # Vite proxy and hit https://localhost:8443 directly from the JVM.
+      trust-store-path: ${HCM_KEYCLOAK_TRUSTSTORE:}
+      trust-store-password: ${HCM_KEYCLOAK_TRUSTSTORE_PASSWORD:changeit}
+    # JWT minting + lockout retired when Keycloak became the IdP (milestone 19).
+    # Brute-force protection now lives in the realm (5 attempts / 15-min lock).
+    # M50 (PRD 14.8): ClamAV virus scanning on every user-uploaded file.
+    # Set HCM_VIRUS_SCAN_ENABLED=false for local dev without docker-compose.
+    # When enabled=true and clamd is unreachable the upload is rejected (fail-safe).
+    virus-scan:
+      enabled: ${HCM_VIRUS_SCAN_ENABLED:true}
+      host: ${HCM_VIRUS_SCAN_HOST:localhost}
+      port: ${HCM_VIRUS_SCAN_PORT:3310}
+      timeout-ms: ${HCM_VIRUS_SCAN_TIMEOUT_MS:30000}
+  fcm:
+    # Firebase Cloud Messaging credentials JSON (PRD §17.5 / M52).
+    # Inject the full service-account JSON as a multi-line env var.
+    # Leave empty to disable FCM — the app continues to work with
+    # EMAIL + IN_APP channels only.
+    credentials-json: ${HCM_FCM_CREDENTIALS_JSON:}
+  notifications:
+    termination:
+      # Comma-separated Keycloak usernames for termination IT / Finance notifications (M196).
+      it-recipients: ${HCM_NOTIFY_TERMINATION_IT:}
+      finance-recipients: ${HCM_NOTIFY_TERMINATION_FINANCE:}
+    businesstrip:
+      # Comma-separated Keycloak usernames notified when a trip advance is approved (M199).
+      finance-recipients: ${HCM_NOTIFY_BT_FINANCE:}
+    onboarding:
+      # HR inbox address that receives onboarding start / complete / overdue digests (M308).
+      hr-email: ${HCM_NOTIFY_ONBOARDING_HR:}
+      # Days after assignment start before pending tasks are flagged as overdue (M308).
+      overdue-threshold-days: ${HCM_ONBOARDING_OVERDUE_DAYS:14}
+      # Cron for the weekday overdue digest (default: 09:00 Mon-Fri).
+      overdue-cron: ${HCM_ONBOARDING_OVERDUE_CRON:0 0 9 * * MON-FRI}
+  preboarding:
+    # Public-facing base URL for the pre-boarding portal (M193).
+    # The hire flow appends ?token=<plaintext> and emails the link to the candidate.
+    base-url: ${HCM_PREBOARDING_BASE_URL:http://localhost:5180/preboarding}
+    # Validity window for auto-issued invite tokens (days). Default 30 days.
+    auto-invite-expiry-days: ${HCM_PREBOARDING_AUTO_EXPIRY_DAYS:30}
+  mail:
+    # From address used on all outgoing mail (PRD 10.5).
+    from: ${HCM_MAIL_FROM:no-reply@millers.example}
+    from-name: ${HCM_MAIL_FROM_NAME:Millers HCM}
+  storage:
+    minio:
+      enabled: ${HCM_STORAGE_MINIO_ENABLED:true}
+      endpoint: ${HCM_STORAGE_MINIO_ENDPOINT:http://localhost:9000}
+      access-key: ${HCM_STORAGE_MINIO_ACCESS_KEY:minio}
+      secret-key: ${HCM_STORAGE_MINIO_SECRET_KEY:minio12345}
+      bucket: ${HCM_STORAGE_MINIO_BUCKET:hcm-attachments}
+      # Configurable max file size — clients can send up to this many bytes per upload.
+      max-file-bytes: ${HCM_STORAGE_MAX_FILE_BYTES:20971520}   # 20 MB
+      # M50 (PRD 14.8): presigned GET URL TTL returned by GET /api/attachments/{id}/url.
+      presigned-url-expiry-minutes: ${HCM_STORAGE_PRESIGNED_URL_EXPIRY_MINUTES:15}
+  ldap:
+    # M54 (PRD §14.6): LDAP/AD federation via Keycloak.
+    # connection-url is sent to Keycloak (which runs in Docker) so it uses
+    # the Docker-internal hostname+port.  osixia/openldap listens on :389
+    # internally; host-side mapping is 127.0.0.1:1389:389.
+    connection-url: ${HCM_LDAP_URL:ldap://hcm-openldap:389}
+    bind-dn: ${HCM_LDAP_BIND_DN:cn=admin,dc=millers,dc=az}
+    bind-credential: ${HCM_LDAP_BIND_CREDENTIAL:adminpassword}
+    users-dn: ${HCM_LDAP_USERS_DN:ou=users,dc=millers,dc=az}
+    groups-dn: ${HCM_LDAP_GROUPS_DN:ou=groups,dc=millers,dc=az}
+    provider-name: ${HCM_LDAP_PROVIDER_NAME:millers-ldap}
+    auto-setup: ${HCM_LDAP_AUTO_SETUP:true}
+  backup:
+    # M53 (PRD §14.4): daily encrypted backup.
+    # MinIO bucket for encrypted pg_dump archives (sql.gz.enc).
+    bucket: ${HCM_BACKUP_BUCKET:hcm-backups}
+    # How many days backup objects should be retained (informational; lifecycle policy applied separately).
+    retention-days: ${HCM_BACKUP_RETENTION_DAYS:30}
+    # pg_dump binary (or wrapper script) to invoke.
+    # On dev machines where the local pg_dump version doesn't match the Docker
+    # server version, point this at scripts/pg_dump_docker.sh which runs
+    # pg_dump inside the hcm-postgres container.
+    # Production: leave as default (pg_dump must be on PATH, version ≥ server).
+    pg-dump-command: ${HCM_BACKUP_PG_DUMP_CMD:pg_dump}
+    # Override the -h / -p flags passed to pg_dump (useful when the pg_dump
+    # binary runs inside the container, where the DB is on localhost:5432).
+    pg-dump-host-override: ${HCM_BACKUP_PG_DUMP_HOST:}
+    pg-dump-port-override: ${HCM_BACKUP_PG_DUMP_PORT:0}
+  analytics:
+    # M58 (PRD Could-Have): ClickHouse analytics warehouse.
+    # HTTP interface is mapped to 18123 on the host (see docker-compose).
+    # If ClickHouse is not running the app starts normally; ETL and analytics
+    # endpoints return empty results rather than failing the whole app.
+    clickhouse:
+      url: ${HCM_CLICKHOUSE_URL:http://localhost:18123}
+      database: ${HCM_CLICKHOUSE_DATABASE:hcm_analytics}
+      username: ${HCM_CLICKHOUSE_USER:default}
+      password: ${HCM_CLICKHOUSE_PASSWORD:hcm_analytics}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # M160: expose prometheus + standard ops endpoints (§18.3)
+        include: health,info,prometheus,metrics,loggers,env
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true   # /actuator/health/liveness + /actuator/health/readiness
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: millers-hcm
+      environment: ${SPRING_PROFILES_ACTIVE:local}
+  # M167: OpenTelemetry distributed tracing (PRD §18.3)
+  tracing:
+    sampling:
+      # 1.0 = 100% in dev; set to 0.1 (10%) in production via env override
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    enabled: true
+
+# M167: OTLP exporter endpoint — points at the Jaeger all-in-one container
+# which accepts OTLP gRPC on port 4317.  Override with OTEL_EXPORTER_OTLP_ENDPOINT
+# env var in production when using a dedicated OTEL Collector.
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  service:
+    name: millers-hcm
+
+logging:
+  level:
+    az.millers.hcm: DEBUG
+
+# M170 (PRD §13): OpenAPI / Swagger UI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: alpha
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  show-actuator: false

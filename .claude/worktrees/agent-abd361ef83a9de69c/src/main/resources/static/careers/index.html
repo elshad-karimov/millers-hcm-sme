@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Millers — Karyera / Careers</title>
+<style>
+  :root { --brand:#1f3a5f; --accent:#2e75b6; --bg:#f5f7fa; --card:#fff; --muted:#6b7a90; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:#1a2433; }
+  header { background:var(--brand); color:#fff; padding:28px 20px; }
+  header .wrap, main { max-width:880px; margin:0 auto; }
+  header h1 { font-size:26px; font-weight:700; }
+  header p { opacity:.85; margin-top:4px; font-size:14px; }
+  main { padding:24px 20px 60px; }
+  .filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+  .filters input, .filters select {
+    padding:9px 12px; border:1px solid #d4dbe5; border-radius:8px; font-size:14px; background:#fff; }
+  .filters input { flex:1; min-width:200px; }
+  .job { background:var(--card); border:1px solid #e3e8ef; border-radius:10px;
+         padding:18px 20px; margin-bottom:12px; cursor:pointer; transition:box-shadow .15s; }
+  .job:hover { box-shadow:0 4px 14px rgba(31,58,95,.12); }
+  .job h3 { font-size:17px; color:var(--brand); }
+  .meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:13px; color:var(--muted); }
+  .badge { background:#e8f0fb; color:var(--accent); border-radius:5px; padding:2px 8px; font-size:12px; font-weight:600; }
+  .empty { text-align:center; color:var(--muted); padding:60px 0; }
+  /* detail */
+  #detail { display:none; }
+  #detail .card { background:var(--card); border:1px solid #e3e8ef; border-radius:10px; padding:26px; }
+  #detail h2 { color:var(--brand); margin-bottom:6px; }
+  #detail section { margin-top:18px; }
+  #detail section h4 { font-size:14px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:6px; }
+  #detail p { font-size:15px; line-height:1.55; white-space:pre-wrap; }
+  .back { display:inline-block; margin-bottom:14px; color:var(--accent); cursor:pointer; font-size:14px; }
+  .apply-note { margin-top:24px; padding:14px 16px; background:#eef6ee; border:1px solid #cde3cd;
+                border-radius:8px; font-size:14px; color:#2c5f2d; }
+  /* M280 — application form */
+  .apply-form { margin-top:24px; padding:20px; background:#f8fafc; border:1px solid #e3e8ef; border-radius:10px; }
+  .apply-form h3 { color:var(--brand); margin-bottom:14px; font-size:16px; }
+  .apply-form .row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .apply-form input[type=text], .apply-form input[type=email], .apply-form input[type=tel],
+  .apply-form input[type=number], .apply-form textarea {
+    flex:1; min-width:180px; padding:9px 12px; border:1px solid #d4dbe5; border-radius:8px;
+    font-size:14px; font-family:inherit; background:#fff; width:100%; }
+  .apply-form textarea { min-height:70px; resize:vertical; }
+  .apply-form .consent { display:flex; gap:8px; align-items:flex-start; font-size:13px;
+    color:var(--muted); margin:12px 0; }
+  .apply-form .consent input { margin-top:2px; }
+  .apply-form button { background:var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:11px 26px; font-size:15px; font-weight:600; cursor:pointer; }
+  .apply-form button:disabled { opacity:.6; cursor:default; }
+  .apply-form .hp { position:absolute; left:-9999px; top:-9999px; }
+  .form-msg { margin-top:12px; font-size:14px; padding:10px 14px; border-radius:8px; display:none; }
+  .form-msg.ok { display:block; background:#eef6ee; border:1px solid #cde3cd; color:#2c5f2d; }
+  .form-msg.err { display:block; background:#fdf0f0; border:1px solid #e8c9c9; color:#8a3030; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Millers — Karyera</h1>
+    <p>Open positions · Vakansiyalar</p>
+  </div>
+</header>
+<main>
+  <div id="list">
+    <div class="filters">
+      <input id="q" type="search" placeholder="Axtar / Search jobs…">
+      <select id="lang">
+        <option value="">All languages</option>
+        <option value="az">Azərbaycan</option>
+        <option value="en">English</option>
+        <option value="ru">Русский</option>
+        <option value="tr">Türkçe</option>
+      </select>
+    </div>
+    <div id="jobs"></div>
+  </div>
+
+  <div id="detail">
+    <span class="back" onclick="showList()">← Bütün vakansiyalar / All jobs</span>
+    <div class="card" id="detailCard"></div>
+  </div>
+</main>
+
+<script>
+let allJobs = [];
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s ?? '';
+  return d.innerHTML;
+}
+
+function salary(j) {
+  if (j.salaryMin == null && j.salaryMax == null) return null;
+  const min = j.salaryMin != null ? j.salaryMin : '';
+  const max = j.salaryMax != null ? j.salaryMax : '';
+  return `${min}${min && max ? '–' : ''}${max} ${j.currency ?? ''}`.trim();
+}
+
+function render() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const lang = document.getElementById('lang').value;
+  const jobs = allJobs.filter(j =>
+    (!q || j.title.toLowerCase().includes(q)
+        || (j.department ?? '').toLowerCase().includes(q)
+        || (j.location ?? '').toLowerCase().includes(q))
+    && (!lang || j.language === lang));
+  const root = document.getElementById('jobs');
+  if (!jobs.length) {
+    root.innerHTML = '<div class="empty">Hazırda açıq vakansiya yoxdur.<br>No open positions right now.</div>';
+    return;
+  }
+  root.innerHTML = jobs.map(j => `
+    <div class="job" onclick="showDetail('${j.id}')">
+      <h3>${esc(j.title)}</h3>
+      <div class="meta">
+        ${j.department ? `<span>🏢 ${esc(j.department)}</span>` : ''}
+        ${j.location ? `<span>📍 ${esc(j.location)}</span>` : ''}
+        ${j.employmentType ? `<span>${esc(j.employmentType.replace(/_/g,' '))}</span>` : ''}
+        ${salary(j) ? `<span class="badge">${esc(salary(j))}</span>` : ''}
+        <span class="badge">${j.language.toUpperCase()}</span>
+        ${j.applicationDeadline ? `<span>⏰ ${j.applicationDeadline}</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function showDetail(id) {
+  const res = await fetch(`/api/public/careers/jobs/${id}`);
+  if (!res.ok) return;
+  const j = await res.json();
+  document.getElementById('detailCard').innerHTML = `
+    <h2>${esc(j.title)}</h2>
+    <div class="meta">
+      ${j.department ? `<span>🏢 ${esc(j.department)}</span>` : ''}
+      ${j.location ? `<span>📍 ${esc(j.location)}</span>` : ''}
+      ${salary(j) ? `<span class="badge">${esc(salary(j))}</span>` : ''}
+      ${j.applicationDeadline ? `<span>⏰ Son müraciət / Deadline: ${j.applicationDeadline}</span>` : ''}
+    </div>
+    ${j.description ? `<section><h4>Təsvir / Description</h4><p>${esc(j.description)}</p></section>` : ''}
+    ${j.requirements ? `<section><h4>Tələblər / Requirements</h4><p>${esc(j.requirements)}</p></section>` : ''}
+    ${j.benefits ? `<section><h4>Üstünlüklər / Benefits</h4><p>${esc(j.benefits)}</p></section>` : ''}
+    <div class="apply-form">
+      <h3>Müraciət et / Apply now</h3>
+      <form id="applyForm" onsubmit="return submitApplication(event, '${j.id}')">
+        <div class="row">
+          <input type="text" name="firstName" placeholder="Ad / First name *" required maxlength="100">
+          <input type="text" name="lastName" placeholder="Soyad / Last name *" required maxlength="100">
+        </div>
+        <div class="row">
+          <input type="email" name="email" placeholder="E-poçt / Email *" required maxlength="160">
+          <input type="tel" name="phone" placeholder="Telefon / Phone" maxlength="40">
+        </div>
+        <div class="row">
+          <input type="number" name="expectedSalary" placeholder="Gözlənilən maaş / Expected salary (AZN)" min="0">
+        </div>
+        <div class="row">
+          <textarea name="coverNote" placeholder="Qısa məktub / Cover note" maxlength="2000"></textarea>
+        </div>
+        <!-- honeypot: invisible to humans, bots fill it -->
+        <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off">
+        <label class="consent">
+          <input type="checkbox" name="consent" required>
+          <span>Şəxsi məlumatlarımın işə qəbul prosesi üçün emal olunmasına razıyam.
+          I consent to the processing of my personal data for recruitment purposes.</span>
+        </label>
+        <button type="submit" id="applyBtn">Müraciət göndər / Submit application</button>
+        <div class="form-msg" id="formMsg"></div>
+      </form>
+    </div>`;
+  document.getElementById('list').style.display = 'none';
+  document.getElementById('detail').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function showList() {
+  document.getElementById('detail').style.display = 'none';
+  document.getElementById('list').style.display = 'block';
+}
+
+// M280 — anonymous application submission
+async function submitApplication(ev, jobId) {
+  ev.preventDefault();
+  const form = ev.target;
+  const btn = document.getElementById('applyBtn');
+  const msg = document.getElementById('formMsg');
+  msg.className = 'form-msg';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/public/careers/jobs/${jobId}/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: form.firstName.value.trim(),
+        lastName: form.lastName.value.trim(),
+        email: form.email.value.trim(),
+        phone: form.phone.value.trim() || null,
+        expectedSalary: form.expectedSalary.value ? Number(form.expectedSalary.value) : null,
+        coverNote: form.coverNote.value.trim() || null,
+        consent: form.consent.checked,
+        website: form.website.value, // honeypot
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      msg.className = 'form-msg ok';
+      // M282 — give the candidate their tracking link
+      const trackUrl = body.trackingToken
+        ? `${location.origin}/careers?track=${body.trackingToken}`
+        : null;
+      msg.innerHTML = `✓ ${esc(body.message ?? 'Application received')}` +
+        (trackUrl
+          ? `<br>Statusu izləyin / Track your application:<br>` +
+            `<a href="${trackUrl}">${trackUrl}</a><br>` +
+            `<small>Bu linki saxlayın — yalnız sizə görünür. Save this link — it is your private key.</small>`
+          : '');
+      form.reset();
+    } else {
+      msg.className = 'form-msg err';
+      msg.textContent = body.message ?? 'Submission failed — please try again.';
+      btn.disabled = false;
+    }
+  } catch {
+    msg.className = 'form-msg err';
+    msg.textContent = 'Network error — please try again.';
+    btn.disabled = false;
+  }
+  return false;
+}
+
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('lang').addEventListener('change', render);
+
+// M282 — ?track=<token> renders the application status card instead of the list
+async function showTracking(token) {
+  const res = await fetch(`/api/public/careers/track/${encodeURIComponent(token)}`);
+  document.getElementById('list').style.display = 'none';
+  document.getElementById('detail').style.display = 'block';
+  const card = document.getElementById('detailCard');
+  if (!res.ok) {
+    card.innerHTML = `<h2>Müraciət tapılmadı / Application not found</h2>
+      <p style="color:var(--muted)">Linki yoxlayın və yenidən cəhd edin.
+      Please check your tracking link and try again.</p>`;
+    return;
+  }
+  const s = await res.json();
+  card.innerHTML = `
+    <h2>Müraciətin statusu / Application status</h2>
+    <section><h4>Müraciət / Reference</h4><p>${esc(s.applicationNo)}</p></section>
+    <section><h4>Vakansiya / Position</h4><p>${esc(s.jobTitle)}</p></section>
+    ${s.submittedOn ? `<section><h4>Göndərilib / Submitted</h4><p>${s.submittedOn}</p></section>` : ''}
+    <section><h4>Status</h4><p><span class="badge">${esc(s.status)}</span></p></section>
+    <div id="offerPanel"></div>`;
+  // M285 — if there's a SENT offer, show the accept/decline panel
+  showOffer(token);
+}
+
+function salaryText(o) {
+  if (o.salary == null) return null;
+  return `${o.salary} ${o.currency ?? ''}`.trim();
+}
+
+async function showOffer(token) {
+  const res = await fetch(`/api/public/careers/track/${encodeURIComponent(token)}/offer`);
+  if (res.status !== 200) return; // 204 = nothing to respond to
+  const o = await res.json();
+  const panel = document.getElementById('offerPanel');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="apply-note" style="background:#eef4fb;border-color:#cfe0f3;color:#1f3a5f">
+      <h4 style="margin-bottom:8px">🎉 Sizə təklif var / You have an offer</h4>
+      <div>${o.jobTitle ? esc(o.jobTitle) : ''}</div>
+      ${salaryText(o) ? `<div>Əməkhaqqı / Salary: <strong>${esc(salaryText(o))}</strong></div>` : ''}
+      ${o.startDate ? `<div>Başlama / Start: ${o.startDate}</div>` : ''}
+      ${o.benefits ? `<div>Üstünlüklər / Benefits: ${esc(o.benefits)}</div>` : ''}
+      <div style="margin-top:12px">
+        <button id="acceptBtn" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 18px;cursor:pointer;font-weight:600">
+          Qəbul et / Accept
+        </button>
+        <button id="declineBtn" style="background:#fff;color:#b23;border:1px solid #e0b4b4;border-radius:8px;padding:9px 18px;cursor:pointer;margin-left:8px">
+          İmtina et / Decline
+        </button>
+      </div>
+    </div>`;
+  document.getElementById('acceptBtn').onclick = () => respondOffer(token, true);
+  document.getElementById('declineBtn').onclick = () => {
+    const reason = prompt('İmtina səbəbi (könüllü) / Reason for declining (optional):') ?? '';
+    respondOffer(token, false, reason);
+  };
+}
+
+async function respondOffer(token, accept, declineReason) {
+  const res = await fetch(`/api/public/careers/track/${encodeURIComponent(token)}/offer/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accept, declineReason: declineReason ?? null }),
+  });
+  const panel = document.getElementById('offerPanel');
+  if (res.ok) {
+    const body = await res.json();
+    if (panel) {
+      panel.innerHTML = `<div class="apply-note">${esc(body.message ?? 'Response recorded')}</div>`;
+    }
+    showTracking(token); // refresh status (re-renders panel as resolved)
+  } else {
+    const body = await res.json().catch(() => ({}));
+    if (panel) {
+      panel.querySelectorAll('button').forEach((b) => (b.disabled = false));
+      const err = document.createElement('div');
+      err.style.cssText = 'color:#b23;margin-top:8px';
+      err.textContent = body.message ?? 'Could not record your response — please try again.';
+      panel.appendChild(err);
+    }
+  }
+}
+
+const trackToken = new URLSearchParams(location.search).get('track');
+if (trackToken) {
+  showTracking(trackToken);
+} else {
+  fetch('/api/public/careers/jobs')
+    .then(r => r.json())
+    .then(jobs => { allJobs = jobs; render(); })
+    .catch(() => { allJobs = []; render(); });
+}
+</script>
+</body>
+</html>

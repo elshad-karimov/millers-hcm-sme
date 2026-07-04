@@ -1,0 +1,188 @@
+# M165 (PRD §18.2): Continuous-integration pipeline for Millers HCM.
+#
+# Trigger: every push and pull-request to any branch.
+# Jobs:
+#   1. build      — compile, unit-test, code-quality gate
+#   2. security   — OWASP dependency-check SAST scan
+#   3. docker     — build the application Docker image (no push on PRs)
+#
+# The build job is the prerequisite gate; security and docker run in
+# parallel after it succeeds to minimise total wall-clock time.
+#
+# Secrets required (set in repository → Settings → Secrets):
+#   DOCKER_USERNAME   — Docker Hub or GHCR username  (optional for PRs)
+#   DOCKER_PASSWORD   — Docker Hub token or GHCR PAT  (optional for PRs)
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  JAVA_VERSION: "21"
+  IMAGE_NAME: millers-hcm
+
+jobs:
+
+  # ── 1. Build + Test ─────────────────────────────────────────────────────────
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hcm_test
+          POSTGRES_USER: hcm
+          POSTGRES_PASSWORD: hcm
+        options: >-
+          --health-cmd "pg_isready -U hcm -d hcm_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for SonarQube / blame
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      # ── Static analysis — Checkstyle ──────────────────────────────────────
+      - name: Checkstyle
+        run: mvn --batch-mode checkstyle:check -Dcheckstyle.failOnViolation=true
+        continue-on-error: true   # report but don't block until rules are tuned
+
+      # ── Compile ───────────────────────────────────────────────────────────
+      - name: Compile
+        run: mvn --batch-mode compile -DskipTests
+
+      # ── Unit tests ────────────────────────────────────────────────────────
+      - name: Test
+        run: >
+          mvn --batch-mode test
+          -Dspring.datasource.url=jdbc:postgresql://localhost:5432/hcm_test
+          -Dspring.datasource.username=hcm
+          -Dspring.datasource.password=hcm
+          -Dspring.profiles.active=test
+          -Dspring.mail.host=localhost
+          -Dspring.mail.port=1025
+          -Daws.s3.endpoint=http://localhost:9000
+          -Dkeycloak.admin.url=http://localhost:8090
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      # ── Package (skip tests — already ran above) ──────────────────────────
+      - name: Package
+        run: mvn --batch-mode package -DskipTests
+
+      # ── Upload JAR artifact for Docker job ───────────────────────────────
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+          retention-days: 1
+
+      # ── Publish test results ──────────────────────────────────────────────
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 7
+
+  # ── 2. Security scan ────────────────────────────────────────────────────────
+  security:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: OWASP Dependency Check
+        run: >
+          mvn --batch-mode
+          org.owasp:dependency-check-maven:9.2.0:check
+          -DfailBuildOnCVSS=9
+          -DsuppressionFile=.github/owasp-suppressions.xml
+          -Dformats=HTML,JSON
+        continue-on-error: true   # CVSSv3 ≥ 9 fails; lower scores warn only
+
+      - name: Upload OWASP report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-report
+          path: target/dependency-check-report.*
+          retention-days: 30
+
+  # ── 3. Docker image build ────────────────────────────────────────────────────
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Push to GHCR only on pushes to main; PRs just validate the build.
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build (and push on main)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

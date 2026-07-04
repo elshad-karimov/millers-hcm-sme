@@ -51,7 +51,10 @@ CREATE INDEX idx_sca_component       ON payroll.salary_component_assignment (com
 CREATE TABLE payroll.payroll_result_component (
     id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id           VARCHAR(64)  NOT NULL DEFAULT 'default',
-    result_id           UUID         NOT NULL REFERENCES payroll.payroll_result (id) ON DELETE CASCADE,
+    -- payroll_result is partitioned (PK is composite (id, period_start)), so a FK to
+    -- payroll_result(id) is not allowed. result_id is a plain reference cleared in the
+    -- application layer (PayrollEngine wipes a run's component snapshots before recalc).
+    result_id           UUID         NOT NULL,
     component_id        UUID         REFERENCES payroll.salary_component (id),
     component_code      VARCHAR(50)  NOT NULL,
     component_name      VARCHAR(200) NOT NULL,

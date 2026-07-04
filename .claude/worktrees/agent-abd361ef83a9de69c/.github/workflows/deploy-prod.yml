@@ -1,0 +1,98 @@
+# M165 (PRD §18.2 §66): Production deployment with manual approval gate.
+#
+# Trigger: manual workflow_dispatch — Production deploys are NEVER automatic.
+# Steps:
+#   1. (Implicit) GitHub Environments "production" gate — requires approval
+#      from a reviewer configured in Settings → Environments → production.
+#   2. Pull the image built by CI (tag = SHA) and deploy to the production host.
+#   3. Run smoke tests.
+#
+# Secrets required:
+#   PROD_SSH_KEY       — private key for the production server
+#   PROD_HOST          — production server hostname / IP
+#   PROD_USER          — SSH username
+#   PROD_COMPOSE_DIR   — path to the docker-compose directory on the server
+#   GHCR_PAT           — read PAT so the server can pull the image from GHCR
+
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy (default: latest)"
+        required: false
+        default: "latest"
+      reason:
+        description: "Reason for this deployment"
+        required: true
+
+env:
+  JAVA_VERSION: "21"
+  IMAGE_NAME: millers-hcm
+
+jobs:
+
+  # ── Manual approval gate (GitHub Environments) ─────────────────────────────
+  # Configure "production" environment in Settings → Environments with
+  # required reviewers. The job will pause here until a reviewer approves.
+  deploy:
+    name: Deploy ${{ inputs.image_tag }} → Production
+    runs-on: ubuntu-latest
+    environment: production   # ← approval gate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log deployment intent
+        run: |
+          echo "Deploying image tag: ${{ inputs.image_tag }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Triggered by: ${{ github.actor }}"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.PROD_COMPOSE_DIR }}"
+
+            # Authenticate to GHCR so the server can pull the image
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io \
+              -u "${{ github.repository_owner }}" --password-stdin
+
+            # Pull specific tag
+            docker pull "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+
+            # Rolling restart — update HCM_IMAGE_TAG in the env file and
+            # bring up with Docker Compose (zero-downtime if behind a load-
+            # balancer; single-instance causes a brief outage during restart).
+            export HCM_IMAGE_TAG="${{ inputs.image_tag }}"
+            docker compose up -d --no-build hcm-backend
+
+            echo "Deployment done. Container status:"
+            docker compose ps hcm-backend
+
+      - name: Smoke test
+        run: |
+          sleep 15   # allow the container time to start
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "https://${{ secrets.PROD_HOST }}/actuator/health/readiness" || echo "000")
+          echo "Health status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Smoke test FAILED — health endpoint returned $STATUS"
+            exit 1
+          fi
+          echo "Smoke test PASSED"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Production deployment FAILED for tag ${{ inputs.image_tag }}"
+          echo "::error::Triggered by ${{ github.actor }} — ${{ inputs.reason }}"
+          # Production teams should hook this into Slack / PagerDuty via
+          # a repository secret + curl call to a webhook URL here.
