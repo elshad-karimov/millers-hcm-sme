@@ -74,7 +74,10 @@ export interface WorkflowDefinition {
 export const workflowApi = {
   definitions: () =>
     api.get<WorkflowDefinition[]>('/workflow/definitions').then((r) => r.data),
-  inbox: () => api.get<WorkflowInstance[]>('/workflow/inbox').then((r) => r.data),
+  inbox: (type?: string, module?: string, slaStatus?: string) =>
+    api.get<WorkflowInstance[]>('/workflow/inbox', {
+      params: { type, module, slaStatus },
+    }).then((r) => r.data),
   initiated: () => api.get<WorkflowInstance[]>('/workflow/initiated').then((r) => r.data),
   get: (id: string) =>
     api.get<WorkflowInstance>(`/workflow/instances/${id}`).then((r) => r.data),
@@ -95,6 +98,15 @@ export const workflowApi = {
     api
       .post<WorkflowInstance>(`/workflow/instances/${id}/resubmit`, null, {
         params: comment ? { comment } : {},
+      })
+      .then((r) => r.data),
+  /** M435 — bulk action */
+  bulkAct: (instanceIds: string[], action: WorkflowActionType, comment?: string) =>
+    api
+      .post<Array<{ instanceId: string; success: boolean; message?: string }>>('/workflow/bulk-act', {
+        instanceIds,
+        action,
+        comment,
       })
       .then((r) => r.data),
 }

@@ -6,6 +6,7 @@ import {
   Form,
   Input,
   Modal,
+  Select,
   Space,
   Spin,
   Table,
@@ -48,7 +49,7 @@ interface AttachDocForm {
 }
 
 export function InboxPage() {
-  const { message } = AntdApp.useApp()
+  const { message, modal } = AntdApp.useApp()
   const navigate = useNavigate()
   const { user } = useAuth()
   // M233 — inbox/approvals labels come from the inbox namespace.
@@ -56,6 +57,13 @@ export function InboxPage() {
   const [inbox, setInbox] = useState<WorkflowInstance[]>([])
   const [initiated, setInitiated] = useState<WorkflowInstance[]>([])
   const [loading, setLoading] = useState(true)
+
+  // M435 — filters
+  const [typeFilter, setTypeFilter] = useState<string | undefined>()
+  const [slaFilter, setSlaFilter] = useState<string | undefined>()
+
+  // M435 — bulk actions
+  const [selectedRows, setSelectedRows] = useState<string[]>([])
 
   // Delegate modal state
   const [delegateTarget, setDelegateTarget] = useState<WorkflowInstance | null>(null)
@@ -69,7 +77,8 @@ export function InboxPage() {
 
   function reload() {
     setLoading(true)
-    Promise.all([workflowApi.inbox(), workflowApi.initiated()])
+    setSelectedRows([])
+    Promise.all([workflowApi.inbox(typeFilter, undefined, slaFilter), workflowApi.initiated()])
       .then(([a, b]) => {
         setInbox(a)
         setInitiated(b)
@@ -80,7 +89,7 @@ export function InboxPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { reload() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { reload() }, [typeFilter, slaFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleDelegate() {
     if (!delegateTarget) return
@@ -122,6 +131,64 @@ export function InboxPage() {
     }
   }
 
+  async function handleBulkAction(action: 'APPROVE' | 'REJECT') {
+    if (selectedRows.length === 0) {
+      message.warning('Please select at least one item')
+      return
+    }
+
+    modal.confirm({
+      title: `Bulk ${action.toLowerCase()}`,
+      content: (
+        <div>
+          <p>You are about to {action.toLowerCase()} {selectedRows.length} item(s).</p>
+          <Input.TextArea
+            id="bulk-comment"
+            placeholder="Optional comment"
+            rows={3}
+            maxLength={500}
+          />
+        </div>
+      ),
+      onOk: async () => {
+        const comment = (document.getElementById('bulk-comment') as HTMLTextAreaElement)?.value
+        try {
+          const results = await workflowApi.bulkAct(selectedRows, action, comment || undefined)
+          const succeeded = results.filter((r) => r.success).length
+          const failed = results.filter((r) => !r.success)
+
+          if (failed.length === 0) {
+            message.success(`Successfully ${action.toLowerCase()}ed ${succeeded} item(s)`)
+          } else {
+            modal.info({
+              title: 'Bulk action results',
+              content: (
+                <div>
+                  <p>Succeeded: {succeeded}</p>
+                  <p>Failed: {failed.length}</p>
+                  {failed.length > 0 && (
+                    <ul>
+                      {failed.map((f, i) => (
+                        <li key={i}>{f.message ?? 'Unknown error'}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ),
+            })
+          }
+          reload()
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { data?: { message?: string } } }
+          message.error(axiosErr?.response?.data?.message ?? 'Bulk action failed')
+        }
+      },
+    })
+  }
+
+  // M435 — distinct workflow types from the current inbox for the filter dropdown
+  const availableTypes = Array.from(new Set(inbox.map((i) => i.definitionCode))).sort()
+
   const inboxColumns: ColumnsType<WorkflowInstance> = [
     { title: t('columns.title'), dataIndex: 'title' },
     {
@@ -134,6 +201,8 @@ export function InboxPage() {
       title: t('columns.waitingOn'),
       render: (_, r) => {
         if (r.status !== 'PENDING') return '—'
+        // M435 — show SLA overdue tag if applicable
+        const slaOverdue = r.initiatedAt && new Date(r.initiatedAt) < new Date(Date.now() - 48 * 60 * 60 * 1000)
         return (
           <Space size={4}>
             {r.currentStepRole && <Tag>{r.currentStepRole.replace('ROLE_', '')}</Tag>}
@@ -142,6 +211,7 @@ export function InboxPage() {
                 {r.delegatedTo}
               </Tag>
             )}
+            {slaOverdue && <Tag color="red">SLA overdue</Tag>}
           </Space>
         )
       },
@@ -249,23 +319,65 @@ export function InboxPage() {
                   {inbox.length > 0 && <Tag color="gold">{inbox.length}</Tag>}
                 </Space>
               ),
-              children:
-                inbox.length === 0 ? (
-                  <Empty description={t('empty.nothingWaiting')} />
-                ) : (
-                  <Table
-                    rowKey="id"
-                    columns={inboxColumns}
-                    dataSource={inbox}
-                    onRow={(record) => ({
-                      onClick: () => {
-                        const link = instanceLink(record)
-                        if (link) navigate(link)
-                      },
-                      style: { cursor: instanceLink(record) ? 'pointer' : 'default' },
-                    })}
-                  />
-                ),
+              children: (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  {/* M435 — Filters and bulk actions */}
+                  <Space wrap>
+                    <Select
+                      placeholder="Filter by type"
+                      style={{ width: 200 }}
+                      allowClear
+                      value={typeFilter}
+                      onChange={setTypeFilter}
+                      options={availableTypes.map((t) => ({ label: t, value: t }))}
+                    />
+                    <Select
+                      placeholder="SLA status"
+                      style={{ width: 150 }}
+                      allowClear
+                      value={slaFilter}
+                      onChange={setSlaFilter}
+                      options={[
+                        { label: 'Overdue', value: 'OVERDUE' },
+                        { label: 'OK', value: 'OK' },
+                      ]}
+                    />
+                    {selectedRows.length > 0 && (
+                      <>
+                        <Button type="primary" onClick={() => handleBulkAction('APPROVE')}>
+                          Approve selected ({selectedRows.length})
+                        </Button>
+                        <Button danger onClick={() => handleBulkAction('REJECT')}>
+                          Reject selected ({selectedRows.length})
+                        </Button>
+                      </>
+                    )}
+                  </Space>
+                  {inbox.length === 0 ? (
+                    <Empty description={t('empty.nothingWaiting')} />
+                  ) : (
+                    <Table
+                      rowKey="id"
+                      columns={inboxColumns}
+                      dataSource={inbox}
+                      rowSelection={{
+                        selectedRowKeys: selectedRows,
+                        onChange: (keys) => setSelectedRows(keys as string[]),
+                        getCheckboxProps: (record) => ({
+                          disabled: record.status !== 'PENDING',
+                        }),
+                      }}
+                      onRow={(record) => ({
+                        onClick: () => {
+                          const link = instanceLink(record)
+                          if (link) navigate(link)
+                        },
+                        style: { cursor: instanceLink(record) ? 'pointer' : 'default' },
+                      })}
+                    />
+                  )}
+                </Space>
+              ),
             },
             {
               key: 'initiated',
