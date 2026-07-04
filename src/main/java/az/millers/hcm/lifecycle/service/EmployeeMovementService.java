@@ -163,6 +163,10 @@ public class EmployeeMovementService {
     @Transactional
     public EmployeeMovementRequest cancel(UUID id) {
         EmployeeMovementRequest req = get(id);
+        if (!currentRequest.hasRole("HR_ADMIN")
+                && !currentRequest.username().equals(req.getRequestedBy())) {
+            throw new BadRequestException("Only the requester or HR can cancel this request");
+        }
         if (req.getStatus() != MovementRequestStatus.DRAFT && req.getStatus() != MovementRequestStatus.SUBMITTED) {
             throw new BadRequestException("Cannot cancel request in status " + req.getStatus());
         }

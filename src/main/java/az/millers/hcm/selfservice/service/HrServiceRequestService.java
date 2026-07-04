@@ -110,6 +110,13 @@ public class HrServiceRequestService {
 
         List<HrServiceRequest> results = repo.findByTenantIdAndStatusInOrderBySlaDueAsc(TENANT, statuses);
 
+        // Grievances are confidential: HR_ADMIN only, regardless of requested filters
+        if (!currentRequest.hasRole("HR_ADMIN")) {
+            results = results.stream()
+                    .filter(r -> r.getCategory() != ServiceRequestCategory.GRIEVANCE)
+                    .toList();
+        }
+
         // Category filter
         if (categoryFilter != null) {
             results = results.stream()

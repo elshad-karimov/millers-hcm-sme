@@ -61,6 +61,7 @@ public class BudgetVarianceService {
     @Transactional(readOnly = true)
     public List<DepartmentVariance> variance(UUID cycleId) {
         BudgetCycle cycle = cycles.findById(cycleId)
+                .filter(c -> TENANT.equals(c.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Budget cycle not found: " + cycleId));
 
         LocalDate start = cycle.getPeriodStart();

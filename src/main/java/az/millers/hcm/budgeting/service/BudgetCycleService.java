@@ -48,8 +48,12 @@ public class BudgetCycleService {
 
     @Transactional(readOnly = true)
     public BudgetCycle get(UUID id) {
-        return repo.findById(id)
+        BudgetCycle cycle = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget cycle not found: " + id));
+        if (!TENANT.equals(cycle.getTenantId())) {
+            throw new ResourceNotFoundException("Budget cycle not found: " + id);
+        }
+        return cycle;
     }
 
     @Transactional
