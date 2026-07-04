@@ -45,27 +45,18 @@ COMMENT ON TABLE performance.succession_plan IS 'HCM_16 M413 — succession plan
 
 -- ── Workflow definition: SUCCESSION_PLAN_APPROVAL ──────────────────────────
 -- One HR_ADMIN step (resolves_to_manager=false: plan owner varies). Pattern
--- copied from V210 BENEFIT_ENROLLMENT_APPROVAL (M380 — single HR step).
+-- copied from V210 BENEFIT_ENROLLMENT_APPROVAL (M377 — single HR step).
 
-INSERT INTO workflow.workflow_definition (id, code, name, description, active, created_at)
+INSERT INTO workflow.workflow_definition (id, code, name, description, auto_approve, active)
 VALUES (
     'f1a0e413-5acc-4001-a001-000000000001'::uuid,
     'SUCCESSION_PLAN_APPROVAL',
     'Succession Plan Approval',
     'HCM_16 M413 — succession plan approval (PRD §16.4). One HR_ADMIN step (plan owner can vary).',
-    true,
-    NOW()
-) ON CONFLICT (code) DO NOTHING;
+    FALSE,
+    TRUE
+);
 
-INSERT INTO workflow.workflow_step_definition (id, definition_id, step_order, step_name, resolver_type, resolver_role, resolves_to_manager, auto_approve, created_at)
-VALUES (
-    'f1a0e413-5acc-4001-a001-100000000001'::uuid,
-    'f1a0e413-5acc-4001-a001-000000000001'::uuid,
-    1,
-    'HR Review',
-    'ROLE',
-    'HR_ADMIN',
-    false,  -- plan owner varies, no direct manager resolution
-    false,
-    NOW()
-) ON CONFLICT (definition_id, step_order) DO NOTHING;
+INSERT INTO workflow.workflow_step (definition_id, step_order, name, approver_role, resolves_to_manager)
+VALUES
+    ('f1a0e413-5acc-4001-a001-000000000001'::uuid, 1, 'HR Review', 'ROLE_HR_ADMIN', FALSE);
