@@ -60,6 +60,10 @@ public class SuccessionNominationService {
         if (req.nomineeEmployeeId() == null || req.readinessTier() == null) {
             throw new BadRequestException("nomineeEmployeeId and readinessTier are required");
         }
+        // M414 — validate risk/impact enum values
+        validateRiskImpact(req.riskOfLoss(), "riskOfLoss");
+        validateRiskImpact(req.impactOfLoss(), "impactOfLoss");
+
         // Guard: partial unique index handles the race; pre-check gives friendly message.
         nominations.findByPositionIdAndNomineeEmployeeIdAndCancelledAtIsNull(
                 positionId, req.nomineeEmployeeId())
@@ -76,6 +80,10 @@ public class SuccessionNominationService {
         n.setNomineeEmployeeId(req.nomineeEmployeeId());
         n.setReadinessTier(req.readinessTier());
         n.setNotes(req.notes());
+        n.setRiskOfLoss(req.riskOfLoss());
+        n.setImpactOfLoss(req.impactOfLoss());
+        n.setRiskReason(req.riskReason());
+        n.setRetentionAction(req.retentionAction());
         n.setNominatedBy(currentRequest.username());
         nominations.save(n);
 
@@ -144,7 +152,19 @@ public class SuccessionNominationService {
                 n.getNotes(),
                 n.getNominatedBy(),
                 n.getCreatedAt(),
-                n.isActive());
+                n.isActive(),
+                n.getRiskOfLoss(),
+                n.getImpactOfLoss(),
+                n.getRiskReason(),
+                n.getRetentionAction());
+    }
+
+    /** M414 — validate risk/impact values (LOW|MEDIUM|HIGH|CRITICAL or null) */
+    private void validateRiskImpact(String value, String fieldName) {
+        if (value != null && !value.matches("^(LOW|MEDIUM|HIGH|CRITICAL)$")) {
+            throw new BadRequestException(
+                    fieldName + " must be LOW, MEDIUM, HIGH, or CRITICAL (got: " + value + ")");
+        }
     }
 
     private SuccessionNomination mustFind(UUID id) {

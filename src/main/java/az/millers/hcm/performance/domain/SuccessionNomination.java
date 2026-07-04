@@ -58,6 +58,22 @@ public class SuccessionNomination {
     @Column(name = "cancellation_reason", columnDefinition = "text")
     private String cancellationReason;
 
+    /** M414 — flight risk (LOW|MEDIUM|HIGH|CRITICAL) */
+    @Column(name = "risk_of_loss", length = 10)
+    private String riskOfLoss;
+
+    /** M414 — business impact if nominee leaves (LOW|MEDIUM|HIGH|CRITICAL) */
+    @Column(name = "impact_of_loss", length = 10)
+    private String impactOfLoss;
+
+    /** M414 — why at risk */
+    @Column(name = "risk_reason", length = 1000)
+    private String riskReason;
+
+    /** M414 — retention action plan */
+    @Column(name = "retention_action", length = 1000)
+    private String retentionAction;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

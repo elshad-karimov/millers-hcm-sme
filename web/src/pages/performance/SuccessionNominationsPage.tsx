@@ -38,6 +38,15 @@ const READINESS_OPTIONS = (
   ['READY_NOW', 'READY_SOON', 'READY_LONG_TERM', 'UNDER_DEVELOPMENT'] as Readiness[]
 ).map((r) => ({ value: r, label: READINESS_LABEL[r] }))
 
+// M414 — risk/impact options
+const RISK_IMPACT_OPTIONS = [
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'CRITICAL', label: 'Critical' },
+]
+const RISK_COLOR = { LOW: 'green', MEDIUM: 'orange', HIGH: 'red', CRITICAL: 'volcano' }
+
 export function SuccessionNominationsPage() {
   const { message } = AntdApp.useApp()
   const [positions, setPositions] = useState<{ id: string; code: string; title: string }[]>([])
@@ -50,6 +59,10 @@ export function SuccessionNominationsPage() {
     nomineeEmployeeId: string
     readinessTier: Readiness
     notes?: string
+    riskOfLoss?: string
+    impactOfLoss?: string
+    riskReason?: string
+    retentionAction?: string
   }>()
   const [nominating, setNominating] = useState(false)
 
@@ -140,6 +153,18 @@ export function SuccessionNominationsPage() {
       ),
     },
     { title: 'Notes', dataIndex: 'notes', render: (v) => v ?? '—' },
+    {
+      title: 'Risk',
+      dataIndex: 'riskOfLoss',
+      width: 100,
+      render: (v: string) => v ? <Tag color={RISK_COLOR[v as keyof typeof RISK_COLOR]}>{v}</Tag> : '—',
+    },
+    {
+      title: 'Impact',
+      dataIndex: 'impactOfLoss',
+      width: 100,
+      render: (v: string) => v ? <Tag color={RISK_COLOR[v as keyof typeof RISK_COLOR]}>{v}</Tag> : '—',
+    },
     { title: 'By', dataIndex: 'nominatedBy', width: 140, render: (v) => v ?? '—' },
     {
       title: 'Date',
@@ -246,6 +271,18 @@ export function SuccessionNominationsPage() {
           </Form.Item>
           <Form.Item name="notes" label="Notes (optional)">
             <Input.TextArea rows={3} placeholder="Context for auditors / HR committee" />
+          </Form.Item>
+          <Form.Item name="riskOfLoss" label="Risk of loss (flight risk)">
+            <Select allowClear options={RISK_IMPACT_OPTIONS} placeholder="Likelihood nominee leaves" />
+          </Form.Item>
+          <Form.Item name="impactOfLoss" label="Impact of loss">
+            <Select allowClear options={RISK_IMPACT_OPTIONS} placeholder="Business impact if leaves" />
+          </Form.Item>
+          <Form.Item name="riskReason" label="Risk reason">
+            <Input.TextArea rows={2} placeholder="Why at risk?" />
+          </Form.Item>
+          <Form.Item name="retentionAction" label="Retention action">
+            <Input.TextArea rows={2} placeholder="Action plan to retain" />
           </Form.Item>
         </Form>
       </Modal>

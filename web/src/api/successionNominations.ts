@@ -7,6 +7,10 @@ export interface NominationRequest {
   nomineeEmployeeId: string
   readinessTier: Readiness
   notes?: string
+  riskOfLoss?: string
+  impactOfLoss?: string
+  riskReason?: string
+  retentionAction?: string
 }
 
 export interface CancelRequest {
@@ -27,6 +31,10 @@ export interface NominationResponse {
   nominatedBy?: string | null
   createdAt: string
   active: boolean
+  riskOfLoss?: string | null
+  impactOfLoss?: string | null
+  riskReason?: string | null
+  retentionAction?: string | null
 }
 
 export const READINESS_LABEL: Record<Readiness, string> = {

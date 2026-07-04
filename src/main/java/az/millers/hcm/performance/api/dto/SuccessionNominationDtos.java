@@ -12,7 +12,11 @@ public final class SuccessionNominationDtos {
     public record NominationRequest(
             UUID nomineeEmployeeId,
             Readiness readinessTier,
-            String notes) {}
+            String notes,
+            String riskOfLoss,
+            String impactOfLoss,
+            String riskReason,
+            String retentionAction) {}
 
     public record CancelRequest(String reason) {}
 
@@ -29,5 +33,9 @@ public final class SuccessionNominationDtos {
             String notes,
             String nominatedBy,
             OffsetDateTime createdAt,
-            boolean active) {}
+            boolean active,
+            String riskOfLoss,
+            String impactOfLoss,
+            String riskReason,
+            String retentionAction) {}
 }
