@@ -44,6 +44,7 @@ public class BusinessTripService {
     private final CurrentRequest currentRequest;
     private final AccessScopeService accessScope;
     private final ApplicationEventPublisher eventPublisher;
+    private final PerDiemService perDiemService;
 
     public BusinessTripService(BusinessTripRequestRepository trips,
                                 EmployeeRepository employees,
@@ -51,7 +52,8 @@ public class BusinessTripService {
                                 AuditService audit,
                                 CurrentRequest currentRequest,
                                 AccessScopeService accessScope,
-                                ApplicationEventPublisher eventPublisher) {
+                                ApplicationEventPublisher eventPublisher,
+                                PerDiemService perDiemService) {
         this.trips = trips;
         this.employees = employees;
         this.workflowService = workflowService;
@@ -59,6 +61,7 @@ public class BusinessTripService {
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
         this.eventPublisher = eventPublisher;
+        this.perDiemService = perDiemService;
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +116,24 @@ public class BusinessTripService {
         t.setEndDate(req.endDate());
         t.setTotalDays((int) ChronoUnit.DAYS.between(req.startDate(), req.endDate()) + 1);
         t.setCurrency(StringUtils.hasText(req.currency()) ? req.currency().toUpperCase() : "AZN");
-        t.setDailyAllowance(req.dailyAllowance());
+
+        // M452: Pre-fill daily allowance from per-diem rule if not manually set (non-fatal)
+        if (req.dailyAllowance() == null) {
+            try {
+                PerDiemService.PerDiemBreakdown breakdown = perDiemService.calculate(
+                        req.destinationCountry(), req.destinationCity(), null,
+                        req.tripType(), t.getTotalDays(), req.startDate());
+                if (breakdown.total().compareTo(BigDecimal.ZERO) > 0) {
+                    t.setDailyAllowance(breakdown.total().divide(
+                            BigDecimal.valueOf(t.getTotalDays()), 2, java.math.RoundingMode.HALF_UP));
+                }
+            } catch (Exception e) {
+                // Non-fatal: per-diem rule not found or calculation error
+            }
+        } else {
+            t.setDailyAllowance(req.dailyAllowance());
+        }
+
         t.setRequestedAdvance(req.requestedAdvance());
         t.setMealsProvided(Boolean.TRUE.equals(req.mealsProvided()));
         t.setAccommodationProvided(Boolean.TRUE.equals(req.accommodationProvided()));
