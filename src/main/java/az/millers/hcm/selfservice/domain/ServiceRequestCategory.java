@@ -6,5 +6,6 @@ public enum ServiceRequestCategory {
     PAYROLL_INQUIRY,
     POLICY_QUESTION,
     GRIEVANCE,
+    DOCUMENT_RENEWAL, // M441
     OTHER
 }

@@ -267,6 +267,7 @@ public class HrServiceRequestService {
             case PAYROLL_INQUIRY -> 3;
             case POLICY_QUESTION -> 5;
             case GRIEVANCE -> 1;
+            case DOCUMENT_RENEWAL -> 5; // M441
             case OTHER -> 3;
         };
     }

@@ -100,6 +100,35 @@ public class EmployeeDocumentService {
         audit.record(MODULE, ENTITY, id.toString(), "DELETE", before, null);
     }
 
+    /**
+     * M439 — Upload new version of an existing document.
+     * Creates a new row with version+1, chaining previous_version_id.
+     */
+    @Transactional
+    public EmployeeDocumentResponse uploadNewVersion(UUID documentId, UUID newAttachmentId, String notes) {
+        EmployeeDocument old = findOrThrow(documentId);
+        ensureAccessible(old.getEmployeeId());
+
+        EmployeeDocument newVersion = new EmployeeDocument();
+        newVersion.setEmployeeId(old.getEmployeeId());
+        newVersion.setDocumentType(old.getDocumentType());
+        newVersion.setCategoryId(old.getCategoryId());
+        newVersion.setTitle(old.getTitle());
+        newVersion.setExpiryDate(old.getExpiryDate());
+        newVersion.setRestricted(old.isRestricted());
+        newVersion.setAttachmentId(newAttachmentId);
+        newVersion.setNotes(notes);
+        newVersion.setVersion(old.getVersion() + 1);
+        newVersion.setPreviousVersionId(documentId);
+        newVersion.setCreatedBy(currentRequest.username());
+        newVersion.setUpdatedBy(currentRequest.username());
+
+        EmployeeDocument saved = repository.save(newVersion);
+        audit.record(MODULE, ENTITY, saved.getId().toString(),
+                "UPLOAD_NEW_VERSION", null, EmployeeDocumentResponse.from(saved));
+        return EmployeeDocumentResponse.from(saved);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void apply(EmployeeDocument d, EmployeeDocumentRequest req) {

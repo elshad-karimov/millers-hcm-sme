@@ -54,6 +54,9 @@ public class HrServiceRequest {
     @Column(name = "queue_id")
     private UUID queueId;
 
+    @Column(name = "source_ref")
+    private UUID sourceRef;
+
     @Column(name = "sla_due")
     private OffsetDateTime slaDue;
 

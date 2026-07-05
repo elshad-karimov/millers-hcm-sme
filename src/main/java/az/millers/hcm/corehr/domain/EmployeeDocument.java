@@ -52,6 +52,18 @@ public class EmployeeDocument {
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
 
+    /** M439 — Document category (FK to document_category). */
+    @Column(name = "category_id")
+    private UUID categoryId;
+
+    /** M439 — Version number (1-based; uploadNewVersion increments). */
+    @Column(name = "version", nullable = false)
+    private Integer version = 1;
+
+    /** M439 — Chain to previous version; latest = current (max version). */
+    @Column(name = "previous_version_id")
+    private UUID previousVersionId;
+
     /** When {@code true} only HR_ADMIN / SYSTEM_ADMIN may view this row. */
     @Column(nullable = false)
     private boolean restricted;
