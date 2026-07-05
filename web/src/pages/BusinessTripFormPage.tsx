@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   Button,
+  Card,
   Checkbox,
   Col,
   DatePicker,
+  Descriptions,
   Form,
   Input,
   InputNumber,
@@ -26,6 +28,7 @@ import { selfApi } from '../api/self'
 import { useAuth } from '../auth/AuthContext'
 import { FormPageShell } from '../components/FormPageShell'
 import { RoleSets } from '../auth/roleSets'
+import { api } from '../api/client'
 
 const LIST_PATH = '/business-trips'
 
@@ -46,6 +49,15 @@ interface FormValues {
   attachmentUrls?: string
 }
 
+interface PerDiemBreakdown {
+  meals: number
+  lodging: number
+  incidentals: number
+  total: number
+  currency: string
+  matchedRuleId?: string | null
+}
+
 export function BusinessTripFormPage() {
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
@@ -57,6 +69,13 @@ export function BusinessTripFormPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selfLabel, setSelfLabel] = useState<string>('')
   const [saving, setSaving] = useState(false)
+  const [perDiem, setPerDiem] = useState<PerDiemBreakdown | null>(null)
+
+  // Watch form fields for per-diem preview
+  const destinationCountry = Form.useWatch('destinationCountry', form)
+  const destinationCity = Form.useWatch('destinationCity', form)
+  const tripType = Form.useWatch('tripType', form)
+  const range = Form.useWatch('range', form)
 
   useEffect(() => {
     form.setFieldsValue({ tripType: 'DOMESTIC', currency: 'AZN' })
@@ -69,6 +88,24 @@ export function BusinessTripFormPage() {
       })
     }
   }, [isHrMode, form])
+
+  // M452 — Per-diem preview: fetch when destination + dates are set
+  useEffect(() => {
+    if (!destinationCountry || !range?.[0] || !range?.[1]) {
+      setPerDiem(null)
+      return
+    }
+    const days = range[1].diff(range[0], 'day') + 1
+    const params: any = {
+      country: destinationCountry,
+      days,
+    }
+    if (destinationCity) params.city = destinationCity
+    if (tripType) params.tripType = tripType
+    api.get<PerDiemBreakdown>('/business-trips/per-diem/preview', { params })
+      .then((r) => setPerDiem(r.data))
+      .catch(() => setPerDiem(null))
+  }, [destinationCountry, destinationCity, tripType, range])
 
   const onFinish = async (v: FormValues) => {
     setSaving(true)
@@ -223,6 +260,33 @@ export function BusinessTripFormPage() {
         >
           <Input.TextArea rows={2} placeholder="https://…/flight-ticket.pdf" />
         </Form.Item>
+
+        {/* M452 — Per-diem preview */}
+        {perDiem && (
+          <Card
+            title="Per-Diem Allowance Preview"
+            size="small"
+            style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}
+          >
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="Meals">
+                {perDiem.currency} {perDiem.meals.toFixed(2)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Lodging">
+                {perDiem.currency} {perDiem.lodging.toFixed(2)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Incidentals">
+                {perDiem.currency} {perDiem.incidentals.toFixed(2)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Total per Day">
+                <Typography.Text strong style={{ fontSize: 16, color: '#52c41a' }}>
+                  {perDiem.currency} {perDiem.total.toFixed(2)}
+                </Typography.Text>
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        )}
+
         <Form.Item>
           <Space>
             <Button onClick={() => navigate(LIST_PATH)}>{t('common:cancel')}</Button>

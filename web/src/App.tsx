@@ -50,6 +50,10 @@ import { LeaveRequestFormPage } from './pages/LeaveRequestFormPage'
 import { BusinessTripsPage } from './pages/BusinessTripsPage'
 import { ExpenseClaimsPage } from './pages/ExpenseClaimsPage'
 import { BusinessTripFormPage } from './pages/BusinessTripFormPage'
+import { PerDiemRulesPage } from './pages/PerDiemRulesPage'
+import { MileageClaimsPage } from './pages/MileageClaimsPage'
+import { ExpensePoliciesPage } from './pages/ExpensePoliciesPage'
+import { ReimbursementBatchesPage } from './pages/ReimbursementBatchesPage'
 import { PermissionTypesPage } from './pages/PermissionTypesPage'
 import { PermissionTypeFormPage } from './pages/PermissionTypeFormPage'
 import { PermissionBalancesPage } from './pages/PermissionBalancesPage'
@@ -357,6 +361,8 @@ export default function App() {
           <Route path="business-trips" element={<BusinessTripsPage />} />
           {/* M104 — expense claims */}
           <Route path="business-trips/expense-claims" element={<ExpenseClaimsPage />} />
+          {/* M453 — mileage claims (all authenticated users can submit) */}
+          <Route path="business-trips/mileage-claims" element={<MileageClaimsPage />} />
 
           {/* Performance */}
           {/* HCM_12 M388 — rating scale master */}
@@ -615,6 +621,11 @@ export default function App() {
           <Route path="compbenefits/bonus-runs" element={<BonusRunsPage />} />
           {/* M102 — salary planning */}
           <Route path="compbenefits/salary-planning" element={<SalaryPlanningPage />} />
+
+          {/* M452/M454/M455 — Travel & Expense admin (HR only) */}
+          <Route path="business-trips/per-diem-rules" element={<PerDiemRulesPage />} />
+          <Route path="business-trips/expense-policies" element={<ExpensePoliciesPage />} />
+          <Route path="business-trips/reimbursements" element={<ReimbursementBatchesPage />} />
 
           {/* Reports */}
           <Route path="reports" element={<ReportsPage />} />

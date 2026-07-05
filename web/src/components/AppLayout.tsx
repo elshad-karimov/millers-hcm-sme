@@ -99,6 +99,10 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/permission/types', module: 'absence', screen: 'permission-types' },
   { prefix: '/permission/balances', module: 'absence', screen: 'permission-balances' },
   { prefix: '/permission/requests', module: 'absence', screen: 'permission-requests' },
+  { prefix: '/business-trips/per-diem-rules', module: 'travel', screen: 'travel-per-diem-rules' },
+  { prefix: '/business-trips/expense-policies', module: 'travel', screen: 'travel-expense-policies' },
+  { prefix: '/business-trips/reimbursements', module: 'travel', screen: 'travel-reimbursements' },
+  { prefix: '/business-trips/mileage-claims', module: 'travel', screen: 'travel-mileage-claims' },
   { prefix: '/business-trips/expense-claims', module: 'travel', screen: 'travel-expense-claims' },
   { prefix: '/business-trips', module: 'travel', screen: 'business-trips' },
   { prefix: '/letters/templates', module: 'letters', screen: 'letters-templates' },
@@ -641,6 +645,31 @@ export function AppLayout() {
                 icon: <WalletOutlined />,
                 label: <Link to="/business-trips/expense-claims">{tNav('sub.travel.expenseClaims')}</Link>,
               },
+              {
+                key: 'travel-mileage-claims',
+                icon: <WalletOutlined />,
+                label: <Link to="/business-trips/mileage-claims">Mileage Claims</Link>,
+              },
+              ...(isHR
+                ? [
+                    { type: 'divider' as const },
+                    {
+                      key: 'travel-per-diem-rules',
+                      icon: <SettingOutlined />,
+                      label: <Link to="/business-trips/per-diem-rules">Per-Diem Rules</Link>,
+                    },
+                    {
+                      key: 'travel-expense-policies',
+                      icon: <SettingOutlined />,
+                      label: <Link to="/business-trips/expense-policies">Expense Policies</Link>,
+                    },
+                    {
+                      key: 'travel-reimbursements',
+                      icon: <BankOutlined />,
+                      label: <Link to="/business-trips/reimbursements">Reimbursements</Link>,
+                    },
+                  ]
+                : []),
             ],
           } satisfies ItemType,
         ]
