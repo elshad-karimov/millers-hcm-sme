@@ -60,6 +60,7 @@ import { InternalJobsWidget } from '../components/InternalJobsWidget'
 import { HrRequestsWidget } from '../components/HrRequestsWidget'
 import { AnnouncementsCard } from '../components/AnnouncementsCard'
 import { api } from '../api/client'
+import { selfPpeApi, type PpeAssignmentResponse } from '../api/ehs'
 
 // M446 — Warning self-service types
 interface WarningRecord {
@@ -161,12 +162,13 @@ function Dashboard({
             </Tag>
           </Col>
           <Col>
-            <Space>
+            <Space wrap>
               <Button onClick={() => navigate('/leave/requests/new')}>{t('quickActions.requestLeave')}</Button>
               <Button onClick={() => navigate('/permission/requests/new')}>{t('quickActions.requestPermission')}</Button>
               <Button onClick={() => navigate('/business-trips/new')}>{t('quickActions.newBusinessTrip')}</Button>
               <Button onClick={() => navigate('/letters/request')}>{t('quickActions.requestLetter')}</Button>
               <Button onClick={() => navigate('/personal-info/request')}>{t('quickActions.updatePersonalInfo')}</Button>
+              <Button onClick={() => navigate('/ehs/incidents')}>Report safety incident</Button>
             </Space>
           </Col>
         </Row>
@@ -266,7 +268,78 @@ function Dashboard({
           </Card>
         </Col>
       </Row>
+
+      {/* My PPE card */}
+      <MyPpeWidget />
     </Space>
+  )
+}
+
+// ============================================================================
+//  My PPE Widget
+// ============================================================================
+function MyPpeWidget() {
+  const { message } = AntdApp.useApp()
+  const [assignments, setAssignments] = useState<PpeAssignmentResponse[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    selfPpeApi
+      .myAssignments()
+      .then(setAssignments)
+      .catch(() => {
+        // Non-critical — hide widget if user has no PPE
+      })
+      .finally(() => setLoading(false))
+  }, [message])
+
+  if (loading) return null
+  if (assignments.length === 0) return null
+
+  const activeAssignments = assignments.filter((a) => !a.returnedAt)
+  if (activeAssignments.length === 0) return null
+
+  return (
+    <Card title="My PPE" size="small">
+      <Table
+        rowKey="id"
+        size="small"
+        pagination={false}
+        dataSource={activeAssignments}
+        columns={[
+          {
+            title: 'Item',
+            dataIndex: 'ppeItemName',
+            key: 'ppeItemName',
+            render: (text) => text || '—',
+          },
+          {
+            title: 'Issued',
+            dataIndex: 'issuedAt',
+            key: 'issuedAt',
+            width: 110,
+          },
+          {
+            title: 'Expiry',
+            dataIndex: 'expiryDate',
+            key: 'expiryDate',
+            width: 110,
+            render: (text) => {
+              if (!text) return '—'
+              const isExpired = dayjs(text).isBefore(dayjs(), 'day')
+              return isExpired ? <Tag color="red">{text}</Tag> : text
+            },
+          },
+          {
+            title: 'Condition',
+            dataIndex: 'conditionAtIssue',
+            key: 'conditionAtIssue',
+            width: 140,
+            render: (text) => text || '—',
+          },
+        ]}
+      />
+    </Card>
   )
 }
 

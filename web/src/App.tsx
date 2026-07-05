@@ -214,6 +214,13 @@ import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
 import { RoleSets } from './auth/roleSets'
+import { EhsIncidentsPage } from './pages/EhsIncidentsPage'
+import { ReturnToWorkPage } from './pages/ReturnToWorkPage'
+import { RiskRegisterPage } from './pages/RiskRegisterPage'
+import { InspectionsPage } from './pages/InspectionsPage'
+import { EhsCorrectiveActionsPage } from './pages/EhsCorrectiveActionsPage'
+import { PpeItemsPage } from './pages/PpeItemsPage'
+import { PpeAssignmentsPage } from './pages/PpeAssignmentsPage'
 
 /** Lands HR/admins on the home dashboard; non-HR users on their My Workspace. */
 function IndexRedirect() {
@@ -290,6 +297,9 @@ export default function App() {
         <Route path="personal-info/request" element={<PersonalInfoRequestFormPage />} />
         {/* M108 — Benefits: HR sees admin tabs, employees see only "my benefits" */}
         <Route path="compbenefits/benefits" element={<BenefitsPage />} />
+
+        {/* ── EHS — Incidents (all employees can report) ─────────── */}
+        <Route path="ehs/incidents" element={<EhsIncidentsPage />} />
 
         {/* ── HR + Manager routes ────────────────────────────────── */}
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
@@ -451,6 +461,15 @@ export default function App() {
           <Route path="er/cases" element={<ErCasesPage />} />
           <Route path="er/warnings" element={<WarningsPage />} />
           <Route path="er/corrective-actions" element={<CorrectiveActionsPage />} />
+
+          {/* ── EHS — HR-only pages ─────────────────────────────── */}
+          <Route path="ehs/return-to-work" element={<ReturnToWorkPage />} />
+          <Route path="ehs/risk-register" element={<RiskRegisterPage />} />
+          <Route path="ehs/inspections" element={<InspectionsPage />} />
+          <Route path="ehs/corrective-actions" element={<EhsCorrectiveActionsPage />} />
+          <Route path="ehs/ppe-items" element={<PpeItemsPage />} />
+          <Route path="ehs/ppe-assignments" element={<PpeAssignmentsPage />} />
+
           <Route path="employees/new" element={<EmployeeFormPage />} />
           <Route path="employees/:id" element={<EmployeeDetailPage />} />
           <Route path="employees/:id/edit" element={<EmployeeFormPage />} />

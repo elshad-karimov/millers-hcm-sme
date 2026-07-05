@@ -11,6 +11,7 @@ import {
   CloudServerOutlined,
   DashboardOutlined,
   DollarCircleOutlined,
+  ExclamationCircleOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
   FileTextOutlined,
@@ -187,6 +188,13 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/er/cases', module: 'employee-relations', screen: 'er-cases' },
   { prefix: '/er/warnings', module: 'employee-relations', screen: 'er-warnings' },
   { prefix: '/er/corrective-actions', module: 'employee-relations', screen: 'er-corrective-actions' },
+  { prefix: '/ehs/incidents', module: 'ehs', screen: 'ehs-incidents' },
+  { prefix: '/ehs/return-to-work', module: 'ehs', screen: 'ehs-return-to-work' },
+  { prefix: '/ehs/risk-register', module: 'ehs', screen: 'ehs-risk-register' },
+  { prefix: '/ehs/inspections', module: 'ehs', screen: 'ehs-inspections' },
+  { prefix: '/ehs/corrective-actions', module: 'ehs', screen: 'ehs-corrective-actions' },
+  { prefix: '/ehs/ppe-items', module: 'ehs', screen: 'ehs-ppe-items' },
+  { prefix: '/ehs/ppe-assignments', module: 'ehs', screen: 'ehs-ppe-assignments' },
   { prefix: '/workflow/definitions', module: 'approvals', screen: 'workflow-definitions' },
   { prefix: '/workflow/approval-groups', module: 'approvals', screen: 'approval-groups' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
@@ -401,6 +409,54 @@ export function AppLayout() {
                 key: 'er-corrective-actions',
                 icon: <SafetyCertificateOutlined />,
                 label: <Link to="/er/corrective-actions">Corrective Actions</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Health & Safety (HR only) ──────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'ehs',
+            icon: <SafetyCertificateOutlined />,
+            label: 'Health & Safety',
+            children: [
+              {
+                key: 'ehs-incidents',
+                icon: <ExclamationCircleOutlined />,
+                label: <Link to="/ehs/incidents">Incidents</Link>,
+              },
+              {
+                key: 'ehs-return-to-work',
+                icon: <UserOutlined />,
+                label: <Link to="/ehs/return-to-work">Return to Work</Link>,
+              },
+              {
+                key: 'ehs-risk-register',
+                icon: <FileSearchOutlined />,
+                label: <Link to="/ehs/risk-register">Risk Register</Link>,
+              },
+              {
+                key: 'ehs-inspections',
+                icon: <FileTextOutlined />,
+                label: <Link to="/ehs/inspections">Inspections</Link>,
+              },
+              {
+                key: 'ehs-corrective-actions',
+                icon: <SafetyCertificateOutlined />,
+                label: <Link to="/ehs/corrective-actions">Corrective Actions</Link>,
+              },
+              {
+                key: 'ehs-ppe-items',
+                icon: <InboxOutlined />,
+                label: <Link to="/ehs/ppe-items">PPE Items</Link>,
+              },
+              {
+                key: 'ehs-ppe-assignments',
+                icon: <IdcardOutlined />,
+                label: <Link to="/ehs/ppe-assignments">PPE Assignments</Link>,
               },
             ],
           } satisfies ItemType,
