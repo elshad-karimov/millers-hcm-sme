@@ -597,6 +597,13 @@ export function AppLayout() {
         ]
       : []),
 
+    // ── Knowledge Base (M436) — all users ──────────────────────────────────
+    {
+      key: 'knowledge-base',
+      icon: <ProfileOutlined />,
+      label: <Link to="/helpdesk/knowledge">Knowledge Base</Link>,
+    } satisfies ItemType,
+
     // ── Payroll (HR only) ──────────────────────────────────────────────────
     ...(isHR
       ? [

@@ -168,6 +168,7 @@ import { HrPartnersPage } from './pages/HrPartnersPage'
 import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
 import HrServiceQueuePage from './pages/HrServiceQueuePage'
 import AnnouncementsPage from './pages/AnnouncementsPage'
+import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import { OrgNativeReportsPage } from './pages/OrgNativeReportsPage'
 import { OrgUnitDocumentsPage } from './pages/OrgUnitDocumentsPage'
 import { NotificationPreferencesPage } from './pages/NotificationPreferencesPage'
@@ -296,6 +297,8 @@ export default function App() {
           <Route path="hr/service-requests" element={<HrServiceQueuePage />} />
           {/* M430 — Announcements admin */}
           <Route path="hr/announcements" element={<AnnouncementsPage />} />
+          {/* M436 — Knowledge base */}
+          <Route path="helpdesk/knowledge" element={<KnowledgeBasePage />} />
 
           {/* Employee-Management reports (M80) — scope-restricted in service */}
           <Route path="reports/emp-mgmt" element={<EmployeeManagementReportsPage />} />
