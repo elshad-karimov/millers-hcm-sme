@@ -36,11 +36,24 @@ export interface SubmitServiceRequest {
   description?: string
 }
 
+export interface HrServiceRequestComment {
+  id: string
+  requestId: string
+  authorUsername: string
+  isInternal: boolean
+  body: string
+  createdAt: string
+}
+
 export const hrRequestsApi = {
   submit: (dto: SubmitServiceRequest) =>
     api.post<HrServiceRequest>('/self/hr-requests', dto),
   myRequests: () =>
     api.get<HrServiceRequest[]>('/self/hr-requests'),
+  getComments: (requestId: string) =>
+    api.get<HrServiceRequestComment[]>(`/self/hr-requests/${requestId}/comments`),
+  addComment: (requestId: string, body: string) =>
+    api.post<HrServiceRequestComment>(`/self/hr-requests/${requestId}/comments`, { body }),
 }
 
 export const hrServiceQueueApi = {
@@ -56,6 +69,10 @@ export const hrServiceQueueApi = {
     api.post<HrServiceRequest>(`/hr/service-requests/${id}/close`),
   reopen: (id: string) =>
     api.post<HrServiceRequest>(`/hr/service-requests/${id}/reopen`),
+  getComments: (requestId: string) =>
+    api.get<HrServiceRequestComment[]>(`/hr/service-requests/${requestId}/comments`),
+  addComment: (requestId: string, body: string, isInternal: boolean) =>
+    api.post<HrServiceRequestComment>(`/hr/service-requests/${requestId}/comments`, { body, isInternal }),
 }
 
 export const REQUEST_CATEGORY_COLOR: Record<ServiceRequestCategory, string> = {

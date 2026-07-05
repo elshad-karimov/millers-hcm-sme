@@ -12,11 +12,16 @@ import {
   Checkbox,
   Typography,
   App as AntdApp,
+  Drawer,
+  Divider,
+  List,
+  Switch,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   hrServiceQueueApi,
   type HrServiceRequest,
+  type HrServiceRequestComment,
   type ServiceRequestCategory,
   type ServiceRequestStatus,
   type ServiceRequestPriority,
@@ -36,6 +41,10 @@ export default function HrServiceQueuePage() {
   const [overdueOnly, setOverdueOnly] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<HrServiceRequest | null>(null)
   const [action, setAction] = useState<'assign' | 'resolve' | null>(null)
+  const [viewDrawerOpen, setViewDrawerOpen] = useState(false)
+  const [comments, setComments] = useState<HrServiceRequestComment[]>([])
+  const [commentBody, setCommentBody] = useState('')
+  const [isInternalComment, setIsInternalComment] = useState(false)
   const [form] = Form.useForm()
 
   const load = async () => {
@@ -123,6 +132,31 @@ export default function HrServiceQueuePage() {
     return new Date(req.slaDue) < new Date() && req.status !== 'RESOLVED' && req.status !== 'CLOSED'
   }
 
+  const viewRequest = async (req: HrServiceRequest) => {
+    setSelectedRequest(req)
+    setViewDrawerOpen(true)
+    try {
+      const { data } = await hrServiceQueueApi.getComments(req.id)
+      setComments(data)
+    } catch (err: any) {
+      message.error('Failed to load comments: ' + (err.message || ''))
+    }
+  }
+
+  const addComment = async () => {
+    if (!selectedRequest || !commentBody.trim()) return
+    try {
+      await hrServiceQueueApi.addComment(selectedRequest.id, commentBody, isInternalComment)
+      message.success('Comment added')
+      setCommentBody('')
+      setIsInternalComment(false)
+      const { data } = await hrServiceQueueApi.getComments(selectedRequest.id)
+      setComments(data)
+    } catch (err: any) {
+      message.error('Failed to add comment: ' + (err.message || ''))
+    }
+  }
+
   const columns: ColumnsType<HrServiceRequest> = [
     {
       title: 'Request No',
@@ -171,9 +205,10 @@ export default function HrServiceQueuePage() {
     },
     {
       title: 'Actions',
-      width: 280,
+      width: 320,
       render: (_, rec) => (
         <Space size="small">
+          <Button size="small" type="link" onClick={() => viewRequest(rec)}>View</Button>
           {rec.status === 'OPEN' && (
             <>
               <Button size="small" onClick={() => handleStart(rec.id)}>Start</Button>
@@ -285,6 +320,82 @@ export default function HrServiceQueuePage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* View Drawer with Comments */}
+      <Drawer
+        title="Request Details"
+        placement="right"
+        width="50%"
+        open={viewDrawerOpen}
+        onClose={() => setViewDrawerOpen(false)}
+      >
+        {selectedRequest && (
+          <div>
+            <Typography.Title level={5}>{selectedRequest.requestNo}</Typography.Title>
+            <Space style={{ marginBottom: 16 }}>
+              <Tag color={REQUEST_CATEGORY_COLOR[selectedRequest.category]}>
+                {selectedRequest.category.replace(/_/g, ' ')}
+              </Tag>
+              <Tag color={REQUEST_STATUS_COLOR[selectedRequest.status]}>{selectedRequest.status}</Tag>
+              <Tag color={REQUEST_PRIORITY_COLOR[selectedRequest.priority]}>{selectedRequest.priority}</Tag>
+            </Space>
+            <p><strong>Subject:</strong> {selectedRequest.subject}</p>
+            {selectedRequest.description && (
+              <p><strong>Description:</strong> {selectedRequest.description}</p>
+            )}
+            {selectedRequest.assignedToUsername && (
+              <p><strong>Assigned To:</strong> {selectedRequest.assignedToUsername}</p>
+            )}
+            {selectedRequest.slaDue && (
+              <p><strong>SLA Due:</strong> {new Date(selectedRequest.slaDue).toLocaleString()}</p>
+            )}
+            {selectedRequest.resolutionNotes && (
+              <p><strong>Resolution:</strong> {selectedRequest.resolutionNotes}</p>
+            )}
+
+            <Divider>Comments</Divider>
+            <List
+              dataSource={comments}
+              renderItem={(comment) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <span>{comment.authorUsername}</span>
+                        {comment.isInternal && <Tag color="orange">Internal</Tag>}
+                        <span style={{ fontSize: '12px', color: '#999' }}>
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
+                      </Space>
+                    }
+                    description={comment.body}
+                  />
+                </List.Item>
+              )}
+            />
+
+            <Divider />
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <TextArea
+                rows={3}
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                placeholder="Add a comment..."
+                maxLength={4000}
+              />
+              <Space>
+                <Switch
+                  checked={isInternalComment}
+                  onChange={setIsInternalComment}
+                  checkedChildren="Internal"
+                  unCheckedChildren="Public"
+                />
+                <Button type="primary" onClick={addComment}>Add Comment</Button>
+              </Space>
+            </Space>
+          </div>
+        )}
+      </Drawer>
     </Card>
   )
 }
