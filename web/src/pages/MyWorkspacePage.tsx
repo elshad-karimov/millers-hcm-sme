@@ -7,6 +7,7 @@ import {
   Collapse,
   Descriptions,
   Empty,
+  Form,
   Input,
   Modal,
   Progress,
@@ -22,6 +23,7 @@ import {
   Typography,
   App as AntdApp,
 } from 'antd'
+import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -58,6 +60,40 @@ import { InternalJobsWidget } from '../components/InternalJobsWidget'
 import { HrRequestsWidget } from '../components/HrRequestsWidget'
 import { AnnouncementsCard } from '../components/AnnouncementsCard'
 import { api } from '../api/client'
+
+// M446 — Warning self-service types
+interface WarningRecord {
+  id: string
+  level: string
+  reason: string
+  issuedAt: string
+  expiresAt?: string
+  acknowledgedAt?: string
+}
+
+// M440 — Signature self-service types
+interface SignerDTO {
+  id: string
+  requestId: string
+  username: string
+  employeeId?: string
+  status: string
+  signedAt?: string
+  declineReason?: string
+}
+
+interface SignatureRequestDTO {
+  id: string
+  title: string
+  employeeDocumentId?: string
+  letterRequestId?: string
+  attachmentId?: string
+  status: string
+  provider: string
+  createdAt: string
+  createdBy: string
+  signers: SignerDTO[]
+}
 
 // ============================================================================
 //  Dashboard tab
@@ -97,6 +133,10 @@ function Dashboard({
       <InternalJobsWidget />
       {/* M429 — "HR Requests" widget on the dashboard. */}
       <HrRequestsWidget />
+      {/* M446 — "My Warnings" widget. Renders nothing when no warnings. */}
+      <MyWarningsWidget />
+      {/* M440 — "Pending Signatures" widget. Renders nothing when no pending signatures. */}
+      <PendingSignaturesWidget />
       <Card>
         <Row gutter={16} align="middle">
           <Col flex="auto">
@@ -1069,6 +1109,204 @@ function PerformanceTab() {
     <Card title="My performance reviews" size="small">
       <Table rowKey="id" size="small" columns={cols} dataSource={reviews} pagination={false} />
     </Card>
+  )
+}
+
+// ============================================================================
+//  M446 — My Warnings Widget
+// ============================================================================
+function MyWarningsWidget() {
+  const { message } = AntdApp.useApp()
+  const [warnings, setWarnings] = useState<WarningRecord[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchWarnings = async () => {
+    try {
+      const { data } = await api.get('/api/self/warnings')
+      setWarnings(data)
+    } catch (err: any) {
+      console.error('Failed to load warnings:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchWarnings()
+  }, [])
+
+  const handleAcknowledge = async (warningId: string) => {
+    try {
+      await api.post(`/api/self/warnings/${warningId}/acknowledge`, {})
+      message.success('Warning acknowledged')
+      fetchWarnings()
+    } catch (err: any) {
+      message.error(err.message || 'Failed to acknowledge warning')
+    }
+  }
+
+  if (loading) return null
+  if (warnings.length === 0) return null
+
+  const unacknowledged = warnings.filter((w) => !w.acknowledgedAt)
+
+  const WARNING_LEVEL_COLOR: Record<string, string> = {
+    VERBAL: 'blue',
+    WRITTEN: 'orange',
+    FINAL: 'red',
+    TERMINATION: 'error',
+  }
+
+  return (
+    <Card title="My Warnings" size="small" style={{ marginBottom: 16 }}>
+      <Space direction="vertical" style={{ width: '100%' }}>
+        {warnings.map((w) => (
+          <Card key={w.id} size="small" style={{ background: w.acknowledgedAt ? '#f9f9f9' : '#fff6e6' }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <Tag color={WARNING_LEVEL_COLOR[w.level] || 'default'}>{w.level}</Tag>
+                {w.expiresAt && (
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Expires: {dayjs(w.expiresAt).format('YYYY-MM-DD')}
+                  </Typography.Text>
+                )}
+              </Space>
+              <Typography.Text>{w.reason}</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                Issued: {dayjs(w.issuedAt).format('YYYY-MM-DD')}
+              </Typography.Text>
+              {w.acknowledgedAt ? (
+                <Tag color="green">Acknowledged on {dayjs(w.acknowledgedAt).format('YYYY-MM-DD')}</Tag>
+              ) : (
+                <Button size="small" type="primary" onClick={() => handleAcknowledge(w.id)}>
+                  Acknowledge
+                </Button>
+              )}
+            </Space>
+          </Card>
+        ))}
+        {unacknowledged.length > 0 && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`${unacknowledged.length} warning(s) pending acknowledgment`}
+          />
+        )}
+      </Space>
+    </Card>
+  )
+}
+
+// ============================================================================
+//  M440 — Pending Signatures Widget
+// ============================================================================
+function PendingSignaturesWidget() {
+  const { message } = AntdApp.useApp()
+  const [requests, setRequests] = useState<SignatureRequestDTO[]>([])
+  const [loading, setLoading] = useState(true)
+  const [declineModal, setDeclineModal] = useState<string | null>(null)
+  const [declineForm] = Form.useForm()
+
+  const fetchRequests = async () => {
+    try {
+      const { data } = await api.get('/api/self/signatures')
+      setRequests(data)
+    } catch (err: any) {
+      console.error('Failed to load signature requests:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRequests()
+  }, [])
+
+  const handleSign = async (requestId: string) => {
+    try {
+      await api.post(`/api/self/signatures/${requestId}/sign`, {})
+      message.success('Document signed')
+      fetchRequests()
+    } catch (err: any) {
+      message.error(err.message || 'Failed to sign document')
+    }
+  }
+
+  const handleDecline = async (requestId: string, values: any) => {
+    try {
+      await api.post(`/api/self/signatures/${requestId}/decline`, {
+        reason: values.reason,
+      })
+      message.success('Signature declined')
+      setDeclineModal(null)
+      declineForm.resetFields()
+      fetchRequests()
+    } catch (err: any) {
+      message.error(err.message || 'Failed to decline signature')
+    }
+  }
+
+  if (loading) return null
+
+  const pendingRequests = requests.filter((r) => r.status === 'PENDING')
+  if (pendingRequests.length === 0) return null
+
+  return (
+    <>
+      <Card title="Pending Signatures" size="small" style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {pendingRequests.map((req) => {
+            const mySigner = req.signers.find((s) => s.status === 'PENDING')
+            if (!mySigner) return null
+
+            return (
+              <Card key={req.id} size="small">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Typography.Text strong>{req.title}</Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Requested: {dayjs(req.createdAt).format('YYYY-MM-DD HH:mm')} by {req.createdBy}
+                  </Typography.Text>
+                  <Space>
+                    <Button type="primary" size="small" onClick={() => handleSign(req.id)}>
+                      Sign
+                    </Button>
+                    <Button size="small" danger onClick={() => setDeclineModal(req.id)}>
+                      Decline
+                    </Button>
+                  </Space>
+                </Space>
+              </Card>
+            )
+          })}
+        </Space>
+      </Card>
+
+      <Modal
+        title="Decline Signature"
+        open={!!declineModal}
+        onCancel={() => {
+          setDeclineModal(null)
+          declineForm.resetFields()
+        }}
+        onOk={() => declineForm.submit()}
+      >
+        <Form
+          form={declineForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (declineModal) handleDecline(declineModal, values)
+          }}
+        >
+          <Form.Item
+            name="reason"
+            label="Reason for declining"
+            rules={[{ required: true, message: 'Required' }]}
+          >
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   )
 }
 
