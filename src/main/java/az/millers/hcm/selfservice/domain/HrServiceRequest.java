@@ -51,6 +51,9 @@ public class HrServiceRequest {
     @Column(name = "assigned_to_username", length = 80)
     private String assignedToUsername;
 
+    @Column(name = "queue_id")
+    private UUID queueId;
+
     @Column(name = "sla_due")
     private OffsetDateTime slaDue;
 

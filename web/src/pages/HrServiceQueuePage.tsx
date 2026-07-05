@@ -22,6 +22,7 @@ import {
   hrServiceQueueApi,
   type HrServiceRequest,
   type HrServiceRequestComment,
+  type HrAgentQueue,
   type ServiceRequestCategory,
   type ServiceRequestStatus,
   type ServiceRequestPriority,
@@ -36,11 +37,13 @@ export default function HrServiceQueuePage() {
   const { message } = AntdApp.useApp()
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState<HrServiceRequest[]>([])
+  const [queues, setQueues] = useState<HrAgentQueue[]>([])
+  const [selectedQueueId, setSelectedQueueId] = useState<string | undefined>()
   const [categoryFilter, setCategoryFilter] = useState<ServiceRequestCategory | undefined>()
   const [statusFilter, setStatusFilter] = useState<ServiceRequestStatus | undefined>()
   const [overdueOnly, setOverdueOnly] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<HrServiceRequest | null>(null)
-  const [action, setAction] = useState<'assign' | 'resolve' | null>(null)
+  const [action, setAction] = useState<'assign' | 'resolve' | 'reassign' | null>(null)
   const [viewDrawerOpen, setViewDrawerOpen] = useState(false)
   const [comments, setComments] = useState<HrServiceRequestComment[]>([])
   const [commentBody, setCommentBody] = useState('')
@@ -50,12 +53,21 @@ export default function HrServiceQueuePage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await hrServiceQueueApi.queue({
-        category: categoryFilter,
-        status: statusFilter,
-        overdue: overdueOnly,
-      })
-      setRequests(res.data)
+      const [reqRes, queueRes] = await Promise.all([
+        hrServiceQueueApi.queue({
+          category: categoryFilter,
+          status: statusFilter,
+          overdue: overdueOnly,
+        }),
+        hrServiceQueueApi.listQueues(),
+      ])
+      let allRequests = reqRes.data
+      // Filter by queue if selected
+      if (selectedQueueId) {
+        allRequests = allRequests.filter(r => r.queueId === selectedQueueId)
+      }
+      setRequests(allRequests)
+      setQueues(queueRes.data)
     } catch (err: any) {
       message.error('Failed to load queue: ' + (err.message || ''))
     } finally {
@@ -65,7 +77,7 @@ export default function HrServiceQueuePage() {
 
   useEffect(() => {
     load()
-  }, [categoryFilter, statusFilter, overdueOnly])
+  }, [categoryFilter, statusFilter, overdueOnly, selectedQueueId])
 
   const handleAssign = async () => {
     if (!selectedRequest) return
@@ -104,6 +116,21 @@ export default function HrServiceQueuePage() {
       load()
     } catch (err: any) {
       message.error('Failed to resolve: ' + (err.message || ''))
+    }
+  }
+
+  const handleReassign = async () => {
+    if (!selectedRequest) return
+    try {
+      const values = await form.validateFields()
+      await hrServiceQueueApi.reassign(selectedRequest.id, values.queueId)
+      message.success('Request reassigned')
+      setAction(null)
+      setSelectedRequest(null)
+      form.resetFields()
+      load()
+    } catch (err: any) {
+      message.error('Failed to reassign: ' + (err.message || ''))
     }
   }
 
@@ -209,6 +236,7 @@ export default function HrServiceQueuePage() {
       render: (_, rec) => (
         <Space size="small">
           <Button size="small" type="link" onClick={() => viewRequest(rec)}>View</Button>
+          <Button size="small" onClick={() => { setSelectedRequest(rec); setAction('reassign'); }}>Reassign</Button>
           {rec.status === 'OPEN' && (
             <>
               <Button size="small" onClick={() => handleStart(rec.id)}>Start</Button>
@@ -234,8 +262,40 @@ export default function HrServiceQueuePage() {
     },
   ]
 
+  // Queue counts for tabs
+  const queueCounts = queues.map(q => ({
+    queue: q,
+    count: requests.filter(r => r.queueId === q.id).length,
+  }))
+  const unassignedCount = requests.filter(r => !r.queueId).length
+
   return (
     <Card title={<Typography.Title level={4} style={{ margin: 0 }}>HR Service Queue</Typography.Title>}>
+      {/* Queue Tabs */}
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Button
+          type={!selectedQueueId ? 'primary' : 'default'}
+          onClick={() => setSelectedQueueId(undefined)}
+        >
+          All ({requests.length})
+        </Button>
+        {queueCounts.map(({ queue, count }) => (
+          <Button
+            key={queue.id}
+            type={selectedQueueId === queue.id ? 'primary' : 'default'}
+            onClick={() => setSelectedQueueId(queue.id)}
+          >
+            {queue.name} ({count})
+          </Button>
+        ))}
+        <Button
+          type={selectedQueueId === 'unassigned' ? 'primary' : 'default'}
+          onClick={() => setSelectedQueueId('unassigned')}
+        >
+          Unassigned ({unassignedCount})
+        </Button>
+      </Space>
+
       <Space style={{ marginBottom: 16 }} wrap>
         <Select
           style={{ width: 180 }}
@@ -269,7 +329,7 @@ export default function HrServiceQueuePage() {
       </Space>
       <Table
         loading={loading}
-        dataSource={requests}
+        dataSource={selectedQueueId === 'unassigned' ? requests.filter(r => !r.queueId) : requests}
         columns={columns}
         rowKey="id"
         pagination={{ pageSize: 20 }}
@@ -317,6 +377,30 @@ export default function HrServiceQueuePage() {
             rules={[{ required: true, message: 'Please enter resolution notes' }]}
           >
             <TextArea rows={4} maxLength={4000} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Reassign Queue Modal */}
+      <Modal
+        title="Reassign to Queue"
+        open={action === 'reassign'}
+        onCancel={() => { setAction(null); form.resetFields(); }}
+        onOk={handleReassign}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="queueId"
+            label="Queue"
+            rules={[{ required: true, message: 'Please select a queue' }]}
+          >
+            <Select>
+              {queues.map(q => (
+                <Select.Option key={q.id} value={q.id}>
+                  {q.name}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
         </Form>
       </Modal>

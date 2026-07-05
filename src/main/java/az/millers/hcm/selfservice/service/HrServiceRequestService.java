@@ -18,10 +18,12 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.selfservice.domain.HrAgentQueue;
 import az.millers.hcm.selfservice.domain.HrServiceRequest;
 import az.millers.hcm.selfservice.domain.ServiceRequestCategory;
 import az.millers.hcm.selfservice.domain.ServiceRequestPriority;
 import az.millers.hcm.selfservice.domain.ServiceRequestStatus;
+import az.millers.hcm.selfservice.repo.HrAgentQueueRepository;
 import az.millers.hcm.selfservice.repo.HrServiceRequestRepository;
 
 /**
@@ -37,6 +39,7 @@ public class HrServiceRequestService {
     private static final String ENTITY = "HrServiceRequest";
 
     private final HrServiceRequestRepository repo;
+    private final HrAgentQueueRepository queueRepo;
     private final EmployeeRepository employees;
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditService audit;
@@ -44,12 +47,14 @@ public class HrServiceRequestService {
     private final NotificationService notifications;
 
     public HrServiceRequestService(HrServiceRequestRepository repo,
+                                    HrAgentQueueRepository queueRepo,
                                     EmployeeRepository employees,
                                     NamedParameterJdbcTemplate jdbc,
                                     AuditService audit,
                                     CurrentRequest currentRequest,
                                     NotificationService notifications) {
         this.repo = repo;
+        this.queueRepo = queueRepo;
         this.employees = employees;
         this.jdbc = jdbc;
         this.audit = audit;
@@ -77,8 +82,13 @@ public class HrServiceRequestService {
         req.setCreatedBy(currentRequest.username());
         req.setUpdatedBy(currentRequest.username());
 
-        // Calculate SLA due (business days)
-        req.setSlaDue(calculateSlaDue(req.getPriority().slaBusinessDays()));
+        // Auto-route to queue by category (M438)
+        queueRepo.findByTenantIdAndRoutingCategory(TENANT, category).ifPresent(queue -> {
+            req.setQueueId(queue.getId());
+        });
+
+        // Calculate SLA due (category SLA takes precedence over priority SLA per M438)
+        req.setSlaDue(calculateSlaDue(category, priority != null ? priority : ServiceRequestPriority.NORMAL));
 
         HrServiceRequest saved = repo.save(req);
 
@@ -226,8 +236,19 @@ public class HrServiceRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException("HR service request not found: " + id));
     }
 
-    /** Calculate SLA due date by adding business days (skip Sat/Sun; holidays optional). */
-    private OffsetDateTime calculateSlaDue(int businessDays) {
+    /**
+     * Calculate SLA due date by adding business days (skip Sat/Sun; holidays optional).
+     * M438: Category SLA takes precedence over priority SLA.
+     * Category defaults: SALARY_CERT 2, EMPLOYMENT_LETTER 2, PAYROLL_INQUIRY 3,
+     * POLICY_QUESTION 5, GRIEVANCE 1, OTHER 3.
+     */
+    private OffsetDateTime calculateSlaDue(ServiceRequestCategory category, ServiceRequestPriority priority) {
+        int businessDays = getCategorySla(category);
+        if (businessDays == 0) {
+            // Fallback to priority SLA if no category SLA
+            businessDays = priority.slaBusinessDays();
+        }
+
         LocalDate date = LocalDate.now();
         int added = 0;
         while (added < businessDays) {
@@ -237,5 +258,27 @@ public class HrServiceRequestService {
             }
         }
         return date.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
+    private int getCategorySla(ServiceRequestCategory category) {
+        return switch (category) {
+            case SALARY_CERT -> 2;
+            case EMPLOYMENT_LETTER -> 2;
+            case PAYROLL_INQUIRY -> 3;
+            case POLICY_QUESTION -> 5;
+            case GRIEVANCE -> 1;
+            case OTHER -> 3;
+        };
+    }
+
+    @Transactional
+    public HrServiceRequest reassign(UUID id, UUID queueId) {
+        HrServiceRequest req = get(id);
+        req.setQueueId(queueId);
+        req.setUpdatedBy(currentRequest.username());
+        req.setUpdatedAt(OffsetDateTime.now());
+        HrServiceRequest saved = repo.save(req);
+        audit.record(MODULE, ENTITY, id.toString(), "REASSIGN_QUEUE", null, queueId.toString());
+        return saved;
     }
 }

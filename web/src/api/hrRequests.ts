@@ -22,11 +22,20 @@ export interface HrServiceRequest {
   description?: string
   status: ServiceRequestStatus
   assignedToUsername?: string
+  queueId?: string
   slaDue?: string
   resolvedAt?: string
   resolutionNotes?: string
   createdAt: string
   createdBy: string
+}
+
+export interface HrAgentQueue {
+  id: string
+  code: string
+  name: string
+  routingCategory?: ServiceRequestCategory
+  active: boolean
 }
 
 export interface SubmitServiceRequest {
@@ -73,6 +82,10 @@ export const hrServiceQueueApi = {
     api.get<HrServiceRequestComment[]>(`/hr/service-requests/${requestId}/comments`),
   addComment: (requestId: string, body: string, isInternal: boolean) =>
     api.post<HrServiceRequestComment>(`/hr/service-requests/${requestId}/comments`, { body, isInternal }),
+  listQueues: () =>
+    api.get<HrAgentQueue[]>('/hr/service-requests/queues'),
+  reassign: (id: string, queueId: string) =>
+    api.post<HrServiceRequest>(`/hr/service-requests/${id}/reassign`, { queueId }),
 }
 
 export const REQUEST_CATEGORY_COLOR: Record<ServiceRequestCategory, string> = {

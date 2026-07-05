@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.selfservice.api.dto.HrServiceRequestDto;
+import az.millers.hcm.selfservice.domain.HrAgentQueue;
 import az.millers.hcm.selfservice.domain.ServiceRequestCategory;
 import az.millers.hcm.selfservice.domain.ServiceRequestStatus;
+import az.millers.hcm.selfservice.service.HrAgentQueueService;
 import az.millers.hcm.selfservice.service.HrServiceRequestService;
 
 /**
@@ -26,9 +28,11 @@ import az.millers.hcm.selfservice.service.HrServiceRequestService;
 public class HrServiceQueueController {
 
     private final HrServiceRequestService service;
+    private final HrAgentQueueService queueService;
 
-    public HrServiceQueueController(HrServiceRequestService service) {
+    public HrServiceQueueController(HrServiceRequestService service, HrAgentQueueService queueService) {
         this.service = service;
+        this.queueService = queueService;
     }
 
     @GetMapping
@@ -70,5 +74,18 @@ public class HrServiceQueueController {
     @PreAuthorize("hasAnyRole('HR_ADMIN', 'HR_SPECIALIST')")
     public HrServiceRequestDto reopen(@PathVariable UUID id) {
         return HrServiceRequestDto.from(service.reopen(id));
+    }
+
+    // M438 — Queue management
+    @GetMapping("/queues")
+    @PreAuthorize("hasAnyRole('HR_ADMIN', 'HR_SPECIALIST')")
+    public List<HrAgentQueue> listQueues() {
+        return queueService.listActive();
+    }
+
+    @PostMapping("/{id}/reassign")
+    @PreAuthorize("hasAnyRole('HR_ADMIN', 'HR_SPECIALIST')")
+    public HrServiceRequestDto reassign(@PathVariable UUID id, @RequestBody Map<String, UUID> body) {
+        return HrServiceRequestDto.from(service.reassign(id, body.get("queueId")));
     }
 }
