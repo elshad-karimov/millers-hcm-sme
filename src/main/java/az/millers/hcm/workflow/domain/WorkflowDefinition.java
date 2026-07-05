@@ -1,5 +1,6 @@
 package az.millers.hcm.workflow.domain;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -23,7 +24,7 @@ public class WorkflowDefinition {
     @Id
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String code;
 
     @Column(nullable = false)
@@ -37,6 +38,18 @@ public class WorkflowDefinition {
 
     @Column(nullable = false)
     private boolean active;
+
+    /** M442 — Version number (1-based); effective window resolves which version applies. */
+    @Column(nullable = false)
+    private Integer version = 1;
+
+    /** M442 — Start date for this version (NULL = always valid). */
+    @Column(name = "effective_from")
+    private LocalDate effectiveFrom;
+
+    /** M442 — End date for this version (NULL = no end). */
+    @Column(name = "effective_to")
+    private LocalDate effectiveTo;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

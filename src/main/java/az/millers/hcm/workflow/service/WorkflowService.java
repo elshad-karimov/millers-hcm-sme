@@ -75,6 +75,7 @@ public class WorkflowService {
     private final WorkflowActionRepository actions;
     private final WorkflowParallelVoteRepository votes;
     private final SubstituteApproverRepository substitutes;
+    private final az.millers.hcm.workflow.repo.ApprovalGroupMemberRepository groupMembers; // M443
     private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper;
     private final CurrentRequest currentRequest;
@@ -89,6 +90,7 @@ public class WorkflowService {
                            WorkflowActionRepository actions,
                            WorkflowParallelVoteRepository votes,
                            SubstituteApproverRepository substitutes,
+                           az.millers.hcm.workflow.repo.ApprovalGroupMemberRepository groupMembers,
                            ApplicationEventPublisher events,
                            ObjectMapper objectMapper,
                            CurrentRequest currentRequest,
@@ -102,6 +104,7 @@ public class WorkflowService {
         this.actions = actions;
         this.votes = votes;
         this.substitutes = substitutes;
+        this.groupMembers = groupMembers;
         this.events = events;
         this.objectMapper = objectMapper;
         this.currentRequest = currentRequest;
@@ -121,7 +124,9 @@ public class WorkflowService {
 
     @Transactional(readOnly = true)
     public WorkflowDefinition getDefinition(String code) {
-        return definitions.findByCode(code)
+        // M442 — Resolve effective version for today (version window contains today; highest version wins ties)
+        return definitions.findEffectiveVersion(code, LocalDate.now())
+                .or(() -> definitions.findByCode(code)) // Fallback for pre-versioning definitions
                 .orElseThrow(() -> new ResourceNotFoundException("Workflow definition not found: " + code));
     }
 
@@ -211,6 +216,23 @@ public class WorkflowService {
             instances.findByStatusAndCurrentStepRoleInOrderByInitiatedAtDesc(
                     WorkflowStatus.PENDING, coveredPrincipalRoles)
                     .stream()
+                    .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
+                            || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
+                    .forEach(i -> merged.putIfAbsent(i.getId(), i));
+        }
+
+        // M443 — include instances where current step is assigned to an approval group the user belongs to
+        List<UUID> myGroups = groupMembers.findByTenantIdAndUsername("default", myUsername).stream()
+                .map(az.millers.hcm.workflow.domain.ApprovalGroupMember::getGroupId)
+                .toList();
+        if (!myGroups.isEmpty()) {
+            instances.findAll().stream()
+                    .filter(i -> i.getStatus() == WorkflowStatus.PENDING)
+                    .filter(i -> {
+                        WorkflowStep currentStep = currentStepFor(i);
+                        return currentStep != null && currentStep.getApprovalGroupId() != null
+                                && myGroups.contains(currentStep.getApprovalGroupId());
+                    })
                     .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
                             || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
                     .forEach(i -> merged.putIfAbsent(i.getId(), i));
@@ -867,12 +889,24 @@ public class WorkflowService {
     }
 
     /**
-     * Throws on a manager- or HRBP-resolved step when the caller isn't the
-     * expected approver. SYSTEM_ADMIN ({@code isAdmin}) bypasses.
+     * Throws on a manager- or HRBP-resolved step OR approval group step (M443)
+     * when the caller isn't eligible. SYSTEM_ADMIN ({@code isAdmin}) bypasses.
      */
     private void requireResolvedApprover(WorkflowInstance i, WorkflowStep step,
                                           boolean isAdmin, String message) {
         if (isAdmin) return;
+
+        // M443 — approval group takes precedence
+        if (step.getApprovalGroupId() != null) {
+            String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+            boolean isMember = groupMembers.findByTenantIdAndUsername("default", currentUser).stream()
+                    .anyMatch(m -> m.getGroupId().equals(step.getApprovalGroupId()));
+            if (!isMember) {
+                throw new BadRequestException("You are not a member of the approval group for this step");
+            }
+            return; // Group membership check passes, skip other checks
+        }
+
         if (step.isResolvesToManager()) {
             UUID expectedMgr = resolveSubjectManagerId(i);
             if (expectedMgr == null) {

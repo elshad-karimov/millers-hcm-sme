@@ -94,6 +94,13 @@ public class WorkflowStep {
     @Column(name = "condition_spel", length = 500)
     private String conditionSpel;
 
+    /**
+     * M443 — if set, eligible actors = group members (any may act).
+     * Takes precedence over approverRole/resolvesToManager/resolvesToHrbp.
+     */
+    @Column(name = "approval_group_id")
+    private UUID approvalGroupId;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
