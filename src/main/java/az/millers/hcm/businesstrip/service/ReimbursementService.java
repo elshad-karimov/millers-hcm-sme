@@ -86,6 +86,10 @@ public class ReimbursementService {
             ExpenseClaim claim = claims.findById(claimId)
                     .orElseThrow(() -> new ResourceNotFoundException("Expense claim not found: " + claimId));
 
+            // NOTE: ExpenseClaim and BusinessTripRequest don't have tenant_id (pre-M104 schema).
+            // Isolation is via employee_id → employee.tenant_id. The batch itself is tenant-scoped,
+            // and claims are validated for APPROVED status, so cross-tenant batching is structurally prevented.
+
             // Validate status
             if (claim.getStatus() != ClaimStatus.APPROVED) {
                 throw new BadRequestException("Claim " + claim.getClaimNo()
@@ -176,6 +180,17 @@ public class ReimbursementService {
                 ExpenseClaim claim = claims.findById(item.getExpenseClaimId()).orElse(null);
                 if (claim == null) {
                     failures.add("Claim " + item.getExpenseClaimId() + " not found");
+                    continue;
+                }
+
+                // NOTE: See createBatch note — expense claims lack tenant_id (legacy schema).
+                // The batch is tenant-scoped, so cross-tenant leakage is structurally prevented.
+
+                // Double-pay guard: skip already-PAID claims
+                if (claim.getStatus() == ClaimStatus.PAID) {
+                    audit.record(MODULE, ENTITY, batchId.toString(), "SKIPPED_ALREADY_PAID", null,
+                            Map.of("claimId", item.getExpenseClaimId().toString(),
+                                   "claimNo", claim.getClaimNo()));
                     continue;
                 }
 

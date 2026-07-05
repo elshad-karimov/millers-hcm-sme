@@ -249,6 +249,15 @@ public class SignatureService {
         SignatureRequest request = requestRepo.findByIdAndTenantId(requestId, TENANT)
                 .orElseThrow(() -> new IllegalArgumentException("Request not found"));
 
+        // Defense-in-depth: only creator or HR_ADMIN can cancel
+        boolean isCreator = currentUser.equals(request.getCreatedBy());
+        boolean isHrAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_HR_ADMIN"));
+
+        if (!isCreator && !isHrAdmin) {
+            throw new az.millers.hcm.common.BadRequestException("Only the creator or HR_ADMIN can cancel this request");
+        }
+
         if (request.getStatus() == SignatureRequest.SignatureRequestStatus.CANCELLED) {
             throw new IllegalStateException("Request already cancelled");
         }

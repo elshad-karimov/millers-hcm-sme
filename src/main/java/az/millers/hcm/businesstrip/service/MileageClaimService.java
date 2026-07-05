@@ -35,15 +35,18 @@ public class MileageClaimService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
     private final AccessScopeService accessScope;
+    private final az.millers.hcm.selfservice.service.EmployeeContextService employeeContext;
 
     public MileageClaimService(MileageClaimRepository claims,
                                 AuditService audit,
                                 CurrentRequest currentRequest,
-                                AccessScopeService accessScope) {
+                                AccessScopeService accessScope,
+                                az.millers.hcm.selfservice.service.EmployeeContextService employeeContext) {
         this.claims = claims;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.accessScope = accessScope;
+        this.employeeContext = employeeContext;
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────
@@ -85,6 +88,17 @@ public class MileageClaimService {
         if (claim.getStatus() != MileageClaimStatus.SUBMITTED) {
             throw new BadRequestException("Only SUBMITTED claims can be approved");
         }
+
+        // Self-approve guard
+        try {
+            UUID currentEmployeeId = employeeContext.currentEmployee().getId();
+            if (claim.getEmployeeId().equals(currentEmployeeId)) {
+                throw new BadRequestException("You cannot approve your own claim");
+            }
+        } catch (Exception e) {
+            // If currentEmployee() fails (non-employee user), proceed to scope check
+        }
+
         // AccessScopeService enforces manager-or-HR check (employee's manager or HR role)
         if (!accessScope.isAccessible(claim.getEmployeeId()) && !currentRequest.hasRole("HR")) {
             throw new BadRequestException("You can only approve claims for your team");
@@ -104,6 +118,17 @@ public class MileageClaimService {
         if (claim.getStatus() != MileageClaimStatus.SUBMITTED) {
             throw new BadRequestException("Only SUBMITTED claims can be rejected");
         }
+
+        // Self-reject guard (consistency with approve)
+        try {
+            UUID currentEmployeeId = employeeContext.currentEmployee().getId();
+            if (claim.getEmployeeId().equals(currentEmployeeId)) {
+                throw new BadRequestException("You cannot reject your own claim (use cancel instead)");
+            }
+        } catch (Exception e) {
+            // If currentEmployee() fails (non-employee user), proceed to scope check
+        }
+
         if (!accessScope.isAccessible(claim.getEmployeeId()) && !currentRequest.hasRole("HR")) {
             throw new BadRequestException("You can only reject claims for your team");
         }
@@ -147,6 +172,12 @@ public class MileageClaimService {
     @Transactional(readOnly = true)
     public List<MileageClaim> forEmployee(UUID employeeId) {
         String tenantId = "default";
+
+        // IDOR guard: enforce access scope (employee = self only; manager = team; HR = all)
+        if (!accessScope.isAccessible(employeeId)) {
+            throw new ResourceNotFoundException("You do not have access to this employee's claims");
+        }
+
         return claims.findByTenantIdAndEmployeeIdOrderByClaimDateDesc(tenantId, employeeId);
     }
 

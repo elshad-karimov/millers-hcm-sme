@@ -162,6 +162,10 @@ public class ErCaseService {
     public ErCase get(UUID id) {
         ErCase erCase = caseRepo.findByIdAndTenantId(id, TENANT)
                 .orElseThrow(() -> new ResourceNotFoundException("ER case not found: " + id));
+
+        // Enforce confidential visibility: only HR_ADMIN or owner
+        checkConfidentialAccess(erCase);
+
         return erCase;
     }
 

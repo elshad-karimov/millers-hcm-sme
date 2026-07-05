@@ -76,14 +76,14 @@ public class InjuryReportController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS) // HR_ADMIN gets it via READ_HR subset
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY) // MEDICAL CONFIDENTIALITY: HR_ADMIN only
     public InjuryReportResponse get(@PathVariable UUID id) {
         InjuryReport report = service.get(id);
         return toResponse(report);
     }
 
     @GetMapping
-    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS) // HR_ADMIN gets it via READ_HR subset
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY) // MEDICAL CONFIDENTIALITY: HR_ADMIN only
     public List<InjuryReportResponse> list(
             @RequestParam(required = false) UUID incidentId,
             @RequestParam(required = false) UUID employeeId) {

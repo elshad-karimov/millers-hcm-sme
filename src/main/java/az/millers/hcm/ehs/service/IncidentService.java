@@ -49,6 +49,9 @@ public class IncidentService {
     private final NotificationService notificationService;
     private final NamedParameterJdbcTemplate jdbc;
 
+    // Cache employee context to avoid repeated lookups in get() filtering
+    private UUID cachedCurrentEmployeeId;
+
     public IncidentService(IncidentRepository repo,
                            IncidentInvolvedRepository involvedRepo,
                            IncidentWitnessRepository witnessRepo,
@@ -237,6 +240,24 @@ public class IncidentService {
         // Tenant post-check
         if (!TENANT.equals(incident.getTenantId())) {
             throw new ResourceNotFoundException("Incident not found: " + id);
+        }
+
+        // IDOR guard: non-HR users can only see incidents they reported
+        boolean isHR = currentRequest.hasRole("HR_ADMIN")
+                    || currentRequest.hasRole("HR_SPECIALIST")
+                    || currentRequest.hasRole("SYSTEM_ADMIN");
+
+        if (!isHR) {
+            if (cachedCurrentEmployeeId == null) {
+                try {
+                    cachedCurrentEmployeeId = employeeContext.currentEmployee().getId();
+                } catch (Exception e) {
+                    throw new ResourceNotFoundException("Incident not found: " + id);
+                }
+            }
+            if (!cachedCurrentEmployeeId.equals(incident.getReportedByEmployeeId())) {
+                throw new ResourceNotFoundException("Incident not found: " + id);
+            }
         }
 
         return incident;

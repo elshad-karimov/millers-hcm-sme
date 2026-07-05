@@ -85,8 +85,8 @@ public class WarningService {
 
         // Notify employee (via username lookup if available)
         jdbc.query(
-                "SELECT username FROM core_hr.employee WHERE id = :id AND username IS NOT NULL",
-                Map.of("id", employeeId),
+                "SELECT username FROM core_hr.employee WHERE id = :id AND tenant_id = :tenantId AND username IS NOT NULL",
+                Map.of("id", employeeId, "tenantId", TENANT),
                 rs -> {
                     if (rs.next()) {
                         String username = rs.getString("username");

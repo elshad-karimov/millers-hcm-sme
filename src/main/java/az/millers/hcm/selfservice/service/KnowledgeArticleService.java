@@ -197,6 +197,17 @@ public class KnowledgeArticleService {
         if (!TENANT.equals(article.getTenantId())) {
             throw new ResourceNotFoundException("Knowledge article not found: " + id);
         }
+
+        // Non-PUBLISHED articles visible only to HR roles
+        if (article.getStatus() != KnowledgeArticleStatus.PUBLISHED) {
+            boolean isHR = currentRequest.hasRole("HR_ADMIN")
+                        || currentRequest.hasRole("HR_SPECIALIST")
+                        || currentRequest.hasRole("SYSTEM_ADMIN");
+            if (!isHR) {
+                throw new ResourceNotFoundException("Knowledge article not found: " + id);
+            }
+        }
+
         return article;
     }
 }

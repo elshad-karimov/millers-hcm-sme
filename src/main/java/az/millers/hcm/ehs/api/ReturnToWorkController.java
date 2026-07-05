@@ -84,14 +84,14 @@ public class ReturnToWorkController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS) // HR_ADMIN gets it via READ_HR subset
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY) // MEDICAL CONFIDENTIALITY: HR_ADMIN only
     public ReturnToWorkResponse get(@PathVariable UUID id) {
         ReturnToWorkPlan plan = service.get(id);
         return toResponse(plan);
     }
 
     @GetMapping
-    @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS) // HR_ADMIN gets it via READ_HR subset
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY) // MEDICAL CONFIDENTIALITY: HR_ADMIN only
     public List<ReturnToWorkResponse> list(
             @RequestParam(required = false) ReturnToWorkStatus status,
             @RequestParam(required = false) UUID employeeId) {
