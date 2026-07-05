@@ -9,13 +9,22 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.notifications.domain.NotificationCategory;
+import az.millers.hcm.workflow.api.dto.ActionRequest;
 import az.millers.hcm.workflow.api.dto.SlaBreachResponse;
+import az.millers.hcm.workflow.domain.ActionType;
 import az.millers.hcm.workflow.domain.EscalationAction;
 import az.millers.hcm.workflow.domain.SlaBreach;
 import az.millers.hcm.workflow.domain.WorkflowDefinition;
@@ -41,22 +50,30 @@ import az.millers.hcm.workflow.repo.WorkflowStepRepository;
 @Service
 public class WorkflowSlaService {
 
+    private static final Logger log = LoggerFactory.getLogger(WorkflowSlaService.class);
+
     private final WorkflowInstanceRepository instances;
     private final WorkflowDefinitionRepository definitions;
     private final WorkflowStepRepository steps;
     private final SlaBreachRepository breaches;
     private final NotificationService notifications;
+    private final ApplicationContext context; // M444 — lazy-resolve WorkflowService to avoid circular dependency
+    private final AuditService audit;
 
     public WorkflowSlaService(WorkflowInstanceRepository instances,
                               WorkflowDefinitionRepository definitions,
                               WorkflowStepRepository steps,
                               SlaBreachRepository breaches,
-                              NotificationService notifications) {
+                              NotificationService notifications,
+                              ApplicationContext context,
+                              AuditService audit) {
         this.instances = instances;
         this.definitions = definitions;
         this.steps = steps;
         this.breaches = breaches;
         this.notifications = notifications;
+        this.context = context;
+        this.audit = audit;
     }
 
     /**
@@ -101,16 +118,25 @@ public class WorkflowSlaService {
                 b.setBreachedAt(now);
                 b.setHoursOverdue(SlaCalculator.hoursOverdue(
                         i.getCurrentStepEnteredAt(), step.getSlaHours(), now));
-                b.setActionTaken(EscalationAction.NOTIFY);
-                String target = pickTarget(step, i);
-                b.setNotifiedTarget(target);
+
+                // M444 — handle AUTO_APPROVE and AUTO_REJECT escalation actions
+                EscalationAction action = step.getEscalationAction();
+                b.setActionTaken(action);
+
+                if (action == EscalationAction.AUTO_APPROVE || action == EscalationAction.AUTO_REJECT) {
+                    executeAutoAction(i, step, action, b);
+                    b.setNotifiedTarget("system-sla");
+                } else {
+                    // Default: NOTIFY
+                    String target = pickTarget(step, i);
+                    b.setNotifiedTarget(target);
+                    if (target != null && !target.isBlank()) {
+                        sendBreachNotice(target, i, step, b.getHoursOverdue());
+                    }
+                }
+
                 breaches.save(b);
                 newCount++;
-                // Fire the notification. Use TRANSACTIONAL so it can't
-                // be muted — an SLA breach is urgent by definition.
-                if (target != null && !target.isBlank()) {
-                    sendBreachNotice(target, i, step, b.getHoursOverdue());
-                }
             } catch (DataIntegrityViolationException race) {
                 // Another scheduler instance recorded the same breach
                 // first. Fine — we just move on.
@@ -189,6 +215,48 @@ public class WorkflowSlaService {
                 NotificationCategory.TRANSACTIONAL,
                 target, title, body,
                 "WORKFLOW", "WorkflowInstance", i.getId().toString());
+    }
+
+    /**
+     * M444 — Execute AUTO_APPROVE or AUTO_REJECT on SLA breach.
+     * Uses a system actor "system-sla" and audits the action.
+     */
+    private void executeAutoAction(WorkflowInstance instance, WorkflowStep step,
+                                   EscalationAction action, SlaBreach breach) {
+        try {
+            // Set up a system authentication context
+            var systemAuth = new UsernamePasswordAuthenticationToken(
+                    "system-sla",
+                    null,
+                    List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
+            var previousAuth = SecurityContextHolder.getContext().getAuthentication();
+
+            try {
+                SecurityContextHolder.getContext().setAuthentication(systemAuth);
+
+                // Lazy-resolve WorkflowService to avoid circular dependency
+                WorkflowService workflowService = context.getBean(WorkflowService.class);
+
+                ActionRequest request = new ActionRequest(
+                        action == EscalationAction.AUTO_APPROVE ? ActionType.APPROVE : ActionType.REJECT,
+                        "Auto-actioned on SLA breach",
+                        null, null);
+
+                workflowService.act(instance.getId(), request);
+
+                log.info("Workflow {} step {} auto-{} on SLA breach ({}h overdue)",
+                        instance.getId(), step.getName(),
+                        action == EscalationAction.AUTO_APPROVE ? "approved" : "rejected",
+                        breach.getHoursOverdue());
+
+            } finally {
+                SecurityContextHolder.getContext().setAuthentication(previousAuth);
+            }
+        } catch (Exception e) {
+            log.error("Failed to execute auto-action {} for workflow {} step {}: {}",
+                    action, instance.getId(), step.getName(), e.getMessage(), e);
+            // Don't throw — we still want to record the breach
+        }
     }
 
     private SlaBreachResponse enrich(SlaBreach b, WorkflowInstance i) {
