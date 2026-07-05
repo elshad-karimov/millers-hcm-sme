@@ -45,6 +45,9 @@ public class ExpenseItem {
     @Column(name = "receipt_url", columnDefinition = "text")
     private String receiptUrl;
 
+    @Column(name = "policy_flags", length = 500)
+    private String policyFlags;  // M454: validation verdict (WARNING | RECEIPT_REQUIRED | BLOCKED)
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

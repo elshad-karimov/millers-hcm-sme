@@ -2,6 +2,7 @@ package az.millers.hcm.businesstrip.service;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,19 +48,22 @@ public class ExpenseClaimService {
     private final EmployeeRepository employees;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ExpensePolicyService policyService;
 
     public ExpenseClaimService(ExpenseClaimRepository claims,
                                 ExpenseItemRepository items,
                                 BusinessTripRequestRepository trips,
                                 EmployeeRepository employees,
                                 AuditService audit,
-                                CurrentRequest currentRequest) {
+                                CurrentRequest currentRequest,
+                                ExpensePolicyService policyService) {
         this.claims = claims;
         this.items = items;
         this.trips = trips;
         this.employees = employees;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.policyService = policyService;
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────
@@ -93,11 +97,36 @@ public class ExpenseClaimService {
         if (claimItems.isEmpty()) {
             throw new BadRequestException("Cannot submit a claim with no items");
         }
+
+        // M454: Validate expense items against policy
+        List<String> warnings = new ArrayList<>();
+        for (ExpenseItem item : claimItems) {
+            boolean hasReceipt = item.getReceiptUrl() != null && !item.getReceiptUrl().isBlank();
+            ExpensePolicyService.ValidationResult result = policyService.validate(
+                    item.getCategory(), item.getAmount(), item.getItemDate(), null, hasReceipt);
+
+            if (result.verdict() == ExpensePolicyService.ValidationVerdict.BLOCKED) {
+                throw new BadRequestException("Expense item blocked by policy: " + result.message());
+            }
+
+            // Store policy flags on the item
+            if (result.verdict() != ExpensePolicyService.ValidationVerdict.VALID) {
+                item.setPolicyFlags(result.verdict().name());
+                items.save(item);
+                warnings.add(result.message());
+            }
+        }
+
         claim.setStatus(ClaimStatus.SUBMITTED);
         claim.setSubmittedAt(OffsetDateTime.now());
         claims.save(claim);
-        audit.record(MODULE, ENTITY, claimId.toString(), "SUBMIT", null,
-                Map.of("total", total(claimItems).toString()));
+
+        Map<String, Object> auditData = new java.util.HashMap<>();
+        auditData.put("total", total(claimItems).toString());
+        if (!warnings.isEmpty()) {
+            auditData.put("policyWarnings", String.join("; ", warnings));
+        }
+        audit.record(MODULE, ENTITY, claimId.toString(), "SUBMIT", null, auditData);
         return toResponse(claim);
     }
 
