@@ -32,7 +32,8 @@ public final class ExpenseClaimDtos {
             String description,
             BigDecimal amount,
             LocalDate itemDate,
-            String receiptUrl) {}
+            String receiptUrl,
+            String policyFlags) {}
 
     public record ClaimResponse(
             UUID id,

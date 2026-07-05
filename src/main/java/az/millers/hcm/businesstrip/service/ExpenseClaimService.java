@@ -235,7 +235,7 @@ public class ExpenseClaimService {
                 .orElse(null);
         List<ItemResponse> itemDtos = claimItems.stream()
                 .map(i -> new ItemResponse(i.getId(), i.getCategory(), i.getDescription(),
-                        i.getAmount(), i.getItemDate(), i.getReceiptUrl()))
+                        i.getAmount(), i.getItemDate(), i.getReceiptUrl(), i.getPolicyFlags()))
                 .toList();
         return new ClaimResponse(
                 c.getId(), c.getClaimNo(),
