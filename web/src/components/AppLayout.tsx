@@ -182,6 +182,13 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/my', module: 'my', screen: 'my' },
   { prefix: '/inbox', module: 'approvals', screen: 'approvals' },
   { prefix: '/hr/workflow-sla', module: 'approvals', screen: 'workflow-sla' },
+  { prefix: '/hr/document-categories', module: 'people', screen: 'document-categories' },
+  { prefix: '/hr/signatures', module: 'people', screen: 'signatures' },
+  { prefix: '/er/cases', module: 'employee-relations', screen: 'er-cases' },
+  { prefix: '/er/warnings', module: 'employee-relations', screen: 'er-warnings' },
+  { prefix: '/er/corrective-actions', module: 'employee-relations', screen: 'er-corrective-actions' },
+  { prefix: '/workflow/definitions', module: 'approvals', screen: 'workflow-definitions' },
+  { prefix: '/workflow/approval-groups', module: 'approvals', screen: 'approval-groups' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
   { prefix: '/admin/backups', module: 'admin', screen: 'admin-backups' },
   { prefix: '/admin/ldap', module: 'admin', screen: 'admin-ldap' },
@@ -346,6 +353,18 @@ export function AppLayout() {
                 label: <Link to="/organization/documents">{tNav('sub.people.unitDocuments')}</Link>,
               },
               {
+                // M439 — document categories
+                key: 'document-categories',
+                icon: <TagsOutlined />,
+                label: <Link to="/hr/document-categories">Document Categories</Link>,
+              },
+              {
+                // M440 — signature requests
+                key: 'signatures',
+                icon: <FileDoneOutlined />,
+                label: <Link to="/hr/signatures">Signatures</Link>,
+              },
+              {
                 key: 'positions',
                 icon: <SolutionOutlined />,
                 label: <Link to="/positions">{tNav('sub.people.positions')}</Link>,
@@ -354,6 +373,34 @@ export function AppLayout() {
                 key: 'position-control',
                 icon: <FundOutlined />,
                 label: <Link to="/positions/control">{tNav('sub.people.positionControl')}</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Employee Relations (HR only) ───────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'employee-relations',
+            icon: <WarningOutlined />,
+            label: 'Employee Relations',
+            children: [
+              {
+                key: 'er-cases',
+                icon: <FileTextOutlined />,
+                label: <Link to="/er/cases">ER Cases</Link>,
+              },
+              {
+                key: 'er-warnings',
+                icon: <WarningOutlined />,
+                label: <Link to="/er/warnings">Warnings</Link>,
+              },
+              {
+                key: 'er-corrective-actions',
+                icon: <SafetyCertificateOutlined />,
+                label: <Link to="/er/corrective-actions">Corrective Actions</Link>,
               },
             ],
           } satisfies ItemType,
@@ -1224,6 +1271,20 @@ export function AppLayout() {
                 key: 'workflow-sla',
                 icon: <ClockCircleOutlined />,
                 label: <Link to="/hr/workflow-sla">{tNav('sub.inbox.workflowSla')}</Link>,
+              } satisfies ItemType]
+            : []),
+          ...(isHR || isAdmin
+            ? [{
+                key: 'workflow-definitions',
+                icon: <DatabaseOutlined />,
+                label: <Link to="/workflow/definitions">Workflow Definitions</Link>,
+              } satisfies ItemType]
+            : []),
+          ...(isHR || isAdmin
+            ? [{
+                key: 'approval-groups',
+                icon: <TeamOutlined />,
+                label: <Link to="/workflow/approval-groups">Approval Groups</Link>,
               } satisfies ItemType]
             : []),
         ]

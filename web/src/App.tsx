@@ -197,6 +197,13 @@ import { PreboardingPage } from './pages/PreboardingPage'
 import { PublicPreboardingPage } from './pages/PublicPreboardingPage'
 import { PublicLetterVerifyPage } from './pages/PublicLetterVerifyPage'
 import { BackupsPage } from './pages/admin/BackupsPage'
+import { ErCasesPage } from './pages/ErCasesPage'
+import { WarningsPage } from './pages/WarningsPage'
+import { CorrectiveActionsPage } from './pages/CorrectiveActionsPage'
+import { DocumentCategoriesPage } from './pages/DocumentCategoriesPage'
+import { SignaturesPage } from './pages/SignaturesPage'
+import { WorkflowDefinitionsPage } from './pages/WorkflowDefinitionsPage'
+import { ApprovalGroupsPage } from './pages/ApprovalGroupsPage'
 import { LdapSyncPage } from './pages/admin/LdapSyncPage'
 import { BiExportPage } from './pages/admin/BiExportPage'
 import { WarehouseAnalyticsPage } from './pages/admin/WarehouseAnalyticsPage'
@@ -430,8 +437,20 @@ export default function App() {
           <Route path="hr/preboarding" element={<PreboardingPage />} />
           {/* M126 — workflow SLA breaches dashboard */}
           <Route path="hr/workflow-sla" element={<WorkflowSlaPage />} />
+          {/* M441 — workflow definitions (read-only) */}
+          <Route path="workflow/definitions" element={<WorkflowDefinitionsPage />} />
+          {/* M443 — approval groups */}
+          <Route path="workflow/approval-groups" element={<ApprovalGroupsPage />} />
           {/* M124 — asset administration (cross-employee) */}
           <Route path="hr/assets" element={<AssetsAdminPage />} />
+          {/* M439 — document categories */}
+          <Route path="hr/document-categories" element={<DocumentCategoriesPage />} />
+          {/* M440 — signature requests */}
+          <Route path="hr/signatures" element={<SignaturesPage />} />
+          {/* M445–M447 — Employee Relations */}
+          <Route path="er/cases" element={<ErCasesPage />} />
+          <Route path="er/warnings" element={<WarningsPage />} />
+          <Route path="er/corrective-actions" element={<CorrectiveActionsPage />} />
           <Route path="employees/new" element={<EmployeeFormPage />} />
           <Route path="employees/:id" element={<EmployeeDetailPage />} />
           <Route path="employees/:id/edit" element={<EmployeeFormPage />} />
