@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import az.millers.hcm.ehs.api.dto.CorrectiveActionDtos.*;
 import az.millers.hcm.ehs.domain.CorrectiveAction;
 import az.millers.hcm.ehs.domain.CorrectiveActionStatus;
-import az.millers.hcm.ehs.service.CorrectiveActionService;
+import az.millers.hcm.ehs.service.EhsCorrectiveActionService;
 import az.millers.hcm.security.SecurityRoles;
 
 /**
@@ -18,11 +18,11 @@ import az.millers.hcm.security.SecurityRoles;
  */
 @RestController
 @RequestMapping("/api/ehs/corrective-actions")
-public class CorrectiveActionController {
+public class EhsCorrectiveActionController {
 
-    private final CorrectiveActionService service;
+    private final EhsCorrectiveActionService service;
 
-    public CorrectiveActionController(CorrectiveActionService service) {
+    public EhsCorrectiveActionController(EhsCorrectiveActionService service) {
         this.service = service;
     }
 

@@ -22,9 +22,9 @@ CREATE TABLE ehs.risk_assessment (
     updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
     CONSTRAINT fk_risk_work_location FOREIGN KEY (work_location_id)
-        REFERENCES core_hr.work_location(id),
+        REFERENCES organization.location(id),
     CONSTRAINT fk_risk_org_unit FOREIGN KEY (org_unit_id)
-        REFERENCES core_hr.org_unit(id)
+        REFERENCES organization.org_unit(id)
 );
 
 CREATE INDEX idx_risk_tenant ON ehs.risk_assessment(tenant_id);
@@ -47,7 +47,7 @@ CREATE TABLE ehs.safety_inspection (
     updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
     CONSTRAINT fk_inspection_work_location FOREIGN KEY (work_location_id)
-        REFERENCES core_hr.work_location(id)
+        REFERENCES organization.location(id)
 );
 
 CREATE INDEX idx_inspection_tenant ON ehs.safety_inspection(tenant_id);

@@ -25,9 +25,9 @@ import az.millers.hcm.security.CurrentRequest;
  * Daily 05:50 sweep marks past-due OPEN/IN_PROGRESS actions OVERDUE.
  */
 @Service
-public class CorrectiveActionService {
+public class EhsCorrectiveActionService {
 
-    private static final Logger log = LoggerFactory.getLogger(CorrectiveActionService.class);
+    private static final Logger log = LoggerFactory.getLogger(EhsCorrectiveActionService.class);
     private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "CorrectiveAction";
@@ -36,7 +36,7 @@ public class CorrectiveActionService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
-    public CorrectiveActionService(CorrectiveActionRepository repo,
+    public EhsCorrectiveActionService(CorrectiveActionRepository repo,
                                    AuditService audit,
                                    CurrentRequest currentRequest) {
         this.repo = repo;

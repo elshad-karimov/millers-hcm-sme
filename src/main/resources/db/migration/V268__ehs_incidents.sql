@@ -27,9 +27,9 @@ CREATE TABLE ehs.incident (
     updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
     CONSTRAINT fk_incident_work_location FOREIGN KEY (work_location_id)
-        REFERENCES core_hr.work_location(id),
+        REFERENCES organization.location(id),
     CONSTRAINT fk_incident_org_unit FOREIGN KEY (org_unit_id)
-        REFERENCES core_hr.org_unit(id),
+        REFERENCES organization.org_unit(id),
     CONSTRAINT fk_incident_reported_by FOREIGN KEY (reported_by_employee_id)
         REFERENCES core_hr.employee(id)
 );
