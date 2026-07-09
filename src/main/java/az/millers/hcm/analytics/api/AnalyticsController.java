@@ -7,13 +7,16 @@ import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import az.millers.hcm.analytics.api.dto.ExecutiveSummary;
 import az.millers.hcm.analytics.domain.DashboardLayout;
 import az.millers.hcm.analytics.service.DashboardLayoutService;
+import az.millers.hcm.analytics.service.ExecutiveAnalyticsService;
 import az.millers.hcm.analytics.service.KpiValueService;
 import az.millers.hcm.security.SecurityRoles;
 
 /**
  * M474 — Analytics endpoints: KPI values and dashboard layouts.
+ * M475 — Executive summary.
  */
 @RestController
 @RequestMapping("/api/analytics")
@@ -21,11 +24,14 @@ public class AnalyticsController {
 
     private final KpiValueService kpiValueService;
     private final DashboardLayoutService dashboardLayoutService;
+    private final ExecutiveAnalyticsService executiveAnalyticsService;
 
     public AnalyticsController(KpiValueService kpiValueService,
-                               DashboardLayoutService dashboardLayoutService) {
+                               DashboardLayoutService dashboardLayoutService,
+                               ExecutiveAnalyticsService executiveAnalyticsService) {
         this.kpiValueService = kpiValueService;
         this.dashboardLayoutService = dashboardLayoutService;
+        this.executiveAnalyticsService = executiveAnalyticsService;
     }
 
     /**
@@ -69,5 +75,15 @@ public class AnalyticsController {
     @PreAuthorize(SecurityRoles.READ_HR)
     public void deleteDashboard(@PathVariable UUID id) {
         dashboardLayoutService.delete(id);
+    }
+
+    /**
+     * M475 — Executive summary analytics.
+     * EXECUTIVE/HR_ADMIN roles (reusing pattern from existing executive dashboard).
+     */
+    @GetMapping("/executive")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN','FINANCE_USER','AUDITOR')")
+    public ExecutiveSummary executiveSummary() {
+        return executiveAnalyticsService.summary();
     }
 }
