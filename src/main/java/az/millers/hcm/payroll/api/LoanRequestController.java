@@ -5,21 +5,26 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import az.millers.hcm.payroll.domain.LoanInstallmentSchedule;
 import az.millers.hcm.payroll.domain.LoanRequest;
+import az.millers.hcm.payroll.service.LoanInstallmentService;
 import az.millers.hcm.payroll.service.LoanRequestService;
 import az.millers.hcm.security.SecurityRoles;
 
 /**
  * M461 — Loan request management (ESS submit, HR/Payroll approval).
+ * M463 — Loan settle and reschedule endpoints.
  */
 @RestController
 @RequestMapping("/api/payroll/loan-requests")
 public class LoanRequestController {
 
     private final LoanRequestService service;
+    private final LoanInstallmentService installmentService;
 
-    public LoanRequestController(LoanRequestService service) {
+    public LoanRequestController(LoanRequestService service, LoanInstallmentService installmentService) {
         this.service = service;
+        this.installmentService = installmentService;
     }
 
     @GetMapping
@@ -64,6 +69,28 @@ public class LoanRequestController {
         return service.cancel(id);
     }
 
+    /**
+     * M463 — Early settlement (full or partial).
+     * Finance/HR_ADMIN roles, audited.
+     */
+    @PostMapping("/{id}/settle")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    public void settle(@PathVariable UUID id, @RequestBody SettleRequest req) {
+        installmentService.settle(id, req.amount);
+    }
+
+    /**
+     * M463 — Reschedule loan with new monthly installment.
+     * Finance/HR_ADMIN roles, audited.
+     */
+    @PostMapping("/{id}/reschedule")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    public List<LoanInstallmentSchedule> reschedule(@PathVariable UUID id, @RequestBody RescheduleRequest req) {
+        return installmentService.reschedule(id, req.newMonthlyInstallment);
+    }
+
     public record SubmitRequest(UUID employeeId, UUID loanTypeId, BigDecimal requestedAmount, Integer requestedMonths, String purpose) {}
     public record RejectRequest(String reason) {}
+    public record SettleRequest(BigDecimal amount) {}
+    public record RescheduleRequest(BigDecimal newMonthlyInstallment) {}
 }
