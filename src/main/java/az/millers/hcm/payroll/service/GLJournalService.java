@@ -492,6 +492,10 @@ public class GLJournalService {
         reversal.setPostedAt(OffsetDateTime.now());
         journals.save(reversal);
 
+        // Audit the reversal journal creation
+        audit.record(MODULE, ENTITY, reversal.getId().toString(), "CREATED_AS_REVERSAL", null,
+                "Original: " + journalId);
+
         // Create inverted lines (swap debit ↔ credit)
         int sequence = 0;
         for (GLJournalLine origLine : originalLines) {

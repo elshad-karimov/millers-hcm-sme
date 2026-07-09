@@ -202,10 +202,18 @@ public class KpiValueService {
 
     private BigDecimal payrollCostMonthly() {
         // Total payroll cost for current month (or latest finalized run)
+        // NOTE: payroll_result is partitioned and has NO tenant_id column.
+        // Filter via EXISTS on the parent payroll_run which does have tenant_id.
         YearMonth current = YearMonth.now();
         BigDecimal total = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(net_pay), 0) FROM payroll.payroll_result " +
-                "WHERE tenant_id = :tenant AND payroll_year = :year AND payroll_month = :month",
+                "SELECT COALESCE(SUM(pr.net_amount), 0) FROM payroll.payroll_result pr " +
+                "WHERE EXISTS (" +
+                "  SELECT 1 FROM payroll.payroll_run run " +
+                "  WHERE run.id = pr.run_id " +
+                "    AND run.tenant_id = :tenant " +
+                "    AND run.period_year = :year " +
+                "    AND run.period_month = :month" +
+                ")",
                 new MapSqlParameterSource()
                         .addValue("tenant", TENANT)
                         .addValue("year", current.getYear())

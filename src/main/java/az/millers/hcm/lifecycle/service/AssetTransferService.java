@@ -102,6 +102,13 @@ public class AssetTransferService {
         if (transfer.getStatus() != AssetTransferStatus.PENDING) {
             throw new BadRequestException("Transfer not pending");
         }
+
+        // Block self-approval
+        String currentUsername = currentRequest.username();
+        if (currentUsername != null && currentUsername.equals(transfer.getRequestedBy())) {
+            throw new BadRequestException("Cannot approve your own asset transfer request");
+        }
+
         transfer.setStatus(AssetTransferStatus.APPROVED);
         transfer.setApprovedBy(currentRequest.username());
         transfer.setApprovedAt(OffsetDateTime.now());

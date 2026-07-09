@@ -11,6 +11,6 @@ import az.millers.hcm.payroll.domain.LoanRequestStatus;
 public interface LoanRequestRepository extends JpaRepository<LoanRequest, UUID> {
     List<LoanRequest> findByTenantIdAndStatusOrderByRequestedAtDesc(String tenantId, LoanRequestStatus status);
     List<LoanRequest> findByTenantIdOrderByRequestedAtDesc(String tenantId);
-    List<LoanRequest> findByEmployeeIdOrderByRequestedAtDesc(UUID employeeId);
+    List<LoanRequest> findByTenantIdAndEmployeeIdOrderByRequestedAtDesc(String tenantId, UUID employeeId);
     boolean existsByEmployeeIdAndStatusIn(UUID employeeId, List<LoanRequestStatus> statuses);
 }

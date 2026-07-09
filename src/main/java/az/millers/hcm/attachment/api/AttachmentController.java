@@ -31,6 +31,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import az.millers.hcm.attachment.domain.Attachment;
 import az.millers.hcm.attachment.service.AttachmentService;
+import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.security.CurrentRequest;
 import io.minio.GetObjectResponse;
 
 @RestController
@@ -39,12 +41,15 @@ public class AttachmentController {
 
     private final AttachmentService service;
     private final int presignedExpiryMinutes;
+    private final CurrentRequest currentRequest;
 
     public AttachmentController(
             AttachmentService service,
-            @Value("${hcm.storage.minio.presigned-url-expiry-minutes:15}") int presignedExpiryMinutes) {
+            @Value("${hcm.storage.minio.presigned-url-expiry-minutes:15}") int presignedExpiryMinutes,
+            CurrentRequest currentRequest) {
         this.service = service;
         this.presignedExpiryMinutes = presignedExpiryMinutes;
+        this.currentRequest = currentRequest;
     }
 
     /** List attachments owned by (module, entity, ownerId). */
@@ -77,6 +82,7 @@ public class AttachmentController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<InputStreamResource> download(@PathVariable UUID id) throws IOException {
         Attachment a = service.get(id);
+        checkSensitiveAttachmentAccess(a);
         GetObjectResponse stream = service.download(id);
 
         String filename = a.getOriginalFilename() == null ? "attachment.bin" : a.getOriginalFilename();
@@ -109,6 +115,7 @@ public class AttachmentController {
     public ResponseEntity<InputStreamResource> thumbnail(@PathVariable UUID id) {
         AttachmentService.ThumbnailDownload td = service.downloadThumbnail(id);
         Attachment a = td.attachment();
+        checkSensitiveAttachmentAccess(a);
 
         HttpHeaders headers = new HttpHeaders();
         if (td.isThumb()) {
@@ -155,6 +162,7 @@ public class AttachmentController {
     @PreAuthorize("isAuthenticated()")
     public Map<String, Object> presignedUrl(@PathVariable UUID id) {
         Attachment a = service.get(id);
+        checkSensitiveAttachmentAccess(a);
         String url = service.getPresignedUrl(id);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("url", url);
@@ -169,5 +177,42 @@ public class AttachmentController {
     @PreAuthorize(SecurityRoles.WRITE_HR)
     public AttachmentResponse delete(@PathVariable UUID id) {
         return AttachmentResponse.from(service.delete(id));
+    }
+
+    /**
+     * Enforces access control for sensitive attachments.
+     * <p>
+     * Sensitive entities requiring role-based authorization:
+     * <ul>
+     *   <li><b>statutoryreportsubmission</b> (compliance module) → requires HR_ADMIN/HR_SPECIALIST/SYSTEM_ADMIN
+     *       (statutory reports contain confidential regulatory data)
+     *   <li><b>employee_relations</b> module → requires HR_ADMIN/HR_SPECIALIST/SYSTEM_ADMIN
+     *       (ER cases contain confidential employee grievance/disciplinary data)
+     * </ul>
+     * All other attachments remain accessible to any authenticated user (legacy behavior).
+     */
+    private void checkSensitiveAttachmentAccess(Attachment attachment) {
+        String ownerModule = attachment.getOwnerModule();
+        String ownerEntity = attachment.getOwnerEntity();
+
+        // Statutory report submissions are confidential HR documents
+        if ("statutoryreportsubmission".equals(ownerEntity)) {
+            if (!currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) &&
+                !currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST) &&
+                !currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN)) {
+                throw new ResourceNotFoundException("Attachment not found");
+            }
+        }
+
+        // Employee relations documents are confidential
+        if ("employee_relations".equals(ownerModule)) {
+            if (!currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) &&
+                !currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST) &&
+                !currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN)) {
+                throw new ResourceNotFoundException("Attachment not found");
+            }
+        }
+
+        // All other attachments: isAuthenticated() check already applied at method level
     }
 }

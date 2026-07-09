@@ -71,7 +71,7 @@ public class LoanRequestService {
 
     @Transactional(readOnly = true)
     public List<LoanRequest> listByEmployee(UUID employeeId) {
-        return repository.findByEmployeeIdOrderByRequestedAtDesc(employeeId);
+        return repository.findByTenantIdAndEmployeeIdOrderByRequestedAtDesc(TENANT, employeeId);
     }
 
     @Transactional(readOnly = true)
@@ -176,6 +176,22 @@ public class LoanRequestService {
         LoanRequest request = get(id);
         if (request.getStatus() != LoanRequestStatus.SUBMITTED) {
             throw new BadRequestException("Only SUBMITTED requests can be approved");
+        }
+
+        // Block self-approval
+        String currentUsername = currentRequest.username();
+        if (currentUsername != null && currentUsername.equals(request.getRequestedBy())) {
+            throw new BadRequestException("Cannot approve your own loan request");
+        }
+
+        // Belt-and-braces: also check if the requesting EMPLOYEE is the current user
+        try {
+            Employee currentEmployee = employeeRepo.findByUsername(currentUsername).orElse(null);
+            if (currentEmployee != null && currentEmployee.getId().equals(request.getEmployeeId())) {
+                throw new BadRequestException("Cannot approve your own loan request");
+            }
+        } catch (Exception e) {
+            // Non-fatal if employee mapping doesn't exist; main guard is requestedBy check
         }
 
         // Bridge to PayrollLoanService.create (non-fatal)

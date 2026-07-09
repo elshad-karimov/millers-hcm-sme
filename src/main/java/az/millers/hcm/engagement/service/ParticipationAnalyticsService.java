@@ -11,7 +11,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.config.service.SettingService;
+import az.millers.hcm.engagement.domain.SurveyCampaign;
+import az.millers.hcm.engagement.domain.SurveyTemplate;
+import az.millers.hcm.engagement.repo.SurveyCampaignRepository;
+import az.millers.hcm.engagement.repo.SurveyTemplateRepository;
 
 /**
  * M480 — Participation analytics with anonymity guard.
@@ -36,11 +41,17 @@ public class ParticipationAnalyticsService {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final SettingService settingService;
+    private final SurveyCampaignRepository campaignRepo;
+    private final SurveyTemplateRepository templateRepo;
 
     public ParticipationAnalyticsService(NamedParameterJdbcTemplate jdbc,
-                                        SettingService settingService) {
+                                        SettingService settingService,
+                                        SurveyCampaignRepository campaignRepo,
+                                        SurveyTemplateRepository templateRepo) {
         this.jdbc = jdbc;
         this.settingService = settingService;
+        this.campaignRepo = campaignRepo;
+        this.templateRepo = templateRepo;
     }
 
     /**
@@ -113,9 +124,23 @@ public class ParticipationAnalyticsService {
     /**
      * Simple sentiment analysis on open-text answers of a campaign.
      * Returns aggregate counts ONLY (never per-response with identity).
+     * <p>
+     * PRIVACY GUARD: refuses sentiment for anonymous campaigns — even though
+     * the method only returns aggregate counts, we enforce a hard boundary:
+     * anonymous campaigns never surface any text analysis at all.
      */
     @Transactional(readOnly = true)
     public Map<String, Object> sentiment(UUID campaignId) {
+        // Block sentiment for anonymous campaigns
+        SurveyCampaign campaign = campaignRepo.findById(campaignId)
+                .orElseThrow(() -> new BadRequestException("Campaign not found"));
+        SurveyTemplate template = templateRepo.findById(campaign.getTemplateId())
+                .orElseThrow(() -> new BadRequestException("Campaign template not found"));
+
+        if (template.isAnonymous()) {
+            throw new BadRequestException("Sentiment analysis is not available for anonymous campaigns");
+        }
+
         // Get all open-text responses for this campaign
         List<String> openTextAnswers = jdbc.query(
                 "SELECT a.answer_text FROM engagement.survey_answer a " +
