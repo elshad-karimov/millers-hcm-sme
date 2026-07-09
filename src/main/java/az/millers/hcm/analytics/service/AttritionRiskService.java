@@ -1,0 +1,194 @@
+package az.millers.hcm.analytics.service;
+
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import az.millers.hcm.analytics.domain.AttritionRisk;
+import az.millers.hcm.analytics.repo.AttritionRiskRepository;
+
+/**
+ * M476 — Attrition risk heuristic service.
+ * Nightly sweep computes risk score for active employees.
+ *
+ * Heuristic weights (documented here as single source of truth):
+ * - +30: tenure < 12 months
+ * - +25: no salary change in last 24 months
+ * - +25: low engagement (latest non-anonymous survey response is detractor or avg < 3)
+ * - +20: org unit changed in last 6 months
+ *
+ * HR-only access, never shown to employees/managers.
+ */
+@Service
+public class AttritionRiskService {
+
+    private static final Logger log = LoggerFactory.getLogger(AttritionRiskService.class);
+    private static final String TENANT = "default";
+
+    // Heuristic weights
+    private static final int WEIGHT_LOW_TENURE = 30;
+    private static final int WEIGHT_NO_SALARY_CHANGE = 25;
+    private static final int WEIGHT_LOW_ENGAGEMENT = 25;
+    private static final int WEIGHT_ORG_CHANGE = 20;
+
+    private final AttritionRiskRepository repository;
+    private final NamedParameterJdbcTemplate jdbc;
+
+    public AttritionRiskService(AttritionRiskRepository repository,
+                               NamedParameterJdbcTemplate jdbc) {
+        this.repository = repository;
+        this.jdbc = jdbc;
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttritionRisk> listAll() {
+        return repository.findByTenantIdOrderByScoreDesc(TENANT);
+    }
+
+    /**
+     * Nightly sweep at 04:30 to recompute all attrition risk scores.
+     */
+    @Scheduled(cron = "0 30 4 * * ?")
+    @Transactional
+    public void nightlyRecompute() {
+        log.info("Starting nightly attrition risk recompute for tenant {}", TENANT);
+        recomputeAll();
+        log.info("Completed attrition risk recompute");
+    }
+
+    /**
+     * Manual recompute trigger (HR_ADMIN endpoint).
+     */
+    @Transactional
+    public void recomputeAll() {
+        // Get all active employees
+        List<UUID> activeEmployees = jdbc.query(
+                "SELECT id FROM core_hr.employee WHERE tenant_id = :tenant AND employment_status = 'ACTIVE'",
+                new MapSqlParameterSource("tenant", TENANT),
+                (rs, i) -> UUID.fromString(rs.getString("id")));
+
+        for (UUID employeeId : activeEmployees) {
+            computeRisk(employeeId);
+        }
+    }
+
+    @Transactional
+    public AttritionRisk computeRisk(UUID employeeId) {
+        int score = 0;
+        List<String> factors = new ArrayList<>();
+
+        // Factor 1: Tenure < 12 months (+30)
+        LocalDate hireDate = jdbc.queryForObject(
+                "SELECT hire_date FROM core_hr.employee WHERE id = :id",
+                new MapSqlParameterSource("id", employeeId),
+                (rs, i) -> rs.getObject("hire_date", LocalDate.class));
+
+        if (hireDate != null) {
+            long tenureMonths = ChronoUnit.MONTHS.between(hireDate, LocalDate.now());
+            if (tenureMonths < 12) {
+                score += WEIGHT_LOW_TENURE;
+                factors.add("low_tenure(<12mo)");
+            }
+        }
+
+        // Factor 2: No salary change in last 24 months (+25)
+        OffsetDateTime twoYearsAgo = OffsetDateTime.now().minusMonths(24);
+        Long salaryChanges = jdbc.queryForObject(
+                "SELECT count(*) FROM compensation.salary_change " +
+                "WHERE tenant_id = :tenant AND employee_id = :employeeId " +
+                "AND approved_at > :since AND status = 'APPROVED'",
+                new MapSqlParameterSource()
+                        .addValue("tenant", TENANT)
+                        .addValue("employeeId", employeeId)
+                        .addValue("since", twoYearsAgo),
+                Long.class);
+
+        if (salaryChanges != null && salaryChanges == 0) {
+            score += WEIGHT_NO_SALARY_CHANGE;
+            factors.add("no_salary_change(24mo)");
+        }
+
+        // Factor 3: Low engagement - latest non-anonymous survey response (+25)
+        // Only use linkable (non-anonymous) responses
+        try {
+            Integer latestRating = jdbc.queryForObject(
+                    "SELECT r.value::int FROM engagement.survey_response r " +
+                    "JOIN engagement.survey_question q ON r.question_id = q.id " +
+                    "JOIN engagement.survey_campaign c ON q.survey_template_id = c.survey_template_id " +
+                    "WHERE r.employee_id = :employeeId AND c.anonymous = false " +
+                    "AND q.question_type = 'RATING_1_10' " +
+                    "ORDER BY r.created_at DESC LIMIT 1",
+                    new MapSqlParameterSource("employeeId", employeeId),
+                    Integer.class);
+
+            if (latestRating != null && latestRating <= 6) {
+                score += WEIGHT_LOW_ENGAGEMENT;
+                factors.add("low_engagement(detractor)");
+            }
+        } catch (Exception e) {
+            // No survey responses or schema doesn't match - skip this factor
+            log.debug("Could not retrieve engagement data for employee {}: {}", employeeId, e.getMessage());
+        }
+
+        // Alternate engagement check: average rating < 3 from non-anonymous responses
+        if (!factors.contains("low_engagement(detractor)")) {
+            try {
+                Double avgRating = jdbc.queryForObject(
+                        "SELECT AVG(r.value::numeric) FROM engagement.survey_response r " +
+                        "JOIN engagement.survey_question q ON r.question_id = q.id " +
+                        "JOIN engagement.survey_campaign c ON q.survey_template_id = c.survey_template_id " +
+                        "WHERE r.employee_id = :employeeId AND c.anonymous = false " +
+                        "AND q.question_type IN ('RATING_1_5', 'RATING_1_10') " +
+                        "AND r.created_at > CURRENT_DATE - INTERVAL '12 months'",
+                        new MapSqlParameterSource("employeeId", employeeId),
+                        Double.class);
+
+                if (avgRating != null && avgRating < 3.0) {
+                    score += WEIGHT_LOW_ENGAGEMENT;
+                    factors.add("low_engagement(avg<3)");
+                }
+            } catch (Exception e) {
+                log.debug("Could not compute average engagement for employee {}: {}", employeeId, e.getMessage());
+            }
+        }
+
+        // Factor 4: Org unit changed in last 6 months (+20)
+        OffsetDateTime sixMonthsAgo = OffsetDateTime.now().minusMonths(6);
+        Long orgChanges = jdbc.queryForObject(
+                "SELECT count(*) FROM core_hr.employee_history " +
+                "WHERE tenant_id = :tenant AND employee_id = :employeeId " +
+                "AND field_name = 'org_unit_id' AND changed_at > :since",
+                new MapSqlParameterSource()
+                        .addValue("tenant", TENANT)
+                        .addValue("employeeId", employeeId)
+                        .addValue("since", sixMonthsAgo),
+                Long.class);
+
+        if (orgChanges != null && orgChanges > 0) {
+            score += WEIGHT_ORG_CHANGE;
+            factors.add("org_change(6mo)");
+        }
+
+        // Save or update attrition risk
+        AttritionRisk risk = repository.findByTenantIdAndEmployeeId(TENANT, employeeId)
+                .orElse(new AttritionRisk());
+        risk.setTenantId(TENANT);
+        risk.setEmployeeId(employeeId);
+        risk.setScore(score);
+        risk.setFactors(String.join(", ", factors));
+        risk.setComputedAt(OffsetDateTime.now());
+
+        return repository.save(risk);
+    }
+}
