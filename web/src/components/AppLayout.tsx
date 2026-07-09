@@ -42,6 +42,9 @@ import {
   UserDeleteOutlined,
   WarningOutlined,
   TagsOutlined,
+  AuditOutlined,
+  SafetyOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -203,6 +206,11 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/ehs/corrective-actions', module: 'ehs', screen: 'ehs-corrective-actions' },
   { prefix: '/ehs/ppe-items', module: 'ehs', screen: 'ehs-ppe-items' },
   { prefix: '/ehs/ppe-assignments', module: 'ehs', screen: 'ehs-ppe-assignments' },
+  { prefix: '/compliance/statutory', module: 'compliance', screen: 'compliance-statutory' },
+  { prefix: '/compliance/calendar', module: 'compliance', screen: 'compliance-calendar' },
+  { prefix: '/compliance/work-authorization', module: 'compliance', screen: 'compliance-work-auth' },
+  { prefix: '/compliance/privacy-requests', module: 'compliance', screen: 'compliance-privacy' },
+  { prefix: '/payroll/gl-reconciliation', module: 'payroll', screen: 'payroll-gl-reconciliation' },
   { prefix: '/workflow/definitions', module: 'approvals', screen: 'workflow-definitions' },
   { prefix: '/workflow/approval-groups', module: 'approvals', screen: 'approval-groups' },
   { prefix: '/admin/users', module: 'admin', screen: 'admin-users' },
@@ -479,6 +487,39 @@ export function AppLayout() {
                 key: 'ehs-ppe-assignments',
                 icon: <IdcardOutlined />,
                 label: <Link to="/ehs/ppe-assignments">PPE Assignments</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Compliance (HR only) ───────────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'compliance',
+            icon: <SafetyOutlined />,
+            label: 'Compliance',
+            children: [
+              {
+                key: 'compliance-statutory',
+                icon: <FileProtectOutlined />,
+                label: <Link to="/compliance/statutory">Statutory Reports</Link>,
+              },
+              {
+                key: 'compliance-calendar',
+                icon: <CalendarOutlined />,
+                label: <Link to="/compliance/calendar">Compliance Calendar</Link>,
+              },
+              {
+                key: 'compliance-work-auth',
+                icon: <FileTextOutlined />,
+                label: <Link to="/compliance/work-authorization">Work Authorization</Link>,
+              },
+              {
+                key: 'compliance-privacy',
+                icon: <FileProtectOutlined />,
+                label: <Link to="/compliance/privacy-requests">Privacy Requests</Link>,
               },
             ],
           } satisfies ItemType,
@@ -810,6 +851,11 @@ export function AppLayout() {
                 key: 'payroll-gl-mappings',
                 icon: <SettingOutlined />,
                 label: <Link to="/payroll/gl-mappings">GL Mappings</Link>,
+              },
+              {
+                key: 'payroll-gl-reconciliation',
+                icon: <AuditOutlined />,
+                label: <Link to="/payroll/gl-reconciliation">GL Reconciliation</Link>,
               },
               {
                 key: 'payroll-year-end',

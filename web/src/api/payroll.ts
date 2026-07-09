@@ -31,6 +31,8 @@ export type LoanStatus = 'PENDING' | 'ACTIVE' | 'FULLY_REPAID' | 'WRITTEN_OFF' |
 
 export type GLAccountType = 'DEBIT' | 'CREDIT'
 
+export type GLJournalStatus = 'DRAFT' | 'APPROVED' | 'POSTED' | 'REVERSED'
+
 export type CertificateStatus = 'DRAFT' | 'GENERATED' | 'DELIVERED'
 
 export interface PayrollRun {
@@ -431,13 +433,21 @@ export interface GLAccountMappingRequest {
 }
 
 export interface GLJournalResponse {
-  id: string
-  runId: string
-  journalNo: string
-  status: string
-  postingDate: string
-  totalDebit: number
-  totalCredit: number
+  journal: {
+    id: string
+    runId: string
+    journalDate: string
+    status: GLJournalStatus
+    totalDebit: number
+    totalCredit: number
+    createdAt: string
+    createdBy?: string | null
+    approvedBy?: string | null
+    approvedAt?: string | null
+    postedBy?: string | null
+    postedAt?: string | null
+    reversedJournalId?: string | null
+  }
   lines: Array<{
     id: string
     lineNo: number
@@ -530,6 +540,26 @@ export interface BankReconciliationResponse {
   bankFileTotal: number
   delta: number
   isBalanced: boolean
+}
+
+// ── M467: GL Reconciliation ───────────────────────────────────────────────────
+
+export type ReconciliationStatus = 'MATCHED' | 'DISCREPANCY'
+
+export interface ReconciliationRow {
+  description: string
+  componentKind: string
+  accountType: string
+  payrollTotal: number
+  glTotal: number
+  difference: number
+  status: ReconciliationStatus
+}
+
+export interface ReconciliationReport {
+  year: number
+  month: number
+  rows: ReconciliationRow[]
 }
 
 export const payrollApi = {
@@ -749,6 +779,21 @@ export const payrollApi = {
     a.click()
     URL.revokeObjectURL(url)
   },
+  // M465: Approve GL journal (DRAFT → APPROVED)
+  approveGLJournal: (runId: string) =>
+    api.post<GLJournalResponse['journal']>(`/payroll/runs/${runId}/gl-journal/approve`).then((r) => r.data),
+  // M465: Post GL journal (APPROVED → POSTED)
+  postGLJournal: (runId: string) =>
+    api.post<GLJournalResponse['journal']>(`/payroll/runs/${runId}/gl-journal/post`).then((r) => r.data),
+  // M466: Reverse a posted GL journal
+  reverseGLJournal: (runId: string, journalId: string) =>
+    api.post<GLJournalResponse['journal']>(`/payroll/runs/${runId}/gl-journal/${journalId}/reverse`).then((r) => r.data),
+
+  // M467: GL Reconciliation
+  glReconciliation: (year: number, month: number) =>
+    api.get<ReconciliationReport>('/reports/gl-reconciliation', {
+      params: { year, month },
+    }).then((r) => r.data),
 
   // M356: Payslips
   generatePayslips: (runId: string) =>

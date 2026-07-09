@@ -91,6 +91,7 @@ export function PayrollRunDetailPage() {
   // M355: GL journal
   const [glJournal, setGlJournal] = useState<any>(null)
   const [glLoading, setGlLoading] = useState(false)
+  const [glActionLoading, setGlActionLoading] = useState(false)
 
   // M356: payslips
   const [payslipsLoading, setPayslipsLoading] = useState(false)
@@ -544,10 +545,76 @@ export function PayrollRunDetailPage() {
                   Generate journal
                 </Button>
               )}
+              {glJournal && glJournal.journal.status === 'DRAFT' && canCalculate && (
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={glActionLoading}
+                  onClick={async () => {
+                    setGlActionLoading(true)
+                    try {
+                      const updated = await payrollApi.approveGLJournal(run.id)
+                      setGlJournal({ ...glJournal, journal: updated })
+                      message.success('GL journal approved')
+                    } catch (err) {
+                      message.error((err as any).response?.data?.message ?? 'Approval failed')
+                    } finally {
+                      setGlActionLoading(false)
+                    }
+                  }}
+                >
+                  Approve
+                </Button>
+              )}
+              {glJournal && glJournal.journal.status === 'APPROVED' && canCalculate && (
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={glActionLoading}
+                  onClick={async () => {
+                    setGlActionLoading(true)
+                    try {
+                      const updated = await payrollApi.postGLJournal(run.id)
+                      setGlJournal({ ...glJournal, journal: updated })
+                      message.success('GL journal posted')
+                    } catch (err) {
+                      message.error((err as any).response?.data?.message ?? 'Posting failed')
+                    } finally {
+                      setGlActionLoading(false)
+                    }
+                  }}
+                >
+                  Post
+                </Button>
+              )}
+              {glJournal && glJournal.journal.status === 'POSTED' && canCalculate && (
+                <Popconfirm
+                  title="Reverse this GL journal?"
+                  description="This will create an inverting journal entry."
+                  onConfirm={async () => {
+                    setGlActionLoading(true)
+                    try {
+                      await payrollApi.reverseGLJournal(run.id, glJournal.journal.id)
+                      message.success('GL journal reversed')
+                      // Reload to show the reversal journal
+                      const fresh = await payrollApi.glJournal(run.id)
+                      setGlJournal(fresh)
+                    } catch (err) {
+                      message.error((err as any).response?.data?.message ?? 'Reversal failed')
+                    } finally {
+                      setGlActionLoading(false)
+                    }
+                  }}
+                >
+                  <Button size="small" danger loading={glActionLoading}>
+                    Reverse
+                  </Button>
+                </Popconfirm>
+              )}
               {glJournal && (
                 <Button
                   size="small"
-                  onClick={() => payrollApi.downloadGLJournal(run.id, glJournal.journalNo)}
+                  onClick={() => payrollApi.downloadGLJournal(run.id, `GL-${run.runNo}`)}
                 >
                   Export CSV
                 </Button>
@@ -558,19 +625,37 @@ export function PayrollRunDetailPage() {
           {glJournal ? (
             <Space direction="vertical" style={{ width: '100%' }}>
               <Descriptions size="small" bordered column={4}>
-                <Descriptions.Item label="Journal #">{glJournal.journalNo}</Descriptions.Item>
                 <Descriptions.Item label="Status">
-                  <Tag>{glJournal.status}</Tag>
+                  <Tag color={
+                    glJournal.journal.status === 'DRAFT' ? 'default' :
+                    glJournal.journal.status === 'APPROVED' ? 'gold' :
+                    glJournal.journal.status === 'POSTED' ? 'green' : 'red'
+                  }>{glJournal.journal.status}</Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="Total debit">{glJournal.totalDebit}</Descriptions.Item>
-                <Descriptions.Item label="Total credit">{glJournal.totalCredit}</Descriptions.Item>
-                <Descriptions.Item label="Balanced" span={4}>
-                  {glJournal.totalDebit === glJournal.totalCredit ? (
+                <Descriptions.Item label="Total debit">{glJournal.journal.totalDebit}</Descriptions.Item>
+                <Descriptions.Item label="Total credit">{glJournal.journal.totalCredit}</Descriptions.Item>
+                <Descriptions.Item label="Balanced">
+                  {glJournal.journal.totalDebit === glJournal.journal.totalCredit ? (
                     <Tag color="green">✓ Balanced</Tag>
                   ) : (
                     <Tag color="red">✗ Out of balance</Tag>
                   )}
                 </Descriptions.Item>
+                {glJournal.journal.approvedBy && (
+                  <Descriptions.Item label="Approved by" span={2}>
+                    {glJournal.journal.approvedBy} · {new Date(glJournal.journal.approvedAt).toLocaleString()}
+                  </Descriptions.Item>
+                )}
+                {glJournal.journal.postedBy && (
+                  <Descriptions.Item label="Posted by" span={2}>
+                    {glJournal.journal.postedBy} · {new Date(glJournal.journal.postedAt).toLocaleString()}
+                  </Descriptions.Item>
+                )}
+                {glJournal.journal.reversedJournalId && (
+                  <Descriptions.Item label="Reversal of" span={4}>
+                    <Tag color="orange">Reversal journal for {glJournal.journal.reversedJournalId.substring(0, 8)}</Tag>
+                  </Descriptions.Item>
+                )}
               </Descriptions>
               <Table
                 rowKey="id"

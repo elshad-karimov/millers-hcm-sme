@@ -72,9 +72,14 @@ import { PayrollLoansPage } from './pages/PayrollLoansPage'
 import { LoanTypesPage } from './pages/LoanTypesPage'
 import { LoanRequestsPage } from './pages/LoanRequestsPage'
 import { GLAccountMappingsPage } from './pages/GLAccountMappingsPage'
+import { GLReconciliationPage } from './pages/GLReconciliationPage'
 import { YearEndPage } from './pages/YearEndPage'
 import { PayrollControlBoardPage } from './pages/PayrollControlBoardPage'
 import { VarianceReportPage } from './pages/VarianceReportPage'
+import { StatutoryReportsPage } from './pages/StatutoryReportsPage'
+import { ComplianceCalendarPage } from './pages/ComplianceCalendarPage'
+import { WorkAuthorizationPage } from './pages/WorkAuthorizationPage'
+import { PrivacyRequestsPage } from './pages/PrivacyRequestsPage'
 import { CompensationConfigPage } from './pages/CompensationConfigPage'
 import { PayBandsPage } from './pages/PayBandsPage'
 import { ChangeReasonsPage } from './pages/ChangeReasonsPage'
@@ -482,6 +487,12 @@ export default function App() {
           <Route path="ehs/ppe-items" element={<PpeItemsPage />} />
           <Route path="ehs/ppe-assignments" element={<PpeAssignmentsPage />} />
 
+          {/* ── Compliance (M468-M472) ─────────────────────────── */}
+          <Route path="compliance/statutory" element={<StatutoryReportsPage />} />
+          <Route path="compliance/calendar" element={<ComplianceCalendarPage />} />
+          <Route path="compliance/work-authorization" element={<WorkAuthorizationPage />} />
+          <Route path="compliance/privacy-requests" element={<PrivacyRequestsPage />} />
+
           <Route path="employees/new" element={<EmployeeFormPage />} />
           <Route path="employees/:id" element={<EmployeeDetailPage />} />
           <Route path="employees/:id/edit" element={<EmployeeFormPage />} />
@@ -552,6 +563,7 @@ export default function App() {
           <Route path="payroll/loan-types" element={<LoanTypesPage />} />
           <Route path="payroll/loan-requests" element={<LoanRequestsPage />} />
           <Route path="payroll/gl-mappings" element={<GLAccountMappingsPage />} />
+          <Route path="payroll/gl-reconciliation" element={<GLReconciliationPage />} />
           <Route path="payroll/year-end" element={<YearEndPage />} />
           <Route path="payroll/control-board" element={<PayrollControlBoardPage />} />
           <Route path="payroll/reports/variance" element={<VarianceReportPage />} />
