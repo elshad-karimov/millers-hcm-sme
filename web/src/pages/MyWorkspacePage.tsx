@@ -61,6 +61,7 @@ import { HrRequestsWidget } from '../components/HrRequestsWidget'
 import { AnnouncementsCard } from '../components/AnnouncementsCard'
 import { api } from '../api/client'
 import { selfPpeApi, type PpeAssignmentResponse } from '../api/ehs'
+import { useAuth } from '../auth/AuthContext'
 
 // M446 — Warning self-service types
 interface WarningRecord {
@@ -905,6 +906,163 @@ function PayrollTab() {
 }
 
 // ============================================================================
+//  Assets tab — M459 ESS assets
+// ============================================================================
+type AssetStatus = 'ASSIGNED' | 'RETURNED' | 'LOST' | 'DAMAGED' | 'WRITTEN_OFF'
+type AssetType = 'LAPTOP' | 'MOBILE_PHONE' | 'SIM_CARD' | 'VEHICLE' | 'ACCESS_CARD' | 'UNIFORM' | 'TOOLS' | 'EQUIPMENT' | 'LOCKER' | 'FUEL_CARD' | 'CREDIT_CARD' | 'TABLET' | 'HEADSET' | 'OTHER'
+type DamageType = 'DAMAGE' | 'LOSS'
+
+interface AssetResponse {
+  id: string
+  assetType: AssetType
+  assetName: string
+  assetIdentifier?: string
+  description?: string
+  status: AssetStatus
+  assignedAt: string
+  expectedReturnDate?: string
+  conditionAtAssignment?: string
+  notes?: string
+}
+
+const ASSET_STATUS_COLOR: Record<AssetStatus, string> = {
+  ASSIGNED: 'blue',
+  RETURNED: 'green',
+  LOST: 'red',
+  DAMAGED: 'orange',
+  WRITTEN_OFF: 'default',
+}
+
+function AssetsTab() {
+  const { message } = AntdApp.useApp()
+  const { user } = useAuth()
+  const [assets, setAssets] = useState<AssetResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [damageModalOpen, setDamageModalOpen] = useState(false)
+  const [selectedAsset, setSelectedAsset] = useState<AssetResponse | null>(null)
+  const [damageForm] = Form.useForm()
+
+  useEffect(() => {
+    if (!user?.employeeId) return
+    api
+      .get<AssetResponse[]>(`/self/assets/${user.employeeId}`)
+      .then(setAssets)
+      .catch(() => message.error('Failed to load assets'))
+      .finally(() => setLoading(false))
+  }, [user, message])
+
+  const openReportDamage = (asset: AssetResponse) => {
+    setSelectedAsset(asset)
+    damageForm.resetFields()
+    damageForm.setFieldsValue({ assetId: asset.id, caseType: 'DAMAGE' })
+    setDamageModalOpen(true)
+  }
+
+  const submitDamageReport = async () => {
+    if (!user?.employeeId || !selectedAsset) return
+    try {
+      const values = await damageForm.validateFields()
+      await api.post(`/self/assets/${user.employeeId}/report-damage`, {
+        assetId: selectedAsset.id,
+        caseType: values.caseType,
+        description: values.description,
+      })
+      message.success('Damage/loss reported')
+      setDamageModalOpen(false)
+      setSelectedAsset(null)
+    } catch (e: any) {
+      if (e?.errorFields) return
+      message.error(e?.response?.data?.message ?? 'Report failed')
+    }
+  }
+
+  const assetColumns: ColumnsType<AssetResponse> = [
+    {
+      title: 'Asset',
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{r.assetName}</Typography.Text>
+          {r.assetIdentifier && (
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              {r.assetIdentifier}
+            </Typography.Text>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'Type',
+      dataIndex: 'assetType',
+      render: (t: AssetType) => <Tag>{t}</Tag>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (s: AssetStatus) => <Tag color={ASSET_STATUS_COLOR[s]}>{s}</Tag>,
+    },
+    {
+      title: 'Assigned',
+      dataIndex: 'assignedAt',
+      render: (v: string) => dayjs(v).format('YYYY-MM-DD'),
+    },
+    {
+      title: 'Condition',
+      dataIndex: 'conditionAtAssignment',
+      render: (v?: string) => (v ? <Tag color="cyan">{v}</Tag> : '—'),
+    },
+    {
+      title: 'Actions',
+      render: (_, r) =>
+        r.status === 'ASSIGNED' ? (
+          <a onClick={() => openReportDamage(r)}>Report Damage</a>
+        ) : null,
+    },
+  ]
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Card title="My Assets" size="small">
+        <Table
+          rowKey="id"
+          columns={assetColumns}
+          dataSource={assets}
+          loading={loading}
+          pagination={false}
+        />
+      </Card>
+
+      <Modal
+        open={damageModalOpen}
+        title="Report Damage or Loss"
+        onCancel={() => {
+          setDamageModalOpen(false)
+          setSelectedAsset(null)
+        }}
+        onOk={submitDamageReport}
+        okText="Report"
+      >
+        {selectedAsset && (
+          <Form form={damageForm} layout="vertical">
+            <Typography.Paragraph type="secondary">
+              Asset: <strong>{selectedAsset.assetName}</strong>
+            </Typography.Paragraph>
+            <Form.Item name="caseType" label="Type" rules={[{ required: true }]}>
+              <Select>
+                <Select.Option value="DAMAGE">Damage</Select.Option>
+                <Select.Option value="LOSS">Loss</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="description" label="Description" rules={[{ required: true }]}>
+              <Input.TextArea rows={3} placeholder="Describe the damage or loss" />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
+    </Space>
+  )
+}
+
+// ============================================================================
 //  Learning tab
 // ============================================================================
 // Colour per assignment status — mirrors M96 drawer.
@@ -1441,6 +1599,7 @@ export function MyWorkspacePage() {
           { key: 'timesheets',    label: t('tabs.timesheets'),     children: <TimesheetsTab /> },
           { key: 'payroll',       label: 'Payroll',                children: <PayrollTab /> },
           { key: 'benefits',      label: 'Benefits',               children: <BenefitsTab /> },
+          { key: 'assets',        label: 'My Assets',              children: <AssetsTab /> },
           { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
           { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
           { key: 'teamCalendar',  label: 'Team Calendar',          children: <TeamCalendarTab /> },
