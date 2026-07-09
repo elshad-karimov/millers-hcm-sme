@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import {
-  Button,
   Card,
   Col,
   Drawer,
-  Modal,
   Row,
   Select,
   Space,
@@ -19,7 +17,6 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../api/client'
-import { employeesApi, type Employee } from '../api/employees'
 import dayjs from 'dayjs'
 
 type LoanRequestStatus =
@@ -92,7 +89,6 @@ const REQUEST_STATUS_COLOR: Record<LoanRequestStatus, string> = {
 export function LoanRequestsPage() {
   const { message } = AntdApp.useApp()
   const [rows, setRows] = useState<LoanRequest[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)
   const [filterStatus, setFilterStatus] = useState<LoanRequestStatus | undefined>()
   const [scheduleOpen, setScheduleOpen] = useState(false)
@@ -113,14 +109,13 @@ export function LoanRequestsPage() {
   const loadDashboard = () => {
     api
       .get<LoanDashboard>('/reports/loans/dashboard')
-      .then(setDashboard)
+      .then((r) => setDashboard(r.data))
       .catch(() => {})
   }
 
   useEffect(() => {
     load()
     loadDashboard()
-    employeesApi.list({ size: 500 }).then((r) => setEmployees(r.content)).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -151,7 +146,7 @@ export function LoanRequestsPage() {
     setScheduleOpen(true)
     api
       .get<InstallmentSchedule[]>(`/payroll/loan-installments/loan-requests/${request.id}`)
-      .then(setSchedule)
+      .then((r) => setSchedule(r.data))
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load schedule'))
       .finally(() => setScheduleLoading(false))
   }

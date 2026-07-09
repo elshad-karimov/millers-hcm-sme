@@ -63,7 +63,6 @@ import { HrRequestsWidget } from '../components/HrRequestsWidget'
 import { AnnouncementsCard } from '../components/AnnouncementsCard'
 import { api } from '../api/client'
 import { selfPpeApi, type PpeAssignmentResponse } from '../api/ehs'
-import { useAuth } from '../auth/AuthContext'
 
 // M446 — Warning self-service types
 interface WarningRecord {
@@ -912,7 +911,6 @@ function PayrollTab() {
 // ============================================================================
 type AssetStatus = 'ASSIGNED' | 'RETURNED' | 'LOST' | 'DAMAGED' | 'WRITTEN_OFF'
 type AssetType = 'LAPTOP' | 'MOBILE_PHONE' | 'SIM_CARD' | 'VEHICLE' | 'ACCESS_CARD' | 'UNIFORM' | 'TOOLS' | 'EQUIPMENT' | 'LOCKER' | 'FUEL_CARD' | 'CREDIT_CARD' | 'TABLET' | 'HEADSET' | 'OTHER'
-type DamageType = 'DAMAGE' | 'LOSS'
 
 interface AssetResponse {
   id: string
@@ -937,7 +935,7 @@ const ASSET_STATUS_COLOR: Record<AssetStatus, string> = {
 
 function AssetsTab() {
   const { message } = AntdApp.useApp()
-  const { user } = useAuth()
+  const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [assets, setAssets] = useState<AssetResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [damageModalOpen, setDamageModalOpen] = useState(false)
@@ -945,13 +943,22 @@ function AssetsTab() {
   const [damageForm] = Form.useForm()
 
   useEffect(() => {
-    if (!user?.employeeId) return
     api
-      .get<AssetResponse[]>(`/self/assets/${user.employeeId}`)
-      .then(setAssets)
-      .catch(() => message.error('Failed to load assets'))
-      .finally(() => setLoading(false))
-  }, [user, message])
+      .get<{ id: string }>('/self/employee')
+      .then((r) => {
+        setEmployeeId(r.data.id)
+        api
+          .get<AssetResponse[]>(`/self/assets/${r.data.id}`)
+          .then((r) => setAssets(r.data))
+          .catch(() => message.error('Failed to load assets'))
+          .finally(() => setLoading(false))
+      })
+      .catch(() => {
+        setLoading(false)
+        message.error('No employee record is linked to your user')
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const openReportDamage = (asset: AssetResponse) => {
     setSelectedAsset(asset)
@@ -961,10 +968,10 @@ function AssetsTab() {
   }
 
   const submitDamageReport = async () => {
-    if (!user?.employeeId || !selectedAsset) return
+    if (!employeeId || !selectedAsset) return
     try {
       const values = await damageForm.validateFields()
-      await api.post(`/self/assets/${user.employeeId}/report-damage`, {
+      await api.post(`/self/assets/${employeeId}/report-damage`, {
         assetId: selectedAsset.id,
         caseType: values.caseType,
         description: values.description,
@@ -1129,7 +1136,7 @@ const LOAN_REQUEST_STATUS_COLOR: Record<LoanRequestStatus, string> = {
 
 function LoansTab() {
   const { message } = AntdApp.useApp()
-  const { user } = useAuth()
+  const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [requests, setRequests] = useState<LoanRequest[]>([])
   const [loanTypes, setLoanTypes] = useState<LoanType[]>([])
   const [loading, setLoading] = useState(true)
@@ -1139,24 +1146,31 @@ function LoansTab() {
   const [currentRequest, setCurrentRequest] = useState<LoanRequest | null>(null)
   const [form] = Form.useForm()
 
-  const loadRequests = () => {
-    if (!user?.employeeId) return
+  const loadRequests = (empId: string) => {
     api
-      .get<LoanRequest[]>(`/self/loans/${user.employeeId}`)
-      .then(setRequests)
+      .get<LoanRequest[]>(`/self/loans/${empId}`)
+      .then((r) => setRequests(r.data))
       .catch(() => message.error('Failed to load loan requests'))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
-    if (!user?.employeeId) return
-    loadRequests()
     api
-      .get<LoanType[]>('/payroll/loan-types')
-      .then((r) => setLoanTypes(r.data.filter((t) => t.active)))
-      .catch(() => {})
+      .get<{ id: string }>('/self/employee')
+      .then((r) => {
+        setEmployeeId(r.data.id)
+        loadRequests(r.data.id)
+        api
+          .get<LoanType[]>('/payroll/loan-types')
+          .then((r) => setLoanTypes(r.data.filter((t) => t.active)))
+          .catch(() => {})
+      })
+      .catch(() => {
+        setLoading(false)
+        message.error('No employee record is linked to your user')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [])
 
   const openRequestModal = () => {
     form.resetFields()
@@ -1164,13 +1178,13 @@ function LoansTab() {
   }
 
   const submitRequest = async () => {
-    if (!user?.employeeId) return
+    if (!employeeId) return
     try {
       const values = await form.validateFields()
-      await api.post(`/self/loans/${user.employeeId}`, values)
+      await api.post(`/self/loans/${employeeId}`, values)
       message.success('Loan request submitted')
       setRequestModalOpen(false)
-      loadRequests()
+      loadRequests(employeeId)
     } catch (e: any) {
       if (e?.errorFields) return
       const msg = e?.response?.data?.message ?? 'Request failed'
@@ -1179,12 +1193,12 @@ function LoansTab() {
   }
 
   const openStatement = (request: LoanRequest) => {
-    if (!user?.employeeId) return
+    if (!employeeId) return
     setCurrentRequest(request)
     setStatementOpen(true)
     api
-      .get<LoanInstallment[]>(`/self/loans/${user.employeeId}/requests/${request.id}/installments`)
-      .then(setInstallments)
+      .get<LoanInstallment[]>(`/self/loans/${employeeId}/requests/${request.id}/installments`)
+      .then((r) => setInstallments(r.data))
       .catch(() => message.error('Failed to load installments'))
   }
 
