@@ -40,6 +40,8 @@ import { LeaveEncashmentPage } from './pages/LeaveEncashmentPage'
 import { LeaveCategoriesPage } from './pages/LeaveCategoriesPage'
 import { TeamLeaveCalendarPage } from './pages/TeamLeaveCalendarPage'
 import { AssetsAdminPage } from './pages/AssetsAdminPage'
+import { AssetCategoriesPage } from './pages/AssetCategoriesPage'
+import { DamageLossCasesPage } from './pages/DamageLossCasesPage'
 import { PresenceMapPage } from './pages/PresenceMapPage'
 import { WorkflowSlaPage } from './pages/WorkflowSlaPage'
 import { PositionSkillsPage } from './pages/PositionSkillsPage'
@@ -459,6 +461,8 @@ export default function App() {
           <Route path="workflow/approval-groups" element={<ApprovalGroupsPage />} />
           {/* M124 — asset administration (cross-employee) */}
           <Route path="hr/assets" element={<AssetsAdminPage />} />
+          <Route path="assets/categories" element={<AssetCategoriesPage />} />
+          <Route path="assets/damage-loss" element={<DamageLossCasesPage />} />
           {/* M439 — document categories */}
           <Route path="hr/document-categories" element={<DocumentCategoriesPage />} />
           {/* M440 — signature requests */}

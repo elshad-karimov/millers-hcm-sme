@@ -54,6 +54,21 @@ public class GLJournal {
     @Column(name = "created_by", length = 200)
     private String createdBy;
 
+    @Column(name = "approved_by", length = 200)
+    private String approvedBy;
+
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
+
+    @Column(name = "posted_by", length = 200)
+    private String postedBy;
+
+    @Column(name = "posted_at")
+    private OffsetDateTime postedAt;
+
+    @Column(name = "reversed_journal_id")
+    private UUID reversedJournalId;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -92,11 +93,11 @@ public class GLJournalService {
             throw new BadRequestException("RUN_STATUS_INVALID");
         }
 
-        // A DRAFT journal may be regenerated (idempotent replace), but a POSTED journal is
-        // an accounting record of record and must never be silently overwritten.
+        // A DRAFT journal may be regenerated (idempotent replace), but APPROVED or POSTED
+        // journals are locked accounting records and must never be silently overwritten.
         journals.findByRunId(runId).ifPresent(existing -> {
-            if (existing.getStatus() == GLJournalStatus.POSTED) {
-                throw new BadRequestException("JOURNAL_ALREADY_POSTED");
+            if (existing.getStatus() == GLJournalStatus.APPROVED || existing.getStatus() == GLJournalStatus.POSTED) {
+                throw new BadRequestException("JOURNAL_ALREADY_APPROVED_OR_POSTED");
             }
             journalLines.deleteByJournalId(existing.getId());
             journals.deleteByRunId(runId);
@@ -405,6 +406,120 @@ public class GLJournalService {
         }
 
         return csv.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * M465 — Approve a DRAFT journal. Only DRAFT journals may be approved.
+     */
+    @Transactional
+    public GLJournal approve(UUID runId) {
+        GLJournal journal = journals.findByRunId(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("GL journal not found for run: " + runId));
+
+        if (journal.getStatus() != GLJournalStatus.DRAFT) {
+            throw new BadRequestException("JOURNAL_NOT_DRAFT");
+        }
+
+        journal.setStatus(GLJournalStatus.APPROVED);
+        journal.setApprovedBy(currentRequest.username());
+        journal.setApprovedAt(OffsetDateTime.now());
+        journals.save(journal);
+
+        audit.record(MODULE, ENTITY, runId.toString(), "APPROVED", null, "Status: APPROVED");
+
+        return journal;
+    }
+
+    /**
+     * M465 — Post an APPROVED journal to the GL. Only APPROVED journals may be posted.
+     */
+    @Transactional
+    public GLJournal post(UUID runId) {
+        GLJournal journal = journals.findByRunId(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("GL journal not found for run: " + runId));
+
+        if (journal.getStatus() != GLJournalStatus.APPROVED) {
+            throw new BadRequestException("JOURNAL_NOT_APPROVED");
+        }
+
+        journal.setStatus(GLJournalStatus.POSTED);
+        journal.setPostedBy(currentRequest.username());
+        journal.setPostedAt(OffsetDateTime.now());
+        journals.save(journal);
+
+        audit.record(MODULE, ENTITY, runId.toString(), "POSTED", null,
+                "Posted by: " + currentRequest.username() + ", Total: " + journal.getTotalDebit());
+
+        return journal;
+    }
+
+    /**
+     * M466 — Reverse a POSTED journal. Creates a new journal with inverted debit/credit lines,
+     * marks the original as REVERSED, and links them. A journal may only be reversed once.
+     */
+    @Transactional
+    public GLJournal reverse(UUID journalId) {
+        String tenantId = "default";
+
+        GLJournal original = journals.findById(journalId)
+                .orElseThrow(() -> new ResourceNotFoundException("GL journal not found: " + journalId));
+
+        if (!tenantId.equals(original.getTenantId())) {
+            throw new ResourceNotFoundException("GL journal not found: " + journalId);
+        }
+
+        if (original.getStatus() != GLJournalStatus.POSTED) {
+            throw new BadRequestException("JOURNAL_NOT_POSTED");
+        }
+
+        if (original.getReversedJournalId() != null) {
+            throw new BadRequestException("JOURNAL_ALREADY_REVERSED");
+        }
+
+        // Load original lines
+        List<GLJournalLine> originalLines = journalLines.findByJournalIdOrderBySequenceNo(original.getId());
+
+        // Create reversal journal header
+        GLJournal reversal = new GLJournal();
+        reversal.setTenantId(tenantId);
+        reversal.setRunId(original.getRunId());
+        reversal.setJournalDate(LocalDate.now());
+        reversal.setStatus(GLJournalStatus.POSTED);
+        reversal.setTotalDebit(original.getTotalDebit());
+        reversal.setTotalCredit(original.getTotalCredit());
+        reversal.setCreatedBy(currentRequest.username());
+        reversal.setPostedBy(currentRequest.username());
+        reversal.setPostedAt(OffsetDateTime.now());
+        journals.save(reversal);
+
+        // Create inverted lines (swap debit ↔ credit)
+        int sequence = 0;
+        for (GLJournalLine origLine : originalLines) {
+            GLJournalLine inverted = new GLJournalLine();
+            inverted.setTenantId(tenantId);
+            inverted.setJournalId(reversal.getId());
+            inverted.setSequenceNo(++sequence);
+            inverted.setCostCenterCode(origLine.getCostCenterCode());
+            inverted.setComponentKind(origLine.getComponentKind());
+            // Swap account type
+            inverted.setAccountType(origLine.getAccountType() == GLAccountType.DEBIT
+                    ? GLAccountType.CREDIT : GLAccountType.DEBIT);
+            inverted.setGlAccountCode(origLine.getGlAccountCode());
+            inverted.setGlAccountName(origLine.getGlAccountName());
+            inverted.setAmount(origLine.getAmount());
+            inverted.setDescription("REVERSAL: " + (origLine.getDescription() != null ? origLine.getDescription() : ""));
+            journalLines.save(inverted);
+        }
+
+        // Mark original as reversed and link to reversal
+        original.setStatus(GLJournalStatus.REVERSED);
+        original.setReversedJournalId(reversal.getId());
+        journals.save(original);
+
+        audit.record(MODULE, ENTITY, journalId.toString(), "REVERSED", null,
+                "Reversal journal: " + reversal.getId());
+
+        return reversal;
     }
 
     /**

@@ -66,6 +66,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/employees', module: 'people', screen: 'employees' },
   { prefix: '/hr/preboarding', module: 'people', screen: 'hr-preboarding' },
   { prefix: '/hr/assets', module: 'people', screen: 'hr-assets' },
+  { prefix: '/assets/categories', module: 'people', screen: 'asset-categories' },
+  { prefix: '/assets/damage-loss', module: 'people', screen: 'asset-damage-loss' },
   { prefix: '/organization/bulk-reorg', module: 'people', screen: 'organization-bulk-reorg' },
   { prefix: '/organization/legal-entities', module: 'people', screen: 'legal-entities' },
   { prefix: '/organization/locations', module: 'people', screen: 'locations' },
@@ -327,7 +329,21 @@ export function AppLayout() {
               {
                 key: 'hr-assets',
                 icon: <InboxOutlined />,
-                label: <Link to="/hr/assets">{tNav('sub.people.assets')}</Link>,
+                label: 'Assets',
+                children: [
+                  {
+                    key: 'hr-assets',
+                    label: <Link to="/hr/assets">Asset Administration</Link>,
+                  },
+                  {
+                    key: 'asset-categories',
+                    label: <Link to="/assets/categories">Categories</Link>,
+                  },
+                  {
+                    key: 'asset-damage-loss',
+                    label: <Link to="/assets/damage-loss">Damage & Loss Cases</Link>,
+                  },
+                ],
               },
               {
                 key: 'organization',

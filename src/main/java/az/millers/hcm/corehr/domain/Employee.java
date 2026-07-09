@@ -192,6 +192,14 @@ public class Employee {
     @Column(name = "hire_date", nullable = false)
     private LocalDate hireDate;
 
+    /**
+     * M471 — Work authorization expiry (visa/work permit). Used for
+     * compliance tracking; non-citizens without valid authorization
+     * may not be scheduled or paid (warning-only in current implementation).
+     */
+    @Column(name = "work_authorized_until")
+    private LocalDate workAuthorizedUntil;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "employment_status", nullable = false)
     private EmploymentStatus employmentStatus;

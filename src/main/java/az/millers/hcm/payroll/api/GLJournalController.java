@@ -52,4 +52,34 @@ public class GLJournalController {
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .body(csv);
     }
+
+    /**
+     * M465 — Approve a GL journal (DRAFT → APPROVED).
+     */
+    @PostMapping("/approve")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    public ResponseEntity<GLJournal> approve(@PathVariable UUID runId) {
+        GLJournal journal = service.approve(runId);
+        return ResponseEntity.ok(journal);
+    }
+
+    /**
+     * M465 — Post a GL journal to the ledger (APPROVED → POSTED).
+     */
+    @PostMapping("/post")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    public ResponseEntity<GLJournal> post(@PathVariable UUID runId) {
+        GLJournal journal = service.post(runId);
+        return ResponseEntity.ok(journal);
+    }
+
+    /**
+     * M466 — Reverse a posted GL journal (creates inverting journal).
+     */
+    @PostMapping("/{journalId}/reverse")
+    @PreAuthorize(SecurityRoles.WRITE_PAYROLL)
+    public ResponseEntity<GLJournal> reverse(@PathVariable UUID runId, @PathVariable UUID journalId) {
+        GLJournal reversal = service.reverse(journalId);
+        return ResponseEntity.ok(reversal);
+    }
 }
