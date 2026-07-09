@@ -234,6 +234,14 @@ import { InspectionsPage } from './pages/InspectionsPage'
 import { EhsCorrectiveActionsPage } from './pages/EhsCorrectiveActionsPage'
 import { PpeItemsPage } from './pages/PpeItemsPage'
 import { PpeAssignmentsPage } from './pages/PpeAssignmentsPage'
+import { KpiDefinitionsPage } from './pages/analytics/KpiDefinitionsPage'
+import { MyDashboardsPage } from './pages/analytics/MyDashboardsPage'
+import { ExecutiveSummaryPage } from './pages/analytics/ExecutiveSummaryPage'
+import { AttritionRiskPage } from './pages/analytics/AttritionRiskPage'
+import { PulseSchedulesPage } from './pages/engagement/PulseSchedulesPage'
+import { RecognitionPage } from './pages/engagement/RecognitionPage'
+import { ActionPlansPage } from './pages/engagement/ActionPlansPage'
+import { ParticipationPage } from './pages/engagement/ParticipationPage'
 
 /** Lands HR/admins on the home dashboard; non-HR users on their My Workspace. */
 function IndexRedirect() {
@@ -531,6 +539,11 @@ export default function App() {
 
           {/* M116 — engagement surveys + eNPS (HR admin) */}
           <Route path="engagement/surveys" element={<SurveysAdminPage />} />
+          {/* M477-M480 — engagement module extensions */}
+          <Route path="engagement/pulse-schedules" element={<PulseSchedulesPage />} />
+          <Route path="engagement/recognition" element={<RecognitionPage />} />
+          <Route path="engagement/action-plans" element={<ActionPlansPage />} />
+          <Route path="engagement/participation" element={<ParticipationPage />} />
 
           {/* Absence admin */}
           <Route path="leave/types" element={<LeaveTypesPage />} />
@@ -652,6 +665,12 @@ export default function App() {
           <Route path="reports/schedules" element={<ReportSchedulesPage />} />
           {/* M119 — custom report builder */}
           <Route path="reports/custom" element={<CustomReportBuilderPage />} />
+
+          {/* M473-M476 — Analytics & KPI dashboards */}
+          <Route path="analytics/kpis" element={<KpiDefinitionsPage />} />
+          <Route path="analytics/dashboards" element={<MyDashboardsPage />} />
+          <Route path="analytics/executive" element={<ExecutiveSummaryPage />} />
+          <Route path="analytics/attrition-risk" element={<AttritionRiskPage />} />
         </Route>
 
         {/* ── SYSTEM_ADMIN only ──────────────────────────────────── */}

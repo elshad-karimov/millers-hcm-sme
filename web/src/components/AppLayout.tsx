@@ -186,7 +186,15 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/reports/schedules', module: 'reports', screen: 'reports-schedules' },
   { prefix: '/reports/custom', module: 'reports', screen: 'reports-custom' },
   { prefix: '/reports', module: 'reports', screen: 'reports' },
+  { prefix: '/analytics/kpis', module: 'analytics', screen: 'analytics-kpis' },
+  { prefix: '/analytics/dashboards', module: 'analytics', screen: 'analytics-dashboards' },
+  { prefix: '/analytics/executive', module: 'analytics', screen: 'analytics-executive' },
+  { prefix: '/analytics/attrition-risk', module: 'analytics', screen: 'analytics-attrition' },
   { prefix: '/engagement/surveys', module: 'engagement', screen: 'engagement-surveys' },
+  { prefix: '/engagement/pulse-schedules', module: 'engagement', screen: 'engagement-pulse' },
+  { prefix: '/engagement/recognition', module: 'engagement', screen: 'engagement-recognition' },
+  { prefix: '/engagement/action-plans', module: 'engagement', screen: 'engagement-action-plans' },
+  { prefix: '/engagement/participation', module: 'engagement', screen: 'engagement-participation' },
   { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
   { prefix: '/self/policies', module: 'my', screen: 'self-policies' },
   { prefix: '/policies', module: 'people', screen: 'policies-admin' },
@@ -1351,13 +1359,35 @@ export function AppLayout() {
         ]
       : []),
 
-    // ── Engagement (HR — M116) ────────────────────────────────────────────
+    // ── Engagement (HR — M116, M477-M480) ────────────────────────────────
     ...(isHR
       ? [
           {
             key: 'engagement',
             icon: <ExperimentOutlined />,
-            label: <Link to="/engagement/surveys">{tNav('engagement')}</Link>,
+            label: tNav('engagement'),
+            children: [
+              {
+                key: 'engagement-surveys',
+                label: <Link to="/engagement/surveys">Surveys</Link>,
+              },
+              {
+                key: 'engagement-pulse',
+                label: <Link to="/engagement/pulse-schedules">Pulse Schedules</Link>,
+              },
+              {
+                key: 'engagement-recognition',
+                label: <Link to="/engagement/recognition">Recognition</Link>,
+              },
+              {
+                key: 'engagement-action-plans',
+                label: <Link to="/engagement/action-plans">Action Plans</Link>,
+              },
+              {
+                key: 'engagement-participation',
+                label: <Link to="/engagement/participation">Participation</Link>,
+              },
+            ],
           } satisfies ItemType,
         ]
       : []),
@@ -1386,6 +1416,26 @@ export function AppLayout() {
                       key: 'reports-custom',
                       icon: <BarChartOutlined />,
                       label: <Link to="/reports/custom">{tNav('sub.reports.customBuilder')}</Link>,
+                    },
+                    {
+                      key: 'analytics-kpis',
+                      icon: <DashboardOutlined />,
+                      label: <Link to="/analytics/kpis">KPI Definitions</Link>,
+                    },
+                    {
+                      key: 'analytics-dashboards',
+                      icon: <DashboardOutlined />,
+                      label: <Link to="/analytics/dashboards">My Dashboards</Link>,
+                    },
+                    {
+                      key: 'analytics-executive',
+                      icon: <DashboardOutlined />,
+                      label: <Link to="/analytics/executive">Executive Summary</Link>,
+                    },
+                    {
+                      key: 'analytics-attrition',
+                      icon: <WarningOutlined />,
+                      label: <Link to="/analytics/attrition-risk">Attrition Risk</Link>,
                     },
                   ]
                 : []),
