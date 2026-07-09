@@ -29,12 +29,12 @@ COMMENT ON TABLE lifecycle.asset_category IS
     'M456 — Tenant-specific asset category master. Replaces hardcoded AssetType enum.';
 
 -- ── Add category_id FK to employee_asset (nullable for backward compat) ────
-ALTER TABLE lifecycle.employee_asset
+ALTER TABLE core_hr.employee_asset
     ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES lifecycle.asset_category(id);
 
-CREATE INDEX IF NOT EXISTS employee_asset_category_idx ON lifecycle.employee_asset (category_id);
+CREATE INDEX IF NOT EXISTS employee_asset_category_idx ON core_hr.employee_asset (category_id);
 
-COMMENT ON COLUMN lifecycle.employee_asset.category_id IS
+COMMENT ON COLUMN core_hr.employee_asset.category_id IS
     'M456 — FK to asset_category. Nullable for backward compatibility with AssetType enum. New assignments should populate this.';
 
 -- ── Seed default categories matching existing AssetType enum ───────────────

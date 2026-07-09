@@ -55,7 +55,7 @@ VALUES (
     true,
     now(),
     now()
-) ON CONFLICT (code) DO NOTHING;
+) ON CONFLICT (code, version) DO NOTHING;
 
 INSERT INTO workflow.workflow_step (id, definition_id, step_order, name, approver_role)
 SELECT

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS lifecycle.asset_transfer (
     id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id               varchar(80)  NOT NULL DEFAULT 'default',
     transfer_no             varchar(20)  NOT NULL UNIQUE,
-    asset_id                uuid         NOT NULL REFERENCES lifecycle.employee_asset(id),
+    asset_id                uuid         NOT NULL REFERENCES core_hr.employee_asset(id),
     from_employee_id        uuid         NOT NULL,
     to_employee_id          uuid         NOT NULL,
     reason                  varchar(1000),
