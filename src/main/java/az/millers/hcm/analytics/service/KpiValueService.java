@@ -15,7 +15,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import az.millers.hcm.engagement.service.SurveyAggregator;
 import az.millers.hcm.reporting.service.DashboardService;
 
 /**
@@ -29,14 +28,11 @@ public class KpiValueService {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final DashboardService dashboardService;
-    private final SurveyAggregator surveyAggregator;
 
     public KpiValueService(NamedParameterJdbcTemplate jdbc,
-                          DashboardService dashboardService,
-                          SurveyAggregator surveyAggregator) {
+                          DashboardService dashboardService) {
         this.jdbc = jdbc;
         this.dashboardService = dashboardService;
-        this.surveyAggregator = surveyAggregator;
     }
 
     /**
