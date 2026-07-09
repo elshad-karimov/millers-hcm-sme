@@ -6,9 +6,11 @@ import {
   Col,
   Collapse,
   Descriptions,
+  Drawer,
   Empty,
   Form,
   Input,
+  InputNumber,
   Modal,
   Progress,
   Row,
@@ -1063,6 +1065,313 @@ function AssetsTab() {
 }
 
 // ============================================================================
+//  Loans tab — M465 ESS loans
+// ============================================================================
+type LoanRequestStatus =
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'DISBURSED'
+
+interface LoanType {
+  id: string
+  code: string
+  name: string
+  description?: string
+  maxAmount?: number
+  maxMultipleOfNet: number
+  maxMonths: number
+  interestRatePct: number
+  minTenureMonths: number
+  maxActiveLoans: number
+  active: boolean
+}
+
+interface LoanRequest {
+  id: string
+  requestNo: string
+  employeeId: string
+  loanTypeId: string
+  loanTypeName: string
+  requestedAmount: number
+  requestedMonths: number
+  approvedAmount?: number
+  approvedMonths?: number
+  purpose?: string
+  status: LoanRequestStatus
+  eligibilityNotes?: string
+  rejectionReason?: string
+  submittedAt: string
+  approvedAt?: string
+}
+
+interface LoanInstallment {
+  id: string
+  installmentNumber: number
+  dueYear: number
+  dueMonth: number
+  installmentAmount: number
+  principalPortion: number
+  interestPortion: number
+  remainingBalance: number
+  status: string
+  paidAt?: string
+}
+
+const LOAN_REQUEST_STATUS_COLOR: Record<LoanRequestStatus, string> = {
+  SUBMITTED: 'orange',
+  APPROVED: 'blue',
+  REJECTED: 'red',
+  CANCELLED: 'default',
+  DISBURSED: 'green',
+}
+
+function LoansTab() {
+  const { message } = AntdApp.useApp()
+  const { user } = useAuth()
+  const [requests, setRequests] = useState<LoanRequest[]>([])
+  const [loanTypes, setLoanTypes] = useState<LoanType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [requestModalOpen, setRequestModalOpen] = useState(false)
+  const [statementOpen, setStatementOpen] = useState(false)
+  const [installments, setInstallments] = useState<LoanInstallment[]>([])
+  const [currentRequest, setCurrentRequest] = useState<LoanRequest | null>(null)
+  const [form] = Form.useForm()
+
+  const loadRequests = () => {
+    if (!user?.employeeId) return
+    api
+      .get<LoanRequest[]>(`/self/loans/${user.employeeId}`)
+      .then(setRequests)
+      .catch(() => message.error('Failed to load loan requests'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (!user?.employeeId) return
+    loadRequests()
+    api
+      .get<LoanType[]>('/payroll/loan-types')
+      .then((r) => setLoanTypes(r.data.filter((t) => t.active)))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  const openRequestModal = () => {
+    form.resetFields()
+    setRequestModalOpen(true)
+  }
+
+  const submitRequest = async () => {
+    if (!user?.employeeId) return
+    try {
+      const values = await form.validateFields()
+      await api.post(`/self/loans/${user.employeeId}`, values)
+      message.success('Loan request submitted')
+      setRequestModalOpen(false)
+      loadRequests()
+    } catch (e: any) {
+      if (e?.errorFields) return
+      const msg = e?.response?.data?.message ?? 'Request failed'
+      message.error(msg)
+    }
+  }
+
+  const openStatement = (request: LoanRequest) => {
+    if (!user?.employeeId) return
+    setCurrentRequest(request)
+    setStatementOpen(true)
+    api
+      .get<LoanInstallment[]>(`/self/loans/${user.employeeId}/requests/${request.id}/installments`)
+      .then(setInstallments)
+      .catch(() => message.error('Failed to load installments'))
+  }
+
+  const requestColumns: ColumnsType<LoanRequest> = [
+    { title: 'Request No', dataIndex: 'requestNo', width: 120 },
+    { title: 'Loan Type', dataIndex: 'loanTypeName' },
+    {
+      title: 'Requested',
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text>{r.requestedAmount.toFixed(2)} AZN</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+            {r.requestedMonths} months
+          </Typography.Text>
+        </Space>
+      ),
+      width: 120,
+      align: 'right',
+    },
+    {
+      title: 'Approved',
+      render: (_, r) =>
+        r.approvedAmount ? (
+          <Space direction="vertical" size={0}>
+            <Typography.Text>{r.approvedAmount.toFixed(2)} AZN</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              {r.approvedMonths} months
+            </Typography.Text>
+          </Space>
+        ) : (
+          '—'
+        ),
+      width: 120,
+      align: 'right',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      width: 120,
+      render: (s: LoanRequestStatus) => (
+        <Tag color={LOAN_REQUEST_STATUS_COLOR[s]}>{s}</Tag>
+      ),
+    },
+    {
+      title: 'Actions',
+      width: 120,
+      render: (_, r) =>
+        r.status === 'APPROVED' || r.status === 'DISBURSED' ? (
+          <a onClick={() => openStatement(r)}>Statement</a>
+        ) : r.status === 'REJECTED' && r.rejectionReason ? (
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+            {r.rejectionReason}
+          </Typography.Text>
+        ) : null,
+    },
+  ]
+
+  const installmentColumns: ColumnsType<LoanInstallment> = [
+    { title: '#', dataIndex: 'installmentNumber', width: 50 },
+    {
+      title: 'Due',
+      render: (_, r) => `${r.dueYear}/${String(r.dueMonth).padStart(2, '0')}`,
+      width: 100,
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'installmentAmount',
+      align: 'right',
+      render: (v: number) => v.toFixed(2),
+    },
+    {
+      title: 'Principal',
+      dataIndex: 'principalPortion',
+      align: 'right',
+      render: (v: number) => v.toFixed(2),
+    },
+    {
+      title: 'Interest',
+      dataIndex: 'interestPortion',
+      align: 'right',
+      render: (v: number) => v.toFixed(2),
+    },
+    {
+      title: 'Balance',
+      dataIndex: 'remainingBalance',
+      align: 'right',
+      render: (v: number) => v.toFixed(2),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (s: string) => <Tag color={s === 'PAID' ? 'green' : 'orange'}>{s}</Tag>,
+    },
+  ]
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Card
+        title="My Loan Requests"
+        size="small"
+        extra={
+          <Button type="primary" onClick={openRequestModal}>
+            Request Loan
+          </Button>
+        }
+      >
+        <Table
+          rowKey="id"
+          columns={requestColumns}
+          dataSource={requests}
+          loading={loading}
+          pagination={false}
+        />
+      </Card>
+
+      <Modal
+        open={requestModalOpen}
+        title="Request a Loan"
+        onCancel={() => setRequestModalOpen(false)}
+        onOk={submitRequest}
+        okText="Submit Request"
+        width={500}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="loanTypeId" label="Loan Type" rules={[{ required: true }]}>
+            <Select placeholder="Select loan type">
+              {loanTypes.map((t) => (
+                <Select.Option key={t.id} value={t.id}>
+                  {t.name}
+                  {t.description && (
+                    <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                      {t.description}
+                    </Typography.Text>
+                  )}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="requestedAmount"
+            label="Requested Amount (AZN)"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={0} step={100} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="requestedMonths"
+            label="Repayment Period (months)"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={120} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="purpose" label="Purpose">
+            <Input.TextArea rows={3} placeholder="Reason for loan request" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Drawer
+        open={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        width={720}
+        title={currentRequest ? `Loan Statement — ${currentRequest.requestNo}` : ''}
+      >
+        {currentRequest && (
+          <>
+            <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+              Loan Type: <strong>{currentRequest.loanTypeName}</strong>
+              <br />
+              Approved Amount: <strong>{currentRequest.approvedAmount?.toFixed(2)} AZN</strong> over{' '}
+              <strong>{currentRequest.approvedMonths} months</strong>
+            </Typography.Paragraph>
+            <Table
+              rowKey="id"
+              size="small"
+              columns={installmentColumns}
+              dataSource={installments}
+              pagination={false}
+            />
+          </>
+        )}
+      </Drawer>
+    </Space>
+  )
+}
+
+// ============================================================================
 //  Learning tab
 // ============================================================================
 // Colour per assignment status — mirrors M96 drawer.
@@ -1600,6 +1909,7 @@ export function MyWorkspacePage() {
           { key: 'payroll',       label: 'Payroll',                children: <PayrollTab /> },
           { key: 'benefits',      label: 'Benefits',               children: <BenefitsTab /> },
           { key: 'assets',        label: 'My Assets',              children: <AssetsTab /> },
+          { key: 'loans',         label: 'My Loans',               children: <LoansTab /> },
           { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
           { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
           { key: 'teamCalendar',  label: 'Team Calendar',          children: <TeamCalendarTab /> },
