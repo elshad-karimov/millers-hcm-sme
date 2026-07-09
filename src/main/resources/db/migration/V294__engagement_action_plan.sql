@@ -4,7 +4,7 @@ CREATE TABLE engagement.engagement_action_plan (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id       VARCHAR(100) NOT NULL DEFAULT 'default',
     campaign_id     UUID REFERENCES engagement.survey_campaign(id), -- nullable
-    org_unit_id     UUID REFERENCES core_hr.org_unit(id), -- nullable
+    org_unit_id     UUID, -- nullable, future FK when org_unit exists
     owner_username  VARCHAR(255) NOT NULL,
     title           VARCHAR(255) NOT NULL,
     description     TEXT,
