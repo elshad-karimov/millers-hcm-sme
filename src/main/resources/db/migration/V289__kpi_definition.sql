@@ -1,5 +1,7 @@
 -- M473 — KPI definition catalog for analytics dashboards
 
+CREATE SCHEMA IF NOT EXISTS analytics;
+
 CREATE TABLE analytics.kpi_definition (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id       VARCHAR(100) NOT NULL DEFAULT 'default',
