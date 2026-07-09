@@ -121,6 +121,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
+  { prefix: '/payroll/loan-types', module: 'payroll', screen: 'payroll-loan-types' },
+  { prefix: '/payroll/loan-requests', module: 'payroll', screen: 'payroll-loan-requests' },
   { prefix: '/compensation/dashboard', module: 'compensation', screen: 'compensation-dashboard' },
   { prefix: '/compensation/profile', module: 'compensation', screen: 'compensation-profile' },
   { prefix: '/compensation/pay-bands', module: 'compensation', screen: 'compensation-pay-bands' },
@@ -788,7 +790,21 @@ export function AppLayout() {
               {
                 key: 'payroll-loans',
                 icon: <BankOutlined />,
-                label: <Link to="/payroll/loans">Loans</Link>,
+                label: 'Loans',
+                children: [
+                  {
+                    key: 'payroll-loans',
+                    label: <Link to="/payroll/loans">Loan Master</Link>,
+                  },
+                  {
+                    key: 'payroll-loan-types',
+                    label: <Link to="/payroll/loan-types">Loan Types</Link>,
+                  },
+                  {
+                    key: 'payroll-loan-requests',
+                    label: <Link to="/payroll/loan-requests">Loan Requests</Link>,
+                  },
+                ],
               },
               {
                 key: 'payroll-gl-mappings',

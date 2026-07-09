@@ -69,6 +69,8 @@ import { PayrollCompensationPage } from './pages/PayrollCompensationPage'
 import { SalaryComponentsPage } from './pages/SalaryComponentsPage'
 import { SalaryAdvancesPage } from './pages/SalaryAdvancesPage'
 import { PayrollLoansPage } from './pages/PayrollLoansPage'
+import { LoanTypesPage } from './pages/LoanTypesPage'
+import { LoanRequestsPage } from './pages/LoanRequestsPage'
 import { GLAccountMappingsPage } from './pages/GLAccountMappingsPage'
 import { YearEndPage } from './pages/YearEndPage'
 import { PayrollControlBoardPage } from './pages/PayrollControlBoardPage'
@@ -547,6 +549,8 @@ export default function App() {
           <Route path="payroll/components" element={<SalaryComponentsPage />} />
           <Route path="payroll/advances" element={<SalaryAdvancesPage />} />
           <Route path="payroll/loans" element={<PayrollLoansPage />} />
+          <Route path="payroll/loan-types" element={<LoanTypesPage />} />
+          <Route path="payroll/loan-requests" element={<LoanRequestsPage />} />
           <Route path="payroll/gl-mappings" element={<GLAccountMappingsPage />} />
           <Route path="payroll/year-end" element={<YearEndPage />} />
           <Route path="payroll/control-board" element={<PayrollControlBoardPage />} />
