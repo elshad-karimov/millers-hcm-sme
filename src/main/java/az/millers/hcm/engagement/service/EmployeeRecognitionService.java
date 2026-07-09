@@ -55,28 +55,30 @@ public class EmployeeRecognitionService {
                 PageRequest.of(0, limit));
 
         // Enrich with employee names via JDBC projection (tenant-filtered)
-        return recognitions.stream().map(r -> {
-            Map<String, String> fromEmployee = jdbc.queryForMap(
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (EmployeeRecognition r : recognitions) {
+            Map<String, Object> fromEmployee = jdbc.queryForMap(
                     "SELECT first_name, last_name FROM core_hr.employee WHERE id = :id AND tenant_id = :tenant",
                     new MapSqlParameterSource()
                             .addValue("id", r.getFromEmployeeId())
                             .addValue("tenant", TENANT));
 
-            Map<String, String> toEmployee = jdbc.queryForMap(
+            Map<String, Object> toEmployee = jdbc.queryForMap(
                     "SELECT first_name, last_name FROM core_hr.employee WHERE id = :id AND tenant_id = :tenant",
                     new MapSqlParameterSource()
                             .addValue("id", r.getToEmployeeId())
                             .addValue("tenant", TENANT));
 
-            return Map.of(
-                    "id", r.getId(),
-                    "fromEmployee", fromEmployee.get("first_name") + " " + fromEmployee.get("last_name"),
-                    "toEmployee", toEmployee.get("first_name") + " " + toEmployee.get("last_name"),
-                    "valueTag", r.getValueTag(),
-                    "message", r.getMessage(),
-                    "createdAt", r.getCreatedAt()
-            );
-        }).toList();
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", r.getId());
+            item.put("fromEmployee", fromEmployee.get("first_name") + " " + fromEmployee.get("last_name"));
+            item.put("toEmployee", toEmployee.get("first_name") + " " + toEmployee.get("last_name"));
+            item.put("valueTag", r.getValueTag());
+            item.put("message", r.getMessage());
+            item.put("createdAt", r.getCreatedAt());
+            result.add(item);
+        }
+        return result;
     }
 
     /**

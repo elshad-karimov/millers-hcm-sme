@@ -117,14 +117,12 @@ public class PulseSchedulerService {
 
         // Create campaign: opens today, closes in 7 days
         SurveyCampaign campaign = new SurveyCampaign();
-        campaign.setTenantId(TENANT);
         campaign.setTemplateId(template.getId());
         campaign.setName(campaignName);
         campaign.setDescription("Auto-generated pulse survey");
         campaign.setOpensOn(today);
         campaign.setClosesOn(today.plusDays(7));
         campaign.setStatus(CampaignStatus.DRAFT); // Existing scheduler will activate it
-        campaign.setAnonymous(template.isAnonymous());
         campaign.setTargetAll(true);
         campaign.setCreatedBy("system:pulse-scheduler");
 
