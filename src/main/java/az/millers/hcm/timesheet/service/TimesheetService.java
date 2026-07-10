@@ -234,6 +234,9 @@ public class TimesheetService {
         if (req.primaryCode() != null) day.setPrimaryCode(req.primaryCode());
         if (req.workedHours() != null) day.setWorkedHours(req.workedHours());
         if (req.overtimeHours() != null) day.setOvertimeHours(req.overtimeHours());
+        if (req.projectId() != null) day.setProjectId(req.projectId());
+        if (req.taskCode() != null) day.setTaskCode(req.taskCode());
+        if (req.billable() != null) day.setBillable(req.billable());
         day.setCorrectionReason(req.reason());
         day.setCorrectedBy(currentRequest.username());
         day.setCorrectedAt(OffsetDateTime.now());
