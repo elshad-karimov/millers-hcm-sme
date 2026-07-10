@@ -8,5 +8,6 @@ public enum RecognitionValueTag {
     INNOVATION,
     EXCELLENCE,
     CUSTOMER_FOCUS,
-    LEADERSHIP
+    LEADERSHIP,
+    SERVICE_ANNIVERSARY  // M483
 }
