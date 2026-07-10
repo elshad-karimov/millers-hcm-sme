@@ -1,12 +1,15 @@
 package az.millers.hcm.engagement.api;
 
+import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.engagement.api.dto.*;
 import az.millers.hcm.engagement.domain.RewardBudget;
 import az.millers.hcm.engagement.domain.RewardCatalog;
 import az.millers.hcm.engagement.domain.RewardRedemption;
 import az.millers.hcm.engagement.domain.RewardWallet;
 import az.millers.hcm.engagement.service.RewardPointsService;
+import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.SecurityRoles;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +25,13 @@ import java.util.UUID;
 public class RewardPointsController {
 
     private final RewardPointsService service;
+    private final EmployeeContextService employeeContext;
+    private final CurrentRequest currentRequest;
 
-    public RewardPointsController(RewardPointsService service) {
+    public RewardPointsController(RewardPointsService service, EmployeeContextService employeeContext, CurrentRequest currentRequest) {
         this.service = service;
+        this.employeeContext = employeeContext;
+        this.currentRequest = currentRequest;
     }
 
     // ───────────────────────────── Catalog ─────────────────────────────
@@ -75,6 +82,14 @@ public class RewardPointsController {
     @GetMapping("/wallet/{employeeId}")
     @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public RewardWallet getWallet(@PathVariable UUID employeeId) {
+        // IDOR guard: self-or-HR only (wallet is money data; managers do not get arbitrary access)
+        boolean isSelf = employeeContext.currentEmployee().getId().equals(employeeId);
+        boolean isHR = currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST);
+        if (!isSelf && !isHR) {
+            throw new ResourceNotFoundException("Wallet not found");
+        }
         return service.getWallet(employeeId);
     }
 
@@ -95,7 +110,14 @@ public class RewardPointsController {
     @GetMapping("/redemptions/my/{employeeId}")
     @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public List<RewardRedemption> listMyRedemptions(@PathVariable UUID employeeId) {
-        // IDOR guard: caller should verify self-or-manager in production
+        // IDOR guard: self-or-HR only (redemption history is money data)
+        boolean isSelf = employeeContext.currentEmployee().getId().equals(employeeId);
+        boolean isHR = currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST);
+        if (!isSelf && !isHR) {
+            throw new ResourceNotFoundException("Redemptions not found");
+        }
         return service.listMyRedemptions(employeeId);
     }
 
@@ -108,8 +130,8 @@ public class RewardPointsController {
     @PostMapping("/redeem")
     @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public RewardRedemption redeem(@Valid @RequestBody RedeemRewardRequest req) {
-        // In production, extract employeeId from security context or validate it
-        UUID employeeId = UUID.randomUUID(); // Placeholder: should come from CurrentRequest
+        // Force redeem as currentEmployee (employees can only redeem their own points)
+        UUID employeeId = employeeContext.currentEmployee().getId();
         return service.redeem(employeeId, req.catalogItemId(), req.deliveryAddress());
     }
 

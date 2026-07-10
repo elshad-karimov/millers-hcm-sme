@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
+import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
@@ -68,6 +69,11 @@ public class MovementExecutionService {
         // Tenant check
         if (!TENANT.equals(request.getTenantId())) {
             throw new ResourceNotFoundException("Movement request not found: " + requestId);
+        }
+
+        // Idempotency guard: prevent double-execution
+        if (request.getStatus() == MovementRequestStatus.EXECUTED) {
+            throw new BadRequestException("Request already executed");
         }
 
         if (request.getStatus() != MovementRequestStatus.APPROVED) {

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import az.millers.hcm.integration.api.dto.IntegrationConfigListDto;
 import az.millers.hcm.integration.domain.IntegrationConfig;
 import az.millers.hcm.integration.domain.IntegrationDirection;
 import az.millers.hcm.integration.domain.IntegrationLog;
@@ -38,16 +39,16 @@ public class IntegrationRegistryController {
     }
 
     /**
-     * List all integration configs.
+     * List all integration configs (endpoint_url masked for security).
      */
     @GetMapping
     @PreAuthorize(SYSTEM_ADMIN_ONLY)
-    public List<IntegrationConfig> listConfigs() {
+    public List<IntegrationConfigListDto> listConfigs() {
         return service.listAll();
     }
 
     /**
-     * Get a single integration config.
+     * Get a single integration config (includes full endpoint_url for edit).
      */
     @GetMapping("/{id}")
     @PreAuthorize(SYSTEM_ADMIN_ONLY)

@@ -22,13 +22,13 @@ public class ContractorController {
     }
 
     @GetMapping
-    @PreAuthorize(SecurityRoles.READ_HR)
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public List<ContractorEngagement> listEngagements(@RequestParam(required = false) String status) {
         return service.listEngagements(status);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize(SecurityRoles.READ_HR)
+    @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public ContractorEngagement getEngagement(@PathVariable UUID id) {
         return service.getEngagement(id);
     }

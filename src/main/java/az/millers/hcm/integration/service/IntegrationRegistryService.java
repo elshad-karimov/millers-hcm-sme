@@ -3,6 +3,7 @@ package az.millers.hcm.integration.service;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.integration.api.dto.IntegrationConfigListDto;
 import az.millers.hcm.integration.domain.IntegrationConfig;
 import az.millers.hcm.integration.domain.IntegrationDirection;
 import az.millers.hcm.integration.domain.IntegrationLog;
@@ -114,12 +116,16 @@ public class IntegrationRegistryService {
         log.info("Deleted integration config {} by {}", config.getCode(), deletedBy);
     }
 
-    public List<IntegrationConfig> listAll() {
-        return configRepo.findByTenantIdOrderByNameAsc(TENANT);
+    public List<IntegrationConfigListDto> listAll() {
+        return configRepo.findByTenantIdOrderByNameAsc(TENANT).stream()
+            .map(IntegrationConfigListDto::from)
+            .collect(Collectors.toList());
     }
 
-    public List<IntegrationConfig> listEnabled() {
-        return configRepo.findByTenantIdAndEnabledOrderByNameAsc(TENANT, true);
+    public List<IntegrationConfigListDto> listEnabled() {
+        return configRepo.findByTenantIdAndEnabledOrderByNameAsc(TENANT, true).stream()
+            .map(IntegrationConfigListDto::from)
+            .collect(Collectors.toList());
     }
 
     public IntegrationConfig get(UUID id) {

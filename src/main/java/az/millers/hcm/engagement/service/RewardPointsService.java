@@ -168,7 +168,16 @@ public class RewardPointsService {
             throw new BadRequestException("Catalog item is not active");
         }
 
-        RewardWallet wallet = getWallet(employeeId);
+        // Pessimistic lock on wallet to prevent negative-balance race
+        RewardWallet wallet = walletRepo.findByTenantIdAndEmployeeId(TENANT_ID, employeeId)
+            .map(w -> walletRepo.lockById(w.getId()).orElse(w))
+            .orElseGet(() -> {
+                RewardWallet w = new RewardWallet();
+                w.setTenantId(TENANT_ID);
+                w.setEmployeeId(employeeId);
+                return walletRepo.save(w);
+            });
+
         if (wallet.getBalance() < item.getPoints()) {
             throw new BadRequestException("Insufficient points balance");
         }
@@ -217,7 +226,17 @@ public class RewardPointsService {
 
     @Transactional
     public void fulfillRedemption(UUID redemptionId, UUID activePayrollRunId) {
-        RewardRedemption redemption = getRedemption(redemptionId);
+        // Pessimistic lock to prevent double-fulfil race
+        RewardRedemption redemption = redemptionRepo.lockById(redemptionId)
+            .orElseThrow(() -> new ResourceNotFoundException("Redemption not found"));
+
+        // Idempotency: skip if already fulfilled
+        if ("FULFILLED".equals(redemption.getStatus())) {
+            audit.record(MODULE, "RewardRedemption", redemption.getId().toString(), "FULFILL_SKIPPED_ALREADY_FULFILLED", null,
+                Map.of("status", "FULFILLED"));
+            return;
+        }
+
         if (!"REQUESTED".equals(redemption.getStatus())) {
             throw new BadRequestException("Redemption is not in REQUESTED status");
         }

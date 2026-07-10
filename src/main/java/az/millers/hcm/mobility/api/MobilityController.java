@@ -1,9 +1,12 @@
 package az.millers.hcm.mobility.api;
 
+import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.mobility.api.dto.InternationalAssignmentRequest;
 import az.millers.hcm.mobility.domain.InternationalAssignment;
 import az.millers.hcm.mobility.service.MobilityService;
+import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.SecurityRoles;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +18,13 @@ import java.util.UUID;
 @RequestMapping("/api/mobility/assignments")
 public class MobilityController {
     private final MobilityService service;
+    private final EmployeeContextService employeeContext;
+    private final CurrentRequest currentRequest;
 
-    public MobilityController(MobilityService service) {
+    public MobilityController(MobilityService service, EmployeeContextService employeeContext, CurrentRequest currentRequest) {
         this.service = service;
+        this.employeeContext = employeeContext;
+        this.currentRequest = currentRequest;
     }
 
     @GetMapping
@@ -35,7 +42,14 @@ public class MobilityController {
     @GetMapping("/my/{employeeId}")
     @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
     public List<InternationalAssignment> listMyAssignments(@PathVariable UUID employeeId) {
-        // IDOR guard: employee may view OWN assignment only (self-check required in production)
+        // IDOR guard: self-or-HR only
+        boolean isSelf = employeeContext.currentEmployee().getId().equals(employeeId);
+        boolean isHR = currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST);
+        if (!isSelf && !isHR) {
+            throw new ResourceNotFoundException("Assignments not found");
+        }
         return service.listMyAssignments(employeeId);
     }
 

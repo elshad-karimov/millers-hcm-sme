@@ -1,7 +1,11 @@
 package az.millers.hcm.engagement.repo;
 
 import az.millers.hcm.engagement.domain.RewardWallet;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -14,4 +18,8 @@ import java.util.UUID;
 public interface RewardWalletRepository extends JpaRepository<RewardWallet, UUID> {
 
     Optional<RewardWallet> findByTenantIdAndEmployeeId(String tenantId, UUID employeeId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT w FROM RewardWallet w WHERE w.id = :id")
+    Optional<RewardWallet> lockById(@Param("id") UUID id);
 }

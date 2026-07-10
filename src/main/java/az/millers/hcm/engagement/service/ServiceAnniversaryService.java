@@ -102,7 +102,7 @@ public class ServiceAnniversaryService {
 
     /**
      * Idempotent check: has a SERVICE_ANNIVERSARY recognition been created for this
-     * employee in this calendar year for this year count?
+     * employee in this calendar year?
      * (Prevents duplicates if the job runs multiple times on the same day.)
      */
     private boolean hasAnniversaryRecognition(UUID employeeId, int years, int currentYear) {
@@ -111,7 +111,6 @@ public class ServiceAnniversaryService {
             WHERE tenant_id = :tenantId
               AND to_employee_id = :employeeId
               AND value_tag = 'SERVICE_ANNIVERSARY'
-              AND message LIKE :pattern
               AND EXTRACT(YEAR FROM created_at) = :year
             """;
 
@@ -119,7 +118,6 @@ public class ServiceAnniversaryService {
             new MapSqlParameterSource()
                 .addValue("tenantId", TENANT_ID)
                 .addValue("employeeId", employeeId)
-                .addValue("pattern", "Congratulations on " + years + " %")
                 .addValue("year", currentYear),
             Long.class);
 

@@ -213,6 +213,15 @@ public class AttachmentController {
             }
         }
 
+        // International assignment documents (visa/work permits) are confidential
+        if ("internationalassignment".equals(ownerEntity)) {
+            if (!currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) &&
+                !currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST) &&
+                !currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN)) {
+                throw new ResourceNotFoundException("Attachment not found");
+            }
+        }
+
         // All other attachments: isAuthenticated() check already applied at method level
     }
 }

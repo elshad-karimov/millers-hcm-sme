@@ -7,6 +7,7 @@ import az.millers.hcm.attendance.domain.ShiftSwapRequest;
 import az.millers.hcm.attendance.service.SchedulingService;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.SecurityRoles;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,10 +26,12 @@ public class SchedulingController {
 
     private final SchedulingService service;
     private final CurrentRequest currentRequest;
+    private final EmployeeContextService employeeContext;
 
-    public SchedulingController(SchedulingService service, CurrentRequest currentRequest) {
+    public SchedulingController(SchedulingService service, CurrentRequest currentRequest, EmployeeContextService employeeContext) {
         this.service = service;
         this.currentRequest = currentRequest;
+        this.employeeContext = employeeContext;
     }
 
     // ───────────────────────────── Open Shifts ─────────────────────────────
@@ -71,8 +74,13 @@ public class SchedulingController {
 
     @PostMapping("/open-shifts/{id}/claim")
     @PreAuthorize(SecurityRoles.READ_HR_PLUS_MANAGERS)
-    public void claimOpenShift(@PathVariable UUID id, @RequestParam UUID employeeId) {
-        service.claimOpenShift(id, employeeId);
+    public void claimOpenShift(@PathVariable UUID id, @RequestParam(required = false) UUID employeeId) {
+        // Force claim as currentEmployee unless caller is HR (manager assignment via query param is OK)
+        boolean isHR = currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST);
+        UUID actualEmployeeId = (isHR && employeeId != null) ? employeeId : employeeContext.currentEmployee().getId();
+        service.claimOpenShift(id, actualEmployeeId);
     }
 
     // ───────────────────────────── Shift Swaps ─────────────────────────────

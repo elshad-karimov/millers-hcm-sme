@@ -60,6 +60,7 @@ public class CostingCalculator {
                 FROM timesheet.timesheet_day td
                 JOIN timesheet.timesheet t ON td.timesheet_id = t.id
                 WHERE td.timesheet_id = :timesheetId
+                  AND t.tenant_id = 'default'
                   AND td.worked_hours > 0
                 """;
 

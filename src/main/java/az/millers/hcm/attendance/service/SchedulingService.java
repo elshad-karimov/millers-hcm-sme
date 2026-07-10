@@ -9,7 +9,10 @@ import az.millers.hcm.attendance.repo.ShiftSwapRequestRepository;
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.SecurityRoles;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,7 @@ public class SchedulingService {
     private final OpenShiftRepository openShiftRepo;
     private final ShiftSwapRequestRepository swapRepo;
     private final RosterEntryRepository rosterRepo;
+    private final EmployeeRepository employeeRepo;
     private final CurrentRequest currentRequest;
     private final AuditService audit;
     private final NamedParameterJdbcTemplate jdbc;
@@ -41,12 +45,14 @@ public class SchedulingService {
     public SchedulingService(OpenShiftRepository openShiftRepo,
                              ShiftSwapRequestRepository swapRepo,
                              RosterEntryRepository rosterRepo,
+                             EmployeeRepository employeeRepo,
                              CurrentRequest currentRequest,
                              AuditService audit,
                              NamedParameterJdbcTemplate jdbc) {
         this.openShiftRepo = openShiftRepo;
         this.swapRepo = swapRepo;
         this.rosterRepo = rosterRepo;
+        this.employeeRepo = employeeRepo;
         this.currentRequest = currentRequest;
         this.audit = audit;
         this.jdbc = jdbc;
@@ -101,9 +107,6 @@ public class SchedulingService {
         if (!"OPEN".equals(shift.getStatus())) {
             throw new BadRequestException("Shift is not open");
         }
-        if (shift.getFilled() >= shift.getSlots()) {
-            throw new BadRequestException("All slots are filled");
-        }
 
         // Check if employee already has a roster entry for this date
         rosterRepo.findByEmployeeIdAndRosterDate(employeeId, shift.getShiftDate())
@@ -111,25 +114,55 @@ public class SchedulingService {
                 throw new BadRequestException("Employee already has a shift on this date");
             });
 
-        // Create roster entry
-        RosterEntry entry = new RosterEntry();
-        entry.setEmployeeId(employeeId);
-        entry.setShiftId(shift.getShiftId());
-        entry.setRosterDate(shift.getShiftDate());
-        entry.setCreatedBy(currentRequest.username());
-        entry.setNotes("Claimed from open shift");
-        rosterRepo.save(entry);
+        // Atomic increment with slot check (race-safe)
+        String updateSql = """
+            UPDATE attendance.open_shift
+            SET filled = filled + 1,
+                status = CASE WHEN filled + 1 >= slots THEN 'FILLED' ELSE status END,
+                updated_by = :updatedBy
+            WHERE id = :id
+              AND tenant_id = :tenantId
+              AND filled < slots
+            """;
 
-        // Increment filled counter
-        shift.setFilled(shift.getFilled() + 1);
-        if (shift.getFilled() >= shift.getSlots()) {
-            shift.setStatus("FILLED");
+        int rowsUpdated = jdbc.update(updateSql,
+            new MapSqlParameterSource()
+                .addValue("id", openShiftId)
+                .addValue("tenantId", TENANT_ID)
+                .addValue("updatedBy", currentRequest.username()));
+
+        if (rowsUpdated == 0) {
+            throw new BadRequestException("All slots are filled");
         }
-        shift.setUpdatedBy(currentRequest.username());
-        openShiftRepo.save(shift);
 
-        audit.record(MODULE, "OpenShift", shift.getId().toString(), "CLAIM", null,
-            Map.of("employeeId", employeeId.toString(), "filled", shift.getFilled()));
+        try {
+            // Create roster entry
+            RosterEntry entry = new RosterEntry();
+            entry.setEmployeeId(employeeId);
+            entry.setShiftId(shift.getShiftId());
+            entry.setRosterDate(shift.getShiftDate());
+            entry.setCreatedBy(currentRequest.username());
+            entry.setNotes("Claimed from open shift");
+            rosterRepo.save(entry);
+
+            // Refresh shift for audit log
+            shift = getOpenShift(openShiftId);
+            audit.record(MODULE, "OpenShift", shift.getId().toString(), "CLAIM", null,
+                Map.of("employeeId", employeeId.toString(), "filled", shift.getFilled()));
+        } catch (Exception e) {
+            // Compensate: decrement filled counter if roster creation fails
+            String rollbackSql = """
+                UPDATE attendance.open_shift
+                SET filled = GREATEST(filled - 1, 0),
+                    status = CASE WHEN filled > 0 THEN 'OPEN' ELSE status END
+                WHERE id = :id AND tenant_id = :tenantId
+                """;
+            jdbc.update(rollbackSql,
+                new MapSqlParameterSource()
+                    .addValue("id", openShiftId)
+                    .addValue("tenantId", TENANT_ID));
+            throw e;
+        }
     }
 
     // ───────────────────────────── Shift Swaps ─────────────────────────────
@@ -150,6 +183,18 @@ public class SchedulingService {
 
     @Transactional
     public ShiftSwapRequest createSwapRequest(UUID rosterEntryId, UUID fromEmployeeId, UUID toEmployeeId, String notes) {
+        // IDOR guard: non-HR callers can only create swap requests FROM themselves
+        boolean isHR = currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_ADMIN) ||
+                       currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST);
+        if (!isHR) {
+            Employee currentEmp = employeeRepo.findByUsername(currentRequest.username())
+                .orElseThrow(() -> new BadRequestException("User not linked to an employee record"));
+            if (!currentEmp.getId().equals(fromEmployeeId)) {
+                throw new BadRequestException("Cannot create swap request on behalf of another employee");
+            }
+        }
+
         RosterEntry entry = rosterRepo.findById(rosterEntryId)
             .orElseThrow(() -> new ResourceNotFoundException("Roster entry not found"));
 
@@ -181,10 +226,10 @@ public class SchedulingService {
             throw new BadRequestException("Request is not pending");
         }
 
-        // Self-approve block
-        String fromEmployeeName = getEmployeeName(request.getFromEmployeeId());
-        String toEmployeeName = getEmployeeName(request.getToEmployeeId());
-        if (approverUsername.equalsIgnoreCase(fromEmployeeName) || approverUsername.equalsIgnoreCase(toEmployeeName)) {
+        // Self-approve block: resolve approver's employee ID from username
+        UUID approverEmployeeId = getEmployeeIdByUsername(approverUsername);
+        if (approverEmployeeId != null &&
+            (approverEmployeeId.equals(request.getFromEmployeeId()) || approverEmployeeId.equals(request.getToEmployeeId()))) {
             throw new BadRequestException("Cannot self-approve swap request");
         }
 
@@ -245,6 +290,20 @@ public class SchedulingService {
             );
         } catch (Exception e) {
             return "Unknown";
+        }
+    }
+
+    private UUID getEmployeeIdByUsername(String username) {
+        try {
+            return jdbc.queryForObject(
+                "SELECT id FROM core_hr.employee WHERE username = :username AND tenant_id = :tenantId",
+                new MapSqlParameterSource()
+                    .addValue("username", username)
+                    .addValue("tenantId", TENANT_ID),
+                UUID.class
+            );
+        } catch (Exception e) {
+            return null;
         }
     }
 }
