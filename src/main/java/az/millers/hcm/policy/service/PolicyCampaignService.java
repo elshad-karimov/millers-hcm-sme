@@ -42,19 +42,22 @@ public class PolicyCampaignService {
     private final NotificationService notifications;
     private final AuditService audit;
     private final NamedParameterJdbcTemplate jdbc;
+    private final az.millers.hcm.security.CurrentRequest currentRequest;
 
     public PolicyCampaignService(AcknowledgementCampaignRepository campaignRepo,
                                   PolicyDocumentRepository policyRepo,
                                   PolicyAcknowledgementRepository ackRepo,
                                   NotificationService notifications,
                                   AuditService audit,
-                                  NamedParameterJdbcTemplate jdbc) {
+                                  NamedParameterJdbcTemplate jdbc,
+                                  az.millers.hcm.security.CurrentRequest currentRequest) {
         this.campaignRepo = campaignRepo;
         this.policyRepo = policyRepo;
         this.ackRepo = ackRepo;
         this.notifications = notifications;
         this.audit = audit;
         this.jdbc = jdbc;
+        this.currentRequest = currentRequest;
     }
 
     /**
@@ -191,9 +194,10 @@ public class PolicyCampaignService {
             ackedCount = count != null ? count.intValue() : 0;
         }
 
-        // Per-department breakdown (only meaningful for ALL audience)
+        // Per-department breakdown — HR_ADMIN only (small departments would let a
+        // broader HR reader infer individual non-compliance). Aggregate totals stay for READ_HR.
         List<DepartmentProgress> byDepartment = new ArrayList<>();
-        if (campaign.getAudience() == CampaignAudience.ALL) {
+        if (campaign.getAudience() == CampaignAudience.ALL && currentRequest.hasRole("HR_ADMIN")) {
             String deptSql = """
                 SELECT
                     ou.id as dept_id,
