@@ -75,6 +75,16 @@ public class TimesheetDay {
     @Column(name = "corrected_at")
     private OffsetDateTime correctedAt;
 
+    // M484: Project dimension
+    @Column(name = "project_id")
+    private UUID projectId;
+
+    @Column(name = "task_code", length = 60)
+    private String taskCode;
+
+    @Column(name = "billable")
+    private Boolean billable;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
