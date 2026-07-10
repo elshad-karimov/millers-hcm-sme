@@ -3,6 +3,8 @@ import {
   Button,
   Card,
   Descriptions,
+  Drawer,
+  Form,
   Input,
   InputNumber,
   Modal,
@@ -10,6 +12,7 @@ import {
   Select,
   Space,
   Spin,
+  Switch,
   Table,
   Tag,
   Typography,
@@ -26,6 +29,7 @@ import {
   type TimesheetDay,
   type TimesheetStatus,
 } from '../api/timesheet'
+import { timesheetProjectsApi, type TimesheetProject } from '../api/timesheetProjects'
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
@@ -64,6 +68,9 @@ export function TimesheetDetailPage() {
   const [loading, setLoading] = useState(true)
   const [correctOpen, setCorrectOpen] = useState<TimesheetDay | null>(null)
   const [correction, setCorrection] = useState<DayCorrectionRequest>({ reason: '' })
+  const [projectDrawer, setProjectDrawer] = useState<TimesheetDay | null>(null)
+  const [projects, setProjects] = useState<TimesheetProject[]>([])
+  const [form] = Form.useForm()
 
   const load = async () => {
     setLoading(true)
@@ -72,6 +79,8 @@ export function TimesheetDetailPage() {
       setTs(t)
       const list = await employeesApi.list({ size: 500 })
       setEmployee(list.content.find((e) => e.id === t.employeeId) ?? null)
+      const proj = await timesheetProjectsApi.list(true)
+      setProjects(proj)
     } catch (err) {
       message.error(
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
@@ -160,6 +169,21 @@ export function TimesheetDetailPage() {
         ),
     },
     {
+      title: 'Project / Task',
+      width: 200,
+      render: (_, r) => {
+        if (!r.projectId && !r.taskCode) return '—'
+        const proj = projects.find((p) => p.id === r.projectId)
+        return (
+          <Space direction="vertical" size={0}>
+            {proj && <Typography.Text style={{ fontSize: 12 }}>{proj.code}</Typography.Text>}
+            {r.taskCode && <Typography.Text type="secondary" style={{ fontSize: 11 }}>{r.taskCode}</Typography.Text>}
+            {r.billable && <Tag color="green" style={{ fontSize: 10 }}>Billable</Tag>}
+          </Space>
+        )
+      },
+    },
+    {
       title: 'Corrected',
       render: (_, r) =>
         r.correctedAt ? (
@@ -173,22 +197,39 @@ export function TimesheetDetailPage() {
     canEdit && ts.status !== 'LOCKED' && ts.status !== 'APPROVED'
       ? {
           title: '',
-          width: 90,
+          width: 160,
           render: (_, r) => (
-            <Button
-              size="small"
-              onClick={() => {
-                setCorrectOpen(r)
-                setCorrection({
-                  primaryCode: r.primaryCode,
-                  workedHours: r.workedHours,
-                  overtimeHours: r.overtimeHours,
-                  reason: '',
-                })
-              }}
-            >
-              Correct
-            </Button>
+            <Space size={4}>
+              <Button
+                size="small"
+                onClick={() => {
+                  setCorrectOpen(r)
+                  setCorrection({
+                    primaryCode: r.primaryCode,
+                    workedHours: r.workedHours,
+                    overtimeHours: r.overtimeHours,
+                    reason: '',
+                  })
+                }}
+              >
+                Correct
+              </Button>
+              <Button
+                size="small"
+                type="link"
+                onClick={() => {
+                  setProjectDrawer(r)
+                  form.setFieldsValue({
+                    projectId: r.projectId,
+                    taskCode: r.taskCode,
+                    billable: r.billable ?? false,
+                    reason: 'Project allocation',
+                  })
+                }}
+              >
+                Project
+              </Button>
+            </Space>
           ),
         }
       : { title: '', width: 0, render: () => null },
@@ -322,6 +363,71 @@ export function TimesheetDetailPage() {
           </Typography.Text>
         </Space>
       </Modal>
+
+      <Drawer
+        open={!!projectDrawer}
+        title={projectDrawer ? `Project allocation — ${projectDrawer.workDate}` : ''}
+        onClose={() => setProjectDrawer(null)}
+        width={480}
+        extra={
+          <Button
+            type="primary"
+            onClick={async () => {
+              if (!projectDrawer) return
+              try {
+                const values = await form.validateFields()
+                const payload: DayCorrectionRequest = {
+                  projectId: values.projectId || undefined,
+                  taskCode: values.taskCode?.trim() || undefined,
+                  billable: values.billable,
+                  reason: values.reason || 'Project allocation',
+                }
+                await timesheetApi.correctDay(ts.id, projectDrawer.id, payload)
+                message.success('Project allocation saved')
+                setProjectDrawer(null)
+                load()
+              } catch (err) {
+                message.error(
+                  (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                    'Failed to save',
+                )
+              }
+            }}
+          >
+            Save
+          </Button>
+        }
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="projectId" label="Project">
+            <Select
+              allowClear
+              showSearch
+              placeholder="Select a project (optional)"
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={projects.map((p) => ({
+                value: p.id,
+                label: `${p.code} — ${p.name}`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="taskCode" label="Task code">
+            <Input placeholder="e.g., DEV-123, DESIGN-45" maxLength={60} />
+          </Form.Item>
+          <Form.Item name="billable" label="Billable" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
+            <Input.TextArea rows={2} placeholder="Required for audit trail" />
+          </Form.Item>
+        </Form>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          Project allocation is tracked per day. Changes are audit-logged. Clear project to
+          remove allocation.
+        </Typography.Text>
+      </Drawer>
     </Space>
   )
 }

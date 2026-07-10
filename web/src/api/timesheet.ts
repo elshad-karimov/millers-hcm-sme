@@ -26,6 +26,9 @@ export interface TimesheetDay {
   correctionReason?: string | null
   correctedBy?: string | null
   correctedAt?: string | null
+  projectId?: string | null
+  taskCode?: string | null
+  billable?: boolean | null
 }
 
 export interface Timesheet {
@@ -56,6 +59,9 @@ export interface DayCorrectionRequest {
   primaryCode?: TimesheetCode
   workedHours?: number
   overtimeHours?: number
+  projectId?: string
+  taskCode?: string
+  billable?: boolean
   reason: string
 }
 
