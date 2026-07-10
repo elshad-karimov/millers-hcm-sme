@@ -24,6 +24,7 @@ import {
   Spin,
   Switch,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -41,6 +42,7 @@ import {
 } from '../api/policies'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
+import { PolicyCampaignsPage } from './PolicyCampaignsPage'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -219,32 +221,51 @@ export function PoliciesAdminPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Title level={3} style={{ margin: 0 }}>Company policies</Title>
-        {canWrite && <Button type="primary" onClick={startCreate}>New policy…</Button>}
-      </Space>
+      <Title level={3} style={{ margin: 0 }}>Company policies</Title>
 
-      <Card>
-        <Table
-          rowKey="id"
-          columns={cols}
-          dataSource={policies}
-          size="small"
-          pagination={{ pageSize: 25 }}
-          locale={{ emptyText: <Empty description="No policies yet" /> }}
-        />
-      </Card>
+      <Tabs
+        defaultActiveKey="policies"
+        items={[
+          {
+            key: 'policies',
+            label: 'Policies',
+            children: (
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  {canWrite && <Button type="primary" onClick={startCreate}>New policy…</Button>}
+                </Space>
 
-      <Alert
-        type="info" showIcon
-        message="Versioning"
-        description={
-          <>
-            New drafts auto-increment versions by code. Once a policy is PUBLISHED the only
-            allowed change is ARCHIVE. Editing the body requires a new draft (next version).
-            See the self-service surface at <Link to="/self/policies">/self/policies</Link>.
-          </>
-        }
+                <Card>
+                  <Table
+                    rowKey="id"
+                    columns={cols}
+                    dataSource={policies}
+                    size="small"
+                    pagination={{ pageSize: 25 }}
+                    locale={{ emptyText: <Empty description="No policies yet" /> }}
+                  />
+                </Card>
+
+                <Alert
+                  type="info" showIcon
+                  message="Versioning"
+                  description={
+                    <>
+                      New drafts auto-increment versions by code. Once a policy is PUBLISHED the only
+                      allowed change is ARCHIVE. Editing the body requires a new draft (next version).
+                      See the self-service surface at <Link to="/self/policies">/self/policies</Link>.
+                    </>
+                  }
+                />
+              </Space>
+            ),
+          },
+          {
+            key: 'campaigns',
+            label: 'Campaigns',
+            children: <PolicyCampaignsPage />,
+          },
+        ]}
       />
 
       <Modal

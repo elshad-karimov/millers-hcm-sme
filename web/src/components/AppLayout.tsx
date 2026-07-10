@@ -46,6 +46,9 @@ import {
   AuditOutlined,
   SafetyOutlined,
   FileProtectOutlined,
+  ApiOutlined,
+  BellOutlined,
+  LockOutlined,
 } from '@ant-design/icons'
 import type { ItemType } from 'antd/es/menu/interface'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -1592,6 +1595,11 @@ export function AppLayout() {
                       icon: <LinkOutlined />,
                       label: <Link to="/admin/ldap">{tNav('sub.admin.ldapSync')}</Link>,
                     },
+                    {
+                      key: 'admin-integrations',
+                      icon: <ApiOutlined />,
+                      label: <Link to="/admin/integrations">Integrations</Link>,
+                    },
                   ]
                 : []),
               ...(isAdminOrAuditor
@@ -1628,6 +1636,20 @@ export function AppLayout() {
                       key: 'admin-settings',
                       icon: <SettingOutlined />,
                       label: <Link to="/admin/settings">Tenant Settings</Link>,
+                    },
+                    {
+                      key: 'admin-notification-templates',
+                      icon: <BellOutlined />,
+                      label: <Link to="/admin/notification-templates">Notification Templates</Link>,
+                    },
+                  ]
+                : []),
+              ...(isAdminOrAuditor || hasRole('HR_ADMIN')
+                ? [
+                    {
+                      key: 'admin-permission-matrix',
+                      icon: <LockOutlined />,
+                      label: <Link to="/admin/permission-matrix">Permission Matrix</Link>,
                     },
                   ]
                 : []),

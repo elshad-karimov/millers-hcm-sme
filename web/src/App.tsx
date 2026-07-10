@@ -223,6 +223,9 @@ import { WarehouseAnalyticsPage } from './pages/admin/WarehouseAnalyticsPage'
 import { ManagerAnalyticsPage } from './pages/ManagerAnalyticsPage'
 import { TenantSettingsPage } from './pages/TenantSettingsPage'
 import { MovementRequestsPage } from './pages/MovementRequestsPage'
+import { IntegrationsPage } from './pages/IntegrationsPage'
+import { NotificationTemplatesPage } from './pages/NotificationTemplatesPage'
+import { PermissionMatrixPage } from './pages/PermissionMatrixPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
@@ -701,12 +704,22 @@ export default function App() {
           <Route path="admin/warehouse" element={<WarehouseAnalyticsPage />} />
           {/* M120 — API keys + rate limiting */}
           <Route path="admin/api-keys" element={<ApiKeysPage />} />
+          {/* M492 — Integration registry */}
+          <Route path="admin/integrations" element={<IntegrationsPage />} />
         </Route>
 
         {/* ── HR_ADMIN — Tenant settings ─────────────────────────── */}
         <Route element={<RequireRole roles={['HR_ADMIN']} />}>
           {/* M433 — Tenant settings */}
           <Route path="admin/settings" element={<TenantSettingsPage />} />
+          {/* M493 — Notification templates */}
+          <Route path="admin/notification-templates" element={<NotificationTemplatesPage />} />
+        </Route>
+
+        {/* ── SYSTEM_ADMIN + AUDITOR + HR_ADMIN — Permission matrix ── */}
+        <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'AUDITOR', 'HR_ADMIN']} />}>
+          {/* M494 — Permission matrix view */}
+          <Route path="admin/permission-matrix" element={<PermissionMatrixPage />} />
         </Route>
 
         {/* ── Manager-only pages ─────────────────────────────────── */}

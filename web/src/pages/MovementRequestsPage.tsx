@@ -6,6 +6,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Spin,
@@ -17,9 +18,11 @@ import {
 import { PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
+import { RoleSets } from '../auth/roleSets'
 
 type MovementType = 'TRANSFER' | 'PROMOTION'
-type MovementRequestStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+type MovementRequestStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXECUTED'
 
 interface MovementRequest {
   id: string
@@ -35,6 +38,8 @@ interface MovementRequest {
   status: MovementRequestStatus
   workflowInstanceId: string | null
   requestedBy: string
+  executedAt?: string | null
+  executedBy?: string | null
 }
 
 interface Employee {
@@ -62,10 +67,13 @@ const STATUS_COLOR: Record<MovementRequestStatus, string> = {
   APPROVED: 'green',
   REJECTED: 'red',
   CANCELLED: 'default',
+  EXECUTED: 'blue',
 }
 
 export function MovementRequestsPage() {
   const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const isHRAdmin = hasRole(...RoleSets.HR_ADMIN_WRITE)
   const [form] = Form.useForm()
   const [requests, setRequests] = useState<MovementRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -153,6 +161,17 @@ export function MovementRequestsPage() {
     }
   }
 
+  async function handleExecute(id: string) {
+    try {
+      const r = await api.post<{ message: string }>(`/manager/movements/${id}/execute`)
+      message.success(r.data.message)
+      reload()
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } }
+      message.error(axiosErr?.response?.data?.message ?? 'Failed to execute request')
+    }
+  }
+
   const columns: ColumnsType<MovementRequest> = [
     { title: 'Request no', dataIndex: 'requestNo' },
     {
@@ -183,12 +202,26 @@ export function MovementRequestsPage() {
     {
       title: '',
       key: 'actions',
-      render: (_, r) =>
-        r.status === 'SUBMITTED' ? (
-          <Button size="small" danger onClick={() => handleCancel(r.id)}>
-            Cancel
-          </Button>
-        ) : null,
+      render: (_, r) => (
+        <Space size={4}>
+          {r.status === 'SUBMITTED' && (
+            <Button size="small" danger onClick={() => handleCancel(r.id)}>
+              Cancel
+            </Button>
+          )}
+          {r.status === 'APPROVED' && isHRAdmin && (
+            <Popconfirm
+              title="Execute this movement?"
+              description="Position/org-unit changes will be applied. Salary changes must go through the salary-change flow."
+              onConfirm={() => handleExecute(r.id)}
+            >
+              <Button size="small" type="primary">
+                Execute
+              </Button>
+            </Popconfirm>
+          )}
+        </Space>
+      ),
     },
   ]
 
