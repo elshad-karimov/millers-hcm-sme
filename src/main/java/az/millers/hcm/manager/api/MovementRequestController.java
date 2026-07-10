@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import az.millers.hcm.lifecycle.domain.EmployeeMovementRequest;
 import az.millers.hcm.lifecycle.service.EmployeeMovementService;
+import az.millers.hcm.lifecycle.service.MovementExecutionService;
 import az.millers.hcm.manager.api.dto.CreateMovementRequestDto;
 import az.millers.hcm.manager.api.dto.MovementRequestDto;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.SecurityRoles;
 
 /**
  * M432 — Employee movement requests (manager + HR).
@@ -25,11 +27,14 @@ import az.millers.hcm.security.CurrentRequest;
 public class MovementRequestController {
 
     private final EmployeeMovementService service;
+    private final MovementExecutionService executionService;
     private final CurrentRequest currentRequest;
 
     public MovementRequestController(EmployeeMovementService service,
+                                      MovementExecutionService executionService,
                                       CurrentRequest currentRequest) {
         this.service = service;
+        this.executionService = executionService;
         this.currentRequest = currentRequest;
     }
 
@@ -74,4 +79,21 @@ public class MovementRequestController {
         boolean isHR = currentRequest.hasRole("HR_ADMIN");
         return MovementRequestDto.from(service.cancel(id), isHR);
     }
+
+    /**
+     * M491 — Execute an APPROVED movement request. HR_ADMIN only.
+     * Applies TRANSFER/PROMOTION changes to employee record.
+     */
+    @PostMapping("/{id}/execute")
+    @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
+    public ExecutionResultDto execute(@PathVariable UUID id) {
+        String message = executionService.execute(id, currentRequest.username());
+        boolean isHR = true;
+        EmployeeMovementRequest req = service.get(id);
+        return new ExecutionResultDto(message, MovementRequestDto.from(req, isHR));
+    }
+
+    // ── M491 DTO ───────────────────────────────────────────────────────────────
+
+    public record ExecutionResultDto(String message, MovementRequestDto request) {}
 }

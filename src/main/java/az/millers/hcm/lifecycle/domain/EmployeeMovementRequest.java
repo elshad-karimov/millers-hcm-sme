@@ -64,6 +64,12 @@ public class EmployeeMovementRequest {
     @Column(name = "requested_by", length = 80)
     private String requestedBy;
 
+    @Column(name = "executed_at")
+    private OffsetDateTime executedAt;
+
+    @Column(name = "executed_by", length = 80)
+    private String executedBy;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

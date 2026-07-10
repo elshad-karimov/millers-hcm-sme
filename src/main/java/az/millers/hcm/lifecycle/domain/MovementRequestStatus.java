@@ -5,5 +5,6 @@ public enum MovementRequestStatus {
     SUBMITTED,
     APPROVED,
     REJECTED,
-    CANCELLED
+    CANCELLED,
+    EXECUTED
 }
