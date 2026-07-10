@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
-import az.millers.hcm.common.security.TenantContext;
 import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.policy.domain.AcknowledgementCampaign;
 import az.millers.hcm.policy.domain.CampaignAudience;
@@ -35,6 +34,7 @@ import az.millers.hcm.policy.repo.PolicyDocumentRepository;
 public class PolicyCampaignService {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyCampaignService.class);
+    private static final String TENANT = "default";
 
     private final AcknowledgementCampaignRepository campaignRepo;
     private final PolicyDocumentRepository policyRepo;
@@ -63,7 +63,7 @@ public class PolicyCampaignService {
     public AcknowledgementCampaign create(UUID policyId, int policyVersion, String name,
                                            CampaignAudience audience, UUID audienceRef,
                                            LocalDate dueDate, String createdBy) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
 
         // Verify policy exists
         policyRepo.findById(policyId)
@@ -81,8 +81,8 @@ public class PolicyCampaignService {
 
         AcknowledgementCampaign saved = campaignRepo.save(campaign);
 
-        audit.record("POLICY_CAMPAIGN", saved.getId().toString(), "CREATED",
-                    "Campaign created: " + name, createdBy);
+        audit.record("POLICY_CAMPAIGN", "AcknowledgementCampaign", saved.getId().toString(),
+                    "CREATED", null, saved);
 
         log.info("Created policy campaign {} for policy {} v{}", saved.getId(), policyId, policyVersion);
         return saved;
@@ -92,7 +92,7 @@ public class PolicyCampaignService {
      * Launch campaign → notify all audience employees.
      */
     public void launch(UUID campaignId, String launchedBy) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
         AcknowledgementCampaign campaign = campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
@@ -126,10 +126,10 @@ public class PolicyCampaignService {
         campaign.setLaunchedAt(OffsetDateTime.now());
         campaign.setLaunchedBy(launchedBy);
         campaign.setUpdatedBy(launchedBy);
-        campaignRepo.save(campaign);
+        AcknowledgementCampaign updated = campaignRepo.save(campaign);
 
-        audit.record("POLICY_CAMPAIGN", campaignId.toString(), "LAUNCHED",
-                    String.format("Notified %d employees", audienceEmployees.size()), launchedBy);
+        audit.record("POLICY_CAMPAIGN", "AcknowledgementCampaign", campaignId.toString(),
+                    "LAUNCHED", CampaignStatus.DRAFT, CampaignStatus.ACTIVE);
 
         log.info("Launched campaign {} — notified {} employees", campaignId, audienceEmployees.size());
     }
@@ -138,7 +138,7 @@ public class PolicyCampaignService {
      * Close an ACTIVE campaign.
      */
     public void close(UUID campaignId, String closedBy) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
         AcknowledgementCampaign campaign = campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
@@ -148,9 +148,10 @@ public class PolicyCampaignService {
 
         campaign.setStatus(CampaignStatus.CLOSED);
         campaign.setUpdatedBy(closedBy);
-        campaignRepo.save(campaign);
+        AcknowledgementCampaign closed = campaignRepo.save(campaign);
 
-        audit.record("POLICY_CAMPAIGN", campaignId.toString(), "CLOSED", "Campaign closed", closedBy);
+        audit.record("POLICY_CAMPAIGN", "AcknowledgementCampaign", campaignId.toString(),
+                    "CLOSED", CampaignStatus.ACTIVE, CampaignStatus.CLOSED);
         log.info("Closed campaign {}", campaignId);
     }
 
@@ -158,7 +159,7 @@ public class PolicyCampaignService {
      * Get campaign progress: acked count vs total audience, plus per-department breakdown.
      */
     public CampaignProgress getProgress(UUID campaignId) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
         AcknowledgementCampaign campaign = campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
@@ -234,7 +235,7 @@ public class PolicyCampaignService {
      * List all campaigns for current tenant.
      */
     public List<AcknowledgementCampaign> listAll() {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
         return campaignRepo.findByTenantIdOrderByCreatedAtDesc(tenantId);
     }
 
@@ -242,7 +243,7 @@ public class PolicyCampaignService {
      * List campaigns by status.
      */
     public List<AcknowledgementCampaign> listByStatus(CampaignStatus status) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
         return campaignRepo.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status);
     }
 
@@ -250,7 +251,7 @@ public class PolicyCampaignService {
      * Get single campaign.
      */
     public AcknowledgementCampaign get(UUID campaignId) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = TENANT;
         return campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
     }
