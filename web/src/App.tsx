@@ -242,6 +242,12 @@ import { PulseSchedulesPage } from './pages/engagement/PulseSchedulesPage'
 import { RecognitionPage } from './pages/engagement/RecognitionPage'
 import { ActionPlansPage } from './pages/engagement/ActionPlansPage'
 import { ParticipationPage } from './pages/engagement/ParticipationPage'
+import { RewardsPage } from './pages/RewardsPage'
+import { TimesheetProjectsPage } from './pages/TimesheetProjectsPage'
+import { LaborRatesPage } from './pages/LaborRatesPage'
+import { LaborCostReportPage } from './pages/LaborCostReportPage'
+import { InternationalAssignmentsPage } from './pages/InternationalAssignmentsPage'
+import { ContractorsPage } from './pages/ContractorsPage'
 
 /** Lands HR/admins on the home dashboard; non-HR users on their My Workspace. */
 function IndexRedirect() {
@@ -367,6 +373,8 @@ export default function App() {
           <Route path="attendance/reports" element={<AttendanceReportsPage />} />
           <Route path="timesheets" element={<TimesheetsPage />} />
           <Route path="timesheets/:id" element={<TimesheetDetailPage />} />
+          {/* M484 — timesheet projects */}
+          <Route path="timesheets/projects" element={<TimesheetProjectsPage />} />
 
           {/* Absence */}
           <Route path="leave/balances" element={<LeaveBalancesPage />} />
@@ -544,6 +552,8 @@ export default function App() {
           <Route path="engagement/recognition" element={<RecognitionPage />} />
           <Route path="engagement/action-plans" element={<ActionPlansPage />} />
           <Route path="engagement/participation" element={<ParticipationPage />} />
+          {/* M481+M483 — reward points & redemptions */}
+          <Route path="engagement/rewards-admin" element={<RewardsPage />} />
 
           {/* Absence admin */}
           <Route path="leave/types" element={<LeaveTypesPage />} />
@@ -580,6 +590,8 @@ export default function App() {
           <Route path="payroll/year-end" element={<YearEndPage />} />
           <Route path="payroll/control-board" element={<PayrollControlBoardPage />} />
           <Route path="payroll/reports/variance" element={<VarianceReportPage />} />
+          {/* M485 — labor rates */}
+          <Route path="payroll/labor-rates" element={<LaborRatesPage />} />
 
           {/* Compensation */}
           <Route path="compensation/dashboard" element={<CompensationDashboardPage />} />
@@ -648,6 +660,12 @@ export default function App() {
           <Route path="lifecycle/offboarding/notice-period-rules" element={<NoticePeriodRulesPage />} />
           <Route path="lifecycle/offboarding/analytics" element={<OffboardingAnalyticsPage />} />
 
+          {/* M487 — Mobility (international assignments) */}
+          <Route path="mobility/assignments" element={<InternationalAssignmentsPage />} />
+
+          {/* M488+M489 — Contingent workforce */}
+          <Route path="contingent/contractors" element={<ContractorsPage />} />
+
           {/* Comp & Benefits */}
           <Route path="compbenefits/matrix" element={<BonusMatrixPage />} />
           <Route path="compbenefits/allowances" element={<AllowancesPage />} />
@@ -665,6 +683,8 @@ export default function App() {
           <Route path="reports/schedules" element={<ReportSchedulesPage />} />
           {/* M119 — custom report builder */}
           <Route path="reports/custom" element={<CustomReportBuilderPage />} />
+          {/* M486 — labor cost report */}
+          <Route path="reports/labor-cost" element={<LaborCostReportPage />} />
 
           {/* M473-M476 — Analytics & KPI dashboards */}
           <Route path="analytics/kpis" element={<KpiDefinitionsPage />} />

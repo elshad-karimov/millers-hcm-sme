@@ -40,6 +40,16 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
+import {
+  openShiftsApi,
+  swapRequestsApi,
+  SWAP_STATUS_COLOR,
+  type OpenShift,
+  type ShiftSwapRequest,
+  type OpenShiftRequest as OpenShiftReq,
+  type SwapRequestDto,
+} from '../api/scheduling'
+import { selfApi } from '../api/self'
 
 const { Title, Text } = Typography
 
@@ -585,6 +595,338 @@ const cell: React.CSSProperties = {
   verticalAlign: 'middle',
 }
 
+// ─── Open Shifts tab (M482) ──────────────────────────────────────────────────
+
+function OpenShiftsTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canWrite = hasRole(...RoleSets.HR_WRITE)
+
+  const [items, setItems] = useState<OpenShift[]>([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [form] = Form.useForm<OpenShiftReq>()
+  const [saving, setSaving] = useState(false)
+  const [shifts, setShifts] = useState<Shift[]>([])
+  const [profile, setProfile] = useState<any>(null)
+
+  const load = () => {
+    setLoading(true)
+    openShiftsApi.list()
+      .then(setItems)
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to load open shifts'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    load()
+    shiftsApi.list(true).then(setShifts).catch(() => {})
+    selfApi.profile().then(setProfile).catch(() => {})
+  }, [])
+
+  const startCreate = () => {
+    form.resetFields()
+    form.setFieldsValue({ slots: 1, shiftDate: dayjs().format('YYYY-MM-DD') as any })
+    setOpen(true)
+  }
+
+  const handleSave = async () => {
+    const values = await form.validateFields()
+    const payload: OpenShiftReq = {
+      shiftId: values.shiftId,
+      shiftDate: typeof values.shiftDate === 'string' ? values.shiftDate : dayjs(values.shiftDate).format('YYYY-MM-DD'),
+      orgUnitId: values.orgUnitId,
+      slots: values.slots,
+      notes: values.notes,
+    }
+    setSaving(true)
+    openShiftsApi.create(payload)
+      .then(() => {
+        message.success('Open shift created')
+        setOpen(false)
+        load()
+      })
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to create'))
+      .finally(() => setSaving(false))
+  }
+
+  const handleClaim = (id: string) => {
+    if (!profile?.employeeId) {
+      message.error('Unable to resolve your employee ID')
+      return
+    }
+    openShiftsApi.claim(id, profile.employeeId)
+      .then(() => {
+        message.success('Shift claimed')
+        load()
+      })
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to claim'))
+  }
+
+  const columns: ColumnsType<OpenShift> = [
+    {
+      title: 'Date',
+      dataIndex: 'shiftDate',
+      key: 'shiftDate',
+      render: d => dayjs(d).format('YYYY-MM-DD (ddd)'),
+    },
+    { title: 'Shift', dataIndex: 'shiftId', key: 'shiftId', render: id => id.slice(0, 8) },
+    { title: 'Slots', dataIndex: 'slots', key: 'slots', align: 'center' },
+    { title: 'Filled', dataIndex: 'filled', key: 'filled', align: 'center' },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: s => <Tag color={s === 'OPEN' ? 'green' : 'default'}>{s}</Tag>,
+    },
+    { title: 'Notes', dataIndex: 'notes', key: 'notes', render: n => n || '—' },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, rec) => rec.status === 'OPEN' && (
+        <Button size="small" type="link" onClick={() => handleClaim(rec.id)}>Claim</Button>
+      ),
+    },
+  ]
+
+  return (
+    <>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Row justify="end">
+          {canWrite && (
+            <Button type="primary" onClick={startCreate}>Create Open Shift</Button>
+          )}
+        </Row>
+        <Table
+          dataSource={items}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 20 }}
+        />
+      </Space>
+
+      <Modal
+        title="Create Open Shift"
+        open={open}
+        onCancel={() => setOpen(false)}
+        onOk={handleSave}
+        confirmLoading={saving}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label="Shift" name="shiftId" rules={[{ required: true }]}>
+            <Select
+              showSearch
+              placeholder="Select shift"
+              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+            >
+              {shifts.map(s => (
+                <Select.Option key={s.id} value={s.id} label={s.name}>
+                  {s.code} — {s.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item label="Date" name="shiftDate" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="Slots" name="slots" rules={[{ required: true }]}>
+            <InputNumber min={1} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="Org Unit (optional)" name="orgUnitId">
+            <Input />
+          </Form.Item>
+          <Form.Item label="Notes" name="notes">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
+// ─── Swap Requests tab (M482) ────────────────────────────────────────────────
+
+function SwapRequestsTab() {
+  const { message } = AntdApp.useApp()
+  const { hasRole } = useAuth()
+  const canWrite = hasRole(...RoleSets.HR_WRITE)
+
+  const [requests, setRequests] = useState<ShiftSwapRequest[]>([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<string | undefined>('PENDING')
+  const [open, setOpen] = useState(false)
+  const [form] = Form.useForm<SwapRequestDto>()
+  const [saving, setSaving] = useState(false)
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [profile, setProfile] = useState<any>(null)
+  const [myRosterEntries, setMyRosterEntries] = useState<RosterEntryResponse[]>([])
+
+  const load = () => {
+    setLoading(true)
+    swapRequestsApi.list(statusFilter)
+      .then(setRequests)
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to load swap requests'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [statusFilter])
+
+  useEffect(() => {
+    employeesApi.list().then(res => setEmployees(res.content || [])).catch(() => {})
+    selfApi.profile().then(p => {
+      setProfile(p)
+      if (p?.id) {
+        rosterApi.forEmployee(p.id, dayjs().subtract(7, 'day').format('YYYY-MM-DD'), dayjs().add(14, 'day').format('YYYY-MM-DD'))
+          .then(setMyRosterEntries).catch(() => {})
+      }
+    }).catch(() => {})
+  }, [])
+
+  const startCreate = () => {
+    form.resetFields()
+    setOpen(true)
+  }
+
+  const handleSave = async () => {
+    const values = await form.validateFields()
+    setSaving(true)
+    swapRequestsApi.create(values)
+      .then(() => {
+        message.success('Swap request created')
+        setOpen(false)
+        load()
+      })
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to create'))
+      .finally(() => setSaving(false))
+  }
+
+  const handleApprove = (id: string) => {
+    swapRequestsApi.approve(id)
+      .then(() => {
+        message.success('Swap approved')
+        load()
+      })
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to approve'))
+  }
+
+  const handleReject = (id: string, reason: string) => {
+    if (!reason) {
+      message.error('Reason is required')
+      return
+    }
+    swapRequestsApi.reject(id, reason)
+      .then(() => {
+        message.success('Swap rejected')
+        load()
+      })
+      .catch(e => message.error(e?.response?.data?.message ?? 'Failed to reject'))
+  }
+
+  const columns: ColumnsType<ShiftSwapRequest> = [
+    { title: 'No.', dataIndex: 'requestNo', key: 'requestNo' },
+    { title: 'From', dataIndex: 'fromEmployeeId', key: 'fromEmployeeId', render: id => id.slice(0, 8) },
+    { title: 'To', dataIndex: 'toEmployeeId', key: 'toEmployeeId', render: id => id.slice(0, 8) },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: s => <Tag color={SWAP_STATUS_COLOR[s] || 'default'}>{s}</Tag>,
+    },
+    {
+      title: 'Requested',
+      dataIndex: 'requestedAt',
+      key: 'requestedAt',
+      render: t => dayjs(t).format('YYYY-MM-DD HH:mm'),
+    },
+    { title: 'Notes', dataIndex: 'notes', key: 'notes', render: n => n || '—' },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, rec) => {
+        const isRequester = profile?.employeeId === rec.fromEmployeeId
+        return canWrite && !isRequester && rec.status === 'PENDING' && (
+          <Space>
+            <Button size="small" type="link" onClick={() => handleApprove(rec.id)}>Approve</Button>
+            <Popconfirm
+              title="Reject swap"
+              description={<Input.TextArea placeholder="Reason" rows={2} onChange={e => (rec as any)._reason = e.target.value} />}
+              onConfirm={() => handleReject(rec.id, (rec as any)._reason || '')}
+            >
+              <Button size="small" type="link" danger>Reject</Button>
+            </Popconfirm>
+          </Space>
+        )
+      },
+    },
+  ]
+
+  return (
+    <>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space>
+              <Text>Status:</Text>
+              <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 150 }} allowClear placeholder="All">
+                <Select.Option value="PENDING">Pending</Select.Option>
+                <Select.Option value="APPROVED">Approved</Select.Option>
+                <Select.Option value="REJECTED">Rejected</Select.Option>
+              </Select>
+            </Space>
+          </Col>
+          <Col>
+            <Button type="primary" onClick={startCreate}>Request Swap</Button>
+          </Col>
+        </Row>
+        <Table
+          dataSource={requests}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 20 }}
+        />
+      </Space>
+
+      <Modal
+        title="Request Shift Swap"
+        open={open}
+        onCancel={() => setOpen(false)}
+        onOk={handleSave}
+        confirmLoading={saving}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label="My Roster Entry" name="rosterEntryId" rules={[{ required: true }]}>
+            <Select placeholder="Select your shift to swap">
+              {myRosterEntries.map(e => (
+                <Select.Option key={e.id} value={e.id}>
+                  {e.shiftName || e.shiftCode || 'Shift'} — {e.id.slice(0, 8)}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item label="Swap With Employee" name="toEmployeeId" rules={[{ required: true }]}>
+            <Select
+              showSearch
+              placeholder="Select employee"
+              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+            >
+              {employees.map(e => (
+                <Select.Option key={e.id} value={e.id} label={`${e.firstName} ${e.lastName}`}>
+                  {e.firstName} {e.lastName} ({e.employeeNo})
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item label="Notes" name="notes">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
 export function RosterPage() {
@@ -599,6 +941,8 @@ export function RosterPage() {
         items={[
           { key: 'grid', label: 'Weekly roster', children: <RosterGridTab /> },
           { key: 'shifts', label: 'Shift catalog', children: <ShiftCatalogTab /> },
+          { key: 'open-shifts', label: 'Open Shifts', children: <OpenShiftsTab /> },
+          { key: 'swap-requests', label: 'Swap Requests', children: <SwapRequestsTab /> },
         ]}
       />
     </Space>

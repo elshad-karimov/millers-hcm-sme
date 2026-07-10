@@ -176,6 +176,9 @@ function Dashboard({
         </Row>
       </Card>
 
+      {/* M481 — Reward Points widget */}
+      <MyRewardPointsWidget employeeId={profile.id} />
+
       <Row gutter={16}>
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('leave')}>
@@ -1748,6 +1751,174 @@ function MyWarningsWidget() {
         )}
       </Space>
     </Card>
+  )
+}
+
+// ============================================================================
+//  M481 — Reward Points Widget
+// ============================================================================
+function MyRewardPointsWidget({ employeeId }: { employeeId: string }) {
+  const { message } = AntdApp.useApp()
+  const [wallet, setWallet] = useState<any>(null)
+  const [catalog, setCatalog] = useState<any[]>([])
+  const [redemptions, setRedemptions] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+  const [redeemModal, setRedeemModal] = useState(false)
+  const [form] = Form.useForm()
+
+  const fetchData = async () => {
+    try {
+      const [walletRes, catalogRes, redemptionsRes] = await Promise.all([
+        api.get(`/api/engagement/rewards/wallet/${employeeId}`),
+        api.get('/api/engagement/rewards/catalog', { params: { activeOnly: true } }),
+        api.get(`/api/engagement/rewards/redemptions/my/${employeeId}`),
+      ])
+      setWallet(walletRes.data)
+      setCatalog(catalogRes.data)
+      setRedemptions(redemptionsRes.data)
+    } catch (err: any) {
+      console.error('Failed to load reward data:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (employeeId) fetchData()
+  }, [employeeId])
+
+  const handleRedeem = async (values: any) => {
+    try {
+      await api.post('/api/engagement/rewards/redeem', {
+        catalogItemId: values.catalogItemId,
+        deliveryAddress: values.deliveryAddress,
+      })
+      message.success('Reward redeemed! Your request is pending HR approval.')
+      setRedeemModal(false)
+      form.resetFields()
+      fetchData()
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Failed to redeem')
+    }
+  }
+
+  if (!wallet || catalog.length === 0) return null
+
+  return (
+    <>
+      <Card title="My Reward Points" extra={<Button type="link" onClick={() => setOpen(true)}>View catalog</Button>}>
+        <Row gutter={16}>
+          <Col span={8}>
+            <Statistic title="Balance" value={wallet.balance || 0} suffix="pts" />
+          </Col>
+          <Col span={8}>
+            <Statistic title="Earned" value={wallet.lifetimeEarned || 0} suffix="pts" />
+          </Col>
+          <Col span={8}>
+            <Statistic title="Spent" value={wallet.lifetimeSpent || 0} suffix="pts" />
+          </Col>
+        </Row>
+        {redemptions.filter((r: any) => r.status === 'REQUESTED').length > 0 && (
+          <Tag color="blue" style={{ marginTop: 12 }}>
+            {redemptions.filter((r: any) => r.status === 'REQUESTED').length} pending redemptions
+          </Tag>
+        )}
+      </Card>
+
+      <Modal
+        title="Reward Catalog"
+        open={open}
+        onCancel={() => setOpen(false)}
+        footer={null}
+        width={800}
+      >
+        <Tabs
+          items={[
+            {
+              key: 'catalog',
+              label: 'Catalog',
+              children: (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  {catalog.map((item: any) => (
+                    <Card key={item.id} size="small">
+                      <Row justify="space-between" align="middle">
+                        <Col flex="auto">
+                          <Typography.Title level={5} style={{ margin: 0 }}>
+                            {item.name}
+                          </Typography.Title>
+                          <Typography.Text type="secondary">{item.description}</Typography.Text>
+                          <div style={{ marginTop: 8 }}>
+                            <Tag color="blue">{item.points} points</Tag>
+                            {item.category && <Tag>{item.category}</Tag>}
+                          </div>
+                        </Col>
+                        <Col>
+                          <Button
+                            type="primary"
+                            disabled={(wallet?.balance || 0) < item.points}
+                            onClick={() => {
+                              form.setFieldsValue({ catalogItemId: item.id })
+                              setRedeemModal(true)
+                            }}
+                          >
+                            Redeem
+                          </Button>
+                        </Col>
+                      </Row>
+                    </Card>
+                  ))}
+                </Space>
+              ),
+            },
+            {
+              key: 'redemptions',
+              label: 'My Redemptions',
+              children: (
+                <Table
+                  dataSource={redemptions}
+                  columns={[
+                    { title: 'No.', dataIndex: 'redemptionNo', key: 'redemptionNo' },
+                    { title: 'Points', dataIndex: 'points', key: 'points' },
+                    {
+                      title: 'Status',
+                      dataIndex: 'status',
+                      key: 'status',
+                      render: (s: string) => (
+                        <Tag color={s === 'REQUESTED' ? 'blue' : s === 'FULFILLED' ? 'green' : 'red'}>
+                          {s}
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: 'Requested',
+                      dataIndex: 'requestedAt',
+                      key: 'requestedAt',
+                      render: (t: string) => dayjs(t).format('YYYY-MM-DD HH:mm'),
+                    },
+                  ]}
+                  rowKey="id"
+                  pagination={false}
+                />
+              ),
+            },
+          ]}
+        />
+      </Modal>
+
+      <Modal
+        title="Redeem Reward"
+        open={redeemModal}
+        onCancel={() => { setRedeemModal(false); form.resetFields() }}
+        onOk={() => form.submit()}
+      >
+        <Form form={form} layout="vertical" onFinish={handleRedeem} style={{ marginTop: 16 }}>
+          <Form.Item name="catalogItemId" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Delivery Address (optional)" name="deliveryAddress">
+            <Input.TextArea rows={3} placeholder="Enter delivery address if needed" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   )
 }
 

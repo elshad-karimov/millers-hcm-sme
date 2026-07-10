@@ -22,6 +22,7 @@ import {
   LinkOutlined,
   PlayCircleOutlined,
   ProfileOutlined,
+  ProjectOutlined,
   ReadOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
@@ -121,7 +122,9 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/reports/span-of-control', module: 'reports', screen: 'reports-span' },
   { prefix: '/reports/org', module: 'reports', screen: 'reports-org' },
   { prefix: '/activity', module: 'reports', screen: 'activity-feed' },
+  { prefix: '/timesheets/projects', module: 'time', screen: 'timesheet-projects' },
   { prefix: '/timesheets', module: 'time', screen: 'timesheets' },
+  { prefix: '/payroll/labor-rates', module: 'payroll', screen: 'payroll-labor-rates' },
   { prefix: '/payroll/runs', module: 'payroll', screen: 'payroll-runs' },
   { prefix: '/payroll/compensation', module: 'payroll', screen: 'payroll-compensation' },
   { prefix: '/payroll/loan-types', module: 'payroll', screen: 'payroll-loan-types' },
@@ -162,6 +165,8 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/lifecycle/offboarding/notice-period-rules', module: 'lifecycle', screen: 'lifecycle-notice-period-rules' },
   { prefix: '/lifecycle/offboarding/analytics', module: 'lifecycle', screen: 'lifecycle-offboarding-analytics' },
   { prefix: '/lifecycle/offboarding', module: 'lifecycle', screen: 'lifecycle-offboarding' },
+  { prefix: '/mobility/assignments', module: 'mobility', screen: 'mobility-assignments' },
+  { prefix: '/contingent/contractors', module: 'contingent', screen: 'contingent-contractors' },
   { prefix: '/performance/cycles', module: 'performance', screen: 'performance-cycles' },
   { prefix: '/performance/goals', module: 'performance', screen: 'performance-goals' },
   { prefix: '/performance/reviews', module: 'performance', screen: 'performance-reviews' },
@@ -183,6 +188,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/compbenefits/salary-planning', module: 'compbenefits', screen: 'compbenefits-salary-planning' },
   { prefix: '/compbenefits/comp-planning', module: 'compbenefits', screen: 'compbenefits-comp-planning' },
   { prefix: '/compbenefits/benefits', module: 'compbenefits', screen: 'compbenefits-benefits' },
+  { prefix: '/reports/labor-cost', module: 'reports', screen: 'reports-labor-cost' },
   { prefix: '/reports/schedules', module: 'reports', screen: 'reports-schedules' },
   { prefix: '/reports/custom', module: 'reports', screen: 'reports-custom' },
   { prefix: '/reports', module: 'reports', screen: 'reports' },
@@ -195,6 +201,7 @@ const NAV_MAP: Array<{ prefix: string; module: string; screen: string }> = [
   { prefix: '/engagement/recognition', module: 'engagement', screen: 'engagement-recognition' },
   { prefix: '/engagement/action-plans', module: 'engagement', screen: 'engagement-action-plans' },
   { prefix: '/engagement/participation', module: 'engagement', screen: 'engagement-participation' },
+  { prefix: '/engagement/rewards-admin', module: 'engagement', screen: 'engagement-rewards' },
   { prefix: '/my/surveys', module: 'my', screen: 'my-surveys' },
   { prefix: '/self/policies', module: 'my', screen: 'self-policies' },
   { prefix: '/policies', module: 'people', screen: 'policies-admin' },
@@ -618,6 +625,11 @@ export function AppLayout() {
                 label: <Link to="/timesheets">{tNav('sub.time.timesheets')}</Link>,
               },
               {
+                key: 'timesheet-projects',
+                icon: <ProjectOutlined />,
+                label: <Link to="/timesheets/projects">Projects</Link>,
+              },
+              {
                 key: 'attendance-policies',
                 icon: <SettingOutlined />,
                 label: <Link to="/attendance/policies">Attendance Policies</Link>,
@@ -875,6 +887,11 @@ export function AppLayout() {
                 icon: <BarChartOutlined />,
                 label: <Link to="/payroll/reports/variance">Variance Report</Link>,
               },
+              {
+                key: 'payroll-labor-rates',
+                icon: <DollarCircleOutlined />,
+                label: <Link to="/payroll/labor-rates">Labor Rates</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
@@ -1101,6 +1118,42 @@ export function AppLayout() {
                 key: 'lifecycle-offboarding-analytics',
                 icon: <BarChartOutlined />,
                 label: <Link to="/lifecycle/offboarding/analytics">Offboarding Analytics</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Mobility (HR only) — M487 ───────────────────────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'mobility',
+            icon: <GlobalOutlined />,
+            label: 'Mobility',
+            children: [
+              {
+                key: 'mobility-assignments',
+                icon: <GlobalOutlined />,
+                label: <Link to="/mobility/assignments">International Assignments</Link>,
+              },
+            ],
+          } satisfies ItemType,
+        ]
+      : []),
+
+    // ── Contingent Workforce (HR only) — M488+M489 ──────────────────────────
+    ...(isHR
+      ? [
+          {
+            key: 'contingent',
+            icon: <UserOutlined />,
+            label: 'Contingent Workforce',
+            children: [
+              {
+                key: 'contingent-contractors',
+                icon: <UserOutlined />,
+                label: <Link to="/contingent/contractors">Contractors</Link>,
               },
             ],
           } satisfies ItemType,
@@ -1387,6 +1440,10 @@ export function AppLayout() {
                 key: 'engagement-participation',
                 label: <Link to="/engagement/participation">Participation</Link>,
               },
+              {
+                key: 'engagement-rewards',
+                label: <Link to="/engagement/rewards-admin">Reward Points</Link>,
+              },
             ],
           } satisfies ItemType,
         ]
@@ -1436,6 +1493,11 @@ export function AppLayout() {
                       key: 'analytics-attrition',
                       icon: <WarningOutlined />,
                       label: <Link to="/analytics/attrition-risk">Attrition Risk</Link>,
+                    },
+                    {
+                      key: 'reports-labor-cost',
+                      icon: <DollarCircleOutlined />,
+                      label: <Link to="/reports/labor-cost">Labor Cost</Link>,
                     },
                   ]
                 : []),
