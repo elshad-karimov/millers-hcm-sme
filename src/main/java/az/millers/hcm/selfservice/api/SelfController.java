@@ -379,6 +379,19 @@ public class SelfController {
                 .stream().map(LeaveRequestResponse::from).toList();
     }
 
+    /** HCM_50/M511 — an employee cancels their OWN pending leave request (mobile self-service). */
+    @PostMapping("/leave/requests/{id}/cancel")
+    public LeaveRequestResponse cancelOwnLeave(@PathVariable UUID id) {
+        Employee me = context.currentEmployee();
+        var req = leaveRequests.findById(id)
+                .orElseThrow(() -> new az.millers.hcm.common.ResourceNotFoundException("Leave request not found"));
+        if (!me.getId().equals(req.getEmployeeId())) {
+            // Don't leak existence of another employee's request.
+            throw new az.millers.hcm.common.ResourceNotFoundException("Leave request not found");
+        }
+        return LeaveRequestResponse.from(leaveRequestService.onCancelled(id, "Cancelled by employee (mobile)"));
+    }
+
     // ----- Permission --------------------------------------------------------
 
     @GetMapping("/permission/balances")
