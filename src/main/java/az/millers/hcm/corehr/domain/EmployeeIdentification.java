@@ -114,9 +114,8 @@ public class EmployeeIdentification implements ExpiryTrackable {
         // Last 4 chars of the document number — full plaintext stays in the
         // backend, the alert body only needs enough for the employee to
         // recognise which document is expiring.
-        String n = documentNumber;
-        if (n == null || n.length() <= 4) return getEntityLabel();
-        return getEntityLabel() + " …" + n.substring(n.length() - 4);
+        String masked = az.millers.hcm.security.PiiMasking.maskDocumentId(documentNumber);
+        return masked == null ? getEntityLabel() : getEntityLabel() + " " + masked;
     }
 
     private static String prettyLabel(IdentificationDocumentType t) {

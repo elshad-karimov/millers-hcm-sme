@@ -385,9 +385,7 @@ public class PayslipPdfService {
     }
 
     private String maskIban(String iban) {
-        if (iban == null || iban.length() < 4) {
-            return "****";
-        }
-        return "****" + iban.substring(iban.length() - 4);
+        String m = az.millers.hcm.security.PiiMasking.maskIban(iban);
+        return m != null ? m : "••••";
     }
 }

@@ -76,9 +76,7 @@ public final class LegalEntityDtos {
 
         public static LegalEntityResponse from(LegalEntity e, boolean canSeeBankPlain) {
             String acct = e.getPayrollBankAccount();
-            String masked = (acct == null || acct.isBlank())
-                    ? null
-                    : (acct.length() <= 4 ? "…" + acct : "…" + acct.substring(acct.length() - 4));
+            String masked = az.millers.hcm.security.PiiMasking.maskAccountNumber(acct);
             return new LegalEntityResponse(
                     e.getId(), e.getCode(), e.getName(),
                     e.getRegistrationNumber(), e.getTaxId(), e.getSocialInsuranceRegNumber(),

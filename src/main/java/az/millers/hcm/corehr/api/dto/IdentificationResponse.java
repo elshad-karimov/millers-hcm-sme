@@ -53,8 +53,6 @@ public record IdentificationResponse(
     }
 
     private static String mask(String n) {
-        if (n == null || n.isBlank()) return null;
-        if (n.length() <= 4) return "…" + n;
-        return "…" + n.substring(n.length() - 4);
+        return az.millers.hcm.security.PiiMasking.maskDocumentId(n);
     }
 }

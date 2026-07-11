@@ -43,9 +43,7 @@ public record DependentResponse(
 
     public static DependentResponse from(EmployeeDependent d, boolean canSeePlainNationalId) {
         String n = d.getNationalId();
-        String masked = (n == null || n.isBlank())
-                ? null
-                : (n.length() <= 4 ? "…" + n : "…" + n.substring(n.length() - 4));
+        String masked = az.millers.hcm.security.PiiMasking.maskDocumentId(n);
         LocalDate end = d.getEligibilityEndDate();
         boolean stillEligible = d.isActive()
                 && (end == null || end.isAfter(LocalDate.now()));

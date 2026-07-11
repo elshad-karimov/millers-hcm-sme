@@ -35,9 +35,9 @@ public record BankAccountResponse(
                 a.getEmployeeId(),
                 a.getBankCode(),
                 a.getBankName(),
-                mask(a.getIban()),
+                az.millers.hcm.security.PiiMasking.maskIban(a.getIban()),
                 canSeePlain ? a.getIban() : null,
-                mask(a.getAccountNumber()),
+                az.millers.hcm.security.PiiMasking.maskAccountNumber(a.getAccountNumber()),
                 canSeePlain ? a.getAccountNumber() : null,
                 a.getSwiftBic(),
                 a.getCurrency(),
@@ -52,9 +52,4 @@ public record BankAccountResponse(
                 a.getUpdatedBy());
     }
 
-    private static String mask(String s) {
-        if (s == null || s.isBlank()) return null;
-        if (s.length() <= 4) return "…" + s;
-        return "…" + s.substring(s.length() - 4);
-    }
 }

@@ -30,9 +30,7 @@ public record CertificationResponse(
 
     public static CertificationResponse from(EmployeeCertification e, boolean canSeePlainNumber) {
         String n = e.getLicenseNumber();
-        String masked = (n == null || n.isBlank())
-                ? null
-                : (n.length() <= 4 ? "…" + n : "…" + n.substring(n.length() - 4));
+        String masked = az.millers.hcm.security.PiiMasking.maskDocumentId(n);
         return new CertificationResponse(
                 e.getId(),
                 e.getEmployeeId(),

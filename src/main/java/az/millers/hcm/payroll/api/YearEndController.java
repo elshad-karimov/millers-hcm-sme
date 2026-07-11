@@ -98,9 +98,7 @@ public class YearEndController {
     }
 
     private String maskNationalId(String nationalId) {
-        if (nationalId == null || nationalId.length() < 4) {
-            return "****";
-        }
-        return "****" + nationalId.substring(nationalId.length() - 4);
+        String m = az.millers.hcm.security.PiiMasking.maskDocumentId(nationalId);
+        return m != null ? m : "•••";
     }
 }
