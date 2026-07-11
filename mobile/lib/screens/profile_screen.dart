@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../api/self_api.dart';
 import '../auth/auth_service.dart';
 import '../models/employee.dart';
+import 'profile_edit_screen.dart';
+import 'settings_screen.dart';
 
 const Color brandColor = Color(0xFF5B3FE5);
 
@@ -77,6 +79,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: _reload,
             tooltip: 'Refresh',
@@ -100,6 +110,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             employee: emp,
             onSignOut: _signOut,
             signingOut: _signingOut,
+            onEdit: () async {
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ProfileEditScreen(employee: emp)),
+              );
+              if (changed == true) _reload();
+            },
           );
         },
       ),
@@ -116,11 +134,13 @@ class _ProfileBody extends StatelessWidget {
     required this.employee,
     required this.onSignOut,
     required this.signingOut,
+    required this.onEdit,
   });
 
   final Employee employee;
   final VoidCallback onSignOut;
   final bool signingOut;
+  final VoidCallback onEdit;
 
   String get _initials {
     final f = employee.firstName.isNotEmpty ? employee.firstName[0] : '';
@@ -224,7 +244,24 @@ class _ProfileBody extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
+          // Edit profile button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit Profile',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              style: FilledButton.styleFrom(
+                backgroundColor: brandColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           // Sign out button
           SizedBox(
             width: double.infinity,
