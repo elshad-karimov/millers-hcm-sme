@@ -45,12 +45,11 @@ interface NotificationTemplate {
   updatedAt: string
 }
 
-interface DeliveryLog {
+interface DeliveryLogRow {
   id: string
   channel: NotificationChannel
-  recipientId: string
+  recipient: string
   subject: string | null
-  body: string
   status: DeliveryStatus
   errorMessage: string | null
   sentAt: string
@@ -75,7 +74,7 @@ export function NotificationTemplatesPage() {
   const [editing, setEditing] = useState<NotificationTemplate | null>(null)
   const [form] = Form.useForm()
 
-  const [logs, setLogs] = useState<DeliveryLog[]>([])
+  const [logs, setLogs] = useState<DeliveryLogRow[]>([])
   const [loadingLogs, setLoadingLogs] = useState(false)
   const [filterChannel, setFilterChannel] = useState<NotificationChannel | undefined>()
   const [filterStatus, setFilterStatus] = useState<DeliveryStatus | undefined>()
@@ -104,7 +103,7 @@ export function NotificationTemplatesPage() {
       params.to = filterRange[1].toISOString()
     }
     api
-      .get<DeliveryLog[]>('/notifications/templates/delivery-logs', { params })
+      .get<DeliveryLogRow[]>('/notifications/templates/delivery-logs', { params })
       .then((r) => setLogs(r.data))
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load logs'))
       .finally(() => setLoadingLogs(false))
@@ -202,7 +201,7 @@ export function NotificationTemplatesPage() {
     },
   ]
 
-  const logCols: ColumnsType<DeliveryLog> = [
+  const logCols: ColumnsType<DeliveryLogRow> = [
     {
       title: 'Sent at',
       dataIndex: 'sentAt',
@@ -217,7 +216,7 @@ export function NotificationTemplatesPage() {
     },
     {
       title: 'Recipient',
-      dataIndex: 'recipientId',
+      dataIndex: 'recipient',
       width: 120,
       render: (v: string) => <Text style={{ fontFamily: 'monospace' }}>{v.slice(0, 8)}</Text>,
     },

@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import az.millers.hcm.notifications.domain.DeliveryLog;
 import az.millers.hcm.notifications.domain.DeliveryStatus;
 import az.millers.hcm.notifications.domain.NotificationChannel;
 import az.millers.hcm.notifications.domain.NotificationTemplate;
 import az.millers.hcm.notifications.service.NotificationTemplateService;
+import az.millers.hcm.notifications.service.NotificationTemplateService.DeliveryLogView;
 import az.millers.hcm.security.SecurityRoles;
 
 /**
@@ -110,7 +110,7 @@ public class NotificationTemplateController {
      */
     @GetMapping("/delivery-logs")
     @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
-    public List<DeliveryLog> getDeliveryLogs(
+    public List<DeliveryLogView> getDeliveryLogs(
             @RequestParam(required = false) NotificationChannel channel,
             @RequestParam(required = false) DeliveryStatus status,
             @RequestParam(required = false) OffsetDateTime from,

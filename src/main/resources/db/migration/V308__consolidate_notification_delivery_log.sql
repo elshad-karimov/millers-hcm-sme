@@ -1,0 +1,26 @@
+-- ----------------------------------------------------------------------------
+-- V308 — Consolidate notification delivery logging onto ONE table.
+--
+-- Notification delivery was logged in two places:
+--   * notification.notification_log  (V43, canonical — written by NotificationService)
+--   * notification.delivery_log       (V304, duplicate — written by
+--                                       NotificationTemplateService.recordDelivery,
+--                                       which was never wired into any send path)
+--
+-- The duplicate is retired. NotificationTemplateService now writes/reads the
+-- canonical notification_log:
+--   * status SENT  -> sent_at set
+--   * status FAILED-> failed_at + error_message set
+--   * source_module-> module, subject -> title (the canonical heading field),
+--     channel / recipient / error_message map directly.
+-- "All failed notifications" is now a single-table query (no UNION).
+--
+-- No additive column is needed: the audit `subject` maps onto the existing
+-- `title` column (NotificationService already treats title as the email subject
+-- line), so no redundant `subject` column is introduced.
+--
+-- delivery_log held 0 rows (its only writer was dead code), so no row copy is
+-- required — a plain DROP is safe. Its indexes are dropped with the table.
+-- ----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS notification.delivery_log;

@@ -17,11 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.ResourceNotFoundException;
-import az.millers.hcm.notifications.domain.DeliveryLog;
 import az.millers.hcm.notifications.domain.DeliveryStatus;
 import az.millers.hcm.notifications.domain.NotificationChannel;
+import az.millers.hcm.notifications.domain.NotificationLog;
 import az.millers.hcm.notifications.domain.NotificationTemplate;
-import az.millers.hcm.notifications.repo.DeliveryLogRepository;
+import az.millers.hcm.notifications.repo.NotificationLogRepository;
 import az.millers.hcm.notifications.repo.NotificationTemplateRepository;
 
 /**
@@ -37,14 +37,14 @@ public class NotificationTemplateService {
     private static final Pattern VAR_PATTERN = Pattern.compile("\\{\\{(\\w+)\\}\\}");
 
     private final NotificationTemplateRepository templateRepo;
-    private final DeliveryLogRepository deliveryLogRepo;
+    private final NotificationLogRepository logRepo;
     private final AuditService audit;
 
     public NotificationTemplateService(NotificationTemplateRepository templateRepo,
-                                        DeliveryLogRepository deliveryLogRepo,
+                                        NotificationLogRepository logRepo,
                                         AuditService audit) {
         this.templateRepo = templateRepo;
-        this.deliveryLogRepo = deliveryLogRepo;
+        this.logRepo = logRepo;
         this.audit = audit;
     }
 
@@ -152,36 +152,53 @@ public class NotificationTemplateService {
         return result.toString();
     }
 
-    // ── Delivery log ───────────────────────────────────────────────────────────
+    // ── Delivery log (canonical notification.notification_log) ──────────────────
 
     /**
-     * Record a delivery log entry. Non-fatal — swallows exceptions so logging
-     * failures don't break the caller.
+     * Record a delivery-audit entry on the canonical {@code notification_log}.
+     * Status is captured the same way {@code NotificationService} does it:
+     * SENT sets {@code sent_at}; FAILED sets {@code failed_at} + the error.
+     * The audit {@code subject} maps onto {@code title} (the canonical
+     * subject/heading field) and {@code sourceModule} onto {@code module}.
+     * Non-fatal — swallows exceptions so logging failures don't break the caller.
      */
     public void recordDelivery(NotificationChannel channel, String recipient, String subject,
                                 DeliveryStatus status, String errorMessage, String sourceModule) {
         try {
-            DeliveryLog entry = new DeliveryLog();
-            entry.setTenantId(TENANT);
-            entry.setChannel(channel);
+            NotificationLog entry = new NotificationLog();
             entry.setRecipient(recipient);
-            entry.setSubject(subject);
-            entry.setStatus(status);
-            entry.setErrorMessage(errorMessage);
-            entry.setSourceModule(sourceModule);
-            deliveryLogRepo.save(entry);
+            entry.setChannel(channel);
+            // title is NOT NULL — fall back to a synthesized label for channels
+            // (IN_APP/PUSH) that carry no subject.
+            entry.setTitle(subject != null && !subject.isBlank()
+                ? subject
+                : (sourceModule != null ? sourceModule : channel.name()) + " notification");
+            entry.setBody("");            // audit row carries no body (body is NOT NULL)
+            entry.setModule(sourceModule);
+            if (status == DeliveryStatus.FAILED) {
+                entry.setFailedAt(OffsetDateTime.now());
+                entry.setErrorMessage(errorMessage);
+            } else {
+                entry.setSentAt(OffsetDateTime.now());
+            }
+            logRepo.save(entry);
         } catch (Exception ex) {
             log.error("Failed to record delivery log: {}", ex.getMessage(), ex);
         }
     }
 
     /**
-     * Get delivery logs with filters.
+     * Delivery-audit view over the canonical log, with the same filters the old
+     * delivery_log endpoint exposed. Status is derived from the timestamps.
      */
-    public List<DeliveryLog> getDeliveryLogs(NotificationChannel channel, DeliveryStatus status,
-                                              OffsetDateTime from, OffsetDateTime to, int limit) {
+    public List<DeliveryLogView> getDeliveryLogs(NotificationChannel channel, DeliveryStatus status,
+                                                 OffsetDateTime from, OffsetDateTime to, int limit) {
         Pageable page = PageRequest.of(0, limit);
-        return deliveryLogRepo.findFiltered(TENANT, channel, status, from, to, page);
+        boolean sentOnly = status == DeliveryStatus.SENT;
+        boolean failedOnly = status == DeliveryStatus.FAILED;
+        return logRepo.findDeliveries(channel, sentOnly, failedOnly, from, to, page).stream()
+            .map(DeliveryLogView::of)
+            .toList();
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -201,4 +218,22 @@ public class NotificationTemplateService {
     // ── DTOs ───────────────────────────────────────────────────────────────────
 
     public record RenderedTemplate(NotificationChannel channel, String subject, String body) {}
+
+    /**
+     * Read-projection of a {@code notification_log} row as a delivery-audit
+     * record. {@code subject} = the log title; {@code status} is derived from
+     * the timestamps; {@code sentAt} falls back to failed_at then created_at.
+     */
+    public record DeliveryLogView(UUID id, NotificationChannel channel, String recipient,
+                                  String subject, DeliveryStatus status, String errorMessage,
+                                  OffsetDateTime sentAt) {
+
+        static DeliveryLogView of(NotificationLog n) {
+            DeliveryStatus status = n.getFailedAt() != null ? DeliveryStatus.FAILED : DeliveryStatus.SENT;
+            OffsetDateTime when = n.getSentAt() != null ? n.getSentAt()
+                : (n.getFailedAt() != null ? n.getFailedAt() : n.getCreatedAt());
+            return new DeliveryLogView(n.getId(), n.getChannel(), n.getRecipient(),
+                n.getTitle(), status, n.getErrorMessage(), when);
+        }
+    }
 }
