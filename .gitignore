@@ -36,3 +36,7 @@ logs/
 
 # Docker volumes (if bind-mounted locally)
 volumes/
+
+# Python bytecode (from scripts/uat_smoke.py and UAT generators)
+__pycache__/
+*.pyc
