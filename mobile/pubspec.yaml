@@ -10,6 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Localization delegates (M506 — en / az language toggle)
+  flutter_localizations:
+    sdk: flutter
+
   # Auth — Keycloak OIDC, Authorization Code + PKCE
   flutter_appauth: ^7.0.1        # mobile (Android / iOS / macOS)
   flutter_secure_storage: ^9.2.2 # mobile token storage
@@ -32,10 +36,11 @@ dependencies:
 
   # UI helpers
   cached_network_image: ^3.4.1
-  intl: ^0.19.0
+  intl: ^0.20.2
   shimmer: ^3.0.0
 
   cupertino_icons: ^1.0.8
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:

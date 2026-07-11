@@ -44,4 +44,8 @@ class AppConfig {
 
   // ----- Brand ---------------------------------------------------------------
   static const int brandColorValue = 0xFF5B3FE5; // Millers purple
+
+  // ----- App metadata --------------------------------------------------------
+  /// Display version, kept in sync with pubspec.yaml `version:`.
+  static const String appVersion = '1.0.0+1';
 }

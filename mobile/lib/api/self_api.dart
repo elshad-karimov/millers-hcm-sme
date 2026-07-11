@@ -1,7 +1,15 @@
+import 'package:dio/dio.dart';
+
 import '../api/api_client.dart';
+import '../models/announcement.dart';
+import '../models/document_item.dart';
 import '../models/employee.dart';
+import '../models/hr_request.dart';
 import '../models/leave.dart';
+import '../models/notification_item.dart';
 import '../models/performance.dart';
+import '../models/personal_info.dart';
+import '../models/policy.dart';
 import '../models/requests.dart';
 import '../models/team.dart';
 import '../models/timesheet.dart';
@@ -200,6 +208,160 @@ class SelfApi {
       'action': action,
       if (comment != null && comment.isNotEmpty) 'comment': comment,
     });
+  }
+
+  // ── M499: Announcements (GET /api/self/announcements) ─────────────────────
+
+  Future<List<Announcement>> getAnnouncements() async {
+    final r = await _dio.get('/self/announcements');
+    return (r.data as List)
+        .map((j) => Announcement.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── M500: Policies (GET /api/self/policies, POST .../{id}/acknowledge) ─────
+
+  Future<List<Policy>> getPolicies() async {
+    final r = await _dio.get('/self/policies');
+    return (r.data as List)
+        .map((j) => Policy.fromSelfView(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> acknowledgePolicy(String policyId) async {
+    await _dio.post('/self/policies/$policyId/acknowledge');
+  }
+
+  // ── M501: HR service requests (GET/POST /api/self/hr-requests) ────────────
+
+  Future<List<HrRequest>> getHrRequests() async {
+    final r = await _dio.get('/self/hr-requests');
+    return (r.data as List)
+        .map((j) => HrRequest.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<HrRequest> submitHrRequest({
+    required String category,
+    required String priority,
+    required String subject,
+    String? description,
+  }) async {
+    final r = await _dio.post('/self/hr-requests', data: {
+      'category': category,
+      'priority': priority,
+      'subject': subject,
+      if (description != null && description.isNotEmpty)
+        'description': description,
+    });
+    return HrRequest.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<List<HrRequestComment>> getHrRequestComments(String requestId) async {
+    final r = await _dio.get('/self/hr-requests/$requestId/comments');
+    return (r.data as List)
+        .map((j) => HrRequestComment.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<HrRequestComment> addHrRequestComment(
+      String requestId, String body) async {
+    final r = await _dio.post('/self/hr-requests/$requestId/comments',
+        data: {'body': body});
+    return HrRequestComment.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  // ── M502: Documents (GET/POST /api/attachments) ───────────────────────────
+
+  /// List the current employee's uploaded self-service documents.
+  Future<List<DocumentItem>> getDocuments(String employeeId) async {
+    final r = await _dio.get('/attachments', queryParameters: {
+      'ownerModule': 'selfservice',
+      'ownerEntity': 'employeedocument',
+      'ownerId': employeeId,
+    });
+    return (r.data as List)
+        .map((j) => DocumentItem.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Upload a document as multipart/form-data with upload progress.
+  Future<DocumentItem> uploadDocument({
+    required String employeeId,
+    required List<int> bytes,
+    required String filename,
+    String? contentType,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    final form = FormData.fromMap({
+      'ownerModule': 'selfservice',
+      'ownerEntity': 'employeedocument',
+      'ownerId': employeeId,
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: contentType != null
+            ? DioMediaType.parse(contentType)
+            : null,
+      ),
+    });
+    final r = await _dio.post(
+      '/attachments',
+      data: form,
+      onSendProgress: onProgress,
+    );
+    return DocumentItem.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  // ── M503: Personal-info change requests ───────────────────────────────────
+
+  /// GET /api/self/personal-info — my pending / decided change requests.
+  Future<List<PersonalInfoChange>> getPersonalInfoChanges() async {
+    final r = await _dio.get('/self/personal-info');
+    return (r.data as List)
+        .map((j) => PersonalInfoChange.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// POST /api/self/personal-info/submit — one change request per field.
+  Future<PersonalInfoChange> submitPersonalInfoChange({
+    required String fieldKey,
+    required String newValue,
+    String? reason,
+  }) async {
+    final r = await _dio.post('/self/personal-info/submit', data: {
+      'fieldKey': fieldKey,
+      'newValue': newValue,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+    });
+    return PersonalInfoChange.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  // ── M505: Notifications (GET /api/notifications) ──────────────────────────
+
+  Future<List<NotificationItem>> getNotifications({int page = 0, int size = 30}) async {
+    final r = await _dio.get('/notifications',
+        queryParameters: {'page': page, 'size': size});
+    final data = r.data;
+    final items = data is List
+        ? data
+        : ((data as Map<String, dynamic>)['content'] as List? ?? []);
+    return items
+        .map((j) => NotificationItem.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<int> getUnreadNotificationCount() async {
+    final r = await _dio.get('/notifications/unread-count');
+    return ((r.data as Map<String, dynamic>)['count'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _dio.patch('/notifications/$id/read');
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await _dio.post('/notifications/read-all');
   }
 }
 
