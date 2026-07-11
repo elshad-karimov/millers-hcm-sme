@@ -16,6 +16,7 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.learning.domain.Competency;
 import az.millers.hcm.learning.repo.CompetencyRepository;
+import az.millers.hcm.learning.repo.PositionCompetencyRequirementRepository;
 import az.millers.hcm.performance.api.dto.CompetencyAssessmentDtos.AddCompetencyRequest;
 import az.millers.hcm.performance.api.dto.CompetencyAssessmentDtos.AssessmentResponse;
 import az.millers.hcm.performance.api.dto.CompetencyAssessmentDtos.RateRequest;
@@ -24,14 +25,13 @@ import az.millers.hcm.performance.domain.PerformanceReview;
 import az.millers.hcm.performance.repo.PerfCompetencyAssessmentRepository;
 import az.millers.hcm.performance.repo.PerformanceReviewRepository;
 import az.millers.hcm.security.scope.AccessScopeService;
-import az.millers.hcm.staffing.repo.PositionRequiredCompetencyRepository;
 
 /**
  * HCM_12 M393 — structured competency assessment per review (PRD §17).
  *
- * <p>{@code init} seeds one row per {@code position_required_competency} of the
- * employee's position (required level snapshotted); rows can also be added
- * manually. §17.3: gap = required − final, recomputed on every rating change —
+ * <p>{@code init} seeds one row per {@code learning.position_competency_requirement}
+ * of the employee's position (required proficiency snapshotted); rows can also be
+ * added manually. §17.3: gap = required − final, recomputed on every rating change —
  * a positive gap is a development need (M399 dev plans read this).
  */
 @Service
@@ -42,7 +42,7 @@ public class PerfCompetencyAssessmentService {
 
     private final PerfCompetencyAssessmentRepository assessments;
     private final PerformanceReviewRepository reviews;
-    private final PositionRequiredCompetencyRepository positionRequirements;
+    private final PositionCompetencyRequirementRepository positionRequirements;
     private final CompetencyRepository competencies;
     private final EmployeeRepository employees;
     private final AccessScopeService accessScope;
@@ -50,7 +50,7 @@ public class PerfCompetencyAssessmentService {
 
     public PerfCompetencyAssessmentService(PerfCompetencyAssessmentRepository assessments,
                                            PerformanceReviewRepository reviews,
-                                           PositionRequiredCompetencyRepository positionRequirements,
+                                           PositionCompetencyRequirementRepository positionRequirements,
                                            CompetencyRepository competencies,
                                            EmployeeRepository employees,
                                            AccessScopeService accessScope,
@@ -81,19 +81,20 @@ public class PerfCompetencyAssessmentService {
                     "Employee has no position — add competencies manually instead");
         }
         var required = positionRequirements
-                .findByPositionIdOrderByMandatoryDescRequiredLevelDesc(positionId);
+                .findByPositionIdOrderByCompetencyNameAsc(positionId);
         if (required.isEmpty()) {
             throw new BadRequestException(
                     "The position defines no required competencies — add competencies manually instead");
         }
         List<PerfCompetencyAssessment> created = new ArrayList<>();
         for (var prc : required) {
-            if (assessments.existsByReviewIdAndCompetencyId(reviewId, prc.getCompetencyId())) continue;
+            UUID competencyId = prc.getCompetency().getId();
+            if (assessments.existsByReviewIdAndCompetencyId(reviewId, competencyId)) continue;
             PerfCompetencyAssessment a = new PerfCompetencyAssessment();
             a.setTenantId(review.getTenantId());
             a.setReviewId(reviewId);
-            a.setCompetencyId(prc.getCompetencyId());
-            a.setRequiredLevel(prc.getRequiredLevel());
+            a.setCompetencyId(competencyId);
+            a.setRequiredLevel(prc.getRequiredProficiency());
             created.add(a);
         }
         if (!created.isEmpty()) {

@@ -75,11 +75,11 @@ public class SkillInventoryService {
             WITH required_skills AS (
                 SELECT DISTINCT
                     pr.competency_id,
-                    pr.required_level,
+                    pr.required_proficiency AS required_level,
                     c.name AS competency_name
-                FROM staffing.position_required_competency pr
+                FROM learning.position_competency_requirement pr
                 JOIN learning.competency c ON c.id = pr.competency_id
-                WHERE pr.is_mandatory = true
+                WHERE pr.mandatory = true
             ),
             current_coverage AS (
                 SELECT

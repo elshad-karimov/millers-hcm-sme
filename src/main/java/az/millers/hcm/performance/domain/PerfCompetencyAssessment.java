@@ -33,7 +33,7 @@ public class PerfCompetencyAssessment {
     @Column(name = "competency_id", nullable = false)
     private UUID competencyId;
 
-    /** Snapshot of position_required_competency.required_level at init. */
+    /** Snapshot of learning.position_competency_requirement.required_proficiency at init. */
     @Column(name = "required_level")
     private Integer requiredLevel;
 

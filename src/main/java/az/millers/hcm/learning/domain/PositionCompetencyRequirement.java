@@ -42,6 +42,15 @@ public class PositionCompetencyRequirement {
     @Column(name = "required_proficiency", nullable = false)
     private int requiredProficiency;
 
+    /**
+     * Whether this competency is mandatory for the position (V307). A missing
+     * mandatory competency is a blocking gap; a missing optional one is minor.
+     * Defaults to {@code true} so requirements created via the learning API stay
+     * mandatory unless HR explicitly relaxes them.
+     */
+    @Column(nullable = false)
+    private boolean mandatory = true;
+
     @Column(columnDefinition = "text")
     private String notes;
 

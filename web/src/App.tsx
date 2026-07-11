@@ -44,7 +44,6 @@ import { AssetCategoriesPage } from './pages/AssetCategoriesPage'
 import { DamageLossCasesPage } from './pages/DamageLossCasesPage'
 import { PresenceMapPage } from './pages/PresenceMapPage'
 import { WorkflowSlaPage } from './pages/WorkflowSlaPage'
-import { PositionSkillsPage } from './pages/PositionSkillsPage'
 import { LeaveTypeFormPage } from './pages/LeaveTypeFormPage'
 import { LeaveBalancesPage } from './pages/LeaveBalancesPage'
 import { LeaveRequestsPage } from './pages/LeaveRequestsPage'
@@ -524,8 +523,6 @@ export default function App() {
           <Route path="positions/:id/edit" element={<PositionFormPage />} />
           {/* M258 — budget vs actual variance dashboard (PRD §19) */}
           <Route path="positions/variance" element={<PositionVariancePage />} />
-          {/* M127 — position competency requirements + candidate fit */}
-          <Route path="positions/:id/skills" element={<PositionSkillsPage />} />
           {/* M109 — position control gate dashboard */}
           <Route path="positions/control" element={<PositionControlPage />} />
           {/* M245 — staffing table (ştat cədvəli) */}
