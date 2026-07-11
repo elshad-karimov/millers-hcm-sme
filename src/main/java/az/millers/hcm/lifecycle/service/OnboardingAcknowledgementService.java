@@ -33,25 +33,31 @@ public class OnboardingAcknowledgementService {
     private static final String MODULE = "LIFECYCLE";
     private static final String ENTITY = "OnboardingAcknowledgement";
 
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(OnboardingAcknowledgementService.class);
+
     private final OnboardingAcknowledgementRepository acks;
     private final ChecklistTaskStatusRepository taskStatuses;
     private final ChecklistAssignmentRepository assignments;
     private final ChecklistService checklistService;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final az.millers.hcm.policy.service.PolicyService policyService;
 
     public OnboardingAcknowledgementService(OnboardingAcknowledgementRepository acks,
                                             ChecklistTaskStatusRepository taskStatuses,
                                             ChecklistAssignmentRepository assignments,
                                             ChecklistService checklistService,
                                             AuditService audit,
-                                            CurrentRequest currentRequest) {
+                                            CurrentRequest currentRequest,
+                                            az.millers.hcm.policy.service.PolicyService policyService) {
         this.acks = acks;
         this.taskStatuses = taskStatuses;
         this.assignments = assignments;
         this.checklistService = checklistService;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.policyService = policyService;
     }
 
     @Transactional
@@ -103,6 +109,22 @@ public class OnboardingAcknowledgementService {
         audit.record(MODULE, ENTITY, ack.getId().toString(), "ACKNOWLEDGE", null,
                 Map.of("kind", kind.name(), "taskStatusId", taskStatusId.toString(),
                         "employeeId", a.getEmployeeId().toString()));
+
+        // Link-through: a POLICY-kind onboarding ack whose reference names a known
+        // policy is also recorded in policy.acknowledgement so compliance reports
+        // (which read that table) include onboarding-path acks. Best-effort — a
+        // reference that doesn't resolve is fine and must not fail the onboarding ack.
+        if (kind == AcknowledgementKind.POLICY && reference != null && !reference.isBlank()) {
+            try {
+                boolean linked = policyService.recordAckByReference(a.getEmployeeId(), reference);
+                if (!linked) {
+                    log.debug("Onboarding policy ack reference '{}' did not resolve to a known policy", reference);
+                }
+            } catch (RuntimeException ex) {
+                log.warn("Policy link-through failed for onboarding ack {} (ref '{}'): {}",
+                        ack.getId(), reference, ex.toString());
+            }
+        }
         return toResponse(ack);
     }
 

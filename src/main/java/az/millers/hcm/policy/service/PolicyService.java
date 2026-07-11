@@ -203,6 +203,45 @@ public class PolicyService {
         return acks.findByPolicyId(policyId);
     }
 
+    /**
+     * Best-effort link-through for onboarding policy-acknowledgement tasks: resolves
+     * a free-text policy reference to the latest version by code and records a
+     * {@link PolicyAcknowledgement} for the employee, so compliance reports (which
+     * read policy.acknowledgement) also include acks captured during onboarding.
+     * No-op (returns false) if the reference doesn't resolve to a known policy;
+     * idempotent per (policy version, employee). Never throws for a bad reference.
+     */
+    @Transactional
+    public boolean recordAckByReference(UUID employeeId, String reference) {
+        if (employeeId == null || reference == null || reference.isBlank()) {
+            return false;
+        }
+        String ref = reference.trim();
+        PolicyDocument doc = policies.findTopByCodeOrderByVersionDesc(ref).orElse(null);
+        if (doc == null) {
+            // Tolerate a trailing version suffix like " v3", "-v3", "(v3)".
+            String stripped = ref.replaceAll("(?i)[\\s\\-_(]*v?\\d+\\)?$", "").trim();
+            if (!stripped.isEmpty() && !stripped.equals(ref)) {
+                doc = policies.findTopByCodeOrderByVersionDesc(stripped).orElse(null);
+            }
+        }
+        if (doc == null) {
+            return false;
+        }
+        if (acks.findByPolicyIdAndEmployeeId(doc.getId(), employeeId).isPresent()) {
+            return true; // already linked
+        }
+        PolicyAcknowledgement a = new PolicyAcknowledgement();
+        a.setPolicyId(doc.getId());
+        a.setEmployeeId(employeeId);
+        a.setVersionAcknowledged(doc.getVersion());
+        acks.save(a);
+        audit.record(MODULE, "PolicyAcknowledgement", a.getId().toString(),
+                "ACKNOWLEDGE_VIA_ONBOARDING", null,
+                az.millers.hcm.policy.api.dto.PolicyDtos.AcknowledgementResponse.from(a));
+        return true;
+    }
+
     // ── helpers ────────────────────────────────────────────────────────
 
     private static void apply(PolicyDocument p, PolicyRequest req) {
