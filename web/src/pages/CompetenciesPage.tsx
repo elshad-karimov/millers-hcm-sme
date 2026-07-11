@@ -8,6 +8,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Progress,
   Row,
   Select,
   Space,
@@ -32,6 +33,7 @@ import {
   type CompetencyCategory,
   type CompetencyRequest,
   type EmployeeCompetency,
+  type EmployeeFitRow,
   type GapItem,
   type PositionRequirement,
 } from '../api/learning'
@@ -613,6 +615,136 @@ function PositionRequirementsTab({ competencies }: { competencies: Competency[] 
   )
 }
 
+// ── Position Fit tab (rank employees for a position) ─────────────────────────
+
+function fitScoreColor(score: number): string {
+  if (score >= 80) return '#52c41a' // green
+  if (score >= 50) return '#faad14' // amber
+  return '#ff4d4f' // red
+}
+
+function PositionFitTab() {
+  const { message } = AntdApp.useApp()
+  const [positions, setPositions] = useState<Position[]>([])
+  const [positionId, setPositionId] = useState<string | undefined>()
+  const [ranked, setRanked] = useState<EmployeeFitRow[]>([])
+  const [totalCandidates, setTotalCandidates] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    positionsApi.list({ size: 500 }).then((p) => setPositions(p.content)).catch(() => {})
+  }, [])
+
+  const rankEmployees = () => {
+    if (!positionId) return
+    setLoading(true)
+    setLoaded(false)
+    learningApi
+      .positionFit(positionId)
+      .then((res) => {
+        setRanked(res.ranked)
+        setTotalCandidates(res.totalCandidates)
+        setLoaded(true)
+      })
+      .catch((err: { response?: { data?: { message?: string } } }) =>
+        message.error(err?.response?.data?.message ?? 'Failed to rank employees'))
+      .finally(() => setLoading(false))
+  }
+
+  const fitColumns: ColumnsType<EmployeeFitRow> = [
+    {
+      title: '#', width: 56, align: 'center',
+      render: (_: unknown, __: EmployeeFitRow, i: number) => (
+        <Typography.Text strong>{i + 1}</Typography.Text>
+      ),
+    },
+    {
+      title: 'Employee',
+      render: (_: unknown, r: EmployeeFitRow) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{r.employeeName}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.employeeNo}</Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Fit score', dataIndex: 'fitScore', width: 220, align: 'center',
+      sorter: (a: EmployeeFitRow, b: EmployeeFitRow) => a.fitScore - b.fitScore,
+      defaultSortOrder: 'descend',
+      render: (score: number) => (
+        <Progress
+          percent={score}
+          size="small"
+          strokeColor={fitScoreColor(score)}
+          format={(p) => `${p}%`}
+        />
+      ),
+    },
+    {
+      title: 'Blocking gaps', dataIndex: 'blockers', width: 130, align: 'center',
+      render: (n: number) =>
+        n > 0 ? <Tag color="error">{n}</Tag> : <Tag color="success">0</Tag>,
+    },
+    {
+      title: 'Major gaps', dataIndex: 'majorGaps', width: 120, align: 'center',
+      render: (n: number) =>
+        n > 0 ? <Tag color="warning">{n}</Tag> : <Tag>0</Tag>,
+    },
+  ]
+
+  return (
+    <Card type="inner" title="Rank employees for a position" size="small">
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Select
+          allowClear showSearch optionFilterProp="label"
+          placeholder="Select position"
+          style={{ width: 320 }}
+          options={positions.map((p) => ({
+            value: p.id,
+            label: `${p.code} — ${p.title}`,
+          }))}
+          value={positionId}
+          onChange={(v) => { setPositionId(v); setRanked([]); setLoaded(false) }}
+        />
+        <Button
+          type="primary"
+          icon={<RiseOutlined />}
+          disabled={!positionId}
+          loading={loading}
+          onClick={rankEmployees}
+        >
+          Rank employees
+        </Button>
+        {loaded && (
+          <Tag color="blue">
+            {ranked.length} ranked{totalCandidates > ranked.length ? ` of ${totalCandidates} active` : ''}
+          </Tag>
+        )}
+      </Space>
+
+      {!loaded && (
+        <Typography.Text type="secondary">
+          Pick a position and rank active employees by how well their competency levels meet its
+          requirements. Define those requirements in the Position Requirements tab first.
+        </Typography.Text>
+      )}
+
+      {loaded && (
+        <Table
+          size="small"
+          rowKey="employeeId"
+          loading={loading}
+          columns={fitColumns}
+          dataSource={ranked}
+          pagination={{ pageSize: 20, hideOnSinglePage: true }}
+          locale={{ emptyText: 'No requirements defined for this position, or no active employees to rank.' }}
+        />
+      )}
+    </Card>
+  )
+}
+
 // ── Root page ────────────────────────────────────────────────────────────────
 
 export function CompetenciesPage() {
@@ -644,6 +776,11 @@ export function CompetenciesPage() {
       key: 'gap',
       label: 'Gap Analysis',
       children: <GapAnalysisTab employees={employees} />,
+    },
+    {
+      key: 'fit',
+      label: 'Position Fit',
+      children: <PositionFitTab />,
     },
     ...(canManage
       ? [

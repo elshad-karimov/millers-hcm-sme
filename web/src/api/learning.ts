@@ -240,6 +240,22 @@ export interface GapItem {
   recommendedCourses: CourseRecommendation[]
 }
 
+// Candidate-fit ranking (rebuilt on learning.position_competency_requirement)
+export interface EmployeeFitRow {
+  employeeId: string
+  employeeNo: string
+  employeeName: string
+  fitScore: number        // 0..100 (0 = a mandatory requirement is a blocking gap)
+  blockers: number        // mandatory requirements the employee cannot meet
+  majorGaps: number       // requirements short by a material margin
+}
+
+export interface PositionFitResponse {
+  positionId: string
+  totalCandidates: number
+  ranked: EmployeeFitRow[]
+}
+
 export const learningApi = {
   // Courses
   courses: (params: {
@@ -335,6 +351,11 @@ export const learningApi = {
     api.delete(`/learning/positions/${positionId}/requirements/${competencyId}`),
   gapAnalysis: (employeeId: string) =>
     api.get<GapItem[]>(`/learning/employees/${employeeId}/gap-analysis`).then((r) => r.data),
+  // Rank employees by fit against a position's competency requirements
+  positionFit: (positionId: string) =>
+    api
+      .get<PositionFitResponse>(`/learning/positions/${positionId}/fit`)
+      .then((r) => r.data),
 }
 
 // ── M157: Training Plans (§8.14.2) ───────────────────────────────────────────
