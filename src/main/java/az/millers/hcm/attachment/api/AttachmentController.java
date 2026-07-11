@@ -33,6 +33,7 @@ import az.millers.hcm.attachment.domain.Attachment;
 import az.millers.hcm.attachment.service.AttachmentService;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.selfservice.service.EmployeeContextService;
 import io.minio.GetObjectResponse;
 
 @RestController
@@ -42,14 +43,35 @@ public class AttachmentController {
     private final AttachmentService service;
     private final int presignedExpiryMinutes;
     private final CurrentRequest currentRequest;
+    private final EmployeeContextService employeeContext;
 
     public AttachmentController(
             AttachmentService service,
             @Value("${hcm.storage.minio.presigned-url-expiry-minutes:15}") int presignedExpiryMinutes,
-            CurrentRequest currentRequest) {
+            CurrentRequest currentRequest,
+            EmployeeContextService employeeContext) {
         this.service = service;
         this.presignedExpiryMinutes = presignedExpiryMinutes;
         this.currentRequest = currentRequest;
+        this.employeeContext = employeeContext;
+    }
+
+    /**
+     * Personal employee documents (owner_entity=employeedocument, e.g. mobile M502 uploads —
+     * medical certs, ID scans) are private to the owning employee. Any HR role may view.
+     * Returns true if the current caller is allowed to see this owner's employee documents.
+     */
+    private boolean canAccessEmployeeDocuments(UUID ownerId) {
+        if (currentRequest.hasRole(SecurityRoles.R_HR_ADMIN)
+                || currentRequest.hasRole(SecurityRoles.R_HR_SPECIALIST)
+                || currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN)) {
+            return true;
+        }
+        try {
+            return employeeContext.currentEmployee().getId().equals(ownerId);
+        } catch (RuntimeException noEmployee) {
+            return false;
+        }
     }
 
     /** List attachments owned by (module, entity, ownerId). */
@@ -58,6 +80,9 @@ public class AttachmentController {
     public List<AttachmentResponse> list(@RequestParam String ownerModule,
                                           @RequestParam String ownerEntity,
                                           @RequestParam UUID ownerId) {
+        if ("employeedocument".equals(ownerEntity) && !canAccessEmployeeDocuments(ownerId)) {
+            throw new ResourceNotFoundException("Attachment not found");
+        }
         return service.list(ownerModule, ownerEntity, ownerId).stream()
                 .map(AttachmentResponse::from).toList();
     }
@@ -220,6 +245,11 @@ public class AttachmentController {
                 !currentRequest.hasRole(SecurityRoles.R_SYSTEM_ADMIN)) {
                 throw new ResourceNotFoundException("Attachment not found");
             }
+        }
+
+        // Personal employee documents (medical certs, ID scans) — owner or HR only.
+        if ("employeedocument".equals(ownerEntity) && !canAccessEmployeeDocuments(attachment.getOwnerId())) {
+            throw new ResourceNotFoundException("Attachment not found");
         }
 
         // All other attachments: isAuthenticated() check already applied at method level
