@@ -25,6 +25,7 @@ import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.selfservice.service.EmployeeContextService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M448 — EHS incident management.
@@ -330,7 +331,7 @@ public class IncidentService {
                 Map.of(),
                 Long.class
         );
-        return String.format("INC-%05d", seq);
+        return BusinessNumbers.format("INC", 5, seq);
     }
 
     private void notifyForCriticalIncident(Incident incident, Employee reporter) {

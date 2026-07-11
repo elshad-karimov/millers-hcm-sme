@@ -61,6 +61,7 @@ import az.millers.hcm.timesheet.domain.TimesheetDay;
 import az.millers.hcm.timesheet.domain.TimesheetStatus;
 import az.millers.hcm.timesheet.repo.TimesheetDayRepository;
 import az.millers.hcm.timesheet.repo.TimesheetRepository;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Orchestrates the payroll calculation for one run.
@@ -418,7 +419,7 @@ public class PayrollEngine {
             r.setRunId(run.getId());
             r.setEmployeeId(employeeId);
             r.setPeriodStart(LocalDate.of(run.getPeriodYear(), run.getPeriodMonth(), 1));
-            r.setPayslipNo(String.format("PS-%06d", results.nextPayslipNoSequence()));
+            r.setPayslipNo(BusinessNumbers.format("PS", 6, results.nextPayslipNoSequence()));
             r.setTimesheetId(ts.getId());
             r.setBaseSalary(baseSalary);
             r.setWorkedHours(ts.getTotalWorkedHours());

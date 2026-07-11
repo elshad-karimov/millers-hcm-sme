@@ -34,6 +34,7 @@ import az.millers.hcm.recruitment.repo.InterviewQuestionRepository;
 import az.millers.hcm.recruitment.repo.InterviewRepository;
 import az.millers.hcm.recruitment.repo.InterviewScoreRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Interview lifecycle service (M85):
@@ -130,7 +131,7 @@ public class InterviewService {
             throw new BadRequestException("Kit not found: " + req.kitId());
         }
         Interview iv = new Interview();
-        iv.setInterviewNo(String.format("INT-%06d", interviews.nextInterviewNoSequence()));
+        iv.setInterviewNo(BusinessNumbers.format("INT", 6, interviews.nextInterviewNoSequence()));
         iv.setApplicationId(req.applicationId());
         iv.setKitId(req.kitId());
         iv.setInterviewerEmployeeId(req.interviewerEmployeeId());

@@ -29,6 +29,7 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class PayrollRunService {
@@ -132,7 +133,7 @@ public class PayrollRunService {
         }
 
         PayrollRun r = new PayrollRun();
-        r.setRunNo(String.format("PR-%05d", runs.nextRunNoSequence()));
+        r.setRunNo(BusinessNumbers.format("PR", 5, runs.nextRunNoSequence()));
         r.setPeriodYear(req.periodYear());
         r.setPeriodMonth(req.periodMonth());
         r.setJurisdiction(jurisdiction);

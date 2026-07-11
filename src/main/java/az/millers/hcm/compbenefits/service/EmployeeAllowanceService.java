@@ -18,6 +18,7 @@ import az.millers.hcm.compbenefits.repo.AllowanceTypeRepository;
 import az.millers.hcm.compbenefits.repo.EmployeeAllowanceRepository;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class EmployeeAllowanceService {
@@ -95,7 +96,7 @@ public class EmployeeAllowanceService {
         }
 
         EmployeeAllowance a = new EmployeeAllowance();
-        a.setAllowanceNo(String.format("ALW-%05d", allowances.nextNoSequence()));
+        a.setAllowanceNo(BusinessNumbers.format("ALW", 5, allowances.nextNoSequence()));
         a.setEmployeeId(req.employeeId());
         a.setAllowanceTypeId(req.allowanceTypeId());
         a.setAmount(req.amount());

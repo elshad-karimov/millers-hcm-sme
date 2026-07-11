@@ -19,6 +19,7 @@ import az.millers.hcm.staffing.domain.Position;
 import az.millers.hcm.staffing.domain.PositionStatus;
 import az.millers.hcm.staffing.domain.VacancyState;
 import az.millers.hcm.staffing.repo.PositionRepository;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class StaffingService {
@@ -67,7 +68,7 @@ public class StaffingService {
     @Transactional
     public Position create(PositionRequest req) {
         Position p = new Position();
-        p.setCode(String.format("POS-%05d", repository.nextPositionCodeSequence()));
+        p.setCode(BusinessNumbers.format("POS", 5, repository.nextPositionCodeSequence()));
         applyRequest(p, req);
         p.setOccupiedHeadcount(0);
         p.setStatus(PositionStatus.ACTIVE);

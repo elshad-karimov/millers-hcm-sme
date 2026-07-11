@@ -15,6 +15,7 @@ import az.millers.hcm.recruitment.api.dto.CandidateResponse;
 import az.millers.hcm.recruitment.domain.Candidate;
 import az.millers.hcm.recruitment.repo.CandidateRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class CandidateService {
@@ -51,7 +52,7 @@ public class CandidateService {
     @Transactional
     public Candidate create(CandidateRequest req) {
         Candidate c = new Candidate();
-        c.setCandidateNo(String.format("CAND-%05d", repository.nextNoSequence()));
+        c.setCandidateNo(BusinessNumbers.format("CAND", 5, repository.nextNoSequence()));
         c.setCreatedBy(currentRequest.username());
         c.setUpdatedBy(currentRequest.username());
         applyRequest(c, req);

@@ -23,6 +23,7 @@ import az.millers.hcm.recruitment.domain.VacancyStatus;
 import az.millers.hcm.recruitment.repo.JobPostingRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M278 — Recruitment PRD §8: Job Posting Management.
@@ -71,7 +72,7 @@ public class JobPostingService {
     public JobPosting create(UUID vacancyId, PostingRequest req) {
         Vacancy v = vacancyService.get(vacancyId);
         JobPosting p = new JobPosting();
-        p.setPostingNo(String.format("POST-%05d", postings.nextNoSequence()));
+        p.setPostingNo(BusinessNumbers.format("POST", 5, postings.nextNoSequence()));
         p.setVacancyId(vacancyId);
         p.setChannel(req.channel());
         p.setLanguage(req.language() == null || req.language().isBlank()

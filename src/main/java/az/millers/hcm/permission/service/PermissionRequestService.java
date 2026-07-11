@@ -28,6 +28,7 @@ import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class PermissionRequestService {
@@ -111,7 +112,7 @@ public class PermissionRequestService {
         }
 
         PermissionRequest r = new PermissionRequest();
-        r.setRequestNo(String.format("PR-%05d", requests.nextRequestNoSequence()));
+        r.setRequestNo(BusinessNumbers.format("PR", 5, requests.nextRequestNoSequence()));
         r.setEmployeeId(req.employeeId());
         r.setPermissionTypeId(req.permissionTypeId());
         r.setPermissionDate(req.permissionDate());

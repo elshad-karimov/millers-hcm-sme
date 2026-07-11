@@ -21,6 +21,7 @@ import java.time.Year;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M481: Reward points service — grant/redeem points, manage catalog/budgets.
@@ -331,7 +332,7 @@ public class RewardPointsService {
             new MapSqlParameterSource(),
             Long.class
         );
-        return String.format("RED-%05d", seq);
+        return BusinessNumbers.format("RED", 5, seq);
     }
 
     // ───────────────────────────── Enrichment (for controllers) ─────────────────────────────

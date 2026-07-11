@@ -21,6 +21,7 @@ import az.millers.hcm.lifecycle.domain.AssetTransfer;
 import az.millers.hcm.lifecycle.domain.AssetTransferStatus;
 import az.millers.hcm.lifecycle.repo.AssetTransferRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M457 — Asset transfer service (simple HR-approve flow → reassign asset + event history).
@@ -77,8 +78,7 @@ public class AssetTransferService {
             throw new BadRequestException("Asset must be ASSIGNED to transfer");
         }
 
-        String transferNo = "AT-" + String.format("%05d",
-                jdbc.queryForObject("SELECT nextval('lifecycle.asset_transfer_no_seq')", Map.of(), Long.class));
+        String transferNo = BusinessNumbers.format("AT", 5, jdbc.queryForObject("SELECT nextval('lifecycle.asset_transfer_no_seq')", Map.of(), Long.class));
 
         AssetTransfer transfer = new AssetTransfer();
         transfer.setTenantId(TENANT);

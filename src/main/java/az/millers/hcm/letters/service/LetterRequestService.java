@@ -26,6 +26,7 @@ import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Submit / approve / render letter requests (M77 / P2-17).
@@ -139,7 +140,7 @@ public class LetterRequestService {
         }
 
         LetterRequest r = new LetterRequest();
-        r.setRequestNo(String.format("LR-%06d", requestRepo.nextRequestNoSequence()));
+        r.setRequestNo(BusinessNumbers.format("LR", 6, requestRepo.nextRequestNoSequence()));
         r.setEmployeeId(employee.getId());
         r.setTemplateId(template.getId());
         r.setPurpose(req.purpose());

@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class MobilityService {
@@ -97,6 +98,6 @@ public class MobilityService {
     private String generateAssignmentNo() {
         Long seq = jdbc.queryForObject("SELECT nextval('mobility.assignment_seq')",
             new MapSqlParameterSource(), Long.class);
-        return String.format("IA-%05d", seq);
+        return BusinessNumbers.format("IA", 5, seq);
     }
 }

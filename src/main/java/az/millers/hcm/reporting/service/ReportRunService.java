@@ -39,6 +39,7 @@ import az.millers.hcm.reporting.repo.ReportDefinitionRepository;
 import az.millers.hcm.reporting.repo.ReportRunRepository;
 import az.millers.hcm.reporting.repo.ReportScheduleRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Executes a report and stores the generated file via MinIO + the
@@ -120,7 +121,7 @@ public class ReportRunService {
         TriggerSource src = trigger == null ? TriggerSource.MANUAL : trigger;
 
         ReportRun run = new ReportRun();
-        run.setRunNo(String.format("RPT-%05d", runs.nextNoSequence()));
+        run.setRunNo(BusinessNumbers.format("RPT", 5, runs.nextNoSequence()));
         run.setDefinitionId(definitionId);
         run.setScheduleId(scheduleId);
         run.setReportType(type);

@@ -25,6 +25,7 @@ import az.millers.hcm.selfservice.domain.ServiceRequestPriority;
 import az.millers.hcm.selfservice.domain.ServiceRequestStatus;
 import az.millers.hcm.selfservice.repo.HrAgentQueueRepository;
 import az.millers.hcm.selfservice.repo.HrServiceRequestRepository;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M429 — HR helpdesk service request system.
@@ -93,7 +94,7 @@ public class HrServiceRequestService {
         HrServiceRequest saved = repo.save(req);
 
         // Generate request number
-        String requestNo = String.format("SR-%05d", jdbc.queryForObject(
+        String requestNo = BusinessNumbers.format("SR", 5, jdbc.queryForObject(
                 "SELECT nextval('selfservice.hr_service_request_no_seq')",
                 java.util.Map.of(), Long.class));
         saved.setRequestNo(requestNo);

@@ -34,6 +34,7 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class ResignationService {
@@ -107,7 +108,7 @@ public class ResignationService {
         }
 
         ResignationRequest r = new ResignationRequest();
-        r.setResignationNo(String.format("RES-%05d", resignations.nextNoSequence()));
+        r.setResignationNo(BusinessNumbers.format("RES", 5, resignations.nextNoSequence()));
         r.setEmployeeId(req.employeeId());
         r.setResignationDate(req.resignationDate());
         r.setProposedLastWorkingDate(req.proposedLastWorkingDate());
@@ -133,7 +134,7 @@ public class ResignationService {
         saved = resignations.save(saved);
 
         OffboardingCase obCase = new OffboardingCase();
-        obCase.setCaseNo(String.format("OFB-%05d", offboardingCases.nextNoSequence()));
+        obCase.setCaseNo(BusinessNumbers.format("OFB", 5, offboardingCases.nextNoSequence()));
         obCase.setEmployeeId(req.employeeId());
         obCase.setSource(OffboardingSource.RESIGNATION);
         obCase.setResignationId(saved.getId());

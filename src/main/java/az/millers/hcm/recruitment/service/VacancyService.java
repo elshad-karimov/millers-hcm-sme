@@ -26,6 +26,7 @@ import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class VacancyService {
@@ -144,7 +145,7 @@ public class VacancyService {
         headcountGate.assertCanPostVacancy(req.positionId(), openings);
 
         Vacancy v = new Vacancy();
-        v.setVacancyNo(String.format("VAC-%05d", repository.nextNoSequence()));
+        v.setVacancyNo(BusinessNumbers.format("VAC", 5, repository.nextNoSequence()));
         v.setStatus(initial);
         v.setCreatedBy(currentRequest.username());
         v.setUpdatedBy(currentRequest.username());

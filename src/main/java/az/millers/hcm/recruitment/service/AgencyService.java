@@ -36,6 +36,7 @@ import az.millers.hcm.recruitment.repo.AgencySubmissionRepository;
 import az.millers.hcm.recruitment.repo.CandidateRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M296 — Recruitment PRD Phase F: agency master, candidate ownership
@@ -88,7 +89,7 @@ public class AgencyService {
     @Transactional
     public AgencyResponse createAgency(AgencyRequest req) {
         Agency a = new Agency();
-        a.setAgencyNo(String.format("AG-%05d", agencies.nextNoSequence()));
+        a.setAgencyNo(BusinessNumbers.format("AG", 5, agencies.nextNoSequence()));
         applyAgency(a, req);
         a.setCreatedBy(currentRequest.username());
         a.setUpdatedBy(currentRequest.username());
@@ -167,7 +168,7 @@ public class AgencyService {
         }
 
         AgencySubmission s = new AgencySubmission();
-        s.setSubmissionNo(String.format("SUB-%05d", submissions.nextNoSequence()));
+        s.setSubmissionNo(BusinessNumbers.format("SUB", 5, submissions.nextNoSequence()));
         s.setAgencyId(agency.getId());
         s.setCandidateId(cand.getId());
         s.setVacancyId(req.vacancyId());
@@ -221,7 +222,7 @@ public class AgencyService {
         if (!invoices.existsBySubmissionId(s.getId())) {
             BigDecimal fee = computeFee(agency, proposedSalary);
             AgencyInvoice inv = new AgencyInvoice();
-            inv.setInvoiceNo(String.format("INV-%05d", invoices.nextNoSequence()));
+            inv.setInvoiceNo(BusinessNumbers.format("INV", 5, invoices.nextNoSequence()));
             inv.setAgencyId(agency.getId());
             inv.setSubmissionId(s.getId());
             inv.setCandidateId(candidateId);

@@ -34,6 +34,7 @@ import az.millers.hcm.recruitment.repo.CandidateRepository;
 import az.millers.hcm.recruitment.repo.ReferralRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M295 — Recruitment PRD Phase F: employee referral program.
@@ -120,7 +121,7 @@ public class ReferralService {
             throw new BadRequestException("Vacancy not found: " + req.vacancyId());
         }
         Referral r = new Referral();
-        r.setReferralNo(String.format("REF-%05d", referrals.nextNoSequence()));
+        r.setReferralNo(BusinessNumbers.format("REF", 5, referrals.nextNoSequence()));
         r.setReferrerEmployeeId(req.referrerEmployeeId());
         r.setCandidateId(cand.getId());
         r.setVacancyId(req.vacancyId());

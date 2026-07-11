@@ -29,6 +29,7 @@ import az.millers.hcm.payroll.repo.LoanRequestRepository;
 import az.millers.hcm.payroll.repo.LoanTypeRepository;
 import az.millers.hcm.payroll.repo.PayrollLoanRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M461 — Loan request service: ESS submit → eligibility check → workflow → PayrollLoan bridge.
@@ -92,8 +93,7 @@ public class LoanRequestService {
             throw new BadRequestException("ELIGIBILITY_CHECK_FAILED: " + eligibility.notes);
         }
 
-        String requestNo = "LR-" + String.format("%05d",
-                jdbc.queryForObject("SELECT nextval('payroll.loan_request_no_seq')", Map.of(), Long.class));
+        String requestNo = BusinessNumbers.format("LR", 5, jdbc.queryForObject("SELECT nextval('payroll.loan_request_no_seq')", Map.of(), Long.class));
 
         LoanRequest request = new LoanRequest();
         request.setTenantId(TENANT);

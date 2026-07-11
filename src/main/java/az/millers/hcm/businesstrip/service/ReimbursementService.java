@@ -29,6 +29,7 @@ import az.millers.hcm.payroll.api.dto.AddBonusRequest;
 import az.millers.hcm.payroll.domain.BonusType;
 import az.millers.hcm.payroll.service.PayrollRunService;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Reimbursement batch service (M455).
@@ -113,7 +114,7 @@ public class ReimbursementService {
         // Create batch
         ReimbursementBatch batch = new ReimbursementBatch();
         batch.setTenantId("default");
-        batch.setBatchNo(String.format("RB-%05d", batches.nextBatchNoSequence()));
+        batch.setBatchNo(BusinessNumbers.format("RB", 5, batches.nextBatchNoSequence()));
         batch.setTotalAmount(total);
         batch.setCreatedBy(currentRequest.username());
         batch.setStatus(ReimbursementBatchStatus.DRAFT);

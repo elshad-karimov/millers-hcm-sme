@@ -32,6 +32,7 @@ import az.millers.hcm.leave.repo.LeaveRequestRepository;
 import az.millers.hcm.leave.repo.LeaveTypeRepository;
 import az.millers.hcm.leave.repo.UnauthorizedAbsenceConversionRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class UnauthorizedAbsenceService {
@@ -162,7 +163,7 @@ public class UnauthorizedAbsenceService {
             BigDecimal totalDays = BigDecimal.valueOf(countDates(sorted, start, end));
 
             LeaveRequest lr = new LeaveRequest();
-            lr.setRequestNo(String.format("LR-%05d", leaveRequests.nextRequestNoSequence()));
+            lr.setRequestNo(BusinessNumbers.format("LR", 5, leaveRequests.nextRequestNoSequence()));
             lr.setEmployeeId(req.employeeId());
             lr.setLeaveTypeId(req.leaveTypeId());
             lr.setStartDate(start);

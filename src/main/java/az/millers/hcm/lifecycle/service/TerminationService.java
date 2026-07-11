@@ -46,6 +46,7 @@ import az.millers.hcm.staffing.service.StaffingService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Termination service (PRD 8.11). Submits a termination request through
@@ -159,7 +160,7 @@ public class TerminationService {
         }
 
         TerminationRequest t = new TerminationRequest();
-        t.setTerminationNo(String.format("TRM-%05d", terminations.nextNoSequence()));
+        t.setTerminationNo(BusinessNumbers.format("TRM", 5, terminations.nextNoSequence()));
         t.setEmployeeId(req.employeeId());
         t.setReasonCode(req.reasonCode());
         t.setReasonDetail(req.reasonDetail());

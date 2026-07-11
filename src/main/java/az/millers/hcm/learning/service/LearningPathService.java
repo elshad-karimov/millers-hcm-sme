@@ -17,6 +17,7 @@ import az.millers.hcm.learning.domain.LearningPathCourse;
 import az.millers.hcm.learning.repo.CourseRepository;
 import az.millers.hcm.learning.repo.LearningPathCourseRepository;
 import az.millers.hcm.learning.repo.LearningPathRepository;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * CRUD for learning paths (M46) and the path-advance lookup used by
@@ -59,7 +60,7 @@ public class LearningPathService {
     @Transactional
     public LearningPathResponse create(LearningPathRequest req) {
         LearningPath p = new LearningPath();
-        p.setPathNo(String.format("PATH-%05d", paths.nextNoSequence()));
+        p.setPathNo(BusinessNumbers.format("PATH", 5, paths.nextNoSequence()));
         p.setName(req.name());
         p.setDescription(req.description());
         p.setActive(req.active());

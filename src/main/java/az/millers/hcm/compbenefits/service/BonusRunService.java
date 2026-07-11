@@ -48,6 +48,7 @@ import az.millers.hcm.performance.repo.PerformanceReviewRepository;
 import az.millers.hcm.performance.repo.ReviewCycleRepository;
 import az.millers.hcm.security.CurrentRequest;
 import org.springframework.context.ApplicationEventPublisher;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Bonus Run service (PRD 8.15.2 + 8.15.3 / M200).
@@ -159,7 +160,7 @@ public class BonusRunService {
                 .toList();
 
         BonusRun run = new BonusRun();
-        run.setRunNo(String.format("BR-%05d", runs.nextNoSequence()));
+        run.setRunNo(BusinessNumbers.format("BR", 5, runs.nextNoSequence()));
         run.setName(req.name());
         run.setCycleId(cycle.getId());
         run.setPeriodYear(req.periodYear());
@@ -228,7 +229,7 @@ public class BonusRunService {
             }
 
             BonusRunItem item = new BonusRunItem();
-            item.setItemNo(String.format("BRI-%05d", items.nextItemNoSequence()));
+            item.setItemNo(BusinessNumbers.format("BRI", 5, items.nextItemNoSequence()));
             item.setRunId(savedRun.getId());
             item.setEmployeeId(r.getEmployeeId());
             item.setReviewId(r.getId());

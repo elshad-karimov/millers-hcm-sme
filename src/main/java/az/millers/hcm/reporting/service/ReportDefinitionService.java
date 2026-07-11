@@ -15,6 +15,7 @@ import az.millers.hcm.reporting.domain.ReportFormat;
 import az.millers.hcm.reporting.domain.ReportType;
 import az.millers.hcm.reporting.repo.ReportDefinitionRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class ReportDefinitionService {
@@ -55,7 +56,7 @@ public class ReportDefinitionService {
         }
         if (type == null) throw new BadRequestException("reportType is required");
         ReportDefinition d = new ReportDefinition();
-        d.setDefinitionNo(String.format("RDF-%05d", repository.nextNoSequence()));
+        d.setDefinitionNo(BusinessNumbers.format("RDF", 5, repository.nextNoSequence()));
         d.setName(name);
         d.setReportType(type);
         d.setDefaultFormat(format == null ? ReportFormat.XLSX : format);

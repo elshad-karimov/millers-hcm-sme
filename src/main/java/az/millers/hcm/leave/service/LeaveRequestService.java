@@ -35,6 +35,7 @@ import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class LeaveRequestService {
@@ -231,7 +232,7 @@ public class LeaveRequestService {
         boolean blackoutFlag = worst == BlackoutSeverity.REQUIRES_APPROVAL;
 
         LeaveRequest r = new LeaveRequest();
-        r.setRequestNo(String.format("LR-%05d", requests.nextRequestNoSequence()));
+        r.setRequestNo(BusinessNumbers.format("LR", 5, requests.nextRequestNoSequence()));
         r.setEmployeeId(req.employeeId());
         r.setLeaveTypeId(req.leaveTypeId());
         r.setStartDate(req.startDate());

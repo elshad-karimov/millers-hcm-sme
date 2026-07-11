@@ -37,6 +37,7 @@ import az.millers.hcm.lifecycle.repo.ChecklistAssignmentRepository;
 import az.millers.hcm.lifecycle.repo.ChecklistTaskStatusRepository;
 import az.millers.hcm.lifecycle.repo.OnboardingResourceRequestRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Onboarding equipment / workspace provisioning requests (M301 — Phase B.1).
@@ -95,7 +96,7 @@ public class OnboardingResourceRequestService {
             ResourceRequestCategory.forTaskType(ts.getTaskType()).ifPresent(cat -> {
                 if (requests.existsByTaskStatusId(ts.getId())) return;
                 OnboardingResourceRequest r = new OnboardingResourceRequest();
-                r.setRequestNo(String.format("RR-%05d", requests.nextNoSequence()));
+                r.setRequestNo(BusinessNumbers.format("RR", 5, requests.nextNoSequence()));
                 r.setEmployeeId(e.employeeId());
                 r.setAssignmentId(e.assignmentId());
                 r.setTaskStatusId(ts.getId());

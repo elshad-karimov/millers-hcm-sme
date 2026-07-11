@@ -19,6 +19,7 @@ import az.millers.hcm.lifecycle.domain.EmploymentContract;
 import az.millers.hcm.lifecycle.repo.EmploymentContractRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Manages the {@link EmploymentContract} lifecycle (M64 / P1-03).
@@ -265,6 +266,6 @@ public class EmploymentContractService {
     }
 
     private String nextContractNo() {
-        return String.format("CT-%05d", repository.nextContractNoSequence());
+        return BusinessNumbers.format("CT", 5, repository.nextContractNoSequence());
     }
 }

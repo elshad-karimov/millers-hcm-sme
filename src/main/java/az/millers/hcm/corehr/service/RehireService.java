@@ -17,6 +17,7 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.service.PositionHeadcountService;
 import az.millers.hcm.staffing.service.StaffingService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Bring a previously-terminated employee back as a new row (M78 / P2-15).
@@ -81,7 +82,7 @@ public class RehireService {
         headcountGate.assertCanFill(rehirePositionId);
 
         Employee fresh = new Employee();
-        fresh.setEmployeeNo(String.format("EMP-%05d", repository.nextEmployeeNoSequence()));
+        fresh.setEmployeeNo(BusinessNumbers.format("EMP", 5, repository.nextEmployeeNoSequence()));
         fresh.setFirstName(prior.getFirstName());
         fresh.setLastName(prior.getLastName());
         fresh.setMiddleName(prior.getMiddleName());

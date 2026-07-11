@@ -34,6 +34,7 @@ import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.domain.WorkflowStatus;
 import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M432 — Employee movement requests (TRANSFER/PROMOTION). Manager initiates
@@ -121,7 +122,7 @@ public class EmployeeMovementService {
         EmployeeMovementRequest saved = repo.save(req);
 
         // Generate request number
-        String requestNo = String.format("MV-%05d", jdbc.queryForObject(
+        String requestNo = BusinessNumbers.format("MV", 5, jdbc.queryForObject(
                 "SELECT nextval('lifecycle.employee_movement_request_no_seq')",
                 java.util.Map.of(), Long.class));
         saved.setRequestNo(requestNo);

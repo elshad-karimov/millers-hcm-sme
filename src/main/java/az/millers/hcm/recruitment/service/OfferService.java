@@ -35,6 +35,7 @@ import az.millers.hcm.workflow.event.WorkflowCompletedEvent;
 import az.millers.hcm.workflow.service.WorkflowService;
 import az.millers.hcm.budgeting.service.BudgetControlService;
 import az.millers.hcm.budgeting.domain.TriggerPoint;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class OfferService {
@@ -100,7 +101,7 @@ public class OfferService {
         Offer o = offers.findByApplicationId(applicationId).orElseGet(() -> {
             Offer fresh = new Offer();
             fresh.setApplicationId(applicationId);
-            fresh.setOfferNo(String.format("OFF-%05d", offers.nextNoSequence()));
+            fresh.setOfferNo(BusinessNumbers.format("OFF", 5, offers.nextNoSequence()));
             fresh.setStatus(OfferStatus.DRAFT);
             return fresh;
         });

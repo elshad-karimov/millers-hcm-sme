@@ -41,6 +41,7 @@ import az.millers.hcm.recruitment.repo.CandidateRepository;
 import az.millers.hcm.recruitment.repo.OfferRepository;
 import az.millers.hcm.recruitment.repo.VacancyRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Pipeline lifecycle.
@@ -151,7 +152,7 @@ public class ApplicationService {
             throw new BadRequestException("Candidate not found: " + candidateId);
         }
         Application a = new Application();
-        a.setApplicationNo(String.format("APP-%05d", applications.nextNoSequence()));
+        a.setApplicationNo(BusinessNumbers.format("APP", 5, applications.nextNoSequence()));
         a.setVacancyId(vacancyId);
         a.setCandidateId(candidateId);
         a.setCurrentStage(ApplicationStage.CV_SCREENING);

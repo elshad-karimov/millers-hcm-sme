@@ -25,6 +25,7 @@ import az.millers.hcm.payroll.repo.PayrollResultRepository;
 import az.millers.hcm.payroll.repo.PayrollRunRepository;
 import az.millers.hcm.payroll.service.StatutoryCalculator.ContributionPair;
 import az.millers.hcm.payroll.service.StatutoryCalculator.IncomeTaxResult;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Creates a {@code FINAL_SETTLEMENT} payroll run when a termination is
@@ -249,7 +250,7 @@ public class FinalSettlementService {
         PayrollResult result = new PayrollResult();
         result.setRunId(savedRun.getId());
         result.setEmployeeId(employeeId);
-        result.setPayslipNo(String.format("FS-%07d", results.nextPayslipNoSequence()));
+        result.setPayslipNo(BusinessNumbers.format("FS", 7, results.nextPayslipNoSequence()));
         result.setPeriodStart(periodStart);
         result.setAllowanceAmount(unusedLeavePayout);
         result.setBonusAmount(severance);

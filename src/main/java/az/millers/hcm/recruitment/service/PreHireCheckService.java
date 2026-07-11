@@ -20,6 +20,7 @@ import az.millers.hcm.recruitment.domain.PreHireCheck;
 import az.millers.hcm.recruitment.repo.ApplicationRepository;
 import az.millers.hcm.recruitment.repo.PreHireCheckRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M286 — Recruitment PRD §25-§27: pre-hire checks.
@@ -65,7 +66,7 @@ public class PreHireCheckService {
             throw new ResourceNotFoundException("Application not found: " + applicationId);
         }
         PreHireCheck c = new PreHireCheck();
-        c.setCheckNo(String.format("CHK-%05d", checks.nextNoSequence()));
+        c.setCheckNo(BusinessNumbers.format("CHK", 5, checks.nextNoSequence()));
         c.setApplicationId(applicationId);
         c.setCheckType(req.checkType());
         c.setStatus(PreHireCheck.Status.REQUIRED);

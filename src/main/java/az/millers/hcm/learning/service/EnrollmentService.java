@@ -53,6 +53,7 @@ import az.millers.hcm.learning.repo.QuizAnswerRepository;
 import az.millers.hcm.learning.repo.QuizAttemptRepository;
 import az.millers.hcm.learning.repo.QuizQuestionRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Enrollment + quiz-attempt service (PRD 8.14).
@@ -159,7 +160,7 @@ public class EnrollmentService {
                 });
 
         Enrollment e = new Enrollment();
-        e.setEnrollmentNo(String.format("ENR-%05d", enrollments.nextNoSequence()));
+        e.setEnrollmentNo(BusinessNumbers.format("ENR", 5, enrollments.nextNoSequence()));
         e.setCourseId(req.courseId());
         e.setEmployeeId(req.employeeId());
         e.setStatus(EnrollmentStatus.ENROLLED);
@@ -316,7 +317,7 @@ public class EnrollmentService {
     private void issueCertificate(Enrollment enrollment, Course course, BigDecimal percent) {
         if (certificates.findByEnrollmentId(enrollment.getId()).isPresent()) return;
         Certificate cert = new Certificate();
-        cert.setCertificateNo(String.format("CERT-%05d", certificates.nextNoSequence()));
+        cert.setCertificateNo(BusinessNumbers.format("CERT", 5, certificates.nextNoSequence()));
         cert.setEnrollmentId(enrollment.getId());
         cert.setCourseId(course.getId());
         cert.setEmployeeId(enrollment.getEmployeeId());

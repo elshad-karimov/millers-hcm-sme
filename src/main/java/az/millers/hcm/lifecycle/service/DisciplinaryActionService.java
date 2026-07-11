@@ -28,6 +28,7 @@ import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Manages the {@link DisciplinaryAction} lifecycle (M67 / P1-12).
@@ -311,7 +312,7 @@ public class DisciplinaryActionService {
     }
 
     private String nextActionNo() {
-        return String.format("DA-%05d", repository.nextActionNoSequence());
+        return BusinessNumbers.format("DA", 5, repository.nextActionNoSequence());
     }
 
     /** Surface for callers that need a typed helper instead of magic strings. */

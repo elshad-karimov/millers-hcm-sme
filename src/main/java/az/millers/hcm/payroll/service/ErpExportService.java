@@ -29,6 +29,7 @@ import az.millers.hcm.payroll.repo.ErpExportRepository;
 import az.millers.hcm.payroll.repo.PayrollResultRepository;
 import az.millers.hcm.payroll.repo.PayrollRunRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Generates ERP payroll journal-entry export batches (M158 / §17.2).
@@ -360,6 +361,6 @@ public class ErpExportService {
 
     private String nextExportNo() {
         int next = exports.findMaxSeq() + 1;
-        return "EXP-" + String.format("%05d", next);
+        return BusinessNumbers.format("EXP", 5, next);
     }
 }

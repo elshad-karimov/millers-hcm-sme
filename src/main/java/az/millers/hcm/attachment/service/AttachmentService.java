@@ -34,6 +34,7 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Stores file attachments in MinIO (PRD 14.6 + 16.4). Each upload writes a
@@ -152,7 +153,7 @@ public class AttachmentService {
         String thumbKey = maybeStoreThumbnail(key, payload, ct);
 
         Attachment a = new Attachment();
-        a.setAttachmentNo(String.format("ATT-%05d", attachments.nextNoSequence()));
+        a.setAttachmentNo(BusinessNumbers.format("ATT", 5, attachments.nextNoSequence()));
         a.setBucket(bucket);
         a.setObjectKey(key);
         a.setThumbObjectKey(thumbKey);
@@ -251,7 +252,7 @@ public class AttachmentService {
         String thumbKey = maybeStoreThumbnail(key, payload, ct);
 
         Attachment a = new Attachment();
-        a.setAttachmentNo(String.format("ATT-%05d", attachments.nextNoSequence()));
+        a.setAttachmentNo(BusinessNumbers.format("ATT", 5, attachments.nextNoSequence()));
         a.setBucket(bucket);
         a.setObjectKey(key);
         a.setThumbObjectKey(thumbKey);

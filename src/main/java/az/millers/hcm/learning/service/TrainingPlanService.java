@@ -32,6 +32,7 @@ import az.millers.hcm.learning.repo.CourseRepository;
 import az.millers.hcm.learning.repo.TrainingPlanItemRepository;
 import az.millers.hcm.learning.repo.TrainingPlanRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Business logic for Training Plans (M157 / §8.14.2).
@@ -263,7 +264,7 @@ public class TrainingPlanService {
 
     private String nextPlanNo() {
         int next = plans.findMaxSeq() + 1;
-        return "TP-" + String.format("%05d", next);
+        return BusinessNumbers.format("TP", 5, next);
     }
 
     private List<TrainingPlanItemResponse> resolveItems(TrainingPlan p) {

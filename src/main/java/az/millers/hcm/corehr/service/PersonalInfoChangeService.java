@@ -25,6 +25,7 @@ import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Personal-info change-request service (M79 / P2-25/26).
@@ -121,7 +122,7 @@ public class PersonalInfoChangeService {
         }
 
         PersonalInfoChangeRequest r = new PersonalInfoChangeRequest();
-        r.setRequestNo(String.format("PIC-%06d", repository.nextRequestNoSequence()));
+        r.setRequestNo(BusinessNumbers.format("PIC", 6, repository.nextRequestNoSequence()));
         r.setEmployeeId(employee.getId());
         r.setFieldKey(req.fieldKey());
         r.setOldValue(oldValue);

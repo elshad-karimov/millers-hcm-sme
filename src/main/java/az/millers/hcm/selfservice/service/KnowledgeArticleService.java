@@ -16,6 +16,7 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.selfservice.domain.KnowledgeArticle;
 import az.millers.hcm.selfservice.domain.KnowledgeArticleStatus;
 import az.millers.hcm.selfservice.repo.KnowledgeArticleRepository;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M436 — Knowledge base service.
@@ -61,7 +62,7 @@ public class KnowledgeArticleService {
         KnowledgeArticle saved = repo.save(article);
 
         // Generate article number
-        String articleNo = String.format("KB-%05d", jdbc.queryForObject(
+        String articleNo = BusinessNumbers.format("KB", 5, jdbc.queryForObject(
                 "SELECT nextval('selfservice.knowledge_article_no_seq')",
                 Map.of(), Long.class));
         saved.setArticleNo(articleNo);

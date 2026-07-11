@@ -26,6 +26,7 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.staffing.service.PositionHeadcountService;
 import az.millers.hcm.staffing.service.StaffingService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class EmployeeService {
@@ -388,7 +389,7 @@ public class EmployeeService {
     }
 
     private String nextEmployeeNo() {
-        return String.format("EMP-%05d", repository.nextEmployeeNoSequence());
+        return BusinessNumbers.format("EMP", 5, repository.nextEmployeeNoSequence());
     }
 
     private record StatusSnapshot(EmploymentStatus status, String reason) {

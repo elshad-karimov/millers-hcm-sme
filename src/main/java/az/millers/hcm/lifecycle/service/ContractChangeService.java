@@ -35,6 +35,7 @@ import az.millers.hcm.staffing.service.StaffingService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Contract Change service (PRD 8.12). One service handles all change types
@@ -111,7 +112,7 @@ public class ContractChangeService {
         validatePayload(req.changeType(), req.newValue());
 
         ContractChange c = new ContractChange();
-        c.setChangeNo(String.format("CC-%05d", changes.nextNoSequence()));
+        c.setChangeNo(BusinessNumbers.format("CC", 5, changes.nextNoSequence()));
         c.setEmployeeId(employee.getId());
         c.setChangeType(req.changeType());
         c.setEffectiveDate(req.effectiveDate());

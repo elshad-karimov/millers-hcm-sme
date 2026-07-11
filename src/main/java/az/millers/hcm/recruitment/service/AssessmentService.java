@@ -19,6 +19,7 @@ import az.millers.hcm.recruitment.domain.Assessment;
 import az.millers.hcm.recruitment.repo.ApplicationRepository;
 import az.millers.hcm.recruitment.repo.AssessmentRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M287 — Recruitment PRD §22: assessment & test management. Assign a
@@ -63,7 +64,7 @@ public class AssessmentService {
             throw new BadRequestException("passingScore cannot exceed maxScore");
         }
         Assessment a = new Assessment();
-        a.setAssessmentNo(String.format("ASM-%05d", assessments.nextNoSequence()));
+        a.setAssessmentNo(BusinessNumbers.format("ASM", 5, assessments.nextNoSequence()));
         a.setApplicationId(applicationId);
         a.setAssessmentType(req.assessmentType());
         a.setName(req.name());

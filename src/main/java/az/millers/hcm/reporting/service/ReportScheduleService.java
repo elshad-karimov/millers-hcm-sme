@@ -25,6 +25,7 @@ import az.millers.hcm.reporting.domain.TriggerSource;
 import az.millers.hcm.reporting.repo.ReportDefinitionRepository;
 import az.millers.hcm.reporting.repo.ReportScheduleRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * CRUD on {@link ReportSchedule} plus a {@code @Scheduled} cron walker
@@ -77,7 +78,7 @@ public class ReportScheduleService {
                 .orElseThrow(() -> new BadRequestException("Definition not found: " + definitionId));
 
         ReportSchedule s = new ReportSchedule();
-        s.setScheduleNo(String.format("RSC-%05d", schedules.nextNoSequence()));
+        s.setScheduleNo(BusinessNumbers.format("RSC", 5, schedules.nextNoSequence()));
         s.setName(name);
         s.setDefinitionId(def.getId());
         s.setCron(cron);

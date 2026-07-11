@@ -16,6 +16,7 @@ import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.employeerelations.domain.*;
 import az.millers.hcm.employeerelations.repo.*;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M445 — ER case service.
@@ -78,7 +79,7 @@ public class ErCaseService {
         ErCase saved = caseRepo.save(erCase);
 
         // Generate case number
-        String caseNo = String.format("ER-%05d", jdbc.queryForObject(
+        String caseNo = BusinessNumbers.format("ER", 5, jdbc.queryForObject(
                 "SELECT nextval('employee_relations.er_case_no_seq')",
                 Map.of(), Long.class));
         saved.setCaseNo(caseNo);

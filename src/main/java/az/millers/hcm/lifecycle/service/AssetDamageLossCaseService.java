@@ -18,6 +18,7 @@ import az.millers.hcm.lifecycle.repo.AssetDamageLossCaseRepository;
 import az.millers.hcm.payroll.domain.PayrollDeduction;
 import az.millers.hcm.payroll.repo.PayrollDeductionRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M458 — Asset damage/loss case service. On APPROVE with deduction: create
@@ -64,8 +65,7 @@ public class AssetDamageLossCaseService {
     @Transactional
     public AssetDamageLossCase report(UUID assetId, UUID employeeId, AssetDamageLossCaseType caseType,
                                       String description, BigDecimal estimatedAmount) {
-        String caseNo = "ADL-" + String.format("%05d",
-                jdbc.queryForObject("SELECT nextval('lifecycle.asset_damage_loss_case_no_seq')", Map.of(), Long.class));
+        String caseNo = BusinessNumbers.format("ADL", 5, jdbc.queryForObject("SELECT nextval('lifecycle.asset_damage_loss_case_no_seq')", Map.of(), Long.class));
 
         AssetDamageLossCase c = new AssetDamageLossCase();
         c.setTenantId(TENANT);

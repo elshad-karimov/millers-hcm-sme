@@ -20,6 +20,7 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Mileage claim lifecycle (M453).
@@ -61,7 +62,7 @@ public class MileageClaimService {
 
         MileageClaim claim = new MileageClaim();
         claim.setTenantId("default");
-        claim.setClaimNo(String.format("MC-%05d", claims.nextClaimNoSequence()));
+        claim.setClaimNo(BusinessNumbers.format("MC", 5, claims.nextClaimNoSequence()));
         claim.setEmployeeId(employeeId);
         claim.setClaimDate(claimDate != null ? claimDate : LocalDate.now());
         claim.setVehicleType(vehicleType);

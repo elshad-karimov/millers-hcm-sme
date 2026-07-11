@@ -25,6 +25,7 @@ import az.millers.hcm.performance.domain.GoalStatus;
 import az.millers.hcm.performance.repo.GoalRepository;
 import az.millers.hcm.performance.service.GoalTreeMath.GoalRef;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M130 — orchestrates the "cascade to my report" action and the tree
@@ -77,7 +78,7 @@ public class GoalCascadeService {
         }
 
         Goal child = new Goal();
-        child.setGoalNo(String.format("GOAL-%05d", goals.nextNoSequence()));
+        child.setGoalNo(BusinessNumbers.format("GOAL", 5, goals.nextNoSequence()));
         child.setCycleId(parent.getCycleId());
         child.setEmployeeId(req.employeeId());
         child.setParentGoalId(parent.getId());

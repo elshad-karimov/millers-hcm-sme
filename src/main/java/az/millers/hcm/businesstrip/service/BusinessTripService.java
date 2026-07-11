@@ -29,6 +29,7 @@ import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class BusinessTripService {
@@ -104,7 +105,7 @@ public class BusinessTripService {
         }
 
         BusinessTripRequest t = new BusinessTripRequest();
-        t.setTripNo(String.format("BT-%05d", trips.nextTripNoSequence()));
+        t.setTripNo(BusinessNumbers.format("BT", 5, trips.nextTripNoSequence()));
         t.setEmployeeId(req.employeeId());
         t.setTripType(req.tripType());
         t.setDestinationCountry(req.destinationCountry());

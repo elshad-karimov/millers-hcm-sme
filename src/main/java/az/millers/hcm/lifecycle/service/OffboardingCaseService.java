@@ -26,6 +26,7 @@ import az.millers.hcm.lifecycle.event.OffboardingCaseActivatedEvent;
 import az.millers.hcm.lifecycle.repo.OffboardingCaseRepository;
 import az.millers.hcm.lifecycle.repo.TerminationRequestRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class OffboardingCaseService {
@@ -110,7 +111,7 @@ public class OffboardingCaseService {
         if (t == null) return;
 
         OffboardingCase c = new OffboardingCase();
-        c.setCaseNo(String.format("OFB-%05d", cases.nextNoSequence()));
+        c.setCaseNo(BusinessNumbers.format("OFB", 5, cases.nextNoSequence()));
         c.setEmployeeId(t.getEmployeeId());
         c.setSource(OffboardingSource.TERMINATION);
         c.setTerminationId(terminationId);

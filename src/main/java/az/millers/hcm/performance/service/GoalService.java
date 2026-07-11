@@ -24,6 +24,7 @@ import az.millers.hcm.performance.repo.GoalProgressUpdateRepository;
 import az.millers.hcm.performance.repo.GoalRepository;
 import az.millers.hcm.performance.repo.ReviewCycleRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class GoalService {
@@ -109,7 +110,7 @@ public class GoalService {
         validateProgress(req.progressPercent());
 
         Goal g = new Goal();
-        g.setGoalNo(String.format("GOAL-%05d", goals.nextNoSequence()));
+        g.setGoalNo(BusinessNumbers.format("GOAL", 5, goals.nextNoSequence()));
         apply(g, req);
         if (g.getStatus() == null) g.setStatus(GoalStatus.DRAFT);
         g.setCreatedBy(currentRequest.username());

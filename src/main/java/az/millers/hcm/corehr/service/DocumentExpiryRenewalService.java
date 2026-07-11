@@ -21,6 +21,7 @@ import az.millers.hcm.selfservice.domain.ServiceRequestCategory;
 import az.millers.hcm.selfservice.domain.ServiceRequestPriority;
 import az.millers.hcm.selfservice.domain.ServiceRequestStatus;
 import az.millers.hcm.selfservice.repo.HrServiceRequestRepository;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M441 — Document expiry → renewal request auto-creation.
@@ -179,6 +180,6 @@ public class DocumentExpiryRenewalService {
     private String generateRequestNo() {
         String sql = "SELECT nextval('selfservice.hr_service_request_no_seq')";
         Long seq = jdbc.queryForObject(sql, Map.of(), Long.class);
-        return String.format("HR-%06d", seq == null ? 1 : seq);
+        return BusinessNumbers.format("HR", 6, seq == null ? 1 : seq);
     }
 }

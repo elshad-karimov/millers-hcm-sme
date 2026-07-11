@@ -28,6 +28,7 @@ import az.millers.hcm.learning.repo.CourseCompetencyRepository;
 import az.millers.hcm.learning.repo.CourseRepository;
 import az.millers.hcm.learning.repo.QuizQuestionRepository;
 import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class CourseService {
@@ -85,7 +86,7 @@ public class CourseService {
             throw new BadRequestException("Course code already exists: " + req.code());
         }
         Course c = new Course();
-        c.setCourseNo(String.format("CRS-%05d", courses.nextNoSequence()));
+        c.setCourseNo(BusinessNumbers.format("CRS", 5, courses.nextNoSequence()));
         apply(c, req);
         c.setStatus(CourseStatus.DRAFT);
         c.setCreatedBy(currentRequest.username());

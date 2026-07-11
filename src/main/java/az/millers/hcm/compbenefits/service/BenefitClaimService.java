@@ -30,6 +30,7 @@ import az.millers.hcm.notifications.NotificationService;
 import az.millers.hcm.notifications.domain.NotificationCategory;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * HCM_11 M381/M382 — benefit reimbursement claims. Mirrors the ExpenseClaim state machine
@@ -147,7 +148,7 @@ public class BenefitClaimService {
         }
         BenefitClaim c = new BenefitClaim();
         c.setTenantId(TENANT);
-        c.setClaimNo(String.format("BC-%05d", claims.nextClaimSeq()));
+        c.setClaimNo(BusinessNumbers.format("BC", 5, claims.nextClaimSeq()));
         c.setEmployeeId(req.employeeId());
         c.setEnrollmentId(req.enrollmentId());
         c.setPlanId(req.planId());

@@ -24,6 +24,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * M482: Open shifts + shift swap service.
@@ -276,7 +277,7 @@ public class SchedulingService {
             new MapSqlParameterSource(),
             Long.class
         );
-        return String.format("SWP-%05d", seq);
+        return BusinessNumbers.format("SWP", 5, seq);
     }
 
     private String getEmployeeName(UUID employeeId) {

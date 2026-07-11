@@ -34,6 +34,7 @@ import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
 import az.millers.hcm.workflow.domain.WorkflowInstance;
 import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.common.BusinessNumbers;
 
 /**
  * Performance Review service (PRD 8.13.4).
@@ -108,7 +109,7 @@ public class PerformanceReviewService {
                         "Review already exists for this employee in this cycle: " + r.getReviewNo()); });
 
         PerformanceReview r = new PerformanceReview();
-        r.setReviewNo(String.format("REV-%05d", reviews.nextNoSequence()));
+        r.setReviewNo(BusinessNumbers.format("REV", 5, reviews.nextNoSequence()));
         r.setCycleId(cycle.getId());
         r.setEmployeeId(employee.getId());
         r.setManagerId(req.managerId() != null ? req.managerId() : employee.getManagerId());
