@@ -14,18 +14,18 @@
         { "code": "TRANSPORT", "kind": "EARNING", "is_taxable": false, "contribution_exempt": false, "amount": 150.00 }
       ],
       "expected": {
+        "_corrected": "Values corrected to the real AZ 2026 statutory rules (V16 + V306). The original hand-calc used a flat 14% and a 200 AZN income-tax exemption; 2026 income tax is 3% on the first bracket with NO exemption (the 200 AZN threshold is DSMF-only). Verified by StatutoryCalculatorTest.",
         "taxable_gross": 2050.00,
         "dsmf_mmi_base": 2200.00,
-        "exempt_amount": 200.00,
-        "taxable_after_exempt": 1850.00,
-        "income_tax_notes": "14% on first band (200-2500 AZN range after 200 AZN exempt) = 1850 * 0.14 = 259.00",
-        "income_tax": 259.00,
-        "dsmf_employee": 66.00,
+        "income_tax_notes": "First bracket: 3% of the full taxable gross, no exemption. 2050 * 0.03 = 61.50",
+        "income_tax": 61.50,
+        "dsmf_employee_notes": "200 * 0.03 + 2000 * 0.10 = 6.00 + 200.00",
+        "dsmf_employee": 206.00,
         "mmi_employee": 44.00,
-        "unemployment_employee": 4.40,
-        "net_before_transport": 1466.60,
+        "unemployment_employee": 11.00,
+        "net_before_transport": 1727.50,
         "transport_added_to_net": 150.00,
-        "net_pay": 1616.60
+        "net_pay": 1877.50
       }
     },
     {
