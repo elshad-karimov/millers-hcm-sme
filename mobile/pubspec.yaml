@@ -42,6 +42,15 @@ dependencies:
   cupertino_icons: ^1.0.8
   image_picker: ^1.2.3
 
+  # M496 / M508 — GPS capture for attendance clock-in + offline punch timestamps
+  geolocator: ^13.0.1
+  # M507 / M508 — lightweight local cache (offline read cache + punch queue).
+  # Non-sensitive data only; salary/payslip data is never cached (see M507).
+  shared_preferences: ^2.3.2
+
+  # M504 — tap-to-call (tel:) / tap-to-email (mailto:) from the directory.
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

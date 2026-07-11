@@ -1,7 +1,67 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import '../auth/auth_service.dart';
+import '../config/app_config.dart';
 
 /// Millers brand purple — shared across screens.
 const Color kBrandColor = Color(0xFF5B3FE5);
+
+/// Circular avatar that loads an attachment thumbnail (with the Bearer token)
+/// and falls back to the given [initials] on error / when [attachmentId] is null.
+class AttachmentAvatar extends StatelessWidget {
+  const AttachmentAvatar({
+    super.key,
+    required this.attachmentId,
+    required this.initials,
+    this.radius = 24,
+    this.background = kBrandColor,
+  });
+
+  final String? attachmentId;
+  final String initials;
+  final double radius;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = CircleAvatar(
+      radius: radius,
+      backgroundColor: background.withValues(alpha: 0.15),
+      child: Text(initials,
+          style: TextStyle(
+              color: background,
+              fontWeight: FontWeight.bold,
+              fontSize: radius * 0.6)),
+    );
+    if (attachmentId == null || attachmentId!.isEmpty) return fallback;
+
+    return FutureBuilder<String?>(
+      future: AuthService.instance.getAccessToken(),
+      builder: (context, snap) {
+        final token = snap.data;
+        if (token == null) return fallback;
+        final url =
+            '${AppConfig.apiBaseUrl}/attachments/$attachmentId/thumbnail';
+        return CircleAvatar(
+          radius: radius,
+          backgroundColor: background.withValues(alpha: 0.15),
+          child: ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: url,
+              httpHeaders: {'Authorization': 'Bearer $token'},
+              width: radius * 2,
+              height: radius * 2,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => fallback,
+              errorWidget: (_, __, ___) => fallback,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 /// Standard full-screen error state with a retry button.
 class ErrorRetry extends StatelessWidget {
@@ -74,6 +134,37 @@ class StatusPill extends StatelessWidget {
         label,
         style:
             TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// M507 — banner shown when the network call failed and cached data is served.
+class OfflineBanner extends StatelessWidget {
+  const OfflineBanner({super.key, this.cachedAt});
+
+  final DateTime? cachedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final when = cachedAt == null
+        ? ''
+        : ' · ${cachedAt!.year}-${cachedAt!.month.toString().padLeft(2, '0')}-${cachedAt!.day.toString().padLeft(2, '0')} '
+            '${cachedAt!.hour.toString().padLeft(2, '0')}:${cachedAt!.minute.toString().padLeft(2, '0')}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      color: Colors.orange.withValues(alpha: 0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 16, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('Offline — showing cached data$when',
+                style:
+                    TextStyle(fontSize: 12, color: Colors.orange.shade900)),
+          ),
+        ],
       ),
     );
   }

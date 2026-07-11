@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/self_api.dart';
+import '../config/offline_cache.dart';
 import '../models/policy.dart';
 import '../widgets/common.dart';
 
@@ -13,15 +14,16 @@ class PoliciesScreen extends StatefulWidget {
 }
 
 class _PoliciesScreenState extends State<PoliciesScreen> {
-  late Future<List<Policy>> _future;
+  late Future<Cached<List<Policy>>> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = SelfApi.instance.getPolicies();
+    _future = SelfApi.instance.getPoliciesCached();
   }
 
-  void _reload() => setState(() => _future = SelfApi.instance.getPolicies());
+  void _reload() =>
+      setState(() => _future = SelfApi.instance.getPoliciesCached());
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,7 @@ class _PoliciesScreenState extends State<PoliciesScreen> {
       body: RefreshIndicator(
         onRefresh: () async => _reload(),
         color: kBrandColor,
-        child: FutureBuilder<List<Policy>>(
+        child: FutureBuilder<Cached<List<Policy>>>(
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
@@ -47,22 +49,28 @@ class _PoliciesScreenState extends State<PoliciesScreen> {
               return ErrorRetry(
                   message: 'Failed to load policies', onRetry: _reload);
             }
-            final items = snap.data!;
-            if (items.isEmpty) {
-              return ListView(children: const [
-                SizedBox(height: 160),
-                EmptyState(
-                    icon: Icons.rule_folder_outlined,
-                    message: 'No published policies.'),
-              ]);
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length,
-              itemBuilder: (ctx, i) => _PolicyCard(
-                policy: items[i],
-                onChanged: _reload,
-              ),
+            final cached = snap.data!;
+            final items = cached.data;
+            final Widget list = items.isEmpty
+                ? ListView(children: const [
+                    SizedBox(height: 160),
+                    EmptyState(
+                        icon: Icons.rule_folder_outlined,
+                        message: 'No published policies.'),
+                  ])
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: items.length,
+                    itemBuilder: (ctx, i) => _PolicyCard(
+                      policy: items[i],
+                      onChanged: _reload,
+                    ),
+                  );
+            return Column(
+              children: [
+                if (cached.fromCache) OfflineBanner(cachedAt: cached.cachedAt),
+                Expanded(child: list),
+              ],
             );
           },
         ),

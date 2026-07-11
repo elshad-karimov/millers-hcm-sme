@@ -71,6 +71,31 @@ class LeaveRequest {
       );
 }
 
+/// M511 — a colleague that can be selected as a leave replacement.
+/// GET /api/self/peers
+class Peer {
+  final String id;
+  final String employeeNo;
+  final String firstName;
+  final String lastName;
+
+  const Peer({
+    required this.id,
+    required this.employeeNo,
+    required this.firstName,
+    required this.lastName,
+  });
+
+  String get fullName => '$firstName $lastName'.trim();
+
+  factory Peer.fromJson(Map<String, dynamic> j) => Peer(
+        id: j['id'] as String,
+        employeeNo: j['employeeNo'] as String? ?? '',
+        firstName: j['firstName'] as String? ?? '',
+        lastName: j['lastName'] as String? ?? '',
+      );
+}
+
 /// Leave type for the submission form dropdown
 class LeaveType {
   final String id;

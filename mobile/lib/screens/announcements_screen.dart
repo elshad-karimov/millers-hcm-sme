@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/self_api.dart';
+import '../config/offline_cache.dart';
 import '../models/announcement.dart';
 import '../widgets/common.dart';
 
@@ -12,16 +13,16 @@ class AnnouncementsScreen extends StatefulWidget {
 }
 
 class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
-  late Future<List<Announcement>> _future;
+  late Future<Cached<List<Announcement>>> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = SelfApi.instance.getAnnouncements();
+    _future = SelfApi.instance.getAnnouncementsCached();
   }
 
   void _reload() =>
-      setState(() => _future = SelfApi.instance.getAnnouncements());
+      setState(() => _future = SelfApi.instance.getAnnouncementsCached());
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       body: RefreshIndicator(
         onRefresh: () async => _reload(),
         color: kBrandColor,
-        child: FutureBuilder<List<Announcement>>(
+        child: FutureBuilder<Cached<List<Announcement>>>(
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
@@ -47,19 +48,25 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               return ErrorRetry(
                   message: 'Failed to load announcements', onRetry: _reload);
             }
-            final items = snap.data!;
-            if (items.isEmpty) {
-              return ListView(children: const [
-                SizedBox(height: 160),
-                EmptyState(
-                    icon: Icons.campaign_outlined,
-                    message: 'No announcements right now.'),
-              ]);
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length,
-              itemBuilder: (ctx, i) => _AnnouncementCard(item: items[i]),
+            final cached = snap.data!;
+            final items = cached.data;
+            final Widget list = items.isEmpty
+                ? ListView(children: const [
+                    SizedBox(height: 160),
+                    EmptyState(
+                        icon: Icons.campaign_outlined,
+                        message: 'No announcements right now.'),
+                  ])
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: items.length,
+                    itemBuilder: (ctx, i) => _AnnouncementCard(item: items[i]),
+                  );
+            return Column(
+              children: [
+                if (cached.fromCache) OfflineBanner(cachedAt: cached.cachedAt),
+                Expanded(child: list),
+              ],
             );
           },
         ),

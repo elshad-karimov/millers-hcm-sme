@@ -1,7 +1,11 @@
 import 'package:dio/dio.dart';
 
 import '../api/api_client.dart';
+import '../config/offline_cache.dart';
 import '../models/announcement.dart';
+import '../models/attendance.dart';
+import '../models/branding.dart';
+import '../models/directory.dart';
 import '../models/document_item.dart';
 import '../models/employee.dart';
 import '../models/hr_request.dart';
@@ -12,6 +16,7 @@ import '../models/personal_info.dart';
 import '../models/policy.dart';
 import '../models/requests.dart';
 import '../models/team.dart';
+import '../models/team_calendar.dart';
 import '../models/timesheet.dart';
 import '../models/training.dart';
 import '../models/workflow.dart';
@@ -43,20 +48,38 @@ class SelfApi {
         .toList();
   }
 
-  /// Submit a new leave request via POST /api/self/leave/submit
+  /// Submit a new leave request via POST /api/self/leave/submit.
+  /// M511: backend accepts halfDay, replacementEmployeeId and attachmentUrl.
+  /// The backend field for free-text notes is `reason` (not `notes`).
   Future<LeaveRequest> submitLeave({
     required String leaveTypeId,
     required String startDate, // yyyy-MM-dd
     required String endDate,
-    String? notes,
+    String? reason,
+    bool? halfDay,
+    String? replacementEmployeeId,
+    String? attachmentUrl,
   }) async {
     final r = await _dio.post('/self/leave/submit', data: {
       'leaveTypeId': leaveTypeId,
       'startDate': startDate,
       'endDate': endDate,
-      if (notes != null) 'notes': notes,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      if (halfDay != null) 'halfDay': halfDay,
+      if (replacementEmployeeId != null)
+        'replacementEmployeeId': replacementEmployeeId,
+      if (attachmentUrl != null && attachmentUrl.isNotEmpty)
+        'attachmentUrl': attachmentUrl,
     });
     return LeaveRequest.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  /// M511 — active colleagues that can be picked as a leave replacement.
+  Future<List<Peer>> getPeers() async {
+    final r = await _dio.get('/self/peers');
+    return (r.data as List)
+        .map((j) => Peer.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<Payslip>> getPayslips() async {
@@ -363,6 +386,266 @@ class SelfApi {
   Future<void> markAllNotificationsRead() async {
     await _dio.post('/notifications/read-all');
   }
+
+  // ── M496 / M497 / M508: Attendance clock-in + geofences ───────────────────
+
+  /// POST /api/self/attendance/punch — record an IN/OUT punch.
+  /// [offlineQueueId] makes replay idempotent (M508).
+  Future<PunchResult> punch({
+    required String type, // 'IN' | 'OUT'
+    required String timestamp, // ISO-8601 with offset
+    double? latitude,
+    double? longitude,
+    double? gpsAccuracy,
+    String? deviceId,
+    String? offlineQueueId,
+  }) async {
+    final r = await _dio.post('/self/attendance/punch', data: {
+      'type': type,
+      'timestamp': timestamp,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (gpsAccuracy != null) 'gpsAccuracy': gpsAccuracy,
+      if (deviceId != null) 'deviceId': deviceId,
+      if (offlineQueueId != null) 'offlineQueueId': offlineQueueId,
+    });
+    return PunchResult.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  /// GET /api/self/attendance/geofences
+  Future<GeofenceConfig> getGeofences() async {
+    final r = await _dio.get('/self/attendance/geofences');
+    return GeofenceConfig.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  /// GET /api/self/attendance/summaries?from=&to=
+  Future<List<DailySummary>> getAttendanceSummaries({
+    required String from, // yyyy-MM-dd
+    required String to,
+  }) async {
+    final r = await _dio.get('/self/attendance/summaries',
+        queryParameters: {'from': from, 'to': to});
+    return (r.data as List)
+        .map((j) => DailySummary.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── M498: Attendance corrections + overtime requests ──────────────────────
+
+  Future<List<AttendanceCorrection>> getCorrections() async {
+    final r = await _dio.get('/self/attendance/corrections');
+    return (r.data as List)
+        .map((j) => AttendanceCorrection.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<AttendanceCorrection> submitCorrection({
+    required String employeeId,
+    required String workDate, // yyyy-MM-dd
+    String? requestedClockIn, // ISO
+    String? requestedClockOut, // ISO
+    String? requestedStatus,
+    String correctionType = 'CLOCK_TIME',
+    String? reason,
+  }) async {
+    final r = await _dio.post('/self/attendance/corrections', data: {
+      'employeeId': employeeId,
+      'workDate': workDate,
+      if (requestedClockIn != null) 'requestedClockIn': requestedClockIn,
+      if (requestedClockOut != null) 'requestedClockOut': requestedClockOut,
+      if (requestedStatus != null) 'requestedStatus': requestedStatus,
+      'correctionType': correctionType,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      'absenceStatusChanged': false,
+      'overtimeDeltaMinutes': 0,
+    });
+    return AttendanceCorrection.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<List<OvertimeRequestItem>> getOvertimeRequests() async {
+    final r = await _dio.get('/self/attendance/overtime-requests');
+    return (r.data as List)
+        .map((j) => OvertimeRequestItem.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<OvertimeRequestItem> submitOvertime({
+    required String employeeId,
+    required String workDate,
+    required String otStart, // ISO
+    required String otEnd, // ISO
+    String? reason,
+  }) async {
+    final r = await _dio.post('/self/attendance/overtime-requests', data: {
+      'employeeId': employeeId,
+      'workDate': workDate,
+      'otStart': otStart,
+      'otEnd': otEnd,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      'preApproved': false,
+    });
+    return OvertimeRequestItem.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  // ── M504: Employee directory ──────────────────────────────────────────────
+
+  Future<List<DirectoryEntry>> searchDirectory(String query) async {
+    final r = await _dio.get('/self/directory',
+        queryParameters: {'q': query});
+    return (r.data as List)
+        .map((j) => DirectoryEntry.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── M505b: Mobile branding ────────────────────────────────────────────────
+
+  Future<MobileBranding> getMobileBranding() async {
+    final r = await _dio.get('/config/mobile-branding');
+    return MobileBranding.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  // ── M510: Team calendar (manager) ─────────────────────────────────────────
+
+  Future<TeamCalendar> getTeamCalendar({String? windowStart, String? windowEnd}) async {
+    final r = await _dio.get('/self/team-calendar', queryParameters: {
+      if (windowStart != null) 'windowStart': windowStart,
+      if (windowEnd != null) 'windowEnd': windowEnd,
+    });
+    return TeamCalendar.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  // ── M512: Bulk workflow approvals ─────────────────────────────────────────
+
+  /// POST /api/workflow/bulk-act. Returns a per-item result: {id, ok, error?}.
+  Future<List<BulkActionResult>> bulkAct({
+    required List<String> instanceIds,
+    required String action, // APPROVE | REJECT
+    String? comment,
+  }) async {
+    final r = await _dio.post('/workflow/bulk-act', data: {
+      'instanceIds': instanceIds,
+      'action': action,
+      if (comment != null && comment.isNotEmpty) 'comment': comment,
+    });
+    return (r.data as List)
+        .map((j) => BulkActionResult.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── M507: Offline read cache (non-sensitive data only) ────────────────────
+  //
+  // Each of these tries the network first and writes-through to the local
+  // cache on success; on a network failure it serves the last cached copy and
+  // marks the result `fromCache` so the UI can show an "offline" banner.
+  // Payslip / salary data is deliberately NOT cached here.
+
+  Future<Cached<Employee>> getProfileCached() async {
+    try {
+      final r = await _dio.get('/self/employee');
+      final map = r.data as Map<String, dynamic>;
+      await OfflineCache.instance.saveJson('profile', map);
+      return Cached(Employee.fromJson(map));
+    } catch (e) {
+      final env = await OfflineCache.instance.readJson('profile');
+      if (env?.data is Map) {
+        return Cached(
+          Employee.fromJson(Map<String, dynamic>.from(env!.data as Map)),
+          fromCache: true,
+          cachedAt: env.cachedAt,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<Cached<List<LeaveBalance>>> getLeaveBalancesCached({int? year}) async {
+    final key = 'leave_balances_${year ?? 'current'}';
+    try {
+      final r = await _dio.get('/self/leave-balances',
+          queryParameters: year != null ? {'year': year} : null);
+      final list = r.data as List;
+      await OfflineCache.instance.saveJson(key, list);
+      return Cached(list
+          .map((j) => LeaveBalance.fromJson(j as Map<String, dynamic>))
+          .toList());
+    } catch (e) {
+      final env = await OfflineCache.instance.readJson(key);
+      if (env?.data is List) {
+        return Cached(
+          (env!.data as List)
+              .map((j) =>
+                  LeaveBalance.fromJson(Map<String, dynamic>.from(j as Map)))
+              .toList(),
+          fromCache: true,
+          cachedAt: env.cachedAt,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<Cached<List<Announcement>>> getAnnouncementsCached() async {
+    try {
+      final r = await _dio.get('/self/announcements');
+      final list = r.data as List;
+      await OfflineCache.instance.saveJson('announcements', list);
+      return Cached(list
+          .map((j) => Announcement.fromJson(j as Map<String, dynamic>))
+          .toList());
+    } catch (e) {
+      final env = await OfflineCache.instance.readJson('announcements');
+      if (env?.data is List) {
+        return Cached(
+          (env!.data as List)
+              .map((j) =>
+                  Announcement.fromJson(Map<String, dynamic>.from(j as Map)))
+              .toList(),
+          fromCache: true,
+          cachedAt: env.cachedAt,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<Cached<List<Policy>>> getPoliciesCached() async {
+    try {
+      final r = await _dio.get('/self/policies');
+      final list = r.data as List;
+      await OfflineCache.instance.saveJson('policies', list);
+      return Cached(list
+          .map((j) => Policy.fromSelfView(j as Map<String, dynamic>))
+          .toList());
+    } catch (e) {
+      final env = await OfflineCache.instance.readJson('policies');
+      if (env?.data is List) {
+        return Cached(
+          (env!.data as List)
+              .map((j) =>
+                  Policy.fromSelfView(Map<String, dynamic>.from(j as Map)))
+              .toList(),
+          fromCache: true,
+          cachedAt: env.cachedAt,
+        );
+      }
+      rethrow;
+    }
+  }
+}
+
+/// M512 — one line of a bulk-action result.
+class BulkActionResult {
+  final String id;
+  final bool ok;
+  final String? error;
+
+  const BulkActionResult({required this.id, required this.ok, this.error});
+
+  factory BulkActionResult.fromJson(Map<String, dynamic> j) => BulkActionResult(
+        id: j['id']?.toString() ?? '',
+        ok: j['ok'] as bool? ?? false,
+        error: j['error'] as String?,
+      );
 }
 
 /// Permission type lookup.

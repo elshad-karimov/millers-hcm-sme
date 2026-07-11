@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'auth/auth_service.dart';
-import 'config/app_config.dart';
+import 'config/branding_service.dart';
 import 'config/settings_service.dart';
 import 'notifications/push_service.dart';
 import 'screens/home_screen.dart';
@@ -40,49 +40,55 @@ class MillersHcmApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // M505b — theme reacts to both the language toggle and the fetched branding.
     return ValueListenableBuilder<Locale>(
       valueListenable: SettingsService.instance.locale,
       builder: (context, locale, _) {
-        return MaterialApp(
-          title: 'Millers HCM',
-          debugShowCheckedModeBanner: false,
-          locale: locale,
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [Locale('en'), Locale('az')],
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(AppConfig.brandColorValue),
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-            fontFamily: 'Roboto',
-            appBarTheme: const AppBarTheme(
-              centerTitle: true,
-              elevation: 0,
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+        return ValueListenableBuilder<BrandingState>(
+          valueListenable: BrandingService.instance.state,
+          builder: (context, branding, _) {
+            return MaterialApp(
+              title: branding.appName,
+              debugShowCheckedModeBanner: false,
+              locale: locale,
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [Locale('en'), Locale('az')],
+              theme: ThemeData(
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: branding.color,
+                  brightness: Brightness.light,
+                ),
+                useMaterial3: true,
+                fontFamily: 'Roboto',
+                appBarTheme: const AppBarTheme(
+                  centerTitle: true,
+                  elevation: 0,
+                ),
+                elevatedButtonTheme: ElevatedButtonThemeData(
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                cardTheme: CardThemeData(
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            cardTheme: CardThemeData(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          home: const _AppGate(),
-          routes: {
-            '/login': (_) => const LoginScreen(),
-            '/home': (_) => const HomeScreen(),
+              home: const _AppGate(),
+              routes: {
+                '/login': (_) => const LoginScreen(),
+                '/home': (_) => const HomeScreen(),
+              },
+            );
           },
         );
       },
