@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../api/self_api.dart';
+import '../config/offline_cache.dart';
+import '../models/employee.dart';
 import '../models/leave.dart';
+import '../widgets/common.dart';
 
 const Color brandColor = Color(0xFF5B3FE5);
 
@@ -58,8 +62,8 @@ class _BalancesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<LeaveBalance>>(
-      future: SelfApi.instance.getLeaveBalances(),
+    return FutureBuilder<Cached<List<LeaveBalance>>>(
+      future: SelfApi.instance.getLeaveBalancesCached(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -70,14 +74,23 @@ class _BalancesTab extends StatelessWidget {
             onRetry: () => (context as Element).markNeedsBuild(),
           );
         }
-        final balances = snap.data!;
+        final cached = snap.data!;
+        final balances = cached.data;
         if (balances.isEmpty) {
           return const Center(child: Text('No leave balances found.'));
         }
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: balances.length,
-          itemBuilder: (context, i) => _BalanceCard(balance: balances[i]),
+        return Column(
+          children: [
+            if (cached.fromCache) OfflineBanner(cachedAt: cached.cachedAt),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: balances.length,
+                itemBuilder: (context, i) =>
+                    _BalanceCard(balance: balances[i]),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -320,10 +333,21 @@ class _SubmitLeaveSheetState extends State<_SubmitLeaveSheet> {
   List<LeaveType>? _leaveTypes;
   String? _typesError;
 
+  // M511 — half-day, replacement picker, attachment upload.
+  bool _halfDay = false;
+  List<Peer> _peers = [];
+  Peer? _replacement;
+  Employee? _me;
+  String? _attachmentId;
+  String? _attachmentName;
+  bool _uploading = false;
+
   @override
   void initState() {
     super.initState();
     _loadLeaveTypes();
+    _loadPeers();
+    _loadProfile();
   }
 
   @override
@@ -338,6 +362,61 @@ class _SubmitLeaveSheetState extends State<_SubmitLeaveSheet> {
       if (mounted) setState(() => _leaveTypes = types);
     } catch (e) {
       if (mounted) setState(() => _typesError = e.toString());
+    }
+  }
+
+  Future<void> _loadPeers() async {
+    try {
+      final peers = await SelfApi.instance.getPeers();
+      if (mounted) setState(() => _peers = peers);
+    } catch (_) {/* replacement picker is optional */}
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final me = await SelfApi.instance.getProfile();
+      if (mounted) setState(() => _me = me);
+    } catch (_) {/* needed only for attachment owner */}
+  }
+
+  bool get _isSingleDay =>
+      _startDate != null &&
+      _endDate != null &&
+      _startDate!.year == _endDate!.year &&
+      _startDate!.month == _endDate!.month &&
+      _startDate!.day == _endDate!.day;
+
+  Future<void> _pickAttachment() async {
+    if (_me == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Still loading profile, try again')));
+      return;
+    }
+    final picker = ImagePicker();
+    final file =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (file == null) return;
+    setState(() => _uploading = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final doc = await SelfApi.instance.uploadDocument(
+        employeeId: _me!.id,
+        bytes: bytes,
+        filename: file.name,
+        contentType: file.mimeType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _attachmentId = doc.id;
+        _attachmentName = doc.originalFilename ?? file.name;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Upload failed: $e'),
+          backgroundColor: Colors.red.shade700));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
@@ -391,9 +470,12 @@ class _SubmitLeaveSheetState extends State<_SubmitLeaveSheet> {
         leaveTypeId: _selectedType!.id,
         startDate: _fmt(_startDate),
         endDate: _fmt(_endDate),
-        notes: _notesController.text.trim().isEmpty
+        reason: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
+        halfDay: _isSingleDay && _halfDay ? true : null,
+        replacementEmployeeId: _replacement?.id,
+        attachmentUrl: _attachmentId,
       );
       if (!mounted) return;
       Navigator.pop(context);
@@ -511,6 +593,81 @@ class _SubmitLeaveSheetState extends State<_SubmitLeaveSheet> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            // M511 — half-day toggle (only meaningful for a single-day request).
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              activeThumbColor: brandColor,
+              title: const Text('Half day'),
+              subtitle: Text(
+                _isSingleDay
+                    ? 'Request half of a single day'
+                    : 'Select the same start & end date to enable',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+              value: _isSingleDay && _halfDay,
+              onChanged: _isSingleDay
+                  ? (v) => setState(() => _halfDay = v)
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            // M511 — replacement-employee picker (optional).
+            DropdownButtonFormField<Peer>(
+              initialValue: _replacement,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Replacement (optional)',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                prefixIcon: const Icon(Icons.people_alt_outlined),
+              ),
+              items: [
+                const DropdownMenuItem<Peer>(
+                    value: null, child: Text('None')),
+                ..._peers.map((p) => DropdownMenuItem(
+                    value: p,
+                    child: Text('${p.fullName} (${p.employeeNo})',
+                        overflow: TextOverflow.ellipsis))),
+              ],
+              onChanged: (v) => setState(() => _replacement = v),
+            ),
+            const SizedBox(height: 14),
+            // M511 — attachment upload (optional; required by some leave types).
+            OutlinedButton.icon(
+              onPressed: _uploading ? null : _pickAttachment,
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(
+                      _attachmentId == null
+                          ? Icons.attach_file_outlined
+                          : Icons.check_circle_outline,
+                      size: 18),
+              label: Text(_attachmentName ?? 'Attach document'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor:
+                    _attachmentId == null ? Colors.grey.shade700 : brandColor,
+                alignment: Alignment.centerLeft,
+                minimumSize: const Size.fromHeight(48),
+                side: BorderSide(color: Colors.grey.shade300),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            if (_attachmentId != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => setState(() {
+                    _attachmentId = null;
+                    _attachmentName = null;
+                  }),
+                  icon: const Icon(Icons.close, size: 14),
+                  label: const Text('Remove'),
+                ),
+              ),
             const SizedBox(height: 14),
             // Notes
             TextFormField(
