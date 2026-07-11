@@ -43,4 +43,39 @@ class BiometricService {
       return false;
     }
   }
+
+  /// M509 — authenticate for a sensitive action, allowing the device PIN /
+  /// pattern / password to be used when biometrics are unavailable or fail
+  /// (`biometricOnly: false`). Falls back to a plain prompt on devices with no
+  /// secured lock screen.
+  Future<bool> authenticateSensitive(String reason) async {
+    try {
+      return await _auth.authenticate(
+        localizedReason: reason,
+        options: const AuthenticationOptions(
+          biometricOnly: false, // allow device credential (PIN/pattern/password)
+          stickyAuth: true,
+        ),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+/// M509 — remembers when the user last re-authenticated to view payslip amounts,
+/// so re-auth is required at most once per [_validity] window.
+class ReauthGate {
+  ReauthGate._();
+  static final ReauthGate payslip = ReauthGate._();
+
+  static const _validity = Duration(minutes: 5);
+  DateTime? _lastAuth;
+
+  bool get isValid =>
+      _lastAuth != null && DateTime.now().difference(_lastAuth!) < _validity;
+
+  void markAuthenticated() => _lastAuth = DateTime.now();
+
+  void invalidate() => _lastAuth = null;
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/self_api.dart';
+import '../auth/biometric_service.dart';
+import '../config/secure_screen.dart';
 import '../models/workflow.dart';
 
 const Color brandColor = Color(0xFF5B3FE5);
@@ -14,10 +16,47 @@ class PayslipScreen extends StatefulWidget {
 class _PayslipScreenState extends State<PayslipScreen> {
   late Future<List<Payslip>> _future;
 
+  // M509 — re-auth gate before payslip amounts are shown.
+  bool _unlocked = false;
+  bool _authInProgress = false;
+  String? _authError;
+
   @override
   void initState() {
     super.initState();
     _future = SelfApi.instance.getPayslips();
+    // Block screenshots / screen recording while payslip amounts are on screen.
+    SecureScreen.enable();
+    _unlocked = ReauthGate.payslip.isValid;
+    if (!_unlocked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _authenticate());
+    }
+  }
+
+  @override
+  void dispose() {
+    SecureScreen.disable();
+    super.dispose();
+  }
+
+  Future<void> _authenticate() async {
+    if (_authInProgress) return;
+    setState(() {
+      _authInProgress = true;
+      _authError = null;
+    });
+    final ok = await BiometricService.instance
+        .authenticateSensitive('Verify it\'s you to view payslip amounts');
+    if (!mounted) return;
+    setState(() {
+      _authInProgress = false;
+      if (ok) {
+        ReauthGate.payslip.markAuthenticated();
+        _unlocked = true;
+      } else {
+        _authError = 'Authentication required to view payslips.';
+      }
+    });
   }
 
   void _reload() => setState(() => _future = SelfApi.instance.getPayslips());
@@ -31,14 +70,57 @@ class _PayslipScreenState extends State<PayslipScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: brandColor),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_outlined),
-            onPressed: _reload,
-            tooltip: 'Refresh',
-          ),
+          if (_unlocked)
+            IconButton(
+              icon: const Icon(Icons.refresh_outlined),
+              onPressed: _reload,
+              tooltip: 'Refresh',
+            ),
         ],
       ),
-      body: FutureBuilder<List<Payslip>>(
+      body: _unlocked ? _payslipList() : _lockView(),
+    );
+  }
+
+  Widget _lockView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline, size: 56, color: brandColor),
+            const SizedBox(height: 16),
+            const Text('Payslips are protected',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(
+              _authError ??
+                  'Verify your identity to view your salary details.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _authInProgress ? null : _authenticate,
+              icon: _authInProgress
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.fingerprint),
+              label: const Text('Unlock'),
+              style: FilledButton.styleFrom(backgroundColor: brandColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _payslipList() {
+    return FutureBuilder<List<Payslip>>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
@@ -72,8 +154,7 @@ class _PayslipScreenState extends State<PayslipScreen> {
                 _PayslipExpansionTile(payslip: payslips[i]),
           );
         },
-      ),
-    );
+      );
   }
 }
 
