@@ -43,7 +43,8 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class LeaveEncashmentService {
 
-    private static final int DEFAULT_WORKING_DAYS = 22;
+    private static final int DEFAULT_WORKING_DAYS =
+            az.millers.hcm.common.LeaveDayValuation.DEFAULT_WORKING_DAYS_PER_MONTH;
 
     private static final String MODULE = "LEAVE";
 
@@ -121,7 +122,7 @@ public class LeaveEncashmentService {
                 .map(c -> c.getMonthlyBaseSalary())
                 .orElse(BigDecimal.ZERO);
 
-        BigDecimal dailyRate = salary.divide(BigDecimal.valueOf(DEFAULT_WORKING_DAYS), 4, RoundingMode.HALF_UP);
+        BigDecimal dailyRate = az.millers.hcm.common.LeaveDayValuation.dailyRate(salary, DEFAULT_WORKING_DAYS);
         BigDecimal amount = dailyRate.multiply(days).setScale(2, RoundingMode.HALF_UP);
 
         // Debit the leave balance via adjustment (negative delta) — not commit() which is for approvals

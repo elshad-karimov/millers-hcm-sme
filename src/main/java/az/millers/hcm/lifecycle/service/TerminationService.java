@@ -60,7 +60,11 @@ public class TerminationService {
     public static final String WORKFLOW_DEFINITION = "TERMINATION_APPROVAL";
     private static final String MODULE = "LIFECYCLE";
     private static final String ENTITY = "TerminationRequest";
-    private static final BigDecimal AVG_DAYS_PER_MONTH = new BigDecimal("21.67");
+    // Days per month for valuing leave/severance. Standardised on the shared
+    // LeaveDayValuation constant (22) so the unused-leave daily rate matches the
+    // leave module and the severance "1 month" length stays coupled to it.
+    private static final BigDecimal AVG_DAYS_PER_MONTH =
+            BigDecimal.valueOf(az.millers.hcm.common.LeaveDayValuation.DEFAULT_WORKING_DAYS_PER_MONTH);
 
     private static final Logger log = LoggerFactory.getLogger(TerminationService.class);
 
@@ -264,9 +268,7 @@ public class TerminationService {
                 .orElse(null);
         BigDecimal monthlyBase = comp == null ? BigDecimal.ZERO : comp.getMonthlyBaseSalary();
         String currency = comp == null ? "AZN" : comp.getCurrency();
-        BigDecimal dailyRate = monthlyBase.signum() > 0
-                ? monthlyBase.divide(AVG_DAYS_PER_MONTH, 4, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal dailyRate = az.millers.hcm.common.LeaveDayValuation.dailyRate(monthlyBase);
 
         int year = t.getEffectiveDate().getYear();
         BigDecimal unusedAnnualDays = computeUnusedAnnualDays(employee.getId(), year, calcDetails);

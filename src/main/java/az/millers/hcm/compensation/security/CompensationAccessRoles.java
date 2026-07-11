@@ -1,9 +1,5 @@
 package az.millers.hcm.compensation.security;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 /**
  * Compensation salary-visibility helper (single source of truth for salary masking) —
  * mirrors {@code payroll.security.PayrollAccessRoles}. HR_SPECIALIST (and any other role
@@ -21,20 +17,8 @@ public final class CompensationAccessRoles {
      *         user also holds HR_SPECIALIST, so scan every authority before masking.
      */
     public static boolean canSeeSalaryAmounts() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) {
-            return false;
-        }
-        for (GrantedAuthority ga : auth.getAuthorities()) {
-            String role = ga.getAuthority();
-            if (role.equals("ROLE_SYSTEM_ADMIN")
-                    || role.equals("ROLE_HR_ADMIN")
-                    || role.equals("ROLE_PAYROLL_SPECIALIST")
-                    || role.equals("ROLE_COMPENSATION_MANAGER")
-                    || role.equals("ROLE_AUDITOR")) {
-                return true;
-            }
-        }
-        return false; // HR_SPECIALIST, FINANCE_USER, managers, employees → masked
+        // Delegates to the unified predicate so compensation and payroll DTOs
+        // mask salary identically (canonical set incl. COMPENSATION_MANAGER).
+        return az.millers.hcm.security.SalaryVisibility.canSeeSalaryAmounts();
     }
 }

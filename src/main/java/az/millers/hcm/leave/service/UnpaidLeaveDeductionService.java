@@ -37,7 +37,8 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class UnpaidLeaveDeductionService {
 
-    private static final int DEFAULT_WORKING_DAYS = 22;
+    private static final int DEFAULT_WORKING_DAYS =
+            az.millers.hcm.common.LeaveDayValuation.DEFAULT_WORKING_DAYS_PER_MONTH;
     private static final String DEDUCTION_TYPE = "UNPAID_LEAVE";
 
     private static final String MODULE = "LEAVE";
@@ -109,7 +110,7 @@ public class UnpaidLeaveDeductionService {
             }
 
             BigDecimal days = req.getTotalDays() != null ? req.getTotalDays() : BigDecimal.ONE;
-            BigDecimal dailyRate = salary.divide(BigDecimal.valueOf(finalWorkingDays), 4, RoundingMode.HALF_UP);
+            BigDecimal dailyRate = az.millers.hcm.common.LeaveDayValuation.dailyRate(salary, finalWorkingDays);
             BigDecimal amount = dailyRate.multiply(days).setScale(2, RoundingMode.HALF_UP);
 
             PayrollDeduction d = new PayrollDeduction();

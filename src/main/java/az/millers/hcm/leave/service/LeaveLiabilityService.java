@@ -28,7 +28,8 @@ import az.millers.hcm.payroll.repo.EmployeeCompensationRepository;
 @Service
 public class LeaveLiabilityService {
 
-    private static final int DEFAULT_WORKING_DAYS = 22;
+    private static final int DEFAULT_WORKING_DAYS =
+            az.millers.hcm.common.LeaveDayValuation.DEFAULT_WORKING_DAYS_PER_MONTH;
 
     private final LeaveBalanceRepository balances;
     private final LeaveTypeRepository types;
@@ -93,7 +94,7 @@ public class LeaveLiabilityService {
                     .map(EmployeeCompensation::getMonthlyBaseSalary)
                     .orElse(BigDecimal.ZERO);
 
-            BigDecimal dailyRate = monthlySalary.divide(BigDecimal.valueOf(wdpm), 4, RoundingMode.HALF_UP);
+            BigDecimal dailyRate = az.millers.hcm.common.LeaveDayValuation.dailyRate(monthlySalary, wdpm);
             BigDecimal liability = remaining.multiply(dailyRate).setScale(2, RoundingMode.HALF_UP);
 
             rows.add(new LeaveLiabilityRow(
