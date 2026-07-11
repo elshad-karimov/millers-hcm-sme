@@ -131,7 +131,7 @@ class BenefitsServiceTest {
                                     LocalDate from, LocalDate to) {
         return new PlanRequest(
                 "TEST", "Test plan", null, BenefitType.HEALTH,
-                "Acme", null, null,
+                null, null, "Acme", null, null, null,
                 employer, employee, "AZN",
                 from, to, true);
     }
