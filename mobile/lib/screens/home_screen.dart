@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import '../api/self_api.dart';
 import '../models/employee.dart';
 import '../models/workflow.dart';
+import 'announcements_screen.dart';
+import 'documents_screen.dart';
+import 'hr_requests_screen.dart';
 import 'leave_screen.dart';
+import 'notifications_screen.dart';
 import 'payslip_screen.dart';
 import 'approvals_screen.dart';
+import 'policies_screen.dart';
 import 'profile_screen.dart';
 import 'timesheet_screen.dart';
 import 'training_screen.dart';
 import 'requests_screen.dart';
 import 'goals_screen.dart';
-import 'team_screen.dart';
 
 const Color brandColor = Color(0xFF5B3FE5);
 
@@ -125,6 +129,7 @@ class _HomeTab extends StatelessWidget {
                   fontWeight: FontWeight.bold, color: brandColor, fontSize: 20),
             ),
             actions: [
+              const _NotificationBell(),
               IconButton(
                 icon: const Icon(Icons.account_circle_outlined),
                 onPressed: () => Navigator.push(
@@ -327,6 +332,63 @@ class _HomeTabContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.campaign_rounded,
+                  label: 'Announcements',
+                  color: Colors.deepOrange.shade600,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const AnnouncementsScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.rule_folder_rounded,
+                  label: 'Policies',
+                  color: Colors.blue.shade700,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PoliciesScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.support_agent_rounded,
+                  label: 'HR Requests',
+                  color: Colors.pink.shade600,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HrRequestsScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.folder_shared_rounded,
+                  label: 'Documents',
+                  color: Colors.brown.shade600,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           if (employee.department != null || employee.position != null)
             Card(
               elevation: 0,
@@ -427,6 +489,49 @@ class _QuickActionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// App-bar notification bell with an unread-count badge (M505).
+class _NotificationBell extends StatefulWidget {
+  const _NotificationBell();
+
+  @override
+  State<_NotificationBell> createState() => _NotificationBellState();
+}
+
+class _NotificationBellState extends State<_NotificationBell> {
+  int _unread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCount();
+  }
+
+  void _loadCount() {
+    SelfApi.instance.getUnreadNotificationCount().then((c) {
+      if (mounted) setState(() => _unread = c);
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Badge(
+        isLabelVisible: _unread > 0,
+        label: Text('$_unread'),
+        child: const Icon(Icons.notifications_outlined),
+      ),
+      tooltip: 'Notifications',
+      onPressed: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+        );
+        _loadCount();
+      },
     );
   }
 }
