@@ -2,6 +2,7 @@ package az.millers.hcm.attendance.repo;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -21,4 +22,9 @@ public interface AttendanceEventRepository extends JpaRepository<AttendanceEvent
 
     Page<AttendanceEvent> findByEmployeeIdAndEventTimeBetween(
             UUID employeeId, OffsetDateTime from, OffsetDateTime to, Pageable pageable);
+
+    /** M495 — Mobile offline queue deduplication. */
+    boolean existsByOfflineQueueId(String offlineQueueId);
+
+    Optional<AttendanceEvent> findByOfflineQueueId(String offlineQueueId);
 }

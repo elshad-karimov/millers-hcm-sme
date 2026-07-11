@@ -48,6 +48,10 @@ public class AttendanceEvent {
     @Column(name = "imported_at", nullable = false, updatable = false)
     private OffsetDateTime importedAt;
 
+    /** M495 — Mobile offline queue deduplication key. */
+    @Column(name = "offline_queue_id", length = 120)
+    private String offlineQueueId;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
