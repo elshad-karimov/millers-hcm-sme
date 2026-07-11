@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import '../api/self_api.dart';
+import '../config/branding_service.dart';
+import '../config/offline_cache.dart';
 import '../models/employee.dart';
+import '../models/team_calendar.dart';
 import '../models/workflow.dart';
+import '../widgets/common.dart';
 import 'announcements_screen.dart';
+import 'attendance_screen.dart';
+import 'directory_screen.dart';
 import 'documents_screen.dart';
 import 'hr_requests_screen.dart';
 import 'leave_screen.dart';
@@ -11,6 +17,7 @@ import 'payslip_screen.dart';
 import 'approvals_screen.dart';
 import 'policies_screen.dart';
 import 'profile_screen.dart';
+import 'team_calendar_screen.dart';
 import 'timesheet_screen.dart';
 import 'training_screen.dart';
 import 'requests_screen.dart';
@@ -36,6 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadApprovalCount();
+    // M505b — fetch mobile branding once we're on the authenticated home.
+    BrandingService.instance.load();
   }
 
   void _loadApprovalCount() {
@@ -118,8 +127,8 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Employee>(
-      future: SelfApi.instance.getProfile(),
+    return FutureBuilder<Cached<Employee>>(
+      future: SelfApi.instance.getProfileCached(),
       builder: (context, snap) {
         return Scaffold(
           appBar: AppBar(
@@ -163,8 +172,14 @@ class _HomeTab extends StatelessWidget {
                 ),
               );
             }
-            final emp = snap.data!;
-            return _HomeTabContent(employee: emp);
+            final cached = snap.data!;
+            return Column(
+              children: [
+                if (cached.fromCache)
+                  OfflineBanner(cachedAt: cached.cachedAt),
+                Expanded(child: _HomeTabContent(employee: cached.data)),
+              ],
+            );
           }(),
         );
       },
@@ -389,6 +404,36 @@ class _HomeTabContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.access_time_filled_rounded,
+                  label: 'Attendance',
+                  color: Colors.blueGrey.shade700,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.contacts_rounded,
+                  label: 'Directory',
+                  color: Colors.deepPurple.shade400,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DirectoryScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // M510 — Team calendar tile: only shown to managers (has direct reports).
+          const _ManagerTeamCalendarTile(),
+          const SizedBox(height: 12),
           if (employee.department != null || employee.position != null)
             Card(
               elevation: 0,
@@ -489,6 +534,43 @@ class _QuickActionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// M510 — Team-calendar quick action, rendered only when the current user is a
+/// manager (the /self/team-calendar endpoint reports `manager: true`).
+class _ManagerTeamCalendarTile extends StatelessWidget {
+  const _ManagerTeamCalendarTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<TeamCalendar>(
+      future: SelfApi.instance.getTeamCalendar(),
+      builder: (context, snap) {
+        if (snap.data?.isManager != true) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  icon: Icons.groups_rounded,
+                  label: 'Team Calendar',
+                  color: Colors.indigo.shade400,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TeamCalendarScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox()),
+            ],
+          ),
+        );
+      },
     );
   }
 }
