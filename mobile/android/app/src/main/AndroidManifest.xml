@@ -2,6 +2,11 @@
     <!-- M59: biometric login permissions -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+    <!-- M496: attendance clock-in records GPS location (geolocator) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- M508: replay queued offline punches when connectivity returns -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:label="millers_hcm"

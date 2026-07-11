@@ -87,5 +87,8 @@
 	<string>Millers HCM uses the camera to let you photograph and upload documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Millers HCM accesses your photo library to let you upload documents.</string>
+	<!-- M496: attendance clock-in records your GPS location -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Millers HCM records your location when you clock in or out to verify you are at an approved work location.</string>
 </dict>
 </plist>
