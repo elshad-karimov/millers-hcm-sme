@@ -1,4 +1,5 @@
 package az.millers.hcm.recruitment.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,7 +39,6 @@ import az.millers.hcm.security.CurrentRequest;
 @RequestMapping("/api/public/careers")
 public class CareersPublicController {
 
-    private static final String TENANT = "default";
 
     private final JobPostingRepository postings;
     private final VacancyRepository vacancies;
@@ -173,7 +173,7 @@ public class CareersPublicController {
     public List<PublicJob> jobs(@RequestParam(required = false) String q,
                                  @RequestParam(required = false) String location,
                                  @RequestParam(required = false) String lang) {
-        return postings.findLiveByChannel(TENANT, JobPosting.Channel.EXTERNAL, LocalDate.now()).stream()
+        return postings.findLiveByChannel(TenantContext.current(), JobPosting.Channel.EXTERNAL, LocalDate.now()).stream()
                 .map(p -> toCard(p, vacancies.findById(p.getVacancyId()).orElse(null)))
                 .filter(j -> j != null)
                 .filter(j -> q == null || q.isBlank()

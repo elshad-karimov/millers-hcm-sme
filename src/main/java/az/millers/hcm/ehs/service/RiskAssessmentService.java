@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -24,7 +25,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class RiskAssessmentService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "RiskAssessment";
 
@@ -62,7 +62,7 @@ public class RiskAssessmentService {
         int riskScore = likelihood * impact;
 
         RiskAssessment assessment = new RiskAssessment();
-        assessment.setTenantId(TENANT);
+        assessment.setTenantId(TenantContext.current());
         assessment.setWorkLocationId(workLocationId);
         assessment.setOrgUnitId(orgUnitId);
         assessment.setJobTask(jobTask);
@@ -155,11 +155,11 @@ public class RiskAssessmentService {
 
     @Transactional(readOnly = true)
     public RiskAssessment get(UUID id) {
-        RiskAssessment assessment = repo.findByIdAndTenantId(id, TENANT)
+        RiskAssessment assessment = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Risk assessment not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(assessment.getTenantId())) {
+        if (!TenantContext.current().equals(assessment.getTenantId())) {
             throw new ResourceNotFoundException("Risk assessment not found: " + id);
         }
 
@@ -169,11 +169,11 @@ public class RiskAssessmentService {
     @Transactional(readOnly = true)
     public List<RiskAssessment> list(RiskAssessmentStatus statusFilter, Integer minRiskScore) {
         if (statusFilter != null) {
-            return repo.findByTenantIdAndStatusOrderByRiskScoreDesc(TENANT, statusFilter);
+            return repo.findByTenantIdAndStatusOrderByRiskScoreDesc(TenantContext.current(), statusFilter);
         } else if (minRiskScore != null) {
-            return repo.findByTenantIdAndRiskScoreGreaterThanEqualOrderByRiskScoreDesc(TENANT, minRiskScore);
+            return repo.findByTenantIdAndRiskScoreGreaterThanEqualOrderByRiskScoreDesc(TenantContext.current(), minRiskScore);
         } else {
-            return repo.findByTenantIdOrderByRiskScoreDesc(TENANT);
+            return repo.findByTenantIdOrderByRiskScoreDesc(TenantContext.current());
         }
     }
 }

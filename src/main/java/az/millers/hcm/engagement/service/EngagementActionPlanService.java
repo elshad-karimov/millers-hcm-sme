@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -20,7 +21,6 @@ import az.millers.hcm.engagement.repo.EngagementActionPlanRepository;
 @Service
 public class EngagementActionPlanService {
 
-    private static final String TENANT = "default";
 
     private final EngagementActionPlanRepository planRepo;
     private final EngagementActionItemRepository itemRepo;
@@ -33,13 +33,13 @@ public class EngagementActionPlanService {
 
     @Transactional(readOnly = true)
     public List<EngagementActionPlan> listAll() {
-        return planRepo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        return planRepo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public EngagementActionPlan get(UUID id) {
         return planRepo.findById(id)
-                .filter(p -> TENANT.equals(p.getTenantId()))
+                .filter(p -> TenantContext.current().equals(p.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Action plan not found"));
     }
 
@@ -60,7 +60,7 @@ public class EngagementActionPlanService {
 
     @Transactional
     public EngagementActionPlan create(EngagementActionPlan plan) {
-        plan.setTenantId(TENANT);
+        plan.setTenantId(TenantContext.current());
         return planRepo.save(plan);
     }
 
@@ -94,7 +94,7 @@ public class EngagementActionPlanService {
     @Transactional
     public EngagementActionItem addItem(UUID planId, EngagementActionItem item) {
         get(planId); // Verify plan exists
-        item.setTenantId(TENANT);
+        item.setTenantId(TenantContext.current());
         item.setPlanId(planId);
         return itemRepo.save(item);
     }
@@ -102,7 +102,7 @@ public class EngagementActionPlanService {
     @Transactional
     public EngagementActionItem toggleItem(UUID itemId) {
         EngagementActionItem item = itemRepo.findById(itemId)
-                .filter(i -> TENANT.equals(i.getTenantId()))
+                .filter(i -> TenantContext.current().equals(i.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Action item not found"));
 
         item.setDone(!item.getDone());
@@ -113,7 +113,7 @@ public class EngagementActionPlanService {
     @Transactional
     public void deleteItem(UUID itemId) {
         EngagementActionItem item = itemRepo.findById(itemId)
-                .filter(i -> TENANT.equals(i.getTenantId()))
+                .filter(i -> TenantContext.current().equals(i.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Action item not found"));
         itemRepo.delete(item);
     }

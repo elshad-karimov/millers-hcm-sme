@@ -1,4 +1,5 @@
 package az.millers.hcm.corehr.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -27,7 +28,6 @@ import az.millers.hcm.notifications.domain.NotificationCategory;
 @Transactional
 public class SignatureService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "core-hr";
     private static final String ENTITY = "SignatureRequest";
 
@@ -81,7 +81,7 @@ public class SignatureService {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
 
         SignatureRequest request = new SignatureRequest();
-        request.setTenantId(TENANT);
+        request.setTenantId(TenantContext.current());
         request.setTitle(input.title());
         request.setEmployeeDocumentId(input.employeeDocumentId());
         request.setLetterRequestId(input.letterRequestId());
@@ -94,7 +94,7 @@ public class SignatureService {
         List<SignatureRequestSigner> signers = new ArrayList<>();
         for (String username : input.signerUsernames()) {
             SignatureRequestSigner signer = new SignatureRequestSigner();
-            signer.setTenantId(TENANT);
+            signer.setTenantId(TenantContext.current());
             signer.setRequestId(request.getId());
             signer.setUsername(username);
             signer.setStatus(SignatureRequestSigner.SignerStatus.PENDING);
@@ -120,7 +120,7 @@ public class SignatureService {
      * List all signature requests (HR).
      */
     public List<SignatureRequestDTO> listAll() {
-        List<SignatureRequest> requests = requestRepo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        List<SignatureRequest> requests = requestRepo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         return requests.stream()
                 .map(r -> toDTO(r, signerRepo.findByRequestIdOrderByUsername(r.getId())))
                 .toList();
@@ -131,12 +131,12 @@ public class SignatureService {
      */
     public List<SignatureRequestDTO> listMy() {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
-        List<SignatureRequestSigner> signers = signerRepo.findPendingByUsername(TENANT, currentUser);
+        List<SignatureRequestSigner> signers = signerRepo.findPendingByUsername(TenantContext.current(), currentUser);
 
         return signers.stream()
                 .map(signer -> {
                     SignatureRequest request = requestRepo.findById(signer.getRequestId())
-                            .filter(r -> TENANT.equals(r.getTenantId()))
+                            .filter(r -> TenantContext.current().equals(r.getTenantId()))
                             .orElse(null);
                     if (request == null) return null;
                     return toDTO(request, signerRepo.findByRequestIdOrderByUsername(request.getId()));
@@ -151,7 +151,7 @@ public class SignatureService {
     public SignatureRequestDTO sign(UUID signerId) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        SignatureRequestSigner signer = signerRepo.findByIdAndTenantId(signerId, TENANT)
+        SignatureRequestSigner signer = signerRepo.findByIdAndTenantId(signerId, TenantContext.current())
                 .orElseThrow(() -> new IllegalArgumentException("Signer not found"));
 
         // Verify caller IS the signer
@@ -172,7 +172,7 @@ public class SignatureService {
                 Map.of("signer", currentUser, "signedAt", signer.getSignedAt().toString()));
 
         // Check if all signers have signed
-        SignatureRequest request = requestRepo.findByIdAndTenantId(signer.getRequestId(), TENANT)
+        SignatureRequest request = requestRepo.findByIdAndTenantId(signer.getRequestId(), TenantContext.current())
                 .orElseThrow(() -> new IllegalArgumentException("Request not found"));
 
         List<SignatureRequestSigner> allSigners = signerRepo.findByRequestIdOrderByUsername(request.getId());
@@ -205,7 +205,7 @@ public class SignatureService {
     public SignatureRequestDTO decline(UUID signerId, String reason) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        SignatureRequestSigner signer = signerRepo.findByIdAndTenantId(signerId, TENANT)
+        SignatureRequestSigner signer = signerRepo.findByIdAndTenantId(signerId, TenantContext.current())
                 .orElseThrow(() -> new IllegalArgumentException("Signer not found"));
 
         // Verify caller IS the signer
@@ -221,7 +221,7 @@ public class SignatureService {
         signer.setDeclineReason(reason);
         signerRepo.save(signer);
 
-        SignatureRequest request = requestRepo.findByIdAndTenantId(signer.getRequestId(), TENANT)
+        SignatureRequest request = requestRepo.findByIdAndTenantId(signer.getRequestId(), TenantContext.current())
                 .orElseThrow(() -> new IllegalArgumentException("Request not found"));
 
         audit.record(MODULE, ENTITY, request.getId().toString(),
@@ -246,7 +246,7 @@ public class SignatureService {
     public void cancel(UUID requestId) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        SignatureRequest request = requestRepo.findByIdAndTenantId(requestId, TENANT)
+        SignatureRequest request = requestRepo.findByIdAndTenantId(requestId, TenantContext.current())
                 .orElseThrow(() -> new IllegalArgumentException("Request not found"));
 
         // Defense-in-depth: only creator or HR_ADMIN can cancel

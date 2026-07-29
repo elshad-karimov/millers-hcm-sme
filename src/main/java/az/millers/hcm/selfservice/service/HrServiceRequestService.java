@@ -1,4 +1,5 @@
 package az.millers.hcm.selfservice.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -35,7 +36,6 @@ import az.millers.hcm.common.BusinessNumbers;
 @Service
 public class HrServiceRequestService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "self-service";
     private static final String ENTITY = "HrServiceRequest";
 
@@ -73,7 +73,7 @@ public class HrServiceRequestService {
         // — enforced at display time; submission allowed
 
         HrServiceRequest req = new HrServiceRequest();
-        req.setTenantId(TENANT);
+        req.setTenantId(TenantContext.current());
         req.setEmployeeId(employeeId);
         req.setCategory(category);
         req.setPriority(priority != null ? priority : ServiceRequestPriority.NORMAL);
@@ -84,7 +84,7 @@ public class HrServiceRequestService {
         req.setUpdatedBy(currentRequest.username());
 
         // Auto-route to queue by category (M438)
-        queueRepo.findByTenantIdAndRoutingCategory(TENANT, category).ifPresent(queue -> {
+        queueRepo.findByTenantIdAndRoutingCategory(TenantContext.current(), category).ifPresent(queue -> {
             req.setQueueId(queue.getId());
         });
 
@@ -107,7 +107,7 @@ public class HrServiceRequestService {
 
     @Transactional(readOnly = true)
     public List<HrServiceRequest> myRequests(UUID employeeId) {
-        return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+        return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +119,7 @@ public class HrServiceRequestService {
                 ? List.of(statusFilter)
                 : List.of(ServiceRequestStatus.OPEN, ServiceRequestStatus.IN_PROGRESS);
 
-        List<HrServiceRequest> results = repo.findByTenantIdAndStatusInOrderBySlaDueAsc(TENANT, statuses);
+        List<HrServiceRequest> results = repo.findByTenantIdAndStatusInOrderBySlaDueAsc(TenantContext.current(), statuses);
 
         // Grievances are confidential: HR_ADMIN only, regardless of requested filters
         if (!currentRequest.hasRole("HR_ADMIN")) {

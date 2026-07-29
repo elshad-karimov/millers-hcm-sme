@@ -1,4 +1,5 @@
 package az.millers.hcm.workflow.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -22,7 +23,6 @@ import az.millers.hcm.workflow.repo.ApprovalGroupRepository;
 @RequestMapping("/api/workflow/approval-groups")
 public class ApprovalGroupController {
 
-    private static final String TENANT = "default";
 
     private final ApprovalGroupRepository groupRepo;
     private final ApprovalGroupMemberRepository memberRepo;
@@ -40,13 +40,13 @@ public class ApprovalGroupController {
     @GetMapping
     @PreAuthorize(SecurityRoles.READ_HR)
     public List<ApprovalGroup> list() {
-        return groupRepo.findByTenantIdAndActiveTrueOrderByNameAsc(TENANT);
+        return groupRepo.findByTenantIdAndActiveTrueOrderByNameAsc(TenantContext.current());
     }
 
     @GetMapping("/{id}")
     @PreAuthorize(SecurityRoles.READ_HR)
     public ApprovalGroup get(@PathVariable UUID id) {
-        return groupRepo.findByIdAndTenantId(id, TENANT)
+        return groupRepo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Approval group not found: " + id));
     }
 
@@ -57,7 +57,7 @@ public class ApprovalGroupController {
 
         ApprovalGroup group = new ApprovalGroup();
         group.setId(UUID.randomUUID());
-        group.setTenantId(TENANT);
+        group.setTenantId(TenantContext.current());
         group.setCode(req.code());
         group.setName(req.name());
         group.setActive(true);
@@ -113,7 +113,7 @@ public class ApprovalGroupController {
 
         ApprovalGroupMember member = new ApprovalGroupMember();
         member.setId(UUID.randomUUID());
-        member.setTenantId(TENANT);
+        member.setTenantId(TenantContext.current());
         member.setGroupId(id);
         member.setUsername(req.username());
         member.setCreatedAt(OffsetDateTime.now());
@@ -128,7 +128,7 @@ public class ApprovalGroupController {
         ApprovalGroupMember member = memberRepo.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found: " + memberId));
 
-        if (!TENANT.equals(member.getTenantId())) {
+        if (!TenantContext.current().equals(member.getTenantId())) {
             throw new ResourceNotFoundException("Member not found: " + memberId);
         }
 

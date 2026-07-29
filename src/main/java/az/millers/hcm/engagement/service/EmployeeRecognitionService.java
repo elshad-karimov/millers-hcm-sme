@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,7 +29,6 @@ import az.millers.hcm.selfservice.service.EmployeeContextService;
 @Service
 public class EmployeeRecognitionService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "engagement";
     private static final String ENTITY = "Recognition";
 
@@ -53,7 +53,7 @@ public class EmployeeRecognitionService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> publicWall(int limit) {
         List<EmployeeRecognition> recognitions = repository.findPublicWall(
-                TENANT, RecognitionStatus.ACTIVE, RecognitionVisibility.PUBLIC,
+                TenantContext.current(), RecognitionStatus.ACTIVE, RecognitionVisibility.PUBLIC,
                 PageRequest.of(0, limit));
 
         // Enrich with employee names via JDBC projection (tenant-filtered)
@@ -63,13 +63,13 @@ public class EmployeeRecognitionService {
                     "SELECT first_name, last_name FROM core_hr.employee WHERE id = :id AND tenant_id = :tenant",
                     new MapSqlParameterSource()
                             .addValue("id", r.getFromEmployeeId())
-                            .addValue("tenant", TENANT));
+                            .addValue("tenant", TenantContext.current()));
 
             Map<String, Object> toEmployee = jdbc.queryForMap(
                     "SELECT first_name, last_name FROM core_hr.employee WHERE id = :id AND tenant_id = :tenant",
                     new MapSqlParameterSource()
                             .addValue("id", r.getToEmployeeId())
-                            .addValue("tenant", TENANT));
+                            .addValue("tenant", TenantContext.current()));
 
             Map<String, Object> item = new HashMap<>();
             item.put("id", r.getId());
@@ -89,7 +89,7 @@ public class EmployeeRecognitionService {
     @Transactional(readOnly = true)
     public List<EmployeeRecognition> mySent() {
         UUID currentEmployeeId = employeeContext.currentEmployee().getId();
-        return repository.findByTenantIdAndFromEmployeeIdOrderByCreatedAtDesc(TENANT, currentEmployeeId);
+        return repository.findByTenantIdAndFromEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), currentEmployeeId);
     }
 
     /**
@@ -98,7 +98,7 @@ public class EmployeeRecognitionService {
     @Transactional(readOnly = true)
     public List<EmployeeRecognition> myReceived() {
         UUID currentEmployeeId = employeeContext.currentEmployee().getId();
-        return repository.findByTenantIdAndToEmployeeIdOrderByCreatedAtDesc(TENANT, currentEmployeeId);
+        return repository.findByTenantIdAndToEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), currentEmployeeId);
     }
 
     /**
@@ -112,7 +112,7 @@ public class EmployeeRecognitionService {
             throw new BadRequestException("Cannot recognize yourself");
         }
 
-        recognition.setTenantId(TENANT);
+        recognition.setTenantId(TenantContext.current());
         recognition.setFromEmployeeId(fromEmployeeId);
         recognition.setToEmployeeId(toEmployeeId);
         recognition.setStatus(RecognitionStatus.ACTIVE);
@@ -130,7 +130,7 @@ public class EmployeeRecognitionService {
     @Transactional
     public EmployeeRecognition updateStatus(UUID id, RecognitionStatus status) {
         EmployeeRecognition recognition = repository.findById(id)
-                .filter(r -> TENANT.equals(r.getTenantId()))
+                .filter(r -> TenantContext.current().equals(r.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Recognition not found"));
 
         RecognitionStatus oldStatus = recognition.getStatus();

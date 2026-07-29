@@ -1,4 +1,5 @@
 package az.millers.hcm.staffing.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +27,6 @@ public class StaffingService {
 
     private static final String MODULE = "STAFFING";
     private static final String ENTITY = "Position";
-    private static final String TENANT = "default";
 
     private final PositionRepository repository;
     private final AuditService audit;
@@ -49,12 +49,12 @@ public class StaffingService {
     public Page<Position> list(String search, UUID orgUnitId, VacancyState vacancyState,
                                 PositionStatus status, Pageable pageable) {
         if (StringUtils.hasText(search)) {
-            return repository.searchByTitleOrCode(TENANT, search, pageable);
+            return repository.searchByTitleOrCode(TenantContext.current(), search, pageable);
         }
-        if (orgUnitId != null) return repository.findByTenantIdAndOrgUnitId(TENANT, orgUnitId, pageable);
-        if (vacancyState != null) return repository.findByTenantIdAndVacancyState(TENANT, vacancyState, pageable);
-        if (status != null) return repository.findByTenantIdAndStatus(TENANT, status, pageable);
-        return repository.findByTenantId(TENANT, pageable);
+        if (orgUnitId != null) return repository.findByTenantIdAndOrgUnitId(TenantContext.current(), orgUnitId, pageable);
+        if (vacancyState != null) return repository.findByTenantIdAndVacancyState(TenantContext.current(), vacancyState, pageable);
+        if (status != null) return repository.findByTenantIdAndStatus(TenantContext.current(), status, pageable);
+        return repository.findByTenantId(TenantContext.current(), pageable);
     }
 
     @Transactional(readOnly = true)

@@ -1,4 +1,5 @@
 package az.millers.hcm.selfservice.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,7 +20,6 @@ import az.millers.hcm.selfservice.api.dto.EmployeeDirectoryResponse;
 @Service
 public class EmployeeDirectoryService {
 
-    private static final String TENANT = "default";
     private static final int MAX_RESULTS = 50;
 
     private final JdbcTemplate jdbc;
@@ -64,7 +64,7 @@ public class EmployeeDirectoryService {
 
         return jdbc.query(sql,
                 new DirectoryRowMapper(),
-                TENANT, pattern, pattern, pattern, pattern, MAX_RESULTS);
+                TenantContext.current(), pattern, pattern, pattern, pattern, MAX_RESULTS);
     }
 
     private static class DirectoryRowMapper implements RowMapper<EmployeeDirectoryResponse> {

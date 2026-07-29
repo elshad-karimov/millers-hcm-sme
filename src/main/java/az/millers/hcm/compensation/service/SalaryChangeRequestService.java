@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -70,7 +71,6 @@ public class SalaryChangeRequestService {
     public static final String WORKFLOW_DEFINITION = "SALARY_CHANGE_APPROVAL";
     private static final String MODULE = "compensation";
     private static final String ENTITY = "SalaryChangeRequest";
-    private static final String TENANT = "default";
 
     private final SalaryChangeRequestRepository repo;
     private final EmployeeRepository employees;
@@ -198,7 +198,7 @@ public class SalaryChangeRequestService {
         String policyStr = (String) budgetCheck.get("policy");
 
         SalaryChangeRequest scr = new SalaryChangeRequest();
-        scr.setTenantId(TENANT);
+        scr.setTenantId(TenantContext.current());
         scr.setEmployeeId(req.employeeId());
         scr.setCurrentSalary(currentSalary);
         scr.setProposedSalary(req.proposedSalary());
@@ -352,11 +352,11 @@ public class SalaryChangeRequestService {
             if (!accessScope.isAccessible(employeeId)) {
                 return List.of();
             }
-            rows = repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            rows = repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         } else if (status != null) {
-            rows = repo.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, status);
+            rows = repo.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), status);
         } else {
-            rows = repo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+            rows = repo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         }
         return rows.stream().map(SalaryChangeRequestDto::from).toList();
     }

@@ -1,4 +1,5 @@
 package az.millers.hcm.lifecycle.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -32,7 +33,6 @@ import az.millers.hcm.staffing.service.StaffingService;
 public class MovementExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(MovementExecutionService.class);
-    private static final String TENANT = "default";
 
     private final EmployeeMovementRequestRepository requestRepo;
     private final EmployeeRepository employeeRepo;
@@ -67,7 +67,7 @@ public class MovementExecutionService {
             .orElseThrow(() -> new ResourceNotFoundException("Movement request not found: " + requestId));
 
         // Tenant check
-        if (!TENANT.equals(request.getTenantId())) {
+        if (!TenantContext.current().equals(request.getTenantId())) {
             throw new ResourceNotFoundException("Movement request not found: " + requestId);
         }
 

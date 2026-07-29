@@ -1,4 +1,5 @@
 package az.millers.hcm.selfservice.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -25,7 +26,6 @@ import az.millers.hcm.common.BusinessNumbers;
 @Service
 public class KnowledgeArticleService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "self-service";
     private static final String ENTITY = "KnowledgeArticle";
 
@@ -48,7 +48,7 @@ public class KnowledgeArticleService {
     public KnowledgeArticle create(String code, String title, String summary, String category,
                                      String tags, String body) {
         KnowledgeArticle article = new KnowledgeArticle();
-        article.setTenantId(TENANT);
+        article.setTenantId(TenantContext.current());
         article.setCode(code);
         article.setTitle(title);
         article.setSummary(summary);
@@ -132,18 +132,18 @@ public class KnowledgeArticleService {
 
     @Transactional(readOnly = true)
     public List<KnowledgeArticle> listPublished() {
-        return repo.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, KnowledgeArticleStatus.PUBLISHED)
+        return repo.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), KnowledgeArticleStatus.PUBLISHED)
                 .stream()
-                .filter(a -> TENANT.equals(a.getTenantId()))
+                .filter(a -> TenantContext.current().equals(a.getTenantId()))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<KnowledgeArticle> listAll() {
         // HR sees all statuses
-        return repo.findByTenantIdOrderByCreatedAtDesc(TENANT)
+        return repo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current())
                 .stream()
-                .filter(a -> TENANT.equals(a.getTenantId()))
+                .filter(a -> TenantContext.current().equals(a.getTenantId()))
                 .collect(Collectors.toList());
     }
 
@@ -163,7 +163,7 @@ public class KnowledgeArticleService {
         """;
 
         return jdbc.query(sql,
-                Map.of("tenantId", TENANT, "keyword", "%" + keyword.toLowerCase() + "%"),
+                Map.of("tenantId", TenantContext.current(), "keyword", "%" + keyword.toLowerCase() + "%"),
                 (rs, rowNum) -> {
                     KnowledgeArticle article = new KnowledgeArticle();
                     article.setId(UUID.fromString(rs.getString("id")));
@@ -187,7 +187,7 @@ public class KnowledgeArticleService {
                     return article;
                 })
                 .stream()
-                .filter(a -> TENANT.equals(a.getTenantId()))
+                .filter(a -> TenantContext.current().equals(a.getTenantId()))
                 .collect(Collectors.toList());
     }
 
@@ -195,7 +195,7 @@ public class KnowledgeArticleService {
     public KnowledgeArticle get(UUID id) {
         KnowledgeArticle article = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Knowledge article not found: " + id));
-        if (!TENANT.equals(article.getTenantId())) {
+        if (!TenantContext.current().equals(article.getTenantId())) {
             throw new ResourceNotFoundException("Knowledge article not found: " + id);
         }
 

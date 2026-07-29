@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,7 +16,6 @@ import az.millers.hcm.security.SecurityRoles;
 @RestController
 @RequestMapping("/api/reports/loans")
 public class LoanReportController {
-    private static final String TENANT = "default";
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -64,7 +64,7 @@ public class LoanReportController {
             GROUP BY d.name
             ORDER BY total_outstanding DESC
             """;
-        List<DepartmentOutstanding> byDepartment = jdbc.query(deptSql, Map.of("tenant", TENANT),
+        List<DepartmentOutstanding> byDepartment = jdbc.query(deptSql, Map.of("tenant", TenantContext.current()),
                 (rs, rowNum) -> new DepartmentOutstanding(
                         rs.getString("department_name"),
                         rs.getLong("employee_count"),
@@ -86,7 +86,7 @@ public class LoanReportController {
         int currentYear = java.time.LocalDate.now().getYear();
         int currentMonth = java.time.LocalDate.now().getMonthValue();
         List<OverdueInstallment> overdueList = jdbc.query(overdueSql,
-                Map.of("tenant", TENANT, "currentYear", currentYear, "currentMonth", currentMonth),
+                Map.of("tenant", TenantContext.current(), "currentYear", currentYear, "currentMonth", currentMonth),
                 (rs, rowNum) -> new OverdueInstallment(
                         rs.getString("request_no"),
                         rs.getString("employee_no"),

@@ -1,4 +1,5 @@
 package az.millers.hcm.recruitment.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -41,7 +42,6 @@ public class JobPostingService {
 
     private static final String MODULE = "RECRUITMENT";
     private static final String ENTITY = "JobPosting";
-    private static final String TENANT = "default";
 
     private final JobPostingRepository postings;
     private final VacancyRepository vacancies;
@@ -65,7 +65,7 @@ public class JobPostingService {
     public List<JobPosting> listForVacancy(UUID vacancyId) {
         // Confidential gate for free: get() 404s for outsiders (M277).
         vacancyService.get(vacancyId);
-        return postings.findByTenantIdAndVacancyIdOrderByCreatedAtDesc(TENANT, vacancyId);
+        return postings.findByTenantIdAndVacancyIdOrderByCreatedAtDesc(TenantContext.current(), vacancyId);
     }
 
     @Transactional
@@ -212,7 +212,7 @@ public class JobPostingService {
     @Scheduled(cron = "0 30 0 * * *")
     @Transactional
     public void expireOverduePostings() {
-        List<JobPosting> overdue = postings.findExpired(TENANT, LocalDate.now());
+        List<JobPosting> overdue = postings.findExpired(TenantContext.current(), LocalDate.now());
         for (JobPosting p : overdue) {
             p.setStatus(JobPosting.Status.EXPIRED);
             p.setUpdatedBy("system");

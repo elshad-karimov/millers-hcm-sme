@@ -1,4 +1,5 @@
 package az.millers.hcm.selfservice.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +26,6 @@ import az.millers.hcm.selfservice.repo.HrServiceRequestRepository;
 @Service
 public class HrServiceRequestCommentService {
 
-    private static final String TENANT = "default";
 
     private final HrServiceRequestCommentRepository commentRepo;
     private final HrServiceRequestRepository requestRepo;
@@ -48,12 +48,12 @@ public class HrServiceRequestCommentService {
                 .orElseThrow(() -> new BadRequestException("Request not found: " + requestId));
 
         // Tenant check
-        if (!TENANT.equals(request.getTenantId())) {
+        if (!TenantContext.current().equals(request.getTenantId())) {
             throw new BadRequestException("Request not found: " + requestId);
         }
 
         HrServiceRequestComment comment = new HrServiceRequestComment();
-        comment.setTenantId(TENANT);
+        comment.setTenantId(TenantContext.current());
         comment.setRequestId(requestId);
         comment.setAuthorUsername(currentRequest.username());
         comment.setIsInternal(isInternal);
@@ -68,7 +68,7 @@ public class HrServiceRequestCommentService {
         HrServiceRequest request = requestRepo.findById(requestId)
                 .orElseThrow(() -> new BadRequestException("Request not found: " + requestId));
 
-        if (!TENANT.equals(request.getTenantId())) {
+        if (!TenantContext.current().equals(request.getTenantId())) {
             throw new BadRequestException("Request not found: " + requestId);
         }
 
@@ -76,9 +76,9 @@ public class HrServiceRequestCommentService {
             throw new BadRequestException("Not authorized to view this request");
         }
 
-        return commentRepo.findByTenantIdAndRequestIdOrderByCreatedAtAsc(TENANT, requestId)
+        return commentRepo.findByTenantIdAndRequestIdOrderByCreatedAtAsc(TenantContext.current(), requestId)
                 .stream()
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .filter(c -> !c.getIsInternal())
                 .collect(Collectors.toList());
     }
@@ -89,7 +89,7 @@ public class HrServiceRequestCommentService {
         HrServiceRequest request = requestRepo.findById(requestId)
                 .orElseThrow(() -> new BadRequestException("Request not found: " + requestId));
 
-        if (!TENANT.equals(request.getTenantId())) {
+        if (!TenantContext.current().equals(request.getTenantId())) {
             throw new BadRequestException("Request not found: " + requestId);
         }
 
@@ -98,9 +98,9 @@ public class HrServiceRequestCommentService {
             throw new BadRequestException("Not authorized to view grievance request");
         }
 
-        return commentRepo.findByTenantIdAndRequestIdOrderByCreatedAtAsc(TENANT, requestId)
+        return commentRepo.findByTenantIdAndRequestIdOrderByCreatedAtAsc(TenantContext.current(), requestId)
                 .stream()
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .collect(Collectors.toList());
     }
 }

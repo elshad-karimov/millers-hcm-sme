@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -29,7 +30,6 @@ import az.millers.hcm.engagement.repo.SurveyTemplateRepository;
 public class PulseSchedulerService {
 
     private static final Logger log = LoggerFactory.getLogger(PulseSchedulerService.class);
-    private static final String TENANT = "default";
 
     private final PulseScheduleRepository pulseRepo;
     private final SurveyTemplateRepository templateRepo;
@@ -52,7 +52,7 @@ public class PulseSchedulerService {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         log.debug("Pulse scheduler sweep for {}", today);
 
-        List<PulseSchedule> activeSchedules = pulseRepo.findByTenantIdAndActiveOrderByCreatedAtDesc(TENANT, true);
+        List<PulseSchedule> activeSchedules = pulseRepo.findByTenantIdAndActiveOrderByCreatedAtDesc(TenantContext.current(), true);
 
         for (PulseSchedule schedule : activeSchedules) {
             if (isDue(schedule, today)) {

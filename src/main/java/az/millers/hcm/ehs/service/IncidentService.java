@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -36,7 +37,6 @@ import az.millers.hcm.common.BusinessNumbers;
 public class IncidentService {
 
     private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "Incident";
 
@@ -92,7 +92,7 @@ public class IncidentService {
         String incidentNo = generateIncidentNo();
 
         Incident incident = new Incident();
-        incident.setTenantId(TENANT);
+        incident.setTenantId(TenantContext.current());
         incident.setIncidentNo(incidentNo);
         incident.setIncidentDate(incidentDate);
         incident.setIncidentTime(incidentTime);
@@ -235,11 +235,11 @@ public class IncidentService {
 
     @Transactional(readOnly = true)
     public Incident get(UUID id) {
-        Incident incident = repo.findByIdAndTenantId(id, TENANT)
+        Incident incident = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Incident not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(incident.getTenantId())) {
+        if (!TenantContext.current().equals(incident.getTenantId())) {
             throw new ResourceNotFoundException("Incident not found: " + id);
         }
 
@@ -271,40 +271,40 @@ public class IncidentService {
 
         if (statusFilter != null && reportedByEmployeeId != null) {
             if (isHR) {
-                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TENANT, reportedByEmployeeId)
+                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TenantContext.current(), reportedByEmployeeId)
                         .stream().filter(i -> i.getStatus() == statusFilter).toList();
             } else {
                 UUID currentEmpId = employeeContext.currentEmployee().getId();
                 if (!currentEmpId.equals(reportedByEmployeeId)) {
                     return List.of(); // Can only see own reports
                 }
-                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TENANT, reportedByEmployeeId)
+                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TenantContext.current(), reportedByEmployeeId)
                         .stream().filter(i -> i.getStatus() == statusFilter).toList();
             }
         } else if (statusFilter != null) {
             if (isHR) {
-                return repo.findByTenantIdAndStatusOrderByIncidentDateDesc(TENANT, statusFilter);
+                return repo.findByTenantIdAndStatusOrderByIncidentDateDesc(TenantContext.current(), statusFilter);
             } else {
                 UUID currentEmpId = employeeContext.currentEmployee().getId();
-                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TENANT, currentEmpId)
+                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TenantContext.current(), currentEmpId)
                         .stream().filter(i -> i.getStatus() == statusFilter).toList();
             }
         } else if (reportedByEmployeeId != null) {
             if (isHR) {
-                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TENANT, reportedByEmployeeId);
+                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TenantContext.current(), reportedByEmployeeId);
             } else {
                 UUID currentEmpId = employeeContext.currentEmployee().getId();
                 if (!currentEmpId.equals(reportedByEmployeeId)) {
                     return List.of();
                 }
-                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TENANT, reportedByEmployeeId);
+                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TenantContext.current(), reportedByEmployeeId);
             }
         } else {
             if (isHR) {
-                return repo.findByTenantIdOrderByIncidentDateDesc(TENANT);
+                return repo.findByTenantIdOrderByIncidentDateDesc(TenantContext.current());
             } else {
                 UUID currentEmpId = employeeContext.currentEmployee().getId();
-                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TENANT, currentEmpId);
+                return repo.findByTenantIdAndReportedByEmployeeIdOrderByIncidentDateDesc(TenantContext.current(), currentEmpId);
             }
         }
     }

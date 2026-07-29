@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -40,7 +41,6 @@ public class MeritMatrixService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "MeritMatrix";
-    private static final String TENANT = "default";
 
     // Range penetration thresholds
     private static final BigDecimal LOW_THRESHOLD = new BigDecimal("33.34");
@@ -89,7 +89,7 @@ public class MeritMatrixService {
 
     @Transactional(readOnly = true)
     public List<MeritMatrix> listActive() {
-        return matrixRepo.findByTenantIdAndIsActiveTrue(TENANT);
+        return matrixRepo.findByTenantIdAndIsActiveTrue(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -105,12 +105,12 @@ public class MeritMatrixService {
 
     @Transactional
     public MeritMatrix create(String code, String name) {
-        if (matrixRepo.findByTenantIdAndCode(TENANT, code).isPresent()) {
+        if (matrixRepo.findByTenantIdAndCode(TenantContext.current(), code).isPresent()) {
             throw new BadRequestException("MATRIX_CODE_DUPLICATE");
         }
 
         MeritMatrix matrix = new MeritMatrix();
-        matrix.setTenantId(TENANT);
+        matrix.setTenantId(TenantContext.current());
         matrix.setCode(code);
         matrix.setName(name);
 
@@ -130,7 +130,7 @@ public class MeritMatrixService {
         // Insert new cells
         for (MeritMatrixCell cell : cells) {
             cell.setId(null);
-            cell.setTenantId(TENANT);
+            cell.setTenantId(TenantContext.current());
             cell.setMatrixId(matrixId);
             cellRepo.save(cell);
         }
@@ -234,8 +234,8 @@ public class MeritMatrixService {
             matrix = get(matrixIdOrNull);
         } else {
             // Default to the first active matrix with code DEFAULT
-            matrix = matrixRepo.findByTenantIdAndCode(TENANT, "DEFAULT")
-                    .or(() -> matrixRepo.findFirstByTenantIdAndIsActiveTrueOrderByCreatedAtAsc(TENANT))
+            matrix = matrixRepo.findByTenantIdAndCode(TenantContext.current(), "DEFAULT")
+                    .or(() -> matrixRepo.findFirstByTenantIdAndIsActiveTrueOrderByCreatedAtAsc(TenantContext.current()))
                     .orElseThrow(() -> new BadRequestException("No active merit matrix found"));
         }
 

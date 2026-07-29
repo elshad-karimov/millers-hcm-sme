@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -31,7 +32,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class PipService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final String ENTITY = "PerformancePip";
     private static final List<String> LIVE = List.of(
@@ -89,11 +89,11 @@ public class PipService {
     public List<PerformancePip> list(UUID employeeId, String status) {
         List<PerformancePip> rows;
         if (employeeId != null) {
-            rows = pips.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            rows = pips.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         } else if (status != null) {
-            rows = pips.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, status);
+            rows = pips.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), status);
         } else {
-            rows = pips.findByTenantIdOrderByCreatedAtDesc(TENANT);
+            rows = pips.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         }
         // GLOBAL RULE 7/8 — PIPs are sensitive; scope-filter hard.
         return rows.stream().filter(p -> accessScope.isAccessible(p.getEmployeeId())).toList();
@@ -115,7 +115,7 @@ public class PipService {
             throw new BadRequestException("The employee already has a live PIP");
         }
         PerformancePip p = new PerformancePip();
-        p.setTenantId(TENANT);
+        p.setTenantId(TenantContext.current());
         apply(p, req);
         p.setCreatedBy(currentRequest.username());
         PerformancePip saved = pips.save(p);

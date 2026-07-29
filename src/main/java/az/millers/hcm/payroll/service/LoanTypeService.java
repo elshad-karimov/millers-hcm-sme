@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,7 +14,6 @@ import az.millers.hcm.security.CurrentRequest;
 /** M460 — Loan type service. */
 @Service
 public class LoanTypeService {
-    private static final String TENANT = "default";
     private static final String MODULE = "payroll";
     private static final String ENTITY = "LoanType";
 
@@ -29,24 +29,24 @@ public class LoanTypeService {
 
     @Transactional(readOnly = true)
     public List<LoanType> listActive() {
-        return repository.findByTenantIdAndActiveOrderByName(TENANT, true);
+        return repository.findByTenantIdAndActiveOrderByName(TenantContext.current(), true);
     }
 
     @Transactional(readOnly = true)
     public List<LoanType> listAll() {
-        return repository.findByTenantIdOrderByName(TENANT);
+        return repository.findByTenantIdOrderByName(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public LoanType get(UUID id) {
         return repository.findById(id)
-                .filter(t -> TENANT.equals(t.getTenantId()))
+                .filter(t -> TenantContext.current().equals(t.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Loan type not found"));
     }
 
     @Transactional
     public LoanType create(LoanType type) {
-        type.setTenantId(TENANT);
+        type.setTenantId(TenantContext.current());
         type.setCreatedBy(currentRequest.username());
         type.setUpdatedBy(currentRequest.username());
         LoanType saved = repository.save(type);

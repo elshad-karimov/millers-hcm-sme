@@ -1,4 +1,5 @@
 package az.millers.hcm.budgeting.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -24,7 +25,6 @@ import az.millers.hcm.budgeting.api.dto.MonthlyForecast;
 @Service
 public class PayrollForecastService {
 
-    private static final String TENANT = "default";
     private static final BigDecimal DEFAULT_GROWTH_PCT = new BigDecimal("5.0");
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -55,7 +55,7 @@ public class PayrollForecastService {
                 "  AND e.employment_status = 'ACTIVE' " +
                 "  AND ec.effective_from <= :today " +
                 "  AND (ec.effective_to IS NULL OR ec.effective_to >= :today)",
-                Map.of("tenant", TENANT, "today", LocalDate.now()),
+                Map.of("tenant", TenantContext.current(), "today", LocalDate.now()),
                 BigDecimal.class
         );
 
@@ -70,7 +70,7 @@ public class PayrollForecastService {
                 "  AND e.employment_status = 'ACTIVE' " +
                 "  AND ec.effective_from <= :today " +
                 "  AND (ec.effective_to IS NULL OR ec.effective_to >= :today)",
-                Map.of("tenant", TENANT, "today", LocalDate.now()),
+                Map.of("tenant", TenantContext.current(), "today", LocalDate.now()),
                 BigDecimal.class
         );
         if (avgSalary == null || avgSalary.compareTo(BigDecimal.ZERO) == 0) {
@@ -85,7 +85,7 @@ public class PayrollForecastService {
                 "  AND recruitment_status != 'CANCELLED' " +
                 "  AND target_start_date >= :today " +
                 "GROUP BY DATE_TRUNC('month', target_start_date)",
-                Map.of("tenant", TENANT, "today", LocalDate.now())
+                Map.of("tenant", TenantContext.current(), "today", LocalDate.now())
         );
         Map<YearMonth, Integer> hiresPerMonth = hires.stream()
                 .collect(Collectors.toMap(
@@ -103,7 +103,7 @@ public class PayrollForecastService {
                 "WHERE tenant_id = :tenant " +
                 "  AND forecast_date >= :today " +
                 "GROUP BY DATE_TRUNC('month', forecast_date)",
-                Map.of("tenant", TENANT, "today", LocalDate.now())
+                Map.of("tenant", TenantContext.current(), "today", LocalDate.now())
         );
         Map<YearMonth, BigDecimal> exitsPerMonth = exits.stream()
                 .collect(Collectors.toMap(

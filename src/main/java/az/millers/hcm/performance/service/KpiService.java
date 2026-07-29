@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -35,7 +36,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class KpiService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
 
     private final KpiRepository kpis;
@@ -67,19 +67,19 @@ public class KpiService {
     @Transactional(readOnly = true)
     public List<KpiResponse> listKpis(boolean activeOnly) {
         List<Kpi> rows = activeOnly
-                ? kpis.findByTenantIdAndActiveTrueOrderByKpiNameAsc(TENANT)
-                : kpis.findByTenantIdOrderByKpiNameAsc(TENANT);
+                ? kpis.findByTenantIdAndActiveTrueOrderByKpiNameAsc(TenantContext.current())
+                : kpis.findByTenantIdOrderByKpiNameAsc(TenantContext.current());
         return rows.stream().map(KpiResponse::from).toList();
     }
 
     @Transactional
     public KpiResponse createKpi(KpiRequest req) {
         String code = req.kpiCode().trim().toUpperCase();
-        if (kpis.existsByTenantIdAndKpiCode(TENANT, code)) {
+        if (kpis.existsByTenantIdAndKpiCode(TenantContext.current(), code)) {
             throw new BadRequestException("KPI code already exists: " + code);
         }
         Kpi k = new Kpi();
-        k.setTenantId(TENANT);
+        k.setTenantId(TenantContext.current());
         k.setKpiCode(code);
         applyKpi(k, req);
         k.setCreatedBy(currentRequest.username());
@@ -95,7 +95,7 @@ public class KpiService {
                 .orElseThrow(() -> new ResourceNotFoundException("KPI not found: " + id));
         KpiResponse before = KpiResponse.from(k);
         String code = req.kpiCode().trim().toUpperCase();
-        if (!k.getKpiCode().equals(code) && kpis.existsByTenantIdAndKpiCode(TENANT, code)) {
+        if (!k.getKpiCode().equals(code) && kpis.existsByTenantIdAndKpiCode(TenantContext.current(), code)) {
             throw new BadRequestException("KPI code already exists: " + code);
         }
         k.setKpiCode(code);
@@ -129,11 +129,11 @@ public class KpiService {
         }
         List<KpiAssignment> rows;
         if (cycleId != null && employeeId != null) {
-            rows = assignments.findByTenantIdAndCycleIdAndEmployeeIdOrderByCreatedAtAsc(TENANT, cycleId, employeeId);
+            rows = assignments.findByTenantIdAndCycleIdAndEmployeeIdOrderByCreatedAtAsc(TenantContext.current(), cycleId, employeeId);
         } else if (cycleId != null) {
-            rows = assignments.findByTenantIdAndCycleIdOrderByCreatedAtAsc(TENANT, cycleId);
+            rows = assignments.findByTenantIdAndCycleIdOrderByCreatedAtAsc(TenantContext.current(), cycleId);
         } else if (employeeId != null) {
-            rows = assignments.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            rows = assignments.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         } else {
             throw new BadRequestException("cycleId or employeeId is required");
         }
@@ -164,7 +164,7 @@ public class KpiService {
             throw new BadRequestException("This KPI is already assigned to the employee for this cycle");
         }
         KpiAssignment a = new KpiAssignment();
-        a.setTenantId(TENANT);
+        a.setTenantId(TenantContext.current());
         a.setKpiId(req.kpiId());
         a.setCycleId(req.cycleId());
         a.setEmployeeId(req.employeeId());
@@ -198,7 +198,7 @@ public class KpiService {
         KpiAssignment saved = assignments.save(a);
 
         KpiResult r = new KpiResult();
-        r.setTenantId(TENANT);
+        r.setTenantId(TenantContext.current());
         r.setAssignmentId(assignmentId);
         r.setPeriodLabel(req.periodLabel());
         r.setActualValue(req.actualValue());

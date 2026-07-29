@@ -1,4 +1,5 @@
 package az.millers.hcm.corehr.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -33,7 +34,6 @@ import az.millers.hcm.common.BusinessNumbers;
 public class DocumentExpiryRenewalService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentExpiryRenewalService.class);
-    private static final String TENANT = "default";
     private static final String MODULE = "core-hr";
     private static final String ENTITY = "EmployeeDocument";
     private static final int EXPIRY_WARNING_DAYS = 30;
@@ -113,7 +113,7 @@ public class DocumentExpiryRenewalService {
             """;
 
         return jdbc.query(sql,
-                Map.of("tenantId", TENANT, "threshold", threshold),
+                Map.of("tenantId", TenantContext.current(), "threshold", threshold),
                 (rs, rowNum) -> new ExpiringDocumentDTO(
                         UUID.fromString(rs.getString("document_id")),
                         UUID.fromString(rs.getString("employee_id")),
@@ -141,7 +141,7 @@ public class DocumentExpiryRenewalService {
         // Create the renewal request
         HrServiceRequest request = new HrServiceRequest();
         request.setId(UUID.randomUUID());
-        request.setTenantId(TENANT);
+        request.setTenantId(TenantContext.current());
         request.setRequestNo(generateRequestNo());
         request.setEmployeeId(doc.employeeId());
         request.setCategory(ServiceRequestCategory.DOCUMENT_RENEWAL);

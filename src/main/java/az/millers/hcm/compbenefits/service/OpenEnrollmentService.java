@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -24,7 +25,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class OpenEnrollmentService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String ENTITY = "OpenEnrollmentWindow";
 
@@ -44,8 +44,8 @@ public class OpenEnrollmentService {
     public List<WindowResponse> list(boolean activeOnly) {
         LocalDate today = LocalDate.now();
         List<OpenEnrollmentWindow> rows = activeOnly
-                ? repo.findByTenantIdAndActiveTrueOrderByStartDateDesc(TENANT)
-                : repo.findByTenantIdOrderByStartDateDesc(TENANT);
+                ? repo.findByTenantIdAndActiveTrueOrderByStartDateDesc(TenantContext.current())
+                : repo.findByTenantIdOrderByStartDateDesc(TenantContext.current());
         return rows.stream().map(w -> WindowResponse.from(w, today)).toList();
     }
 
@@ -53,7 +53,7 @@ public class OpenEnrollmentService {
     @Transactional(readOnly = true)
     public OpenStatus status() {
         LocalDate today = LocalDate.now();
-        return repo.findByTenantIdAndActiveTrueOrderByStartDateDesc(TENANT).stream()
+        return repo.findByTenantIdAndActiveTrueOrderByStartDateDesc(TenantContext.current()).stream()
                 .filter(w -> w.isOpenOn(today))
                 .findFirst()
                 .map(OpenStatus::of)
@@ -64,7 +64,7 @@ public class OpenEnrollmentService {
     public WindowResponse create(WindowRequest req) {
         validate(req);
         OpenEnrollmentWindow w = new OpenEnrollmentWindow();
-        w.setTenantId(TENANT);
+        w.setTenantId(TenantContext.current());
         apply(w, req);
         w.setCreatedBy(currentRequest.username());
         OpenEnrollmentWindow saved = repo.save(w);

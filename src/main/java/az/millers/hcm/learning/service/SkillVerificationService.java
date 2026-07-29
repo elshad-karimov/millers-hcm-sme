@@ -1,4 +1,5 @@
 package az.millers.hcm.learning.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -27,7 +28,6 @@ import az.millers.hcm.selfservice.service.EmployeeContextService;
 @Service
 public class SkillVerificationService {
 
-    private static final String TENANT_ID = "default";
     private static final String MODULE = "LEARNING";
     private static final String ENTITY = "SkillVerification";
 
@@ -63,7 +63,7 @@ public class SkillVerificationService {
         }
 
         SkillVerificationRequest req = new SkillVerificationRequest();
-        req.setTenantId(TENANT_ID);
+        req.setTenantId(TenantContext.current());
         req.setEmployeeId(employeeId);
         req.setCompetencyId(competencyId);
         req.setRequestedLevel(requestedLevel);
@@ -77,13 +77,13 @@ public class SkillVerificationService {
 
     @Transactional(readOnly = true)
     public List<SkillVerificationRequest> getPendingRequests() {
-        return requests.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT_ID, VerificationStatus.PENDING);
+        return requests.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), VerificationStatus.PENDING);
     }
 
     @Transactional(readOnly = true)
     public List<SkillVerificationRequest> getMyRequests() {
         UUID employeeId = employeeContext.currentEmployee().getId();
-        return requests.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT_ID, employeeId);
+        return requests.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional
@@ -91,7 +91,7 @@ public class SkillVerificationService {
         SkillVerificationRequest req = requests.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
 
-        if (!req.getTenantId().equals(TENANT_ID)) {
+        if (!req.getTenantId().equals(TenantContext.current())) {
             throw new ResourceNotFoundException("Request not found");
         }
         if (req.getStatus() != VerificationStatus.PENDING) {
@@ -123,7 +123,7 @@ public class SkillVerificationService {
         SkillVerificationRequest req = requests.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
 
-        if (!req.getTenantId().equals(TENANT_ID)) {
+        if (!req.getTenantId().equals(TenantContext.current())) {
             throw new ResourceNotFoundException("Request not found");
         }
         if (req.getStatus() != VerificationStatus.PENDING) {

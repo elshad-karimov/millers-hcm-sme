@@ -1,4 +1,5 @@
 package az.millers.hcm.integration.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -33,7 +34,6 @@ import az.millers.hcm.integration.repo.IntegrationLogRepository;
 public class IntegrationRegistryService {
 
     private static final Logger log = LoggerFactory.getLogger(IntegrationRegistryService.class);
-    private static final String TENANT = "default";
 
     private final IntegrationConfigRepository configRepo;
     private final IntegrationLogRepository logRepo;
@@ -53,12 +53,12 @@ public class IntegrationRegistryService {
                                      IntegrationType type, String endpointUrl,
                                      String credentialsRef, String notes, String createdBy) {
         // Check uniqueness
-        configRepo.findByCodeAndTenantId(code, TENANT).ifPresent(existing -> {
+        configRepo.findByCodeAndTenantId(code, TenantContext.current()).ifPresent(existing -> {
             throw new IllegalArgumentException("Integration code already exists: " + code);
         });
 
         IntegrationConfig config = new IntegrationConfig();
-        config.setTenantId(TENANT);
+        config.setTenantId(TenantContext.current());
         config.setCode(code);
         config.setName(name);
         config.setDirection(direction);
@@ -81,7 +81,7 @@ public class IntegrationRegistryService {
                                      IntegrationType type, String endpointUrl,
                                      String credentialsRef, boolean enabled, String notes,
                                      String updatedBy) {
-        IntegrationConfig config = configRepo.findByIdAndTenantId(id, TENANT)
+        IntegrationConfig config = configRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Integration config not found: " + id));
 
         IntegrationConfig before = clone(config);
@@ -105,7 +105,7 @@ public class IntegrationRegistryService {
     }
 
     public void delete(UUID id, String deletedBy) {
-        IntegrationConfig config = configRepo.findByIdAndTenantId(id, TENANT)
+        IntegrationConfig config = configRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Integration config not found: " + id));
 
         configRepo.delete(config);
@@ -117,24 +117,24 @@ public class IntegrationRegistryService {
     }
 
     public List<IntegrationConfigListDto> listAll() {
-        return configRepo.findByTenantIdOrderByNameAsc(TENANT).stream()
+        return configRepo.findByTenantIdOrderByNameAsc(TenantContext.current()).stream()
             .map(IntegrationConfigListDto::from)
             .collect(Collectors.toList());
     }
 
     public List<IntegrationConfigListDto> listEnabled() {
-        return configRepo.findByTenantIdAndEnabledOrderByNameAsc(TENANT, true).stream()
+        return configRepo.findByTenantIdAndEnabledOrderByNameAsc(TenantContext.current(), true).stream()
             .map(IntegrationConfigListDto::from)
             .collect(Collectors.toList());
     }
 
     public IntegrationConfig get(UUID id) {
-        return configRepo.findByIdAndTenantId(id, TENANT)
+        return configRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Integration config not found: " + id));
     }
 
     public IntegrationConfig getByCode(String code) {
-        return configRepo.findByCodeAndTenantId(code, TENANT)
+        return configRepo.findByCodeAndTenantId(code, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Integration config not found: " + code));
     }
 
@@ -147,7 +147,7 @@ public class IntegrationRegistryService {
      */
     public void recordRun(String code, IntegrationStatus status, int recordsProcessed, String errorMessage) {
         try {
-            IntegrationConfig config = configRepo.findByCodeAndTenantId(code, TENANT)
+            IntegrationConfig config = configRepo.findByCodeAndTenantId(code, TenantContext.current())
                 .orElse(null);
             if (config == null) {
                 log.warn("recordRun: integration config not found for code '{}'", code);
@@ -161,7 +161,7 @@ public class IntegrationRegistryService {
 
             // Create log entry
             IntegrationLog logEntry = new IntegrationLog();
-            logEntry.setTenantId(TENANT);
+            logEntry.setTenantId(TenantContext.current());
             logEntry.setConfigId(config.getId());
             logEntry.setStatus(status);
             logEntry.setRecordsProcessed(recordsProcessed);
@@ -187,7 +187,7 @@ public class IntegrationRegistryService {
      */
     public List<IntegrationLog> getRecentFailures(int limit) {
         Pageable page = PageRequest.of(0, limit);
-        return logRepo.findByTenantIdAndStatusOrderByRunAtDesc(TENANT, IntegrationStatus.FAILED, page);
+        return logRepo.findByTenantIdAndStatusOrderByRunAtDesc(TenantContext.current(), IntegrationStatus.FAILED, page);
     }
 
     // ── Daily purge job ────────────────────────────────────────────────────────

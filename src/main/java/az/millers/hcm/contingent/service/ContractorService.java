@@ -1,4 +1,5 @@
 package az.millers.hcm.contingent.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
@@ -19,7 +20,6 @@ import java.util.UUID;
 @Service
 public class ContractorService {
     private static final String MODULE = "contingent";
-    private static final String TENANT_ID = "default";
 
     private final ContractorEngagementRepository repo;
     private final CurrentRequest currentRequest;
@@ -36,19 +36,19 @@ public class ContractorService {
 
     @Transactional(readOnly = true)
     public List<ContractorEngagement> listEngagements(String status) {
-        return status != null ? repo.findByTenantIdAndStatusOrderByContractStartDesc(TENANT_ID, status)
-                              : repo.findByTenantIdOrderByContractStartDesc(TENANT_ID);
+        return status != null ? repo.findByTenantIdAndStatusOrderByContractStartDesc(TenantContext.current(), status)
+                              : repo.findByTenantIdOrderByContractStartDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public ContractorEngagement getEngagement(UUID id) {
-        return repo.findByIdAndTenantId(id, TENANT_ID)
+        return repo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Engagement not found"));
     }
 
     @Transactional
     public ContractorEngagement createEngagement(ContractorEngagement engagement) {
-        engagement.setTenantId(TENANT_ID);
+        engagement.setTenantId(TenantContext.current());
         engagement.setCreatedBy(currentRequest.username());
         ContractorEngagement saved = repo.save(engagement);
         audit.record(MODULE, "ContractorEngagement", saved.getId().toString(), "CREATE", null,
@@ -102,7 +102,7 @@ public class ContractorService {
                 .addValue("newType", newEmploymentType)
                 .addValue("updatedBy", currentRequest.username())
                 .addValue("employeeId", employeeId)
-                .addValue("tenantId", TENANT_ID));
+                .addValue("tenantId", TenantContext.current()));
 
         if (updated == 0) {
             throw new ResourceNotFoundException("Employee not found");

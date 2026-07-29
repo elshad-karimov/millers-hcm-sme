@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,7 +32,6 @@ public class IncentivePayoutService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "IncentivePayout";
-    private static final String TENANT = "default";
 
     private final IncentivePayoutRepository payouts;
     private final IncentivePlanService planService;
@@ -60,19 +60,19 @@ public class IncentivePayoutService {
     @Transactional(readOnly = true)
     public List<IncentivePayout> list(UUID planId, UUID employeeId, String status) {
         if (planId != null) {
-            return payouts.findByTenantIdAndPlanIdOrderByCreatedAtDesc(TENANT, planId);
+            return payouts.findByTenantIdAndPlanIdOrderByCreatedAtDesc(TenantContext.current(), planId);
         }
         if (employeeId != null) {
             // Enforce hierarchy access
             if (!accessScope.isAccessible(employeeId)) {
                 throw new BadRequestException("Access denied to employee: " + employeeId);
             }
-            return payouts.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            return payouts.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         }
         if (status != null) {
-            return payouts.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, status);
+            return payouts.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), status);
         }
-        return payouts.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        return payouts.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +104,7 @@ public class IncentivePayoutService {
         BigDecimal payoutAmount = result.get("payoutAmount");
 
         IncentivePayout payout = new IncentivePayout();
-        payout.setTenantId(TENANT);
+        payout.setTenantId(TenantContext.current());
         payout.setPlanId(planId);
         payout.setEmployeeId(employeeId);
         payout.setPeriod(period);

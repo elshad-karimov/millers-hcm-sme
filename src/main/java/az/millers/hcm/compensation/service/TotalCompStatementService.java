@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -62,7 +63,6 @@ public class TotalCompStatementService {
     private static final Logger log = LoggerFactory.getLogger(TotalCompStatementService.class);
     private static final String MODULE = "compensation";
     private static final String ENTITY = "TotalCompStatement";
-    private static final String TENANT = "default";
 
     private final TotalCompStatementRepository statements;
     private final EmployeeRepository employees;
@@ -131,10 +131,10 @@ public class TotalCompStatementService {
                 .add(employerContributionsTotal);
 
         // Upsert statement
-        TotalCompStatement stmt = statements.findByTenantIdAndEmployeeIdAndYear(TENANT, employeeId, year)
+        TotalCompStatement stmt = statements.findByTenantIdAndEmployeeIdAndYear(TenantContext.current(), employeeId, year)
                 .orElse(new TotalCompStatement());
 
-        stmt.setTenantId(TENANT);
+        stmt.setTenantId(TenantContext.current());
         stmt.setEmployeeId(employeeId);
         stmt.setYear(year);
         stmt.setBaseSalary(baseSalary);
@@ -214,7 +214,7 @@ public class TotalCompStatementService {
 
     @Transactional
     public Map<String, Object> releaseAll(int year) {
-        List<TotalCompStatement> stmts = statements.findByTenantIdAndYearOrderByEmployeeIdAsc(TENANT, year);
+        List<TotalCompStatement> stmts = statements.findByTenantIdAndYearOrderByEmployeeIdAsc(TenantContext.current(), year);
         int count = 0;
         for (TotalCompStatement stmt : stmts) {
             if ("GENERATED".equals(stmt.getStatus())) {
@@ -227,7 +227,7 @@ public class TotalCompStatementService {
 
     @Transactional(readOnly = true)
     public List<TotalCompStatement> list(int year) {
-        return statements.findByTenantIdAndYearOrderByEmployeeIdAsc(TENANT, year);
+        return statements.findByTenantIdAndYearOrderByEmployeeIdAsc(TenantContext.current(), year);
     }
 
     @Transactional(readOnly = true)
@@ -291,7 +291,7 @@ public class TotalCompStatementService {
     }
 
     private BigDecimal calculateIncentives(UUID employeeId, int year) {
-        List<IncentivePayout> payouts = incentivePayouts.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+        List<IncentivePayout> payouts = incentivePayouts.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         return payouts.stream()
                 .filter(p -> "APPROVED".equals(p.getStatus()) || "PAID".equals(p.getStatus()))
                 .filter(p -> p.getPeriod() != null && p.getPeriod().contains(String.valueOf(year)))
@@ -300,7 +300,7 @@ public class TotalCompStatementService {
     }
 
     private BigDecimal calculateCommissions(UUID employeeId, int year) {
-        List<CommissionPayout> payouts = commissionPayouts.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+        List<CommissionPayout> payouts = commissionPayouts.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         return payouts.stream()
                 .filter(p -> "APPROVED".equals(p.getStatus()) || "PAID".equals(p.getStatus()))
                 .filter(p -> p.getPeriod() != null && p.getPeriod().contains(String.valueOf(year)))

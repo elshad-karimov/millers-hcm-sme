@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -68,7 +69,6 @@ public class BenefitsService {
 
     private static final Logger log = LoggerFactory.getLogger(BenefitsService.class);
 
-    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String PLAN_ENTITY = "BenefitPlan";
     private static final String ENROLLMENT_ENTITY = "BenefitEnrollment";
@@ -142,8 +142,8 @@ public class BenefitsService {
     @Transactional(readOnly = true)
     public List<PlanResponse> listPlans(boolean activeOnly) {
         List<BenefitPlan> rows = activeOnly
-                ? plans.findByTenantIdAndActiveTrueOrderByBenefitTypeAscNameAsc(TENANT)
-                : plans.findByTenantIdOrderByBenefitTypeAscNameAsc(TENANT);
+                ? plans.findByTenantIdAndActiveTrueOrderByBenefitTypeAscNameAsc(TenantContext.current())
+                : plans.findByTenantIdOrderByBenefitTypeAscNameAsc(TenantContext.current());
         Map<UUID, String> providerNames = new HashMap<>();
         Map<UUID, String> categoryNames = new HashMap<>();
         return rows.stream()
@@ -173,11 +173,11 @@ public class BenefitsService {
     @Transactional
     public PlanResponse createPlan(PlanRequest req) {
         validatePlanRequest(req);
-        if (plans.existsByTenantIdAndCode(TENANT, req.code())) {
+        if (plans.existsByTenantIdAndCode(TenantContext.current(), req.code())) {
             throw new BadRequestException("Benefit plan code already exists: " + req.code());
         }
         BenefitPlan p = new BenefitPlan();
-        p.setTenantId(TENANT);
+        p.setTenantId(TenantContext.current());
         applyPlan(p, req);
         p.setCreatedBy(currentRequest.username());
         BenefitPlan saved = plans.save(p);
@@ -195,7 +195,7 @@ public class BenefitsService {
         long active = enrollments.countByPlanIdAndStatus(id, EnrollmentStatus.ENROLLED);
         PlanResponse before = PlanResponse.from(p, active,
                 providerName(p.getProviderId()), categoryName(p.getCategoryId()));
-        if (!p.getCode().equals(req.code()) && plans.existsByTenantIdAndCode(TENANT, req.code())) {
+        if (!p.getCode().equals(req.code()) && plans.existsByTenantIdAndCode(TenantContext.current(), req.code())) {
             throw new BadRequestException("Benefit plan code already exists: " + req.code());
         }
         applyPlan(p, req);
@@ -270,10 +270,10 @@ public class BenefitsService {
     @Transactional(readOnly = true)
     public List<EnrollmentResponse> listEnrolmentsByStatus(EnrollmentStatus status) {
         List<BenefitEnrollment> rows = status == null
-                ? enrollments.findByTenantId(TENANT).stream()
+                ? enrollments.findByTenantId(TenantContext.current()).stream()
                     .sorted(Comparator.comparing(BenefitEnrollment::getStartDate).reversed())
                     .toList()
-                : enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TENANT, status);
+                : enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TenantContext.current(), status);
         return decorate(rows);
     }
 

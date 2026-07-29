@@ -1,4 +1,5 @@
 package az.millers.hcm.budgeting.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -40,7 +41,6 @@ import az.millers.hcm.workflow.service.WorkflowService;
 public class DepartmentBudgetService {
 
     private static final Logger log = LoggerFactory.getLogger(DepartmentBudgetService.class);
-    private static final String TENANT = "default";
     private static final String MODULE = "BUDGETING";
     private static final String ENTITY = "DepartmentBudget";
     private static final String WORKFLOW_DEFINITION = "BUDGET_APPROVAL";
@@ -75,7 +75,7 @@ public class DepartmentBudgetService {
     @Transactional(readOnly = true)
     public DepartmentBudget get(UUID id) {
         return repo.findById(id)
-                .filter(b -> TENANT.equals(b.getTenantId()))
+                .filter(b -> TenantContext.current().equals(b.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Department budget not found: " + id));
     }
 
@@ -111,7 +111,7 @@ public class DepartmentBudgetService {
             return saved;
         } else {
             // Create new
-            budget.setTenantId(TENANT);
+            budget.setTenantId(TenantContext.current());
             budget.setCycleId(cycleId);
             budget.setCreatedBy(currentRequest.username());
             DepartmentBudget saved = repo.save(budget);

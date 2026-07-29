@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -27,7 +28,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class TalentReviewService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "TALENT";
     private static final List<String> STATUSES = List.of("DRAFT", "ACTIVE", "COMPLETED");
     private static final List<String> RISKS = List.of("LOW", "MEDIUM", "HIGH", "CRITICAL");
@@ -58,8 +58,8 @@ public class TalentReviewService {
     @Transactional(readOnly = true)
     public List<TalentReviewCycle> listCycles(String status) {
         return status == null
-                ? cycles.findByTenantIdOrderByYearDesc(TENANT)
-                : cycles.findByTenantIdAndStatusOrderByYearDesc(TENANT, status);
+                ? cycles.findByTenantIdOrderByYearDesc(TenantContext.current())
+                : cycles.findByTenantIdAndStatusOrderByYearDesc(TenantContext.current(), status);
     }
 
     @Transactional
@@ -68,7 +68,7 @@ public class TalentReviewService {
             throw new BadRequestException("Cycle name is required");
         }
         TalentReviewCycle cycle = new TalentReviewCycle();
-        cycle.setTenantId(TENANT);
+        cycle.setTenantId(TenantContext.current());
         cycle.setName(name.trim());
         cycle.setYear(year);
         cycle.setCreatedBy(currentRequest.username());
@@ -132,7 +132,7 @@ public class TalentReviewService {
         TalentReview review = reviews.findByCycleIdAndEmployeeId(cycleId, employeeId)
                 .orElseGet(() -> {
                     TalentReview r = new TalentReview();
-                    r.setTenantId(TENANT);
+                    r.setTenantId(TenantContext.current());
                     r.setCycleId(cycleId);
                     r.setEmployeeId(employeeId);
                     return r;
@@ -149,10 +149,10 @@ public class TalentReviewService {
         TalentReview saved = reviews.save(review);
 
         // Roll decision onto talent_profile (M409 upsert).
-        TalentProfile profile = profiles.findByTenantIdAndEmployeeId(TENANT, employeeId)
+        TalentProfile profile = profiles.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
                 .orElseGet(() -> {
                     TalentProfile p = new TalentProfile();
-                    p.setTenantId(TENANT);
+                    p.setTenantId(TenantContext.current());
                     p.setEmployeeId(employeeId);
                     return p;
                 });

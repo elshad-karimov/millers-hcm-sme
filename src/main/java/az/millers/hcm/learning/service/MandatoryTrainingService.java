@@ -1,4 +1,5 @@
 package az.millers.hcm.learning.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -38,7 +39,6 @@ import az.millers.hcm.security.CurrentRequest;
 public class MandatoryTrainingService {
 
     private static final Logger log = LoggerFactory.getLogger(MandatoryTrainingService.class);
-    private static final String TENANT = "default";
     private static final String MODULE = "LEARNING";
 
     public record RuleRequest(UUID courseId, String name, String departmentName, UUID positionId,
@@ -78,7 +78,7 @@ public class MandatoryTrainingService {
 
     @Transactional(readOnly = true)
     public List<MandatoryTrainingRule> list() {
-        return rules.findByTenantIdOrderByNameAsc(TENANT);
+        return rules.findByTenantIdOrderByNameAsc(TenantContext.current());
     }
 
     @Transactional
@@ -95,7 +95,7 @@ public class MandatoryTrainingService {
         MandatoryTrainingRule r;
         if (id == null) {
             r = new MandatoryTrainingRule();
-            r.setTenantId(TENANT);
+            r.setTenantId(TenantContext.current());
             r.setCreatedBy(currentRequest.username());
         } else {
             r = rules.findById(id).orElseThrow(
@@ -135,7 +135,7 @@ public class MandatoryTrainingService {
     @Transactional
     public SweepResult runSweep() {
         int enrolled = 0, renewed = 0;
-        List<MandatoryTrainingRule> active = rules.findByTenantIdAndActiveTrueOrderByNameAsc(TENANT);
+        List<MandatoryTrainingRule> active = rules.findByTenantIdAndActiveTrueOrderByNameAsc(TenantContext.current());
         for (MandatoryTrainingRule rule : active) {
             for (UUID employeeId : audienceOf(rule)) {
                 Enrollment existing = enrollments
@@ -199,7 +199,7 @@ public class MandatoryTrainingService {
     @Transactional(readOnly = true)
     public List<RuleCompliance> compliance() {
         List<RuleCompliance> out = new ArrayList<>();
-        for (MandatoryTrainingRule rule : rules.findByTenantIdAndActiveTrueOrderByNameAsc(TENANT)) {
+        for (MandatoryTrainingRule rule : rules.findByTenantIdAndActiveTrueOrderByNameAsc(TenantContext.current())) {
             List<UUID> audience = audienceOf(rule);
             long compliant = 0, pending = 0, overdue = 0;
             for (UUID employeeId : audience) {

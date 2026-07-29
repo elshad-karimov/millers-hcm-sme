@@ -1,4 +1,5 @@
 package az.millers.hcm.learning.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,7 +46,6 @@ public class TrainingCostFeedbackController {
                                   Integer overallRating, Integer contentRating,
                                   Integer instructorRating, String comment, Boolean anonymous) {}
 
-    private static final String TENANT = "default";
 
     private final TrainingCostRepository costs;
     private final TrainingFeedbackRepository feedback;
@@ -81,8 +81,8 @@ public class TrainingCostFeedbackController {
     public List<TrainingCost> listCosts(@RequestParam(required = false) UUID courseId,
                                         @RequestParam(required = false) UUID sessionId) {
         if (sessionId != null) return costs.findBySessionIdOrderByCreatedAtDesc(sessionId);
-        if (courseId != null) return costs.findByTenantIdAndCourseIdOrderByCreatedAtDesc(TENANT, courseId);
-        return costs.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        if (courseId != null) return costs.findByTenantIdAndCourseIdOrderByCreatedAtDesc(TenantContext.current(), courseId);
+        return costs.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @PostMapping("/training-costs")
@@ -96,7 +96,7 @@ public class TrainingCostFeedbackController {
             throw new BadRequestException("A non-negative amount is required");
         }
         TrainingCost c = new TrainingCost();
-        c.setTenantId(TENANT);
+        c.setTenantId(TenantContext.current());
         c.setCourseId(req.courseId());
         c.setSessionId(req.sessionId());
         if (req.costType() != null) c.setCostType(req.costType());
@@ -119,7 +119,7 @@ public class TrainingCostFeedbackController {
                                                @RequestParam(required = false) UUID courseId) {
         List<TrainingFeedback> rows = sessionId != null
                 ? feedback.findBySessionIdOrderByCreatedAtDesc(sessionId)
-                : feedback.findByTenantIdAndCourseIdOrderByCreatedAtDesc(TENANT, courseId);
+                : feedback.findByTenantIdAndCourseIdOrderByCreatedAtDesc(TenantContext.current(), courseId);
         // §20 — anonymity: strip the author on anonymous rows before returning.
         rows.forEach(f -> { if (f.isAnonymous()) f.setEmployeeId(new UUID(0, 0)); });
         return rows;
@@ -149,7 +149,7 @@ public class TrainingCostFeedbackController {
             }
         }
         TrainingFeedback f = new TrainingFeedback();
-        f.setTenantId(TENANT);
+        f.setTenantId(TenantContext.current());
         f.setSessionId(req.sessionId());
         f.setCourseId(req.courseId());
         f.setEmployeeId(req.employeeId());

@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -37,7 +38,6 @@ public class CompensationExceptionService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "CompensationException";
-    private static final String TENANT = "default";
 
     private final CompensationExceptionRepository repo;
     private final EmployeeRepository employees;
@@ -74,7 +74,7 @@ public class CompensationExceptionService {
         }
 
         CompensationException exc = new CompensationException();
-        exc.setTenantId(TENANT);
+        exc.setTenantId(TenantContext.current());
         exc.setEmployeeId(employeeId);
         exc.setSourceType(sourceType);
         exc.setSourceId(sourceId);
@@ -115,11 +115,11 @@ public class CompensationExceptionService {
                                                  CompensationExceptionType exceptionType) {
         List<CompensationException> rows;
         if (status != null) {
-            rows = repo.findByTenantIdAndStatusOrderByRaisedAtDesc(TENANT, status);
+            rows = repo.findByTenantIdAndStatusOrderByRaisedAtDesc(TenantContext.current(), status);
         } else if (exceptionType != null) {
-            rows = repo.findByTenantIdAndExceptionTypeOrderByRaisedAtDesc(TENANT, exceptionType);
+            rows = repo.findByTenantIdAndExceptionTypeOrderByRaisedAtDesc(TenantContext.current(), exceptionType);
         } else {
-            rows = repo.findByTenantIdOrderByRaisedAtDesc(TENANT);
+            rows = repo.findByTenantIdOrderByRaisedAtDesc(TenantContext.current());
         }
         return rows.stream().map(CompensationExceptionDto::from).toList();
     }

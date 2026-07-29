@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,6 @@ import az.millers.hcm.security.SecurityRoles;
 @RequestMapping("/api/ehs/injuries")
 public class InjuryReportController {
 
-    private static final String TENANT = "default";
 
     private final InjuryReportService service;
     private final NamedParameterJdbcTemplate jdbc;
@@ -114,7 +114,7 @@ public class InjuryReportController {
         if (employeeId == null) return null;
         return jdbc.queryForObject(
                 "SELECT first_name || ' ' || last_name FROM core_hr.employee WHERE id = :id AND tenant_id = :tenant",
-                Map.of("id", employeeId, "tenant", TENANT),
+                Map.of("id", employeeId, "tenant", TenantContext.current()),
                 String.class
         );
     }
@@ -123,7 +123,7 @@ public class InjuryReportController {
         if (employeeIds == null || employeeIds.isEmpty()) return Map.of();
         return jdbc.query(
                 "SELECT id, first_name || ' ' || last_name AS name FROM core_hr.employee WHERE id IN (:ids) AND tenant_id = :tenant",
-                Map.of("ids", employeeIds, "tenant", TENANT),
+                Map.of("ids", employeeIds, "tenant", TenantContext.current()),
                 rs -> {
                     Map<UUID, String> map = new java.util.HashMap<>();
                     while (rs.next()) {

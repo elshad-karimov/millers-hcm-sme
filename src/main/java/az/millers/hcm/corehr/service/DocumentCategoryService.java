@@ -1,4 +1,5 @@
 package az.millers.hcm.corehr.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +19,6 @@ import az.millers.hcm.corehr.repo.DocumentCategoryRepository;
 @Service
 public class DocumentCategoryService {
 
-    private static final String TENANT = "default";
 
     private final DocumentCategoryRepository repo;
 
@@ -29,15 +29,15 @@ public class DocumentCategoryService {
     @Transactional(readOnly = true)
     public List<DocumentCategory> listAll() {
         return repo.findAll().stream()
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<DocumentCategory> listActive() {
-        return repo.findByTenantIdAndActiveTrueOrderBySortOrderAsc(TENANT)
+        return repo.findByTenantIdAndActiveTrueOrderBySortOrderAsc(TenantContext.current())
                 .stream()
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .collect(Collectors.toList());
     }
 
@@ -45,7 +45,7 @@ public class DocumentCategoryService {
     public DocumentCategory get(UUID id) {
         DocumentCategory category = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document category not found: " + id));
-        if (!TENANT.equals(category.getTenantId())) {
+        if (!TenantContext.current().equals(category.getTenantId())) {
             throw new ResourceNotFoundException("Document category not found: " + id);
         }
         return category;
@@ -57,7 +57,7 @@ public class DocumentCategoryService {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
 
         DocumentCategory category = new DocumentCategory();
-        category.setTenantId(TENANT);
+        category.setTenantId(TenantContext.current());
         category.setCode(code);
         category.setName(name);
         category.setMandatory(mandatory != null ? mandatory : false);

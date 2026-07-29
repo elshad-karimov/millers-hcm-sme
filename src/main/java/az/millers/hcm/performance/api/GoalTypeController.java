@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,7 +31,6 @@ import az.millers.hcm.security.SecurityRoles;
 @RequestMapping("/api/performance/goal-types")
 public class GoalTypeController {
 
-    private static final String TENANT = "default";
     private static final List<String> CATEGORIES =
             List.of("COMPANY", "DEPARTMENT", "TEAM", "INDIVIDUAL", "DEVELOPMENT");
 
@@ -49,8 +49,8 @@ public class GoalTypeController {
     @PreAuthorize("isAuthenticated()")
     public List<GoalType> list(@RequestParam(defaultValue = "true") boolean activeOnly) {
         return activeOnly
-                ? types.findByTenantIdAndActiveTrueOrderBySortOrderAsc(TENANT)
-                : types.findByTenantIdOrderBySortOrderAsc(TENANT);
+                ? types.findByTenantIdAndActiveTrueOrderBySortOrderAsc(TenantContext.current())
+                : types.findByTenantIdOrderBySortOrderAsc(TenantContext.current());
     }
 
     @PostMapping
@@ -59,11 +59,11 @@ public class GoalTypeController {
     public GoalType create(@RequestBody GoalTypeRequest req) {
         validate(req);
         String code = req.code().trim().toUpperCase();
-        if (types.existsByTenantIdAndCode(TENANT, code)) {
+        if (types.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Goal type code already exists: " + code);
         }
         GoalType t = new GoalType();
-        t.setTenantId(TENANT);
+        t.setTenantId(TenantContext.current());
         t.setCode(code);
         apply(t, req);
         GoalType saved = types.save(t);

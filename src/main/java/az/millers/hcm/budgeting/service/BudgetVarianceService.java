@@ -1,4 +1,5 @@
 package az.millers.hcm.budgeting.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,7 +32,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class BudgetVarianceService {
 
-    private static final String TENANT = "default";
 
     private final BudgetCycleRepository cycles;
     private final DepartmentBudgetRepository budgets;
@@ -61,7 +61,7 @@ public class BudgetVarianceService {
     @Transactional(readOnly = true)
     public List<DepartmentVariance> variance(UUID cycleId) {
         BudgetCycle cycle = cycles.findById(cycleId)
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Budget cycle not found: " + cycleId));
 
         LocalDate start = cycle.getPeriodStart();
@@ -81,7 +81,7 @@ public class BudgetVarianceService {
             GROUP BY e.org_unit_id
         """;
         List<Map<String, Object>> actuals = jdbc.queryForList(actualSql,
-                Map.of("tenant", TENANT, "start", start, "end", end));
+                Map.of("tenant", TenantContext.current(), "start", start, "end", end));
 
         Map<UUID, BigDecimal> actualPerOrgUnit = actuals.stream()
                 .collect(java.util.stream.Collectors.toMap(

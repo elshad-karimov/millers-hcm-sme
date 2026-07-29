@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +22,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class BenefitProviderService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String ENTITY = "BenefitProvider";
 
@@ -40,8 +40,8 @@ public class BenefitProviderService {
     @Transactional(readOnly = true)
     public List<ProviderResponse> list(boolean activeOnly) {
         List<BenefitProvider> rows = activeOnly
-                ? repo.findByTenantIdAndActiveTrueOrderByNameAsc(TENANT)
-                : repo.findByTenantIdOrderByNameAsc(TENANT);
+                ? repo.findByTenantIdAndActiveTrueOrderByNameAsc(TenantContext.current())
+                : repo.findByTenantIdOrderByNameAsc(TenantContext.current());
         return rows.stream().map(ProviderResponse::from).toList();
     }
 
@@ -54,12 +54,12 @@ public class BenefitProviderService {
     @Transactional
     public ProviderResponse create(ProviderRequest req) {
         String code = normalizeCode(req.code());
-        if (repo.existsByTenantIdAndCode(TENANT, code)) {
+        if (repo.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Benefit provider code already exists: " + code);
         }
         validateContract(req);
         BenefitProvider p = new BenefitProvider();
-        p.setTenantId(TENANT);
+        p.setTenantId(TenantContext.current());
         p.setCode(code);
         apply(p, req);
         p.setCreatedBy(currentRequest.username());
@@ -74,7 +74,7 @@ public class BenefitProviderService {
         BenefitProvider p = get(id);
         ProviderResponse before = ProviderResponse.from(p);
         String code = normalizeCode(req.code());
-        if (!p.getCode().equals(code) && repo.existsByTenantIdAndCode(TENANT, code)) {
+        if (!p.getCode().equals(code) && repo.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Benefit provider code already exists: " + code);
         }
         validateContract(req);

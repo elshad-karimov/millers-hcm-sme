@@ -1,4 +1,5 @@
 package az.millers.hcm.budgeting.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,7 +32,6 @@ import az.millers.hcm.security.CurrentRequest;
 public class BudgetControlService {
 
     private static final Logger log = LoggerFactory.getLogger(BudgetControlService.class);
-    private static final String TENANT = "default";
     private static final String MODULE = "BUDGETING";
 
     private final BudgetControlRuleRepository repo;
@@ -51,15 +51,15 @@ public class BudgetControlService {
 
     @Transactional(readOnly = true)
     public List<BudgetControlRule> listRules() {
-        return repo.findByTenantIdOrderByTriggerPoint(TENANT);
+        return repo.findByTenantIdOrderByTriggerPoint(TenantContext.current());
     }
 
     @Transactional
     public BudgetControlRule upsertRule(TriggerPoint triggerPoint, ControlAction action, BigDecimal thresholdPct) {
-        BudgetControlRule rule = repo.findByTenantIdAndTriggerPointAndActiveTrue(TENANT, triggerPoint)
+        BudgetControlRule rule = repo.findByTenantIdAndTriggerPointAndActiveTrue(TenantContext.current(), triggerPoint)
                 .orElseGet(() -> {
                     BudgetControlRule r = new BudgetControlRule();
-                    r.setTenantId(TENANT);
+                    r.setTenantId(TenantContext.current());
                     r.setTriggerPoint(triggerPoint);
                     r.setCreatedBy(currentRequest.username());
                     return r;
@@ -81,7 +81,7 @@ public class BudgetControlService {
     @Transactional(readOnly = true)
     public Map<String, Object> check(TriggerPoint triggerPoint, UUID orgUnitId, BigDecimal additionalAnnualAmount) {
         // 1. Find active rule for this trigger
-        Optional<BudgetControlRule> ruleOpt = repo.findByTenantIdAndTriggerPointAndActiveTrue(TENANT, triggerPoint);
+        Optional<BudgetControlRule> ruleOpt = repo.findByTenantIdAndTriggerPointAndActiveTrue(TenantContext.current(), triggerPoint);
         if (ruleOpt.isEmpty()) {
             return Map.of("result", "OK", "message", "No budget control rule defined for " + triggerPoint);
         }
@@ -102,7 +102,7 @@ public class BudgetControlService {
             LIMIT 1
         """;
         List<Map<String, Object>> rows = jdbc.queryForList(sql,
-                Map.of("tenant", TENANT, "orgUnit", orgUnitId, "today", LocalDate.now()));
+                Map.of("tenant", TenantContext.current(), "orgUnit", orgUnitId, "today", LocalDate.now()));
 
         if (rows.isEmpty()) {
             return Map.of("result", "OK", "message", "No active budget found for department " + orgUnitId);

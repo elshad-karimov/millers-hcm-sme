@@ -1,4 +1,5 @@
 package az.millers.hcm.learning.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,7 +23,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class SkillInventoryService {
 
-    private static final String TENANT_ID = "default";
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AccessScopeService accessScope;
@@ -54,7 +54,7 @@ public class SkillInventoryService {
             ORDER BY ou.name, competency_name
             """;
 
-        MapSqlParameterSource params = new MapSqlParameterSource("tenantId", TENANT_ID);
+        MapSqlParameterSource params = new MapSqlParameterSource("tenantId", TenantContext.current());
         if (scope.isPresent() && !scope.get().isEmpty()) {
             params.addValue("scopeIds", scope.get().stream().map(UUID::toString).toList());
         }
@@ -104,7 +104,7 @@ public class SkillInventoryService {
             ORDER BY rs.competency_name
             """;
 
-        MapSqlParameterSource params = new MapSqlParameterSource("tenantId", TENANT_ID);
+        MapSqlParameterSource params = new MapSqlParameterSource("tenantId", TenantContext.current());
         if (scope.isPresent() && !scope.get().isEmpty()) {
             params.addValue("scopeIds", scope.get().stream().map(UUID::toString).toList());
         }
@@ -140,7 +140,7 @@ public class SkillInventoryService {
             """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("tenantId", TENANT_ID)
+                .addValue("tenantId", TenantContext.current())
                 .addValue("today", today)
                 .addValue("within90", within90Days);
         if (scope.isPresent() && !scope.get().isEmpty()) {

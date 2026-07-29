@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,7 +29,6 @@ import az.millers.hcm.compbenefits.repo.BenefitPlanRepository;
 @Service
 public class BenefitDashboardService {
 
-    private static final String TENANT = "default";
 
     private final BenefitPlanRepository plans;
     private final BenefitEnrollmentRepository enrollments;
@@ -50,10 +50,10 @@ public class BenefitDashboardService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> overview() {
-        List<BenefitPlan> allPlans = plans.findByTenantId(TENANT);
+        List<BenefitPlan> allPlans = plans.findByTenantId(TenantContext.current());
         long activePlans = allPlans.stream().filter(BenefitPlan::isActive).count();
 
-        List<BenefitEnrollment> allEnr = enrollments.findByTenantId(TENANT);
+        List<BenefitEnrollment> allEnr = enrollments.findByTenantId(TenantContext.current());
         Map<String, Long> byStatus = allEnr.stream()
                 .collect(Collectors.groupingBy(e -> e.getStatus().name(),
                         LinkedHashMap::new, Collectors.counting()));
@@ -62,12 +62,12 @@ public class BenefitDashboardService {
 
         BigDecimal employerMonthly = costs.currentEmployerMonthlySpend();
         BigDecimal employeeMonthly = enrollments
-                .findByTenantIdAndStatusOrderByStartDateDesc(TENANT, EnrollmentStatus.ENROLLED).stream()
+                .findByTenantIdAndStatusOrderByStartDateDesc(TenantContext.current(), EnrollmentStatus.ENROLLED).stream()
                 .map(e -> e.getEmployeeContribution() == null ? BigDecimal.ZERO : e.getEmployeeContribution())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Claims summary
-        List<BenefitClaim> allClaims = claims.findByTenantIdOrderByClaimDateDesc(TENANT);
+        List<BenefitClaim> allClaims = claims.findByTenantIdOrderByClaimDateDesc(TenantContext.current());
         Map<String, Long> claimsByStatus = allClaims.stream()
                 .collect(Collectors.groupingBy(c -> c.getStatus().name(),
                         LinkedHashMap::new, Collectors.counting()));
@@ -78,7 +78,7 @@ public class BenefitDashboardService {
 
         // Open life-event special windows
         LocalDate today = LocalDate.now();
-        long openLifeWindows = lifeEvents.findByTenantIdOrderByEventDateDesc(TENANT).stream()
+        long openLifeWindows = lifeEvents.findByTenantIdOrderByEventDateDesc(TenantContext.current()).stream()
                 .filter(e -> e.isWindowOpenOn(today)).count();
 
         // Plans expiring within 60 days

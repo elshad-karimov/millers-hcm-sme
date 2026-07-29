@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,7 +27,6 @@ public class CommissionPlanService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "CommissionPlan";
-    private static final String TENANT = "default";
 
     private final CommissionPlanRepository plans;
     private final CommissionTierRepository tiers;
@@ -45,12 +45,12 @@ public class CommissionPlanService {
 
     @Transactional(readOnly = true)
     public List<CommissionPlan> listActive() {
-        return plans.findByTenantIdAndIsActiveTrue(TENANT);
+        return plans.findByTenantIdAndIsActiveTrue(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public List<CommissionPlan> listAll() {
-        return plans.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        return plans.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -67,12 +67,12 @@ public class CommissionPlanService {
     @Transactional
     public CommissionPlan create(String code, String name, String basis,
                                  BigDecimal flatRatePct, Boolean tiered, String currency) {
-        if (plans.findByTenantIdAndCode(TENANT, code).isPresent()) {
+        if (plans.findByTenantIdAndCode(TenantContext.current(), code).isPresent()) {
             throw new BadRequestException("COMMISSION_PLAN_CODE_DUPLICATE");
         }
 
         CommissionPlan plan = new CommissionPlan();
-        plan.setTenantId(TENANT);
+        plan.setTenantId(TenantContext.current());
         plan.setCode(code);
         plan.setName(name);
         plan.setBasis(basis);
@@ -117,7 +117,7 @@ public class CommissionPlanService {
         // Insert new tiers
         for (CommissionTier tier : tierList) {
             tier.setId(null);
-            tier.setTenantId(TENANT);
+            tier.setTenantId(TenantContext.current());
             tier.setPlanId(planId);
             tiers.save(tier);
         }

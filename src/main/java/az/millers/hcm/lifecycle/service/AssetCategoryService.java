@@ -1,4 +1,5 @@
 package az.millers.hcm.lifecycle.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,7 +14,6 @@ import az.millers.hcm.security.CurrentRequest;
 /** M456 — Asset category service. */
 @Service
 public class AssetCategoryService {
-    private static final String TENANT = "default";
     private static final String MODULE = "lifecycle";
     private static final String ENTITY = "AssetCategory";
 
@@ -29,24 +29,24 @@ public class AssetCategoryService {
 
     @Transactional(readOnly = true)
     public List<AssetCategory> listActive() {
-        return repository.findByTenantIdAndActiveOrderByName(TENANT, true);
+        return repository.findByTenantIdAndActiveOrderByName(TenantContext.current(), true);
     }
 
     @Transactional(readOnly = true)
     public List<AssetCategory> listAll() {
-        return repository.findByTenantIdOrderByName(TENANT);
+        return repository.findByTenantIdOrderByName(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public AssetCategory get(UUID id) {
         return repository.findById(id)
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Asset category not found"));
     }
 
     @Transactional
     public AssetCategory create(AssetCategory category) {
-        category.setTenantId(TENANT);
+        category.setTenantId(TenantContext.current());
         category.setCreatedBy(currentRequest.username());
         category.setUpdatedBy(currentRequest.username());
         AssetCategory saved = repository.save(category);

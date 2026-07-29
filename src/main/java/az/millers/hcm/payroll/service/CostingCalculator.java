@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.payroll.domain.LaborCostAllocation;
 import az.millers.hcm.payroll.domain.LaborRate;
@@ -28,7 +29,6 @@ import java.util.UUID;
 public class CostingCalculator {
 
     private static final Logger log = LoggerFactory.getLogger(CostingCalculator.class);
-    private static final String TENANT_ID = "default";
 
     private final LaborRateRepository rateRepo;
     private final LaborCostAllocationRepository allocationRepo;
@@ -104,7 +104,7 @@ public class CostingCalculator {
                 BigDecimal amount = hours.multiply(hourlyRate);
 
                 LaborCostAllocation allocation = new LaborCostAllocation();
-                allocation.setTenantId(TENANT_ID);
+                allocation.setTenantId(TenantContext.current());
                 allocation.setTimesheetDayId(dayId);
                 allocation.setEmployeeId(employeeId);
                 allocation.setWorkDate(workDate);
@@ -131,12 +131,12 @@ public class CostingCalculator {
     private BigDecimal lookupRate(UUID positionId, UUID gradeId, LocalDate date) {
         // Position takes precedence over grade
         if (positionId != null) {
-            return rateRepo.findEffectiveRateForPosition(TENANT_ID, positionId, date)
+            return rateRepo.findEffectiveRateForPosition(TenantContext.current(), positionId, date)
                 .map(LaborRate::getHourlyRate)
                 .orElse(null);
         }
         if (gradeId != null) {
-            return rateRepo.findEffectiveRateForGrade(TENANT_ID, gradeId, date)
+            return rateRepo.findEffectiveRateForGrade(TenantContext.current(), gradeId, date)
                 .map(LaborRate::getHourlyRate)
                 .orElse(null);
         }
@@ -152,7 +152,7 @@ public class CostingCalculator {
         return jdbc.queryForMap(sql,
             new MapSqlParameterSource()
                 .addValue("id", employeeId)
-                .addValue("tenantId", TENANT_ID));
+                .addValue("tenantId", TenantContext.current()));
     }
 
     private UUID getCostCenter(UUID employeeId) {
@@ -167,7 +167,7 @@ public class CostingCalculator {
             return jdbc.queryForObject(sql,
                 new MapSqlParameterSource()
                     .addValue("employeeId", employeeId)
-                    .addValue("tenantId", TENANT_ID),
+                    .addValue("tenantId", TenantContext.current()),
                 UUID.class);
         } catch (Exception e) {
             // Fallback: use employee's org unit (not a cost center, but a placeholder)

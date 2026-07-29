@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,7 +37,6 @@ import az.millers.hcm.security.SecurityRoles;
 @RequestMapping("/api/talent/pools")
 public class EmployeeTalentPoolController {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "TALENT";
 
     public record PoolRequest(String code, String name, String purpose,
@@ -68,8 +68,8 @@ public class EmployeeTalentPoolController {
     @PreAuthorize(SecurityRoles.READ_HR)
     public List<EmployeeTalentPool> list(@RequestParam(defaultValue = "false") boolean activeOnly) {
         return activeOnly
-                ? pools.findByTenantIdAndActiveTrueOrderByCodeAsc(TENANT)
-                : pools.findByTenantIdOrderByCodeAsc(TENANT);
+                ? pools.findByTenantIdAndActiveTrueOrderByCodeAsc(TenantContext.current())
+                : pools.findByTenantIdOrderByCodeAsc(TenantContext.current());
     }
 
     @GetMapping("/{id}")
@@ -89,14 +89,14 @@ public class EmployeeTalentPoolController {
             throw new BadRequestException("Pool code and name are required");
         }
         String code = req.code().trim().toUpperCase();
-        if (pools.existsByTenantIdAndCode(TENANT, code)) {
+        if (pools.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Pool code already exists: " + code);
         }
         if (req.ownerEmployeeId() != null && !employees.existsById(req.ownerEmployeeId())) {
             throw new BadRequestException("Owner employee not found: " + req.ownerEmployeeId());
         }
         EmployeeTalentPool pool = new EmployeeTalentPool();
-        pool.setTenantId(TENANT);
+        pool.setTenantId(TenantContext.current());
         pool.setCode(code);
         pool.setName(req.name().trim());
         pool.setPurpose(req.purpose());
@@ -140,7 +140,7 @@ public class EmployeeTalentPoolController {
         if (!pools.existsById(poolId)) {
             throw new ResourceNotFoundException("Talent pool not found: " + poolId);
         }
-        return members.findByTenantIdAndPoolIdOrderByAddedAtDesc(TENANT, poolId);
+        return members.findByTenantIdAndPoolIdOrderByAddedAtDesc(TenantContext.current(), poolId);
     }
 
     @PostMapping("/{poolId}/members")
@@ -154,11 +154,11 @@ public class EmployeeTalentPoolController {
         if (req.employeeId() == null || !employees.existsById(req.employeeId())) {
             throw new BadRequestException("Employee not found: " + req.employeeId());
         }
-        if (members.existsByTenantIdAndPoolIdAndEmployeeId(TENANT, poolId, req.employeeId())) {
+        if (members.existsByTenantIdAndPoolIdAndEmployeeId(TenantContext.current(), poolId, req.employeeId())) {
             throw new BadRequestException("Employee is already in this pool");
         }
         EmployeePoolMember member = new EmployeePoolMember();
-        member.setTenantId(TENANT);
+        member.setTenantId(TenantContext.current());
         member.setPoolId(poolId);
         member.setEmployeeId(req.employeeId());
         member.setNote(req.note());
@@ -173,10 +173,10 @@ public class EmployeeTalentPoolController {
     @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     @Transactional
     public void removeMember(@PathVariable UUID poolId, @PathVariable UUID employeeId) {
-        if (!members.existsByTenantIdAndPoolIdAndEmployeeId(TENANT, poolId, employeeId)) {
+        if (!members.existsByTenantIdAndPoolIdAndEmployeeId(TenantContext.current(), poolId, employeeId)) {
             throw new ResourceNotFoundException("Member not found in this pool");
         }
-        members.deleteByTenantIdAndPoolIdAndEmployeeId(TENANT, poolId, employeeId);
+        members.deleteByTenantIdAndPoolIdAndEmployeeId(TenantContext.current(), poolId, employeeId);
         audit.record(MODULE, "EmployeePoolMember", poolId + "/" + employeeId,
                 "REMOVE", employeeId.toString(), null);
     }

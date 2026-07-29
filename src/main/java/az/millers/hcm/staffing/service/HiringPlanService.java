@@ -1,4 +1,5 @@
 package az.millers.hcm.staffing.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,7 +24,6 @@ import az.millers.hcm.staffing.repo.WorkforcePlanRepository;
 @Service
 public class HiringPlanService {
 
-    private static final String TENANT_ID = "default";
     private static final String MODULE = "STAFFING";
     private static final String ENTITY = "HiringPlan";
 
@@ -66,7 +66,7 @@ public class HiringPlanService {
         List<HiringPlanLine> lines = newHires.stream()
                 .map(wl -> {
                     HiringPlanLine hl = new HiringPlanLine();
-                    hl.setTenantId(TENANT_ID);
+                    hl.setTenantId(TenantContext.current());
                     hl.setWorkforcePlanId(workforcePlanId);
                     // Note: position_id would need to be in WorkforcePlanLine if we want to link
                     hl.setTargetStartDate(wl.getTargetStartDate());
@@ -85,7 +85,7 @@ public class HiringPlanService {
 
     @Transactional(readOnly = true)
     public List<HiringPlanLine> getByPlan(UUID workforcePlanId) {
-        return hiringPlanLines.findByTenantIdAndWorkforcePlanIdOrderByTargetStartDateAsc(TENANT_ID, workforcePlanId);
+        return hiringPlanLines.findByTenantIdAndWorkforcePlanIdOrderByTargetStartDateAsc(TenantContext.current(), workforcePlanId);
     }
 
     @Transactional
@@ -93,7 +93,7 @@ public class HiringPlanService {
         HiringPlanLine line = hiringPlanLines.findById(lineId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hiring plan line not found"));
 
-        if (!line.getTenantId().equals(TENANT_ID)) {
+        if (!line.getTenantId().equals(TenantContext.current())) {
             throw new ResourceNotFoundException("Hiring plan line not found");
         }
 
@@ -112,7 +112,7 @@ public class HiringPlanService {
         HiringPlanLine line = hiringPlanLines.findById(lineId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hiring plan line not found"));
 
-        if (!line.getTenantId().equals(TENANT_ID)) {
+        if (!line.getTenantId().equals(TenantContext.current())) {
             throw new ResourceNotFoundException("Hiring plan line not found");
         }
 

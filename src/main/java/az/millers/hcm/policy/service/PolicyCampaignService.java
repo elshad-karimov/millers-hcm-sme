@@ -1,4 +1,5 @@
 package az.millers.hcm.policy.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -34,7 +35,6 @@ import az.millers.hcm.policy.repo.PolicyDocumentRepository;
 public class PolicyCampaignService {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyCampaignService.class);
-    private static final String TENANT = "default";
 
     private final AcknowledgementCampaignRepository campaignRepo;
     private final PolicyDocumentRepository policyRepo;
@@ -66,7 +66,7 @@ public class PolicyCampaignService {
     public AcknowledgementCampaign create(UUID policyId, int policyVersion, String name,
                                            CampaignAudience audience, UUID audienceRef,
                                            LocalDate dueDate, String createdBy) {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
 
         // Verify policy exists
         policyRepo.findById(policyId)
@@ -95,7 +95,7 @@ public class PolicyCampaignService {
      * Launch campaign → notify all audience employees.
      */
     public void launch(UUID campaignId, String launchedBy) {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
         AcknowledgementCampaign campaign = campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
@@ -141,7 +141,7 @@ public class PolicyCampaignService {
      * Close an ACTIVE campaign.
      */
     public void close(UUID campaignId, String closedBy) {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
         AcknowledgementCampaign campaign = campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
@@ -162,7 +162,7 @@ public class PolicyCampaignService {
      * Get campaign progress: acked count vs total audience, plus per-department breakdown.
      */
     public CampaignProgress getProgress(UUID campaignId) {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
         AcknowledgementCampaign campaign = campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
@@ -239,7 +239,7 @@ public class PolicyCampaignService {
      * List all campaigns for current tenant.
      */
     public List<AcknowledgementCampaign> listAll() {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
         return campaignRepo.findByTenantIdOrderByCreatedAtDesc(tenantId);
     }
 
@@ -247,7 +247,7 @@ public class PolicyCampaignService {
      * List campaigns by status.
      */
     public List<AcknowledgementCampaign> listByStatus(CampaignStatus status) {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
         return campaignRepo.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status);
     }
 
@@ -255,7 +255,7 @@ public class PolicyCampaignService {
      * Get single campaign.
      */
     public AcknowledgementCampaign get(UUID campaignId) {
-        String tenantId = TENANT;
+        String tenantId = TenantContext.current();
         return campaignRepo.findByIdAndTenantId(campaignId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
     }

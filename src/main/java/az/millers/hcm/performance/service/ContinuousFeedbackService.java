@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -29,7 +30,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class ContinuousFeedbackService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
 
     public record FeedbackNoteRequest(UUID employeeId, UUID authorEmployeeId, String kind,
@@ -71,7 +71,7 @@ public class ContinuousFeedbackService {
     public List<ContinuousFeedback> listFeedback(UUID employeeId) {
         requireAccessible(employeeId);
         List<ContinuousFeedback> rows =
-                feedback.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+                feedback.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         // §22.1 — private manager notes stay manager/HR-only.
         if (!hasManagerRole()) {
             rows = rows.stream().filter(f -> !"MANAGER_PRIVATE".equals(f.getVisibility())).toList();
@@ -99,7 +99,7 @@ public class ContinuousFeedbackService {
             throw new AccessDeniedException("Private manager notes require a manager/HR role");
         }
         ContinuousFeedback f = new ContinuousFeedback();
-        f.setTenantId(TENANT);
+        f.setTenantId(TenantContext.current());
         f.setEmployeeId(req.employeeId());
         f.setAuthorEmployeeId(req.authorEmployeeId());
         f.setKind(req.kind() == null ? "PRAISE" : req.kind());
@@ -118,7 +118,7 @@ public class ContinuousFeedbackService {
     @Transactional(readOnly = true)
     public List<PerfCheckIn> listCheckIns(UUID employeeId) {
         requireAccessible(employeeId);
-        return checkIns.findByTenantIdAndEmployeeIdOrderByMeetingDateDesc(TENANT, employeeId);
+        return checkIns.findByTenantIdAndEmployeeIdOrderByMeetingDateDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional
@@ -134,7 +134,7 @@ public class ContinuousFeedbackService {
         }
         requireAccessible(req.employeeId());
         PerfCheckIn c = new PerfCheckIn();
-        c.setTenantId(TENANT);
+        c.setTenantId(TenantContext.current());
         c.setEmployeeId(req.employeeId());
         c.setManagerId(req.managerId());
         c.setMeetingDate(req.meetingDate());

@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -31,7 +32,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class PerformanceAppealService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final List<String> LIVE_STATUSES = List.of("SUBMITTED", "UNDER_REVIEW", "RETURNED");
 
@@ -105,9 +105,9 @@ public class PerformanceAppealService {
             requireAccessibleReview(reviewId);
             rows = appeals.findByReviewIdOrderBySubmittedAtDesc(reviewId);
         } else if (status != null) {
-            rows = appeals.findByTenantIdAndStatusOrderBySubmittedAtDesc(TENANT, status);
+            rows = appeals.findByTenantIdAndStatusOrderBySubmittedAtDesc(TenantContext.current(), status);
         } else {
-            rows = appeals.findByTenantIdOrderBySubmittedAtDesc(TENANT);
+            rows = appeals.findByTenantIdOrderBySubmittedAtDesc(TenantContext.current());
         }
         // GLOBAL RULE 7/8 — hide appeals for employees outside the caller's scope.
         return rows.stream().filter(a -> accessScope.isAccessible(a.getEmployeeId())).toList();

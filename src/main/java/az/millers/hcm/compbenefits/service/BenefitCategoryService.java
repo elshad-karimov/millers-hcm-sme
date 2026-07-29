@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,7 +24,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class BenefitCategoryService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String ENTITY = "BenefitCategory";
 
@@ -42,8 +42,8 @@ public class BenefitCategoryService {
     @Transactional(readOnly = true)
     public List<CategoryResponse> list(boolean activeOnly) {
         List<BenefitCategory> rows = activeOnly
-                ? repo.findByTenantIdAndActiveTrueOrderByDisplayOrderAscNameAsc(TENANT)
-                : repo.findByTenantIdOrderByDisplayOrderAscNameAsc(TENANT);
+                ? repo.findByTenantIdAndActiveTrueOrderByDisplayOrderAscNameAsc(TenantContext.current())
+                : repo.findByTenantIdOrderByDisplayOrderAscNameAsc(TenantContext.current());
         return rows.stream().map(CategoryResponse::from).toList();
     }
 
@@ -56,11 +56,11 @@ public class BenefitCategoryService {
     @Transactional
     public CategoryResponse create(CategoryRequest req) {
         String code = normalizeCode(req.code());
-        if (repo.existsByTenantIdAndCode(TENANT, code)) {
+        if (repo.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Benefit category code already exists: " + code);
         }
         BenefitCategory c = new BenefitCategory();
-        c.setTenantId(TENANT);
+        c.setTenantId(TenantContext.current());
         c.setCode(code);
         apply(c, req);
         c.setCreatedBy(currentRequest.username());
@@ -75,7 +75,7 @@ public class BenefitCategoryService {
         BenefitCategory c = get(id);
         CategoryResponse before = CategoryResponse.from(c);
         String code = normalizeCode(req.code());
-        if (!c.getCode().equals(code) && repo.existsByTenantIdAndCode(TENANT, code)) {
+        if (!c.getCode().equals(code) && repo.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Benefit category code already exists: " + code);
         }
         c.setCode(code);

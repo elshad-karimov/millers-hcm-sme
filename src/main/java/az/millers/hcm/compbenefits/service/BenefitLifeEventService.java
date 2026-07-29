@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -29,7 +30,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class BenefitLifeEventService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String ENTITY = "BenefitLifeEvent";
 
@@ -54,8 +54,8 @@ public class BenefitLifeEventService {
     @Transactional(readOnly = true)
     public List<EventResponse> list(String status) {
         List<BenefitLifeEvent> rows = (status == null || status.isBlank())
-                ? repo.findByTenantIdOrderByEventDateDesc(TENANT)
-                : repo.findByTenantIdAndStatusOrderByEventDateDesc(TENANT, status);
+                ? repo.findByTenantIdOrderByEventDateDesc(TenantContext.current())
+                : repo.findByTenantIdAndStatusOrderByEventDateDesc(TenantContext.current(), status);
         return decorate(rows);
     }
 
@@ -65,14 +65,14 @@ public class BenefitLifeEventService {
         if (!accessScope.isAccessible(employeeId)) {
             return List.of();
         }
-        return decorate(repo.findByTenantIdAndEmployeeIdOrderByEventDateDesc(TENANT, employeeId));
+        return decorate(repo.findByTenantIdAndEmployeeIdOrderByEventDateDesc(TenantContext.current(), employeeId));
     }
 
     /** Whether the employee currently has an open special-enrollment window (any approved event). */
     @Transactional(readOnly = true)
     public boolean hasOpenWindow(UUID employeeId) {
         LocalDate today = LocalDate.now();
-        return repo.findByTenantIdAndEmployeeIdOrderByEventDateDesc(TENANT, employeeId).stream()
+        return repo.findByTenantIdAndEmployeeIdOrderByEventDateDesc(TenantContext.current(), employeeId).stream()
                 .anyMatch(e -> e.isWindowOpenOn(today));
     }
 
@@ -95,7 +95,7 @@ public class BenefitLifeEventService {
             throw new BadRequestException("Employee not found: " + req.employeeId());
         }
         BenefitLifeEvent e = new BenefitLifeEvent();
-        e.setTenantId(TENANT);
+        e.setTenantId(TenantContext.current());
         e.setEmployeeId(req.employeeId());
         e.setEventType(req.eventType());
         e.setEventDate(req.eventDate());

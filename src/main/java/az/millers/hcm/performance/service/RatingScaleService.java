@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,7 +28,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class RatingScaleService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final String ENTITY = "RatingScale";
 
@@ -49,8 +49,8 @@ public class RatingScaleService {
     @Transactional(readOnly = true)
     public List<ScaleResponse> list(boolean activeOnly) {
         List<RatingScale> rows = activeOnly
-                ? scales.findByTenantIdAndActiveTrueOrderByScaleNameAsc(TENANT)
-                : scales.findByTenantIdOrderByScaleNameAsc(TENANT);
+                ? scales.findByTenantIdAndActiveTrueOrderByScaleNameAsc(TenantContext.current())
+                : scales.findByTenantIdOrderByScaleNameAsc(TenantContext.current());
         return rows.stream()
                 .map(s -> ScaleResponse.from(s, values.findByScaleIdOrderByValueOrderAsc(s.getId())))
                 .toList();
@@ -70,7 +70,7 @@ public class RatingScaleService {
     /** The tenant's default scale (used when a cycle doesn't pick one). */
     @Transactional(readOnly = true)
     public Optional<RatingScale> defaultScale() {
-        return scales.findFirstByTenantIdAndIsDefaultTrue(TENANT);
+        return scales.findFirstByTenantIdAndIsDefaultTrue(TenantContext.current());
     }
 
     /**
@@ -90,12 +90,12 @@ public class RatingScaleService {
     @Transactional
     public ScaleResponse create(ScaleRequest req) {
         String code = req.scaleCode().trim().toUpperCase();
-        if (scales.existsByTenantIdAndScaleCode(TENANT, code)) {
+        if (scales.existsByTenantIdAndScaleCode(TenantContext.current(), code)) {
             throw new BadRequestException("Rating scale code already exists: " + code);
         }
         validateValues(req.values());
         RatingScale s = new RatingScale();
-        s.setTenantId(TENANT);
+        s.setTenantId(TenantContext.current());
         s.setScaleCode(code);
         apply(s, req);
         s.setCreatedBy(currentRequest.username());
@@ -112,7 +112,7 @@ public class RatingScaleService {
         RatingScale s = load(id);
         ScaleResponse before = get(id);
         String code = req.scaleCode().trim().toUpperCase();
-        if (!s.getScaleCode().equals(code) && scales.existsByTenantIdAndScaleCode(TENANT, code)) {
+        if (!s.getScaleCode().equals(code) && scales.existsByTenantIdAndScaleCode(TenantContext.current(), code)) {
             throw new BadRequestException("Rating scale code already exists: " + code);
         }
         validateValues(req.values());
@@ -140,7 +140,7 @@ public class RatingScaleService {
         int order = 1;
         for (ScaleValueRequest r : reqs) {
             RatingScaleValue v = new RatingScaleValue();
-            v.setTenantId(TENANT);
+            v.setTenantId(TenantContext.current());
             v.setScaleId(scaleId);
             v.setValueOrder(order++);
             v.setRatingValue(r.ratingValue());
@@ -155,7 +155,7 @@ public class RatingScaleService {
 
     /** Only one default scale per tenant. */
     private void clearOtherDefaults(UUID keepId) {
-        for (RatingScale other : scales.findByTenantIdOrderByScaleNameAsc(TENANT)) {
+        for (RatingScale other : scales.findByTenantIdOrderByScaleNameAsc(TenantContext.current())) {
             if (!other.getId().equals(keepId) && other.isDefault()) {
                 other.setDefault(false);
                 scales.save(other);

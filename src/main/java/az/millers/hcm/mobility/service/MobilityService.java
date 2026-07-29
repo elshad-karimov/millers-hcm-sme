@@ -1,4 +1,5 @@
 package az.millers.hcm.mobility.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.ResourceNotFoundException;
@@ -19,7 +20,6 @@ import az.millers.hcm.common.BusinessNumbers;
 @Service
 public class MobilityService {
     private static final String MODULE = "mobility";
-    private static final String TENANT_ID = "default";
 
     private final InternationalAssignmentRepository repo;
     private final CurrentRequest currentRequest;
@@ -36,24 +36,24 @@ public class MobilityService {
 
     @Transactional(readOnly = true)
     public List<InternationalAssignment> listAssignments(String status) {
-        return status != null ? repo.findByTenantIdAndStatusOrderByStartDateDesc(TENANT_ID, status)
-                              : repo.findByTenantIdOrderByStartDateDesc(TENANT_ID);
+        return status != null ? repo.findByTenantIdAndStatusOrderByStartDateDesc(TenantContext.current(), status)
+                              : repo.findByTenantIdOrderByStartDateDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public InternationalAssignment getAssignment(UUID id) {
-        return repo.findByIdAndTenantId(id, TENANT_ID)
+        return repo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Assignment not found"));
     }
 
     @Transactional(readOnly = true)
     public List<InternationalAssignment> listMyAssignments(UUID employeeId) {
-        return repo.findByTenantIdAndEmployeeIdOrderByStartDateDesc(TENANT_ID, employeeId);
+        return repo.findByTenantIdAndEmployeeIdOrderByStartDateDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional
     public InternationalAssignment createAssignment(InternationalAssignment assignment) {
-        assignment.setTenantId(TENANT_ID);
+        assignment.setTenantId(TenantContext.current());
         assignment.setAssignmentNo(generateAssignmentNo());
         assignment.setCreatedBy(currentRequest.username());
         InternationalAssignment saved = repo.save(assignment);
@@ -92,7 +92,7 @@ public class MobilityService {
     @Transactional(readOnly = true)
     public List<InternationalAssignment> expiringVisas(int days) {
         LocalDate expiryDate = LocalDate.now().plusDays(days);
-        return repo.findExpiringVisas(TENANT_ID, expiryDate);
+        return repo.findExpiringVisas(TenantContext.current(), expiryDate);
     }
 
     private String generateAssignmentNo() {

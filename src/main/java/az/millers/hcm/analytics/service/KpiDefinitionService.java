@@ -1,4 +1,5 @@
 package az.millers.hcm.analytics.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +17,6 @@ import az.millers.hcm.common.ResourceNotFoundException;
 @Service
 public class KpiDefinitionService {
 
-    private static final String TENANT = "default";
 
     private final KpiDefinitionRepository repository;
 
@@ -26,24 +26,24 @@ public class KpiDefinitionService {
 
     @Transactional(readOnly = true)
     public List<KpiDefinition> listActive() {
-        return repository.findByTenantIdAndActiveOrderByCategory(TENANT, true);
+        return repository.findByTenantIdAndActiveOrderByCategory(TenantContext.current(), true);
     }
 
     @Transactional(readOnly = true)
     public List<KpiDefinition> listAll() {
-        return repository.findByTenantIdAndActiveOrderByCategory(TENANT, null);
+        return repository.findByTenantIdAndActiveOrderByCategory(TenantContext.current(), null);
     }
 
     @Transactional(readOnly = true)
     public KpiDefinition get(UUID id) {
         return repository.findById(id)
-                .filter(kpi -> TENANT.equals(kpi.getTenantId()))
+                .filter(kpi -> TenantContext.current().equals(kpi.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("KPI definition not found"));
     }
 
     @Transactional
     public KpiDefinition create(KpiDefinition kpi) {
-        kpi.setTenantId(TENANT);
+        kpi.setTenantId(TenantContext.current());
         return repository.save(kpi);
     }
 

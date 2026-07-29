@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.ResourceNotFoundException;
@@ -19,7 +20,6 @@ import java.util.UUID;
 public class LaborRateService {
 
     private static final String MODULE = "payroll";
-    private static final String TENANT_ID = "default";
 
     private final LaborRateRepository rateRepo;
     private final CurrentRequest currentRequest;
@@ -35,18 +35,18 @@ public class LaborRateService {
 
     @Transactional(readOnly = true)
     public List<LaborRate> listRates() {
-        return rateRepo.findByTenantIdOrderByEffectiveFromDesc(TENANT_ID);
+        return rateRepo.findByTenantIdOrderByEffectiveFromDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public LaborRate getRate(UUID id) {
-        return rateRepo.findByIdAndTenantId(id, TENANT_ID)
+        return rateRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Labor rate not found"));
     }
 
     @Transactional
     public LaborRate createRate(LaborRate rate) {
-        rate.setTenantId(TENANT_ID);
+        rate.setTenantId(TenantContext.current());
         rate.setCreatedBy(currentRequest.username());
 
         LaborRate saved = rateRepo.save(rate);

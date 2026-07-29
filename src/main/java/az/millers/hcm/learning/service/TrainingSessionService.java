@@ -1,4 +1,5 @@
 package az.millers.hcm.learning.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -32,7 +33,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class TrainingSessionService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "LEARNING";
     private static final List<String> LIVE_ATTENDANCE = List.of("ENROLLED", "ATTENDED", "LATE");
     private static final Set<String> ATTENDANCE_STATUSES =
@@ -81,8 +81,8 @@ public class TrainingSessionService {
     @Transactional(readOnly = true)
     public List<Instructor> listInstructors(boolean activeOnly) {
         return activeOnly
-                ? instructors.findByTenantIdAndActiveTrueOrderByCreatedAtAsc(TENANT)
-                : instructors.findByTenantIdOrderByCreatedAtAsc(TENANT);
+                ? instructors.findByTenantIdAndActiveTrueOrderByCreatedAtAsc(TenantContext.current())
+                : instructors.findByTenantIdOrderByCreatedAtAsc(TenantContext.current());
     }
 
     @Transactional
@@ -96,7 +96,7 @@ public class TrainingSessionService {
         Instructor i = id == null ? new Instructor()
                 : instructors.findById(id).orElseThrow(
                         () -> new ResourceNotFoundException("Instructor not found: " + id));
-        i.setTenantId(TENANT);
+        i.setTenantId(TenantContext.current());
         i.setEmployeeId(req.employeeId());
         i.setExternalName(req.externalName());
         i.setEmail(req.email());
@@ -114,7 +114,7 @@ public class TrainingSessionService {
 
     @Transactional(readOnly = true)
     public List<TrainingRoom> listRooms() {
-        return rooms.findByTenantIdOrderByCodeAsc(TENANT);
+        return rooms.findByTenantIdOrderByCodeAsc(TenantContext.current());
     }
 
     @Transactional
@@ -126,11 +126,11 @@ public class TrainingSessionService {
         String code = req.code().trim().toUpperCase();
         TrainingRoom r;
         if (id == null) {
-            if (rooms.existsByTenantIdAndCode(TENANT, code)) {
+            if (rooms.existsByTenantIdAndCode(TenantContext.current(), code)) {
                 throw new BadRequestException("Room code already exists: " + code);
             }
             r = new TrainingRoom();
-            r.setTenantId(TENANT);
+            r.setTenantId(TenantContext.current());
         } else {
             r = rooms.findById(id).orElseThrow(
                     () -> new ResourceNotFoundException("Room not found: " + id));
@@ -153,12 +153,12 @@ public class TrainingSessionService {
     @Transactional(readOnly = true)
     public List<TrainingSession> listSessions(UUID courseId, String status) {
         if (courseId != null) {
-            return sessions.findByTenantIdAndCourseIdOrderByStartAtDesc(TENANT, courseId);
+            return sessions.findByTenantIdAndCourseIdOrderByStartAtDesc(TenantContext.current(), courseId);
         }
         if (status != null) {
-            return sessions.findByTenantIdAndStatusOrderByStartAtAsc(TENANT, status);
+            return sessions.findByTenantIdAndStatusOrderByStartAtAsc(TenantContext.current(), status);
         }
-        return sessions.findByTenantIdOrderByStartAtDesc(TENANT);
+        return sessions.findByTenantIdOrderByStartAtDesc(TenantContext.current());
     }
 
     @Transactional
@@ -178,7 +178,7 @@ public class TrainingSessionService {
         TrainingSession s;
         if (id == null) {
             s = new TrainingSession();
-            s.setTenantId(TENANT);
+            s.setTenantId(TenantContext.current());
             s.setCreatedBy(currentRequest.username());
         } else {
             s = requireSession(id);
@@ -253,7 +253,7 @@ public class TrainingSessionService {
             }
         }
         TrainingAttendance a = new TrainingAttendance();
-        a.setTenantId(TENANT);
+        a.setTenantId(TenantContext.current());
         a.setSessionId(sessionId);
         a.setEmployeeId(employeeId);
         TrainingAttendance saved = attendance.save(a);

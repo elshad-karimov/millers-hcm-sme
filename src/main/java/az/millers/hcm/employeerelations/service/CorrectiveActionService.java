@@ -1,4 +1,5 @@
 package az.millers.hcm.employeerelations.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -24,7 +25,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class CorrectiveActionService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "employee-relations";
     private static final String ENTITY = "CorrectiveActionPlan";
 
@@ -49,7 +49,7 @@ public class CorrectiveActionService {
                                        LocalDate dueDate,
                                        LocalDate followUpDate) {
         CorrectiveActionPlan plan = new CorrectiveActionPlan();
-        plan.setTenantId(TENANT);
+        plan.setTenantId(TenantContext.current());
         plan.setErCaseId(erCaseId);
         plan.setDisciplinaryActionId(disciplinaryActionId);
         plan.setEmployeeId(employeeId);
@@ -96,7 +96,7 @@ public class CorrectiveActionService {
 
     @Transactional(readOnly = true)
     public CorrectiveActionPlan get(UUID id) {
-        return repo.findByIdAndTenantId(id, TENANT)
+        return repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Corrective action plan not found: " + id));
     }
 
@@ -104,11 +104,11 @@ public class CorrectiveActionService {
     public List<CorrectiveActionPlan> list(CorrectiveActionStatus statusFilter,
                                            String responsibleUsername) {
         if (statusFilter != null) {
-            return repo.findByTenantIdAndStatusInOrderByDueDateAsc(TENANT, List.of(statusFilter));
+            return repo.findByTenantIdAndStatusInOrderByDueDateAsc(TenantContext.current(), List.of(statusFilter));
         } else if (responsibleUsername != null) {
-            return repo.findByTenantIdAndResponsibleUsernameOrderByDueDateAsc(TENANT, responsibleUsername);
+            return repo.findByTenantIdAndResponsibleUsernameOrderByDueDateAsc(TenantContext.current(), responsibleUsername);
         } else {
-            return repo.findByTenantIdOrderByDueDateAsc(TENANT);
+            return repo.findByTenantIdOrderByDueDateAsc(TenantContext.current());
         }
     }
 
@@ -124,7 +124,7 @@ public class CorrectiveActionService {
                 CorrectiveActionStatus.OPEN,
                 CorrectiveActionStatus.IN_PROGRESS);
 
-        List<CorrectiveActionPlan> overdue = repo.findOverdue(TENANT, activateStatuses, today);
+        List<CorrectiveActionPlan> overdue = repo.findOverdue(TenantContext.current(), activateStatuses, today);
 
         for (CorrectiveActionPlan plan : overdue) {
             if (plan.getStatus() != CorrectiveActionStatus.OVERDUE) {

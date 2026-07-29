@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +45,6 @@ import jakarta.persistence.EntityManager;
 @Service
 public class Feedback360Service {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final Set<String> QUESTION_TYPES = Set.of("RATING", "TEXT");
     private static final Set<String> CATEGORIES = Set.of(
@@ -89,8 +89,8 @@ public class Feedback360Service {
     @Transactional(readOnly = true)
     public List<QuestionnaireResponse> listQuestionnaires(boolean activeOnly) {
         List<FeedbackQuestionnaire> rows = activeOnly
-                ? questionnaires.findByTenantIdAndActiveTrueOrderByNameAsc(TENANT)
-                : questionnaires.findByTenantIdOrderByNameAsc(TENANT);
+                ? questionnaires.findByTenantIdAndActiveTrueOrderByNameAsc(TenantContext.current())
+                : questionnaires.findByTenantIdOrderByNameAsc(TenantContext.current());
         return rows.stream()
                 .map(q -> QuestionnaireResponse.from(q,
                         questions.findByQuestionnaireIdOrderByQuestionOrderAsc(q.getId())))
@@ -100,11 +100,11 @@ public class Feedback360Service {
     @Transactional
     public QuestionnaireResponse createQuestionnaire(QuestionnaireRequest req) {
         String code = req.code().trim().toUpperCase();
-        if (questionnaires.existsByTenantIdAndCode(TENANT, code)) {
+        if (questionnaires.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Questionnaire code already exists: " + code);
         }
         FeedbackQuestionnaire q = new FeedbackQuestionnaire();
-        q.setTenantId(TENANT);
+        q.setTenantId(TenantContext.current());
         q.setCode(code);
         q.setCreatedBy(currentRequest.username());
         applyQuestionnaire(q, req);
@@ -121,7 +121,7 @@ public class Feedback360Service {
         FeedbackQuestionnaire q = questionnaires.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Questionnaire not found: " + id));
         String code = req.code().trim().toUpperCase();
-        if (!q.getCode().equals(code) && questionnaires.existsByTenantIdAndCode(TENANT, code)) {
+        if (!q.getCode().equals(code) && questionnaires.existsByTenantIdAndCode(TenantContext.current(), code)) {
             throw new BadRequestException("Questionnaire code already exists: " + code);
         }
         q.setCode(code);
@@ -172,13 +172,13 @@ public class Feedback360Service {
         List<FeedbackNomination> rows;
         if (reviewerEmployeeId != null) {
             rows = nominations.findByTenantIdAndReviewerEmployeeIdOrderByCreatedAtDesc(
-                    TENANT, reviewerEmployeeId);
+                    TenantContext.current(), reviewerEmployeeId);
         } else if (subjectEmployeeId != null) {
             requireAccessible(subjectEmployeeId);
             rows = nominations.findByTenantIdAndCycleIdAndSubjectEmployeeIdOrderByCreatedAtAsc(
-                    TENANT, cycleId, subjectEmployeeId);
+                    TenantContext.current(), cycleId, subjectEmployeeId);
         } else {
-            rows = nominations.findByTenantIdAndCycleIdOrderByCreatedAtAsc(TENANT, cycleId);
+            rows = nominations.findByTenantIdAndCycleIdOrderByCreatedAtAsc(TenantContext.current(), cycleId);
         }
         // GLOBAL RULE 7/8 — filter out subjects outside the caller's scope.
         rows = rows.stream().filter(n -> accessScope.isAccessible(n.getSubjectEmployeeId())
@@ -213,7 +213,7 @@ public class Feedback360Service {
         // §13.4 — maximum reviewers per subject (live nominations only).
         if (cycle.getFeedbackMaxReviewers() != null) {
             long live = nominations.findByTenantIdAndCycleIdAndSubjectEmployeeIdOrderByCreatedAtAsc(
-                            TENANT, req.cycleId(), req.subjectEmployeeId()).stream()
+                            TenantContext.current(), req.cycleId(), req.subjectEmployeeId()).stream()
                     .filter(n -> !"DECLINED".equals(n.getStatus()) && !"CANCELLED".equals(n.getStatus()))
                     .count();
             if (live >= cycle.getFeedbackMaxReviewers()) {
@@ -223,7 +223,7 @@ public class Feedback360Service {
         }
 
         FeedbackNomination n = new FeedbackNomination();
-        n.setTenantId(TENANT);
+        n.setTenantId(TenantContext.current());
         n.setCycleId(req.cycleId());
         n.setSubjectEmployeeId(req.subjectEmployeeId());
         n.setReviewerEmployeeId(req.reviewerEmployeeId());
@@ -309,7 +309,7 @@ public class Feedback360Service {
                 .orElseThrow(() -> new BadRequestException("Cycle not found: " + cycleId));
         List<FeedbackNomination> rows = nominations
                 .findByTenantIdAndCycleIdAndSubjectEmployeeIdOrderByCreatedAtAsc(
-                        TENANT, cycleId, subjectEmployeeId);
+                        TenantContext.current(), cycleId, subjectEmployeeId);
         int nominated = 0, approved = 0, completed = 0, declined = 0;
         for (FeedbackNomination n : rows) {
             switch (n.getStatus()) {

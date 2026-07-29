@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,7 +28,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class PerfTemplateService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final String ENTITY = "PerfReviewTemplate";
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -50,8 +50,8 @@ public class PerfTemplateService {
     @Transactional(readOnly = true)
     public List<TemplateResponse> list(boolean activeOnly) {
         List<PerfReviewTemplate> rows = activeOnly
-                ? templates.findByTenantIdAndActiveTrueOrderByTemplateNameAsc(TENANT)
-                : templates.findByTenantIdOrderByTemplateNameAsc(TENANT);
+                ? templates.findByTenantIdAndActiveTrueOrderByTemplateNameAsc(TenantContext.current())
+                : templates.findByTenantIdOrderByTemplateNameAsc(TenantContext.current());
         return rows.stream()
                 .map(t -> TemplateResponse.from(t, sections.findByTemplateIdOrderBySectionOrderAsc(t.getId())))
                 .toList();
@@ -71,12 +71,12 @@ public class PerfTemplateService {
     @Transactional
     public TemplateResponse create(TemplateRequest req) {
         String code = req.templateCode().trim().toUpperCase();
-        if (templates.existsByTenantIdAndTemplateCode(TENANT, code)) {
+        if (templates.existsByTenantIdAndTemplateCode(TenantContext.current(), code)) {
             throw new BadRequestException("Template code already exists: " + code);
         }
         validateSections(req.sections());
         PerfReviewTemplate t = new PerfReviewTemplate();
-        t.setTenantId(TENANT);
+        t.setTenantId(TenantContext.current());
         t.setTemplateCode(code);
         apply(t, req);
         t.setCreatedBy(currentRequest.username());
@@ -92,7 +92,7 @@ public class PerfTemplateService {
         PerfReviewTemplate t = load(id);
         TemplateResponse before = get(id);
         String code = req.templateCode().trim().toUpperCase();
-        if (!t.getTemplateCode().equals(code) && templates.existsByTenantIdAndTemplateCode(TENANT, code)) {
+        if (!t.getTemplateCode().equals(code) && templates.existsByTenantIdAndTemplateCode(TenantContext.current(), code)) {
             throw new BadRequestException("Template code already exists: " + code);
         }
         validateSections(req.sections());
@@ -122,7 +122,7 @@ public class PerfTemplateService {
         int order = 1;
         for (SectionRequest r : reqs) {
             PerfTemplateSection s = new PerfTemplateSection();
-            s.setTenantId(TENANT);
+            s.setTenantId(TenantContext.current());
             s.setTemplateId(templateId);
             s.setSectionType(r.sectionType());
             s.setSectionOrder(order++);

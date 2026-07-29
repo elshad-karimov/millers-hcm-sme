@@ -1,4 +1,5 @@
 package az.millers.hcm.budgeting.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +22,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class BudgetCycleService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "BUDGETING";
 
     private final BudgetCycleRepository repo;
@@ -38,19 +38,19 @@ public class BudgetCycleService {
 
     @Transactional(readOnly = true)
     public List<BudgetCycle> listAll() {
-        return repo.findByTenantIdOrderByPeriodStartDesc(TENANT);
+        return repo.findByTenantIdOrderByPeriodStartDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public List<BudgetCycle> listByStatus(BudgetCycleStatus status) {
-        return repo.findByTenantIdAndStatusOrderByPeriodStartDesc(TENANT, status);
+        return repo.findByTenantIdAndStatusOrderByPeriodStartDesc(TenantContext.current(), status);
     }
 
     @Transactional(readOnly = true)
     public BudgetCycle get(UUID id) {
         BudgetCycle cycle = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget cycle not found: " + id));
-        if (!TENANT.equals(cycle.getTenantId())) {
+        if (!TenantContext.current().equals(cycle.getTenantId())) {
             throw new ResourceNotFoundException("Budget cycle not found: " + id);
         }
         return cycle;
@@ -61,10 +61,10 @@ public class BudgetCycleService {
         if (cycle.getCode() == null || cycle.getCode().isBlank()) {
             throw new BadRequestException("Cycle code is required");
         }
-        if (repo.findByTenantIdAndCode(TENANT, cycle.getCode()).isPresent()) {
+        if (repo.findByTenantIdAndCode(TenantContext.current(), cycle.getCode()).isPresent()) {
             throw new BadRequestException("Cycle code already exists: " + cycle.getCode());
         }
-        cycle.setTenantId(TENANT);
+        cycle.setTenantId(TenantContext.current());
         cycle.setCreatedBy(currentRequest.username());
         BudgetCycle saved = repo.save(cycle);
         audit.record(MODULE, "BudgetCycle", saved.getId().toString(),

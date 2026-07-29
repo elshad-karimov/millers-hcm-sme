@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,7 +37,6 @@ import az.millers.hcm.staffing.repo.PositionRepository;
 public class MarketDataService {
 
     private static final String MODULE = "compensation";
-    private static final String TENANT = "default";
 
     private final MarketSalarySurveyRepository surveys;
     private final MarketSalaryDataRepository marketData;
@@ -74,7 +74,7 @@ public class MarketDataService {
 
     @Transactional(readOnly = true)
     public List<MarketSalarySurvey> listSurveys() {
-        return surveys.findByTenantIdOrderBySurveyYearDesc(TENANT);
+        return surveys.findByTenantIdOrderBySurveyYearDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -86,7 +86,7 @@ public class MarketDataService {
     @Transactional
     public MarketSalarySurvey createSurvey(String provider, int surveyYear, String country, String currency, String notes) {
         MarketSalarySurvey survey = new MarketSalarySurvey();
-        survey.setTenantId(TENANT);
+        survey.setTenantId(TenantContext.current());
         survey.setProvider(provider);
         survey.setSurveyYear(surveyYear);
         survey.setCountry(country);
@@ -116,7 +116,7 @@ public class MarketDataService {
     @Transactional(readOnly = true)
     public List<MarketSalaryData> listData(UUID surveyId) {
         getSurvey(surveyId); // ensure survey exists
-        return marketData.findByTenantIdAndSurveyIdOrderByGradeCodeAscJobCodeAsc(TENANT, surveyId);
+        return marketData.findByTenantIdAndSurveyIdOrderByGradeCodeAscJobCodeAsc(TenantContext.current(), surveyId);
     }
 
     @Transactional
@@ -136,7 +136,7 @@ public class MarketDataService {
         }
 
         MarketSalaryData data = new MarketSalaryData();
-        data.setTenantId(TENANT);
+        data.setTenantId(TenantContext.current());
         data.setSurveyId(surveyId);
         data.setJobCode(jobCode);
         data.setGradeCode(gradeCode);
@@ -206,14 +206,14 @@ public class MarketDataService {
         // Resolve survey (latest if null)
         MarketSalarySurvey survey;
         if (surveyId == null) {
-            survey = surveys.findFirstByTenantIdOrderBySurveyYearDesc(TENANT)
+            survey = surveys.findFirstByTenantIdOrderBySurveyYearDesc(TenantContext.current())
                     .orElseThrow(() -> new ResourceNotFoundException("No market surveys available"));
         } else {
             survey = getSurvey(surveyId);
         }
 
         // Find market data by grade code (fallback to job_code if needed)
-        MarketSalaryData data = marketData.findFirstByTenantIdAndSurveyIdAndGradeCode(TENANT, survey.getId(), gradeCode)
+        MarketSalaryData data = marketData.findFirstByTenantIdAndSurveyIdAndGradeCode(TenantContext.current(), survey.getId(), gradeCode)
                 .orElse(null);
 
         if (data == null) {

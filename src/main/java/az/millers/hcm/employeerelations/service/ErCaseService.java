@@ -1,4 +1,5 @@
 package az.millers.hcm.employeerelations.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -25,7 +26,6 @@ import az.millers.hcm.common.BusinessNumbers;
 @Service
 public class ErCaseService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "employee-relations";
     private static final String ENTITY = "ErCase";
 
@@ -65,7 +65,7 @@ public class ErCaseService {
                         Boolean isConfidential,
                         Boolean isAnonymous) {
         ErCase erCase = new ErCase();
-        erCase.setTenantId(TENANT);
+        erCase.setTenantId(TenantContext.current());
         erCase.setCaseType(caseType);
         erCase.setCategory(category);
         erCase.setSeverity(severity);
@@ -161,7 +161,7 @@ public class ErCaseService {
 
     @Transactional(readOnly = true)
     public ErCase get(UUID id) {
-        ErCase erCase = caseRepo.findByIdAndTenantId(id, TENANT)
+        ErCase erCase = caseRepo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("ER case not found: " + id));
 
         // Enforce confidential visibility: only HR_ADMIN or owner
@@ -173,7 +173,7 @@ public class ErCaseService {
     @Transactional(readOnly = true)
     public List<ErCase> list(ErCaseType typeFilter, ErCaseSeverity severityFilter,
                              ErCaseStatus statusFilter) {
-        List<ErCase> cases = caseRepo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        List<ErCase> cases = caseRepo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
 
         // Filter by confidentiality — only HR_ADMIN or owner sees confidential cases
         cases = filterConfidential(cases);
@@ -203,7 +203,7 @@ public class ErCaseService {
         checkConfidentialAccess(erCase);
 
         ErCaseNote note = new ErCaseNote();
-        note.setTenantId(TENANT);
+        note.setTenantId(TenantContext.current());
         note.setCaseId(caseId);
         note.setBody(body);
         note.setIsInternal(isInternal != null ? isInternal : false);
@@ -229,7 +229,7 @@ public class ErCaseService {
         checkConfidentialAccess(erCase);
 
         ErInvestigation investigation = new ErInvestigation();
-        investigation.setTenantId(TENANT);
+        investigation.setTenantId(TenantContext.current());
         investigation.setCaseId(caseId);
         investigation.setInvestigatorUsername(investigatorUsername);
         investigation.setStatus(ErInvestigationStatus.OPEN);
@@ -253,7 +253,7 @@ public class ErCaseService {
     @Transactional
     public ErInvestigation closeInvestigation(UUID investigationId, String findings,
                                               String recommendation) {
-        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TENANT)
+        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Investigation not found: " + investigationId));
 
         ErCase erCase = get(investigation.getCaseId());
@@ -284,14 +284,14 @@ public class ErCaseService {
                                                  String intervieweeRole,
                                                  java.time.LocalDate interviewDate,
                                                  String summary) {
-        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TENANT)
+        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Investigation not found: " + investigationId));
 
         ErCase erCase = get(investigation.getCaseId());
         checkConfidentialAccess(erCase);
 
         ErInvestigationInterview interview = new ErInvestigationInterview();
-        interview.setTenantId(TENANT);
+        interview.setTenantId(TenantContext.current());
         interview.setInvestigationId(investigationId);
         interview.setIntervieweeName(intervieweeName);
         interview.setIntervieweeRole(intervieweeRole);
@@ -308,7 +308,7 @@ public class ErCaseService {
 
     @Transactional(readOnly = true)
     public List<ErInvestigationInterview> getInterviews(UUID investigationId) {
-        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TENANT)
+        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Investigation not found: " + investigationId));
 
         ErCase erCase = get(investigation.getCaseId());
@@ -319,14 +319,14 @@ public class ErCaseService {
 
     @Transactional
     public ErEvidence addEvidence(UUID investigationId, String description, UUID attachmentId) {
-        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TENANT)
+        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Investigation not found: " + investigationId));
 
         ErCase erCase = get(investigation.getCaseId());
         checkConfidentialAccess(erCase);
 
         ErEvidence evidence = new ErEvidence();
-        evidence.setTenantId(TENANT);
+        evidence.setTenantId(TenantContext.current());
         evidence.setInvestigationId(investigationId);
         evidence.setDescription(description);
         evidence.setAttachmentId(attachmentId);
@@ -341,7 +341,7 @@ public class ErCaseService {
 
     @Transactional(readOnly = true)
     public List<ErEvidence> getEvidence(UUID investigationId) {
-        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TENANT)
+        ErInvestigation investigation = investigationRepo.findByIdAndTenantId(investigationId, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Investigation not found: " + investigationId));
 
         ErCase erCase = get(investigation.getCaseId());

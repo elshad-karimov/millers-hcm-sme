@@ -1,4 +1,5 @@
 package az.millers.hcm.lifecycle.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -26,7 +27,6 @@ import az.millers.hcm.common.BusinessNumbers;
  */
 @Service
 public class AssetDamageLossCaseService {
-    private static final String TENANT = "default";
     private static final String MODULE = "lifecycle";
     private static final String ENTITY = "AssetDamageLossCase";
 
@@ -47,18 +47,18 @@ public class AssetDamageLossCaseService {
 
     @Transactional(readOnly = true)
     public List<AssetDamageLossCase> listOpen() {
-        return repository.findByTenantIdAndStatusOrderByReportedAtDesc(TENANT, AssetDamageLossCaseStatus.OPEN);
+        return repository.findByTenantIdAndStatusOrderByReportedAtDesc(TenantContext.current(), AssetDamageLossCaseStatus.OPEN);
     }
 
     @Transactional(readOnly = true)
     public List<AssetDamageLossCase> listAll() {
-        return repository.findByTenantIdOrderByReportedAtDesc(TENANT);
+        return repository.findByTenantIdOrderByReportedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public AssetDamageLossCase get(UUID id) {
         return repository.findById(id)
-                .filter(c -> TENANT.equals(c.getTenantId()))
+                .filter(c -> TenantContext.current().equals(c.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Case not found"));
     }
 
@@ -68,7 +68,7 @@ public class AssetDamageLossCaseService {
         String caseNo = BusinessNumbers.format("ADL", 5, jdbc.queryForObject("SELECT nextval('lifecycle.asset_damage_loss_case_no_seq')", Map.of(), Long.class));
 
         AssetDamageLossCase c = new AssetDamageLossCase();
-        c.setTenantId(TENANT);
+        c.setTenantId(TenantContext.current());
         c.setCaseNo(caseNo);
         c.setAssetId(assetId);
         c.setEmployeeId(employeeId);
@@ -103,7 +103,7 @@ public class AssetDamageLossCaseService {
             try {
                 PayrollDeduction deduction = new PayrollDeduction();
                 deduction.setId(UUID.randomUUID());
-                deduction.setTenantId(TENANT);
+                deduction.setTenantId(TenantContext.current());
                 deduction.setEmployeeId(c.getEmployeeId());
                 deduction.setDeductionType("ASSET_DAMAGE");
                 deduction.setDescription("Asset damage/loss case: " + c.getCaseNo());

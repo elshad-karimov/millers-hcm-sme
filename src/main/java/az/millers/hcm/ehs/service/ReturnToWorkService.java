@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -30,7 +31,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @Service
 public class ReturnToWorkService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "ReturnToWorkPlan";
 
@@ -60,7 +60,7 @@ public class ReturnToWorkService {
                                     String modifiedSchedule) {
 
         ReturnToWorkPlan plan = new ReturnToWorkPlan();
-        plan.setTenantId(TENANT);
+        plan.setTenantId(TenantContext.current());
         plan.setInjuryReportId(injuryReportId);
         plan.setEmployeeId(employeeId);
         plan.setMedicalClearanceDate(medicalClearanceDate);
@@ -156,11 +156,11 @@ public class ReturnToWorkService {
 
     @Transactional(readOnly = true)
     public ReturnToWorkPlan get(UUID id) {
-        ReturnToWorkPlan plan = repo.findByIdAndTenantId(id, TENANT)
+        ReturnToWorkPlan plan = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Return-to-work plan not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(plan.getTenantId())) {
+        if (!TenantContext.current().equals(plan.getTenantId())) {
             throw new ResourceNotFoundException("Return-to-work plan not found: " + id);
         }
 
@@ -170,14 +170,14 @@ public class ReturnToWorkService {
     @Transactional(readOnly = true)
     public List<ReturnToWorkPlan> list(ReturnToWorkStatus statusFilter, UUID employeeId) {
         if (statusFilter != null && employeeId != null) {
-            return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId)
+            return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId)
                     .stream().filter(p -> p.getStatus() == statusFilter).toList();
         } else if (statusFilter != null) {
-            return repo.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, statusFilter);
+            return repo.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), statusFilter);
         } else if (employeeId != null) {
-            return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         } else {
-            return repo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+            return repo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         }
     }
 }

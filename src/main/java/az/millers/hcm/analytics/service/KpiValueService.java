@@ -1,4 +1,5 @@
 package az.millers.hcm.analytics.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -24,7 +25,6 @@ import az.millers.hcm.reporting.service.DashboardService;
 @Service
 public class KpiValueService {
 
-    private static final String TENANT = "default";
 
     private final NamedParameterJdbcTemplate jdbc;
     private final DashboardService dashboardService;
@@ -75,7 +75,7 @@ public class KpiValueService {
         return jdbc.queryForObject(
                 "SELECT count(*) FROM core_hr.employee " +
                 "WHERE tenant_id = :tenant AND employment_status = 'ACTIVE'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
     }
 
@@ -85,13 +85,13 @@ public class KpiValueService {
                 "SELECT count(*) FROM lifecycle.termination_request " +
                 "WHERE tenant_id = :tenant AND status = 'PROCESSED' " +
                 "AND effective_date >= current_date - interval '12 months'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
 
         Long avgHeadcount = jdbc.queryForObject(
                 "SELECT count(*) FROM core_hr.employee " +
                 "WHERE tenant_id = :tenant AND employment_status IN ('ACTIVE', 'ON_LEAVE')",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
 
         if (avgHeadcount == null || avgHeadcount == 0) return BigDecimal.ZERO;
@@ -108,7 +108,7 @@ public class KpiValueService {
                 "SELECT COALESCE(SUM(approved_days), 0) FROM attendance.leave_request " +
                 "WHERE tenant_id = :tenant AND status = 'APPROVED' " +
                 "AND start_date >= current_date - interval '3 months'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
 
         Long employees = headcountActive();
@@ -126,7 +126,7 @@ public class KpiValueService {
         List<LocalDate> hireDates = jdbc.query(
                 "SELECT hire_date FROM core_hr.employee " +
                 "WHERE tenant_id = :tenant AND employment_status = 'ACTIVE' AND hire_date IS NOT NULL",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 (rs, i) -> rs.getObject("hire_date", LocalDate.class));
 
         if (hireDates.isEmpty()) return BigDecimal.ZERO;
@@ -145,13 +145,13 @@ public class KpiValueService {
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM learning.enrollment " +
                 "WHERE tenant_id = :tenant AND enrolled_via = 'REQUIRED'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
 
         Long passed = jdbc.queryForObject(
                 "SELECT count(*) FROM learning.enrollment " +
                 "WHERE tenant_id = :tenant AND enrolled_via = 'REQUIRED' AND status = 'PASSED'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
 
         if (total == null || total == 0) return BigDecimal.ZERO;
@@ -168,7 +168,7 @@ public class KpiValueService {
                 "JOIN engagement.survey_aggregator sa ON sa.campaign_id = sc.id " +
                 "WHERE sc.tenant_id = :tenant AND sa.enps IS NOT NULL " +
                 "ORDER BY sc.closes_on DESC LIMIT 1",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Integer.class);
 
         return score != null ? score : 0;
@@ -179,7 +179,7 @@ public class KpiValueService {
         return jdbc.queryForObject(
                 "SELECT count(*) FROM recruitment.job_posting " +
                 "WHERE tenant_id = :tenant AND status IN ('OPEN', 'ACTIVE')",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
     }
 
@@ -191,7 +191,7 @@ public class KpiValueService {
                 "JOIN recruitment.job_posting jp ON a.job_posting_id = jp.id " +
                 "WHERE a.tenant_id = :tenant AND a.stage = 'HIRED' " +
                 "AND a.hired_at >= current_date - interval '6 months'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 (rs, i) -> rs.getLong("days"));
 
         if (days.isEmpty()) return BigDecimal.ZERO;
@@ -215,7 +215,7 @@ public class KpiValueService {
                 "    AND run.period_month = :month" +
                 ")",
                 new MapSqlParameterSource()
-                        .addValue("tenant", TENANT)
+                        .addValue("tenant", TenantContext.current())
                         .addValue("year", current.getYear())
                         .addValue("month", current.getMonthValue()),
                 BigDecimal.class);

@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -17,7 +18,6 @@ import java.util.UUID;
 @Service
 public class LaborCostReportService {
 
-    private static final String TENANT_ID = "default";
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -52,7 +52,7 @@ public class LaborCostReportService {
 
         return jdbc.queryForList(sql,
             new MapSqlParameterSource()
-                .addValue("tenantId", TENANT_ID)
+                .addValue("tenantId", TenantContext.current())
                 .addValue("from", from)
                 .addValue("to", to));
     }
@@ -84,7 +84,7 @@ public class LaborCostReportService {
 
         return jdbc.queryForList(sql,
             new MapSqlParameterSource()
-                .addValue("tenantId", TENANT_ID)
+                .addValue("tenantId", TenantContext.current())
                 .addValue("from", from)
                 .addValue("to", to));
     }
@@ -113,7 +113,7 @@ public class LaborCostReportService {
 
         return jdbc.queryForList(sql,
             new MapSqlParameterSource()
-                .addValue("tenantId", TENANT_ID)
+                .addValue("tenantId", TenantContext.current())
                 .addValue("from", from)
                 .addValue("to", to));
     }

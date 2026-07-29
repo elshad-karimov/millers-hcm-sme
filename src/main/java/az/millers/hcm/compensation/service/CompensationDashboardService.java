@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,7 +45,6 @@ import az.millers.hcm.staffing.repo.PositionRepository;
 @Service
 public class CompensationDashboardService {
 
-    private static final String TENANT = "default";
 
     private final EmployeeRepository employees;
     private final CompensationService compensations;
@@ -97,7 +97,7 @@ public class CompensationDashboardService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findByTenantId(TENANT)) {
+        for (Position p : positions.findByTenantId(TenantContext.current())) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);
@@ -173,14 +173,14 @@ public class CompensationDashboardService {
 
         // Pending salary change approvals
         int pendingApprovals = (int) salaryChangeRepo.findByTenantIdAndStatusOrderByCreatedAtDesc(
-                TENANT, SalaryChangeStatus.PENDING_APPROVAL).size();
+                TenantContext.current(), SalaryChangeStatus.PENDING_APPROVAL).size();
 
         // Open exceptions
         int openExceptions = (int) exceptionRepo.findByTenantIdAndStatusOrderByRaisedAtDesc(
-                TENANT, CompensationExceptionStatus.OPEN).size();
+                TenantContext.current(), CompensationExceptionStatus.OPEN).size();
 
         // Budget utilization
-        List<CompensationBudget> activeBudgets = budgetRepo.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(TENANT);
+        List<CompensationBudget> activeBudgets = budgetRepo.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(TenantContext.current());
         List<BudgetUtilizationRow> budgetRows = activeBudgets.stream().map(b -> {
             BigDecimal remaining = b.getAmount().subtract(b.getConsumedAmount());
             BigDecimal utilizationPct = b.getAmount().compareTo(BigDecimal.ZERO) > 0
@@ -227,7 +227,7 @@ public class CompensationDashboardService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findByTenantId(TENANT)) {
+        for (Position p : positions.findByTenantId(TenantContext.current())) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);
@@ -293,7 +293,7 @@ public class CompensationDashboardService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findByTenantId(TENANT)) {
+        for (Position p : positions.findByTenantId(TenantContext.current())) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);
@@ -352,7 +352,7 @@ public class CompensationDashboardService {
 
     @Transactional(readOnly = true)
     public List<BudgetUtilizationRow> budgetVsActual() {
-        List<CompensationBudget> budgets = budgetRepo.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(TENANT);
+        List<CompensationBudget> budgets = budgetRepo.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(TenantContext.current());
         return budgets.stream().map(b -> {
             BigDecimal remaining = b.getAmount().subtract(b.getConsumedAmount());
             BigDecimal utilizationPct = b.getAmount().compareTo(BigDecimal.ZERO) > 0

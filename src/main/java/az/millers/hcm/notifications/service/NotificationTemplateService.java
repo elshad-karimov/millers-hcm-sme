@@ -1,4 +1,5 @@
 package az.millers.hcm.notifications.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -33,7 +34,6 @@ import az.millers.hcm.notifications.repo.NotificationTemplateRepository;
 public class NotificationTemplateService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationTemplateService.class);
-    private static final String TENANT = "default";
     private static final Pattern VAR_PATTERN = Pattern.compile("\\{\\{(\\w+)\\}\\}");
 
     private final NotificationTemplateRepository templateRepo;
@@ -53,12 +53,12 @@ public class NotificationTemplateService {
     public NotificationTemplate create(String code, String name, NotificationChannel channel,
                                         String subjectTemplate, String bodyTemplate,
                                         String createdBy) {
-        templateRepo.findByCodeAndTenantId(code, TENANT).ifPresent(existing -> {
+        templateRepo.findByCodeAndTenantId(code, TenantContext.current()).ifPresent(existing -> {
             throw new IllegalArgumentException("Template code already exists: " + code);
         });
 
         NotificationTemplate template = new NotificationTemplate();
-        template.setTenantId(TENANT);
+        template.setTenantId(TenantContext.current());
         template.setCode(code);
         template.setName(name);
         template.setChannel(channel);
@@ -78,7 +78,7 @@ public class NotificationTemplateService {
     public NotificationTemplate update(UUID id, String name, NotificationChannel channel,
                                         String subjectTemplate, String bodyTemplate,
                                         boolean active, String updatedBy) {
-        NotificationTemplate template = templateRepo.findByIdAndTenantId(id, TENANT)
+        NotificationTemplate template = templateRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + id));
 
         NotificationTemplate before = clone(template);
@@ -100,7 +100,7 @@ public class NotificationTemplateService {
     }
 
     public void delete(UUID id, String deletedBy) {
-        NotificationTemplate template = templateRepo.findByIdAndTenantId(id, TENANT)
+        NotificationTemplate template = templateRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + id));
 
         templateRepo.delete(template);
@@ -112,11 +112,11 @@ public class NotificationTemplateService {
     }
 
     public List<NotificationTemplate> listAll() {
-        return templateRepo.findByTenantIdOrderByNameAsc(TENANT);
+        return templateRepo.findByTenantIdOrderByNameAsc(TenantContext.current());
     }
 
     public NotificationTemplate get(UUID id) {
-        return templateRepo.findByIdAndTenantId(id, TENANT)
+        return templateRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + id));
     }
 
@@ -127,7 +127,7 @@ public class NotificationTemplateService {
      * template code doesn't exist — caller should fall back to hardcoded text.
      */
     public Optional<RenderedTemplate> render(String code, Map<String, String> variables) {
-        Optional<NotificationTemplate> templateOpt = templateRepo.findByCodeAndTenantId(code, TENANT);
+        Optional<NotificationTemplate> templateOpt = templateRepo.findByCodeAndTenantId(code, TenantContext.current());
         if (templateOpt.isEmpty() || !templateOpt.get().isActive()) {
             return Optional.empty();
         }

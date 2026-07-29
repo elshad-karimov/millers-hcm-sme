@@ -1,4 +1,5 @@
 package az.millers.hcm.staffing.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -23,7 +24,6 @@ import az.millers.hcm.staffing.repo.AttritionForecastRepository;
 @Service
 public class AttritionForecastService {
 
-    private static final String TENANT_ID = "default";
 
     private final AttritionForecastRepository forecasts;
     private final NamedParameterJdbcTemplate jdbc;
@@ -63,7 +63,7 @@ public class AttritionForecastService {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("start", trailing12Start)
                 .addValue("end", today)
-                .addValue("tenantId", TENANT_ID);
+                .addValue("tenantId", TenantContext.current());
 
         List<Map<String, Object>> historical = jdbc.queryForList(historicalSql, params);
         for (Map<String, Object> row : historical) {
@@ -71,7 +71,7 @@ public class AttritionForecastService {
             int count = ((Number) row.get("termination_count")).intValue();
 
             AttritionForecast f = new AttritionForecast();
-            f.setTenantId(TENANT_ID);
+            f.setTenantId(TenantContext.current());
             f.setPlanId(planId);
             f.setOrgUnitId(orgUnitId);
             f.setForecastDate(horizonDate != null ? horizonDate : today.plusMonths(12));
@@ -99,7 +99,7 @@ public class AttritionForecastService {
             MapSqlParameterSource expiryParams = new MapSqlParameterSource()
                     .addValue("today", today)
                     .addValue("horizon", horizonDate)
-                    .addValue("tenantId", TENANT_ID);
+                    .addValue("tenantId", TenantContext.current());
 
             List<Map<String, Object>> expiring = jdbc.queryForList(expirySQL, expiryParams);
             for (Map<String, Object> row : expiring) {
@@ -107,7 +107,7 @@ public class AttritionForecastService {
                 int count = ((Number) row.get("expiring_count")).intValue();
 
                 AttritionForecast f = new AttritionForecast();
-                f.setTenantId(TENANT_ID);
+                f.setTenantId(TenantContext.current());
                 f.setPlanId(planId);
                 f.setOrgUnitId(orgUnitId);
                 f.setForecastDate(horizonDate);
@@ -127,6 +127,6 @@ public class AttritionForecastService {
 
     @Transactional(readOnly = true)
     public List<AttritionForecast> getByPlan(UUID planId) {
-        return forecasts.findByTenantIdAndPlanIdOrderByOrgUnitIdAsc(TENANT_ID, planId);
+        return forecasts.findByTenantIdAndPlanIdOrderByOrgUnitIdAsc(TenantContext.current(), planId);
     }
 }

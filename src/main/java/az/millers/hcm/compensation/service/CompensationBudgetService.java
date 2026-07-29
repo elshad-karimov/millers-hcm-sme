@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,7 +33,6 @@ public class CompensationBudgetService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "CompensationBudget";
-    private static final String TENANT = "default";
 
     private final CompensationBudgetRepository repo;
     private final CompConfigService compConfig;
@@ -52,11 +52,11 @@ public class CompensationBudgetService {
     @Transactional(readOnly = true)
     public List<CompensationBudget> list(BudgetType budgetType, BudgetScopeType scopeType) {
         if (budgetType != null) {
-            return repo.findByTenantIdAndBudgetTypeAndIsActiveTrueOrderByCreatedAtDesc(TENANT, budgetType);
+            return repo.findByTenantIdAndBudgetTypeAndIsActiveTrueOrderByCreatedAtDesc(TenantContext.current(), budgetType);
         } else if (scopeType != null) {
-            return repo.findByTenantIdAndScopeTypeAndIsActiveTrueOrderByCreatedAtDesc(TENANT, scopeType);
+            return repo.findByTenantIdAndScopeTypeAndIsActiveTrueOrderByCreatedAtDesc(TenantContext.current(), scopeType);
         } else {
-            return repo.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(TENANT);
+            return repo.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(TenantContext.current());
         }
     }
 
@@ -95,7 +95,7 @@ public class CompensationBudgetService {
         }
 
         CompensationBudget budget = new CompensationBudget();
-        budget.setTenantId(TENANT);
+        budget.setTenantId(TenantContext.current());
         budget.setBudgetType(budgetType);
         budget.setScopeType(scopeType);
         budget.setScopeRef(scopeRef);
@@ -184,14 +184,14 @@ public class CompensationBudgetService {
         // Find matching budget (scoped, fallback to GLOBAL)
         CompensationBudget budget;
         if (scopeType != BudgetScopeType.GLOBAL) {
-            budget = repo.findActiveBudget(TENANT, budgetType, scopeType, scopeRef).orElse(null);
+            budget = repo.findActiveBudget(TenantContext.current(), budgetType, scopeType, scopeRef).orElse(null);
         } else {
             budget = null;
         }
 
         // Fallback to GLOBAL if no scoped budget
         if (budget == null) {
-            budget = repo.findActiveGlobalBudget(TENANT, budgetType).orElse(null);
+            budget = repo.findActiveGlobalBudget(TenantContext.current(), budgetType).orElse(null);
         }
 
         // If no budget found, unbudgeted → allow

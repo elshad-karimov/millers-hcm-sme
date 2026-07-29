@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -35,7 +36,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class OkrService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final Set<String> LEVELS =
             Set.of("COMPANY", "LEGAL_ENTITY", "BUSINESS_UNIT", "DEPARTMENT", "TEAM", "INDIVIDUAL");
@@ -81,15 +81,15 @@ public class OkrService {
     public List<ObjectiveResponse> list(UUID cycleId, String level, UUID ownerEmployeeId) {
         List<OkrObjective> rows;
         if (ownerEmployeeId != null) {
-            rows = objectives.findByTenantIdAndOwnerEmployeeIdOrderByCreatedAtDesc(TENANT, ownerEmployeeId);
+            rows = objectives.findByTenantIdAndOwnerEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), ownerEmployeeId);
         } else if (cycleId != null && level != null) {
-            rows = objectives.findByTenantIdAndCycleIdAndOkrLevelOrderByCreatedAtDesc(TENANT, cycleId, level);
+            rows = objectives.findByTenantIdAndCycleIdAndOkrLevelOrderByCreatedAtDesc(TenantContext.current(), cycleId, level);
         } else if (cycleId != null) {
-            rows = objectives.findByTenantIdAndCycleIdOrderByCreatedAtDesc(TENANT, cycleId);
+            rows = objectives.findByTenantIdAndCycleIdOrderByCreatedAtDesc(TenantContext.current(), cycleId);
         } else if (level != null) {
-            rows = objectives.findByTenantIdAndOkrLevelOrderByCreatedAtDesc(TENANT, level);
+            rows = objectives.findByTenantIdAndOkrLevelOrderByCreatedAtDesc(TenantContext.current(), level);
         } else {
-            rows = objectives.findByTenantIdOrderByCreatedAtDesc(TENANT);
+            rows = objectives.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         }
         return decorate(rows.stream().filter(this::visible).toList());
     }
@@ -108,7 +108,7 @@ public class OkrService {
     public ObjectiveResponse create(ObjectiveRequest req) {
         validate(req);
         OkrObjective o = new OkrObjective();
-        o.setTenantId(TENANT);
+        o.setTenantId(TenantContext.current());
         apply(o, req);
         o.setStatus("ACTIVE");
         o.setCreatedBy(currentRequest.username());

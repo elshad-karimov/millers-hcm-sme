@@ -1,4 +1,5 @@
 package az.millers.hcm.lifecycle.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,7 +51,6 @@ public class EmployeeMovementService {
     public static final String WORKFLOW_DEFINITION = "EMP_MOVEMENT";
     private static final String MODULE = "lifecycle";
     private static final String ENTITY = "EmployeeMovementRequest";
-    private static final String TENANT = "default";
 
     private final EmployeeMovementRequestRepository repo;
     private final EmployeeRepository employees;
@@ -105,7 +105,7 @@ public class EmployeeMovementService {
         }
 
         EmployeeMovementRequest req = new EmployeeMovementRequest();
-        req.setTenantId(TENANT);
+        req.setTenantId(TenantContext.current());
         req.setEmployeeId(employeeId);
         req.setMovementType(movementType);
         req.setProposedPositionId(proposedPositionId);
@@ -181,7 +181,7 @@ public class EmployeeMovementService {
 
     @Transactional(readOnly = true)
     public List<EmployeeMovementRequest> list() {
-        return repo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        return repo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)

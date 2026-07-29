@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -24,7 +25,6 @@ import az.millers.hcm.payroll.repo.LoanRequestRepository;
  */
 @Service
 public class LoanInstallmentService {
-    private static final String TENANT = "default";
     private static final String MODULE = "payroll";
     private static final String ENTITY = "LoanInstallmentSchedule";
 
@@ -75,7 +75,7 @@ public class LoanInstallmentService {
             BigDecimal installmentAmt = (i == months) ? remainingBalance : monthlyInstallment;
 
             LoanInstallmentSchedule installment = new LoanInstallmentSchedule();
-            installment.setTenantId(TENANT);
+            installment.setTenantId(TenantContext.current());
             installment.setLoanRequestId(loanRequestId);
             installment.setPayrollLoanId(payrollLoanId);
             installment.setInstallmentNumber(i);
@@ -113,7 +113,7 @@ public class LoanInstallmentService {
     @Transactional
     public void settle(UUID loanRequestId, BigDecimal amount) {
         LoanRequest request = loanRequestRepo.findById(loanRequestId)
-                .filter(r -> TENANT.equals(r.getTenantId()))
+                .filter(r -> TenantContext.current().equals(r.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Loan request not found"));
 
         if (request.getPayrollLoanId() == null) {
@@ -171,7 +171,7 @@ public class LoanInstallmentService {
     @Transactional
     public List<LoanInstallmentSchedule> reschedule(UUID loanRequestId, BigDecimal newMonthlyInstallment) {
         LoanRequest request = loanRequestRepo.findById(loanRequestId)
-                .filter(r -> TENANT.equals(r.getTenantId()))
+                .filter(r -> TenantContext.current().equals(r.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Loan request not found"));
 
         if (request.getPayrollLoanId() == null) {
@@ -225,7 +225,7 @@ public class LoanInstallmentService {
             BigDecimal installmentAmt = (i == newMonths) ? remainingBalance : newMonthlyInstallment;
 
             LoanInstallmentSchedule installment = new LoanInstallmentSchedule();
-            installment.setTenantId(TENANT);
+            installment.setTenantId(TenantContext.current());
             installment.setLoanRequestId(loanRequestId);
             installment.setPayrollLoanId(request.getPayrollLoanId());
             installment.setInstallmentNumber(lastPaidNumber + i);

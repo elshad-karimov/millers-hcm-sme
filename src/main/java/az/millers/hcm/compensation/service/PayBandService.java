@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,7 +27,6 @@ public class PayBandService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "PayBand";
-    private static final String TENANT = "default";
 
     private final PayBandRepository repo;
     private final AuditService audit;
@@ -42,7 +42,7 @@ public class PayBandService {
 
     @Transactional(readOnly = true)
     public List<PayBand> listActive() {
-        return repo.findByTenantIdAndIsActiveTrue(TENANT);
+        return repo.findByTenantIdAndIsActiveTrue(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +53,7 @@ public class PayBandService {
 
     @Transactional(readOnly = true)
     public List<PayBand> findActiveOnForGrade(UUID gradeId, LocalDate date) {
-        return repo.findActiveOnForGrade(TENANT, gradeId, date);
+        return repo.findActiveOnForGrade(TenantContext.current(), gradeId, date);
     }
 
     @Transactional(readOnly = true)
@@ -66,12 +66,12 @@ public class PayBandService {
         validateRange(req.minSalary(), req.midSalary(), req.maxSalary());
         validateDateRange(req.effectiveFrom(), req.effectiveTo());
 
-        if (repo.findByTenantIdAndCode(TENANT, req.code()).isPresent()) {
+        if (repo.findByTenantIdAndCode(TenantContext.current(), req.code()).isPresent()) {
             throw new BadRequestException("BAND_CODE_DUPLICATE");
         }
 
         PayBand band = new PayBand();
-        band.setTenantId(TENANT);
+        band.setTenantId(TenantContext.current());
         applyRequest(band, req);
 
         PayBand saved = repo.save(band);
@@ -90,7 +90,7 @@ public class PayBandService {
 
         // Check code uniqueness if changed
         if (!band.getCode().equals(req.code())
-                && repo.findByTenantIdAndCode(TENANT, req.code()).isPresent()) {
+                && repo.findByTenantIdAndCode(TenantContext.current(), req.code()).isPresent()) {
             throw new BadRequestException("BAND_CODE_DUPLICATE");
         }
 

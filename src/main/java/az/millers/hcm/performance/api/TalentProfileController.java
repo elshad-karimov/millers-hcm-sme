@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,6 @@ import az.millers.hcm.security.scope.AccessScopeService;
 @RequestMapping("/api/talent")
 public class TalentProfileController {
 
-    private static final String TENANT = "default";
     private static final List<String> RISKS = List.of("LOW", "MEDIUM", "HIGH", "CRITICAL");
 
     public record ProfileRequest(Boolean hipoFlag, String hipoSource, String retentionRisk,
@@ -78,18 +78,18 @@ public class TalentProfileController {
     public List<TalentProfile> profiles(@RequestParam(required = false) Boolean hipoOnly,
                                         @RequestParam(required = false) String retentionRisk) {
         if (Boolean.TRUE.equals(hipoOnly)) {
-            return profiles.findByTenantIdAndHipoFlagTrueOrderByUpdatedAtDesc(TENANT);
+            return profiles.findByTenantIdAndHipoFlagTrueOrderByUpdatedAtDesc(TenantContext.current());
         }
         if (retentionRisk != null) {
-            return profiles.findByTenantIdAndRetentionRiskOrderByUpdatedAtDesc(TENANT, retentionRisk);
+            return profiles.findByTenantIdAndRetentionRiskOrderByUpdatedAtDesc(TenantContext.current(), retentionRisk);
         }
-        return profiles.findByTenantIdOrderByUpdatedAtDesc(TENANT);
+        return profiles.findByTenantIdOrderByUpdatedAtDesc(TenantContext.current());
     }
 
     @GetMapping("/profiles/employees/{employeeId}")
     @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
     public TalentProfile profileOf(@PathVariable UUID employeeId) {
-        return profiles.findByTenantIdAndEmployeeId(TENANT, employeeId)
+        return profiles.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("No talent profile for employee"));
     }
 
@@ -103,10 +103,10 @@ public class TalentProfileController {
         if (req.retentionRisk() != null && !RISKS.contains(req.retentionRisk())) {
             throw new BadRequestException("retentionRisk must be one of " + RISKS);
         }
-        TalentProfile p = profiles.findByTenantIdAndEmployeeId(TENANT, employeeId)
+        TalentProfile p = profiles.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
                 .orElseGet(() -> {
                     TalentProfile n = new TalentProfile();
-                    n.setTenantId(TENANT);
+                    n.setTenantId(TenantContext.current());
                     n.setEmployeeId(employeeId);
                     return n;
                 });
@@ -138,7 +138,7 @@ public class TalentProfileController {
         if (!accessScope.isAccessible(employeeId)) {
             throw new AccessDeniedException("Employee is outside your access scope");
         }
-        return interests.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+        return interests.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
     }
 
     @PostMapping("/interests")
@@ -153,7 +153,7 @@ public class TalentProfileController {
             throw new BadRequestException("A target role is required");
         }
         CareerInterest i = new CareerInterest();
-        i.setTenantId(TENANT);
+        i.setTenantId(TenantContext.current());
         i.setEmployeeId(employeeId);
         i.setTargetRole(req.targetRole().trim());
         i.setTargetDepartment(req.targetDepartment());

@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -39,7 +40,6 @@ public class PayrollCompTransferService {
 
     private static final Logger log = LoggerFactory.getLogger(PayrollCompTransferService.class);
     private static final String MODULE = "compensation";
-    private static final String TENANT = "default";
 
     private final PayrollCompTransferRepository transfers;
     private final IncentivePayoutRepository incentivePayouts;
@@ -83,7 +83,7 @@ public class PayrollCompTransferService {
         int skipped = 0;
 
         // Transfer incentive payouts
-        List<IncentivePayout> incentives = incentivePayouts.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, "APPROVED");
+        List<IncentivePayout> incentives = incentivePayouts.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), "APPROVED");
         for (IncentivePayout payout : incentives) {
             // Skip if already transferred
             if (payout.getPayrollBonusId() != null) {
@@ -122,7 +122,7 @@ public class PayrollCompTransferService {
 
                 // Record transfer
                 PayrollCompTransfer transfer = new PayrollCompTransfer();
-                transfer.setTenantId(TENANT);
+                transfer.setTenantId(TenantContext.current());
                 transfer.setSourceType("INCENTIVE");
                 transfer.setSourceId(payout.getId());
                 transfer.setEmployeeId(payout.getEmployeeId());
@@ -141,7 +141,7 @@ public class PayrollCompTransferService {
         }
 
         // Transfer commission payouts
-        List<CommissionPayout> commissions = commissionPayouts.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, "APPROVED");
+        List<CommissionPayout> commissions = commissionPayouts.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), "APPROVED");
         for (CommissionPayout payout : commissions) {
             // Skip if already transferred
             if (payout.getPayrollBonusId() != null) {
@@ -180,7 +180,7 @@ public class PayrollCompTransferService {
 
                 // Record transfer
                 PayrollCompTransfer transfer = new PayrollCompTransfer();
-                transfer.setTenantId(TENANT);
+                transfer.setTenantId(TenantContext.current());
                 transfer.setSourceType("COMMISSION");
                 transfer.setSourceId(payout.getId());
                 transfer.setEmployeeId(payout.getEmployeeId());
@@ -209,8 +209,8 @@ public class PayrollCompTransferService {
     @Transactional(readOnly = true)
     public List<PayrollCompTransfer> list(String status) {
         if (status != null) {
-            return transfers.findByTenantIdAndStatusOrderByTransferredAtDesc(TENANT, status);
+            return transfers.findByTenantIdAndStatusOrderByTransferredAtDesc(TenantContext.current(), status);
         }
-        return transfers.findByTenantIdOrderByTransferredAtDesc(TENANT);
+        return transfers.findByTenantIdOrderByTransferredAtDesc(TenantContext.current());
     }
 }

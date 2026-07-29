@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -28,7 +29,6 @@ import az.millers.hcm.security.CurrentRequest;
 public class EhsCorrectiveActionService {
 
     private static final Logger log = LoggerFactory.getLogger(EhsCorrectiveActionService.class);
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "CorrectiveAction";
 
@@ -54,7 +54,7 @@ public class EhsCorrectiveActionService {
                                     CorrectiveActionPriority priority) {
 
         CorrectiveAction action = new CorrectiveAction();
-        action.setTenantId(TENANT);
+        action.setTenantId(TenantContext.current());
         action.setIncidentId(incidentId);
         action.setInspectionId(inspectionId);
         action.setRiskAssessmentId(riskAssessmentId);
@@ -104,11 +104,11 @@ public class EhsCorrectiveActionService {
 
     @Transactional(readOnly = true)
     public CorrectiveAction get(UUID id) {
-        CorrectiveAction action = repo.findByIdAndTenantId(id, TENANT)
+        CorrectiveAction action = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Corrective action not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(action.getTenantId())) {
+        if (!TenantContext.current().equals(action.getTenantId())) {
             throw new ResourceNotFoundException("Corrective action not found: " + id);
         }
 
@@ -118,11 +118,11 @@ public class EhsCorrectiveActionService {
     @Transactional(readOnly = true)
     public List<CorrectiveAction> list(CorrectiveActionStatus statusFilter, String responsibleUsername) {
         if (statusFilter != null) {
-            return repo.findByTenantIdAndStatusOrderByDueDateAsc(TENANT, statusFilter);
+            return repo.findByTenantIdAndStatusOrderByDueDateAsc(TenantContext.current(), statusFilter);
         } else if (responsibleUsername != null) {
-            return repo.findByTenantIdAndResponsibleUsernameOrderByDueDateAsc(TENANT, responsibleUsername);
+            return repo.findByTenantIdAndResponsibleUsernameOrderByDueDateAsc(TenantContext.current(), responsibleUsername);
         } else {
-            return repo.findByTenantIdOrderByDueDateAsc(TENANT);
+            return repo.findByTenantIdOrderByDueDateAsc(TenantContext.current());
         }
     }
 
@@ -134,7 +134,7 @@ public class EhsCorrectiveActionService {
     @Transactional
     public void sweepOverdueActions() {
         LocalDate today = LocalDate.now();
-        List<CorrectiveAction> overdue = repo.findOverdueActions(TENANT, today);
+        List<CorrectiveAction> overdue = repo.findOverdueActions(TenantContext.current(), today);
 
         if (overdue.isEmpty()) {
             log.debug("EHS corrective action sweep: no overdue actions");

@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,7 +37,6 @@ import az.millers.hcm.staffing.repo.PositionRepository;
 @Service
 public class CompensationProfileService {
 
-    private static final String TENANT = "default";
 
     private final EmployeeRepository employees;
     private final CompensationService compensations;

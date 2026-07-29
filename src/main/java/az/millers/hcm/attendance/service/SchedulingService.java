@@ -1,4 +1,5 @@
 package az.millers.hcm.attendance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.attendance.domain.OpenShift;
 import az.millers.hcm.attendance.domain.RosterEntry;
@@ -33,7 +34,6 @@ import az.millers.hcm.common.BusinessNumbers;
 public class SchedulingService {
 
     private static final String MODULE = "attendance";
-    private static final String TENANT_ID = "default";
 
     private final OpenShiftRepository openShiftRepo;
     private final ShiftSwapRequestRepository swapRepo;
@@ -64,20 +64,20 @@ public class SchedulingService {
     @Transactional(readOnly = true)
     public List<OpenShift> listOpenShifts(LocalDate from, LocalDate to) {
         if (from != null && to != null) {
-            return openShiftRepo.findByTenantIdAndShiftDateBetweenOrderByShiftDateAsc(TENANT_ID, from, to);
+            return openShiftRepo.findByTenantIdAndShiftDateBetweenOrderByShiftDateAsc(TenantContext.current(), from, to);
         }
-        return openShiftRepo.findByTenantIdAndStatusOrderByShiftDateAsc(TENANT_ID, "OPEN");
+        return openShiftRepo.findByTenantIdAndStatusOrderByShiftDateAsc(TenantContext.current(), "OPEN");
     }
 
     @Transactional(readOnly = true)
     public OpenShift getOpenShift(UUID id) {
-        return openShiftRepo.findByIdAndTenantId(id, TENANT_ID)
+        return openShiftRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Open shift not found"));
     }
 
     @Transactional
     public OpenShift createOpenShift(OpenShift shift) {
-        shift.setTenantId(TENANT_ID);
+        shift.setTenantId(TenantContext.current());
         shift.setCreatedBy(currentRequest.username());
         OpenShift saved = openShiftRepo.save(shift);
         audit.record(MODULE, "OpenShift", saved.getId().toString(), "CREATE", null,
@@ -129,7 +129,7 @@ public class SchedulingService {
         int rowsUpdated = jdbc.update(updateSql,
             new MapSqlParameterSource()
                 .addValue("id", openShiftId)
-                .addValue("tenantId", TENANT_ID)
+                .addValue("tenantId", TenantContext.current())
                 .addValue("updatedBy", currentRequest.username()));
 
         if (rowsUpdated == 0) {
@@ -161,7 +161,7 @@ public class SchedulingService {
             jdbc.update(rollbackSql,
                 new MapSqlParameterSource()
                     .addValue("id", openShiftId)
-                    .addValue("tenantId", TENANT_ID));
+                    .addValue("tenantId", TenantContext.current()));
             throw e;
         }
     }
@@ -171,14 +171,14 @@ public class SchedulingService {
     @Transactional(readOnly = true)
     public List<ShiftSwapRequest> listSwapRequests(String status) {
         if (status != null && !status.isBlank()) {
-            return swapRepo.findByTenantIdAndStatusOrderByRequestedAtDesc(TENANT_ID, status);
+            return swapRepo.findByTenantIdAndStatusOrderByRequestedAtDesc(TenantContext.current(), status);
         }
-        return swapRepo.findByTenantIdOrderByRequestedAtDesc(TENANT_ID);
+        return swapRepo.findByTenantIdOrderByRequestedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public ShiftSwapRequest getSwapRequest(UUID id) {
-        return swapRepo.findByIdAndTenantId(id, TENANT_ID)
+        return swapRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Swap request not found"));
     }
 
@@ -205,7 +205,7 @@ public class SchedulingService {
 
         String requestNo = generateSwapRequestNo();
         ShiftSwapRequest request = new ShiftSwapRequest();
-        request.setTenantId(TENANT_ID);
+        request.setTenantId(TenantContext.current());
         request.setRequestNo(requestNo);
         request.setRosterEntryId(rosterEntryId);
         request.setFromEmployeeId(fromEmployeeId);
@@ -286,7 +286,7 @@ public class SchedulingService {
                 "SELECT CONCAT(first_name, ' ', last_name) FROM core_hr.employee WHERE id = :id AND tenant_id = :tenantId",
                 new MapSqlParameterSource()
                     .addValue("id", employeeId)
-                    .addValue("tenantId", TENANT_ID),
+                    .addValue("tenantId", TenantContext.current()),
                 String.class
             );
         } catch (Exception e) {
@@ -300,7 +300,7 @@ public class SchedulingService {
                 "SELECT id FROM core_hr.employee WHERE username = :username AND tenant_id = :tenantId",
                 new MapSqlParameterSource()
                     .addValue("username", username)
-                    .addValue("tenantId", TENANT_ID),
+                    .addValue("tenantId", TenantContext.current()),
                 UUID.class
             );
         } catch (Exception e) {

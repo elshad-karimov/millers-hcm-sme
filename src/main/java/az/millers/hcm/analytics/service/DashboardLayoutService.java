@@ -1,4 +1,5 @@
 package az.millers.hcm.analytics.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,7 +20,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class DashboardLayoutService {
 
-    private static final String TENANT = "default";
 
     private final DashboardLayoutRepository repository;
     private final CurrentRequest currentRequest;
@@ -31,21 +31,21 @@ public class DashboardLayoutService {
 
     @Transactional(readOnly = true)
     public List<DashboardLayout> listOwnedOrShared() {
-        return repository.findOwnedOrShared(TENANT, currentRequest.username());
+        return repository.findOwnedOrShared(TenantContext.current(), currentRequest.username());
     }
 
     @Transactional(readOnly = true)
     public List<DashboardLayout> listAll() {
         // HR_ADMIN only - see all dashboards
         return repository.findAll().stream()
-                .filter(d -> TENANT.equals(d.getTenantId()))
+                .filter(d -> TenantContext.current().equals(d.getTenantId()))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public DashboardLayout get(UUID id) {
         DashboardLayout layout = repository.findById(id)
-                .filter(d -> TENANT.equals(d.getTenantId()))
+                .filter(d -> TenantContext.current().equals(d.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Dashboard not found"));
 
         // Check access: owner or shared
@@ -58,7 +58,7 @@ public class DashboardLayoutService {
 
     @Transactional
     public DashboardLayout create(DashboardLayout layout) {
-        layout.setTenantId(TENANT);
+        layout.setTenantId(TenantContext.current());
         layout.setOwnerUsername(currentRequest.username());
         return repository.save(layout);
     }
@@ -66,7 +66,7 @@ public class DashboardLayoutService {
     @Transactional
     public DashboardLayout update(UUID id, DashboardLayout updates) {
         DashboardLayout existing = repository.findById(id)
-                .filter(d -> TENANT.equals(d.getTenantId()))
+                .filter(d -> TenantContext.current().equals(d.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Dashboard not found"));
 
         // Only owner can update
@@ -83,7 +83,7 @@ public class DashboardLayoutService {
     @Transactional
     public void delete(UUID id) {
         DashboardLayout layout = repository.findById(id)
-                .filter(d -> TENANT.equals(d.getTenantId()))
+                .filter(d -> TenantContext.current().equals(d.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Dashboard not found"));
 
         // Only owner can delete

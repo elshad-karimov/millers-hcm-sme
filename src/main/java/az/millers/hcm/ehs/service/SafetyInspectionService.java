@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -26,7 +27,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class SafetyInspectionService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "SafetyInspection";
 
@@ -54,7 +54,7 @@ public class SafetyInspectionService {
                                     List<FindingInput> findings) {
 
         SafetyInspection inspection = new SafetyInspection();
-        inspection.setTenantId(TENANT);
+        inspection.setTenantId(TenantContext.current());
         inspection.setWorkLocationId(workLocationId);
         inspection.setInspectionDate(inspectionDate);
         inspection.setInspectorUsername(inspectorUsername);
@@ -148,11 +148,11 @@ public class SafetyInspectionService {
 
     @Transactional(readOnly = true)
     public SafetyInspection get(UUID id) {
-        SafetyInspection inspection = repo.findByIdAndTenantId(id, TENANT)
+        SafetyInspection inspection = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Safety inspection not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(inspection.getTenantId())) {
+        if (!TenantContext.current().equals(inspection.getTenantId())) {
             throw new ResourceNotFoundException("Safety inspection not found: " + id);
         }
 
@@ -162,9 +162,9 @@ public class SafetyInspectionService {
     @Transactional(readOnly = true)
     public List<SafetyInspection> list(InspectionStatus statusFilter) {
         if (statusFilter != null) {
-            return repo.findByTenantIdAndStatusOrderByInspectionDateDesc(TENANT, statusFilter);
+            return repo.findByTenantIdAndStatusOrderByInspectionDateDesc(TenantContext.current(), statusFilter);
         } else {
-            return repo.findByTenantIdOrderByInspectionDateDesc(TENANT);
+            return repo.findByTenantIdOrderByInspectionDateDesc(TenantContext.current());
         }
     }
 

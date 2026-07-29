@@ -1,4 +1,5 @@
 package az.millers.hcm.timesheet.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
@@ -20,7 +21,6 @@ import java.util.UUID;
 public class TimesheetProjectService {
 
     private static final String MODULE = "timesheet";
-    private static final String TENANT_ID = "default";
 
     private final TimesheetProjectRepository projectRepo;
     private final CurrentRequest currentRequest;
@@ -37,19 +37,19 @@ public class TimesheetProjectService {
     @Transactional(readOnly = true)
     public List<TimesheetProject> listProjects(boolean activeOnly) {
         return activeOnly
-            ? projectRepo.findByTenantIdAndActiveOrderByName(TENANT_ID, true)
-            : projectRepo.findByTenantIdOrderByName(TENANT_ID);
+            ? projectRepo.findByTenantIdAndActiveOrderByName(TenantContext.current(), true)
+            : projectRepo.findByTenantIdOrderByName(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public TimesheetProject getProject(UUID id) {
-        return projectRepo.findByIdAndTenantId(id, TENANT_ID)
+        return projectRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
     }
 
     @Transactional
     public TimesheetProject createProject(TimesheetProject project) {
-        project.setTenantId(TENANT_ID);
+        project.setTenantId(TenantContext.current());
         project.setCreatedBy(currentRequest.username());
 
         TimesheetProject saved = projectRepo.save(project);

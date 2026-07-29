@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -40,7 +41,6 @@ import az.millers.hcm.common.BusinessNumbers;
 @Service
 public class BenefitClaimService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "COMP_BENEFITS";
     private static final String ENTITY = "BenefitClaim";
 
@@ -89,8 +89,8 @@ public class BenefitClaimService {
     @Transactional(readOnly = true)
     public List<ClaimResponse> list(BenefitClaimStatus status) {
         List<BenefitClaim> rows = status == null
-                ? claims.findByTenantIdOrderByClaimDateDesc(TENANT)
-                : claims.findByTenantIdAndStatusOrderByClaimDateDesc(TENANT, status);
+                ? claims.findByTenantIdOrderByClaimDateDesc(TenantContext.current())
+                : claims.findByTenantIdAndStatusOrderByClaimDateDesc(TenantContext.current(), status);
         return decorate(rows);
     }
 
@@ -100,7 +100,7 @@ public class BenefitClaimService {
         if (!accessScope.isAccessible(employeeId)) {
             return List.of();
         }
-        return decorate(claims.findByTenantIdAndEmployeeIdOrderByClaimDateDesc(TENANT, employeeId));
+        return decorate(claims.findByTenantIdAndEmployeeIdOrderByClaimDateDesc(TenantContext.current(), employeeId));
     }
 
     @Transactional(readOnly = true)
@@ -147,7 +147,7 @@ public class BenefitClaimService {
             throw new BadRequestException("A claim needs at least one line item");
         }
         BenefitClaim c = new BenefitClaim();
-        c.setTenantId(TENANT);
+        c.setTenantId(TenantContext.current());
         c.setClaimNo(BusinessNumbers.format("BC", 5, claims.nextClaimSeq()));
         c.setEmployeeId(req.employeeId());
         c.setEnrollmentId(req.enrollmentId());

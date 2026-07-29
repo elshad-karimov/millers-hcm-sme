@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,7 +39,6 @@ import jakarta.persistence.EntityManager;
 @Service
 public class DevPlanService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "PERFORMANCE";
     private static final String ENTITY = "DevelopmentPlan";
     private static final Set<String> ACTION_TYPES = Set.of(
@@ -90,11 +90,11 @@ public class DevPlanService {
     public List<DevelopmentPlan> list(UUID employeeId, String status) {
         List<DevelopmentPlan> rows;
         if (employeeId != null) {
-            rows = plans.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            rows = plans.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         } else if (status != null) {
-            rows = plans.findByTenantIdAndStatusOrderByCreatedAtDesc(TENANT, status);
+            rows = plans.findByTenantIdAndStatusOrderByCreatedAtDesc(TenantContext.current(), status);
         } else {
-            rows = plans.findByTenantIdOrderByCreatedAtDesc(TENANT);
+            rows = plans.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         }
         return rows.stream().filter(p -> accessScope.isAccessible(p.getEmployeeId())).toList();
     }
@@ -117,7 +117,7 @@ public class DevPlanService {
             }
             requireEmployeeAccessible(req.employeeId());
             p = new DevelopmentPlan();
-            p.setTenantId(TENANT);
+            p.setTenantId(TenantContext.current());
             p.setEmployeeId(req.employeeId());
             p.setCreatedBy(currentRequest.username());
         } else {
@@ -150,7 +150,7 @@ public class DevPlanService {
                     throw new BadRequestException("Unknown action status: " + ar.status());
                 }
                 DevelopmentAction a = new DevelopmentAction();
-                a.setTenantId(TENANT);
+                a.setTenantId(TenantContext.current());
                 a.setPlanId(saved.getId());
                 a.setActionType(ar.actionType() == null ? "TRAINING_COURSE" : ar.actionType());
                 a.setDescription(ar.description().trim());
@@ -181,7 +181,7 @@ public class DevPlanService {
             throw new BadRequestException("The review has no positive competency gaps to plan for");
         }
         DevelopmentPlan p = new DevelopmentPlan();
-        p.setTenantId(TENANT);
+        p.setTenantId(TenantContext.current());
         p.setEmployeeId(review.getEmployeeId());
         p.setReviewId(reviewId);
         p.setTitle("Close competency gaps — review " + review.getReviewNo());
@@ -191,7 +191,7 @@ public class DevPlanService {
         List<DevelopmentAction> created = new ArrayList<>();
         for (PerfCompetencyAssessment g : gaps) {
             DevelopmentAction a = new DevelopmentAction();
-            a.setTenantId(TENANT);
+            a.setTenantId(TenantContext.current());
             a.setPlanId(saved.getId());
             a.setActionType("TRAINING_COURSE");
             a.setDescription("Close competency gap (level " + g.getFinalLevel()

@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,7 +27,6 @@ import az.millers.hcm.engagement.repo.SurveyTemplateRepository;
 @Service
 public class ParticipationAnalyticsService {
 
-    private static final String TENANT = "default";
     private static final String SETTING_KEY_MIN_RESPONSES = "engagement_min_group_responses";
     private static final int DEFAULT_MIN_RESPONSES = 5;
 
@@ -67,7 +67,7 @@ public class ParticipationAnalyticsService {
         Long totalInvited = jdbc.queryForObject(
                 "SELECT count(DISTINCT employee_id) FROM core_hr.employee " +
                 "WHERE tenant_id = :tenant AND employment_status = 'ACTIVE'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
 
         Long totalResponded = jdbc.queryForObject(
@@ -89,7 +89,7 @@ public class ParticipationAnalyticsService {
                 "WHERE e.tenant_id = :tenant AND e.employment_status = 'ACTIVE' " +
                 "GROUP BY e.department_name",
                 new MapSqlParameterSource()
-                        .addValue("tenant", TENANT)
+                        .addValue("tenant", TenantContext.current())
                         .addValue("campaignId", campaignId),
                 (rs, i) -> {
                     String dept = rs.getString("department_name");

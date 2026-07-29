@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,7 +37,6 @@ import az.millers.hcm.common.BusinessNumbers;
  */
 @Service
 public class LoanRequestService {
-    private static final String TENANT = "default";
     private static final String MODULE = "payroll";
     private static final String ENTITY = "LoanRequest";
 
@@ -67,18 +67,18 @@ public class LoanRequestService {
 
     @Transactional(readOnly = true)
     public List<LoanRequest> listAll() {
-        return repository.findByTenantIdOrderByRequestedAtDesc(TENANT);
+        return repository.findByTenantIdOrderByRequestedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public List<LoanRequest> listByEmployee(UUID employeeId) {
-        return repository.findByTenantIdAndEmployeeIdOrderByRequestedAtDesc(TENANT, employeeId);
+        return repository.findByTenantIdAndEmployeeIdOrderByRequestedAtDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional(readOnly = true)
     public LoanRequest get(UUID id) {
         return repository.findById(id)
-                .filter(r -> TENANT.equals(r.getTenantId()))
+                .filter(r -> TenantContext.current().equals(r.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Loan request not found"));
     }
 
@@ -96,7 +96,7 @@ public class LoanRequestService {
         String requestNo = BusinessNumbers.format("LR", 5, jdbc.queryForObject("SELECT nextval('payroll.loan_request_no_seq')", Map.of(), Long.class));
 
         LoanRequest request = new LoanRequest();
-        request.setTenantId(TENANT);
+        request.setTenantId(TenantContext.current());
         request.setRequestNo(requestNo);
         request.setEmployeeId(employeeId);
         request.setLoanTypeId(loanTypeId);

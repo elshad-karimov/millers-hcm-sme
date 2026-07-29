@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -21,7 +22,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class InjuryReportService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY = "InjuryReport";
 
@@ -52,7 +52,7 @@ public class InjuryReportService {
                                String notes) {
 
         InjuryReport report = new InjuryReport();
-        report.setTenantId(TENANT);
+        report.setTenantId(TenantContext.current());
         report.setIncidentId(incidentId);
         report.setEmployeeId(employeeId);
         report.setInjuryType(injuryType);
@@ -113,11 +113,11 @@ public class InjuryReportService {
 
     @Transactional(readOnly = true)
     public InjuryReport get(UUID id) {
-        InjuryReport report = repo.findByIdAndTenantId(id, TENANT)
+        InjuryReport report = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Injury report not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(report.getTenantId())) {
+        if (!TenantContext.current().equals(report.getTenantId())) {
             throw new ResourceNotFoundException("Injury report not found: " + id);
         }
 
@@ -127,11 +127,11 @@ public class InjuryReportService {
     @Transactional(readOnly = true)
     public List<InjuryReport> list(UUID incidentId, UUID employeeId) {
         if (incidentId != null) {
-            return repo.findByTenantIdAndIncidentIdOrderByCreatedAtDesc(TENANT, incidentId);
+            return repo.findByTenantIdAndIncidentIdOrderByCreatedAtDesc(TenantContext.current(), incidentId);
         } else if (employeeId != null) {
-            return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TENANT, employeeId);
+            return repo.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         } else {
-            return repo.findByTenantIdOrderByCreatedAtDesc(TENANT);
+            return repo.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
         }
     }
 }

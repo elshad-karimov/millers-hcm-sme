@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,7 +24,6 @@ public class ChangeReasonService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "ChangeReason";
-    private static final String TENANT = "default";
 
     private final ChangeReasonRepository repo;
     private final AuditService audit;
@@ -39,7 +39,7 @@ public class ChangeReasonService {
 
     @Transactional(readOnly = true)
     public List<ChangeReason> listActive() {
-        return repo.findByTenantIdAndIsActiveTrue(TENANT);
+        return repo.findByTenantIdAndIsActiveTrue(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -50,12 +50,12 @@ public class ChangeReasonService {
 
     @Transactional
     public ChangeReason create(ChangeReasonRequest req) {
-        if (repo.findByTenantIdAndCode(TENANT, req.code()).isPresent()) {
+        if (repo.findByTenantIdAndCode(TenantContext.current(), req.code()).isPresent()) {
             throw new BadRequestException("Change reason code already exists: " + req.code());
         }
 
         ChangeReason reason = new ChangeReason();
-        reason.setTenantId(TENANT);
+        reason.setTenantId(TenantContext.current());
         applyRequest(reason, req);
 
         ChangeReason saved = repo.save(reason);
@@ -71,7 +71,7 @@ public class ChangeReasonService {
 
         // Check code uniqueness if changed
         if (!reason.getCode().equals(req.code())
-                && repo.findByTenantIdAndCode(TENANT, req.code()).isPresent()) {
+                && repo.findByTenantIdAndCode(TenantContext.current(), req.code()).isPresent()) {
             throw new BadRequestException("Change reason code already exists: " + req.code());
         }
 

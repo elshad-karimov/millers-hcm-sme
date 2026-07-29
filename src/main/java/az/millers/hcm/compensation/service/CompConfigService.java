@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 
@@ -21,7 +22,6 @@ public class CompConfigService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "CompConfig";
-    private static final String TENANT = "default";
 
     private final CompConfigRepository repo;
     private final AuditService audit;
@@ -37,7 +37,7 @@ public class CompConfigService {
 
     @Transactional(readOnly = true)
     public CompConfig get() {
-        return repo.findByTenantId(TENANT).orElseGet(this::createDefault);
+        return repo.findByTenantId(TenantContext.current()).orElseGet(this::createDefault);
     }
 
     @Transactional
@@ -59,7 +59,7 @@ public class CompConfigService {
 
     private CompConfig createDefault() {
         CompConfig cfg = new CompConfig();
-        cfg.setTenantId(TENANT);
+        cfg.setTenantId(TenantContext.current());
         return repo.save(cfg);
     }
 }

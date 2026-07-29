@@ -1,4 +1,5 @@
 package az.millers.hcm.ehs.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -24,7 +25,6 @@ import az.millers.hcm.security.CurrentRequest;
 @Service
 public class PpeService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "ehs";
     private static final String ENTITY_ASSIGNMENT = "PpeAssignment";
 
@@ -54,7 +54,7 @@ public class PpeService {
         // If expiryDate not provided, compute from item's default_expiry_months
         LocalDate finalExpiryDate = expiryDate;
         if (finalExpiryDate == null) {
-            PpeItem item = itemRepo.findByIdAndTenantId(ppeItemId, TENANT)
+            PpeItem item = itemRepo.findByIdAndTenantId(ppeItemId, TenantContext.current())
                     .orElseThrow(() -> new ResourceNotFoundException("PPE item not found: " + ppeItemId));
             if (item.getDefaultExpiryMonths() != null) {
                 finalExpiryDate = issuedAt.plusMonths(item.getDefaultExpiryMonths());
@@ -65,7 +65,7 @@ public class PpeService {
         }
 
         PpeAssignment assignment = new PpeAssignment();
-        assignment.setTenantId(TENANT);
+        assignment.setTenantId(TenantContext.current());
         assignment.setEmployeeId(employeeId);
         assignment.setPpeItemId(ppeItemId);
         assignment.setIssuedAt(issuedAt);
@@ -103,11 +103,11 @@ public class PpeService {
 
     @Transactional(readOnly = true)
     public PpeAssignment getAssignment(UUID id) {
-        PpeAssignment assignment = assignmentRepo.findByIdAndTenantId(id, TENANT)
+        PpeAssignment assignment = assignmentRepo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("PPE assignment not found: " + id));
 
         // Tenant post-check
-        if (!TENANT.equals(assignment.getTenantId())) {
+        if (!TenantContext.current().equals(assignment.getTenantId())) {
             throw new ResourceNotFoundException("PPE assignment not found: " + id);
         }
 
@@ -117,9 +117,9 @@ public class PpeService {
     @Transactional(readOnly = true)
     public List<PpeAssignment> listAssignments(UUID employeeId) {
         if (employeeId != null) {
-            return assignmentRepo.findByTenantIdAndEmployeeIdOrderByIssuedAtDesc(TENANT, employeeId);
+            return assignmentRepo.findByTenantIdAndEmployeeIdOrderByIssuedAtDesc(TenantContext.current(), employeeId);
         } else {
-            return assignmentRepo.findByTenantIdOrderByIssuedAtDesc(TENANT);
+            return assignmentRepo.findByTenantIdOrderByIssuedAtDesc(TenantContext.current());
         }
     }
 
@@ -131,7 +131,7 @@ public class PpeService {
     public List<PpeAssignment> findExpiringAssignments() {
         LocalDate today = LocalDate.now();
         LocalDate thirtyDaysFromNow = today.plusDays(30);
-        return assignmentRepo.findExpiringAssignments(TENANT, today, thirtyDaysFromNow);
+        return assignmentRepo.findExpiringAssignments(TenantContext.current(), today, thirtyDaysFromNow);
     }
 
     // ── PPE Item Management ──────────────────────────────────────────────────
@@ -139,15 +139,15 @@ public class PpeService {
     @Transactional(readOnly = true)
     public List<PpeItem> listItems(Boolean activeOnly) {
         if (activeOnly != null && activeOnly) {
-            return itemRepo.findByTenantIdAndActiveOrderByName(TENANT, true);
+            return itemRepo.findByTenantIdAndActiveOrderByName(TenantContext.current(), true);
         } else {
-            return itemRepo.findByTenantIdOrderByName(TENANT);
+            return itemRepo.findByTenantIdOrderByName(TenantContext.current());
         }
     }
 
     @Transactional(readOnly = true)
     public PpeItem getItem(UUID id) {
-        return itemRepo.findByIdAndTenantId(id, TENANT)
+        return itemRepo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("PPE item not found: " + id));
     }
 }

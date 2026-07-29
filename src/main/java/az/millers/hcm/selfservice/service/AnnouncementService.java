@@ -1,4 +1,5 @@
 package az.millers.hcm.selfservice.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -24,7 +25,6 @@ import az.millers.hcm.selfservice.repo.AnnouncementRepository;
 @Service
 public class AnnouncementService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "self-service";
     private static final String ENTITY = "Announcement";
 
@@ -47,7 +47,7 @@ public class AnnouncementService {
     public Announcement create(String title, String body, LocalDate publishFrom, LocalDate publishTo,
                                  AnnouncementAudience audience, UUID audienceRef) {
         Announcement ann = new Announcement();
-        ann.setTenantId(TENANT);
+        ann.setTenantId(TenantContext.current());
         ann.setTitle(title);
         ann.setBody(body);
         ann.setPublishFrom(publishFrom);
@@ -91,13 +91,13 @@ public class AnnouncementService {
 
     @Transactional(readOnly = true)
     public List<Announcement> list() {
-        return repo.findByTenantIdAndActiveTrueOrderByPublishFromDesc(TENANT);
+        return repo.findByTenantIdAndActiveTrueOrderByPublishFromDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public List<Announcement> listAll() {
         return repo.findAll().stream()
-                .filter(a -> TENANT.equals(a.getTenantId()))
+                .filter(a -> TenantContext.current().equals(a.getTenantId()))
                 .collect(Collectors.toList());
     }
 
@@ -114,7 +114,7 @@ public class AnnouncementService {
     @Transactional(readOnly = true)
     public List<Announcement> activeFor(Employee employee) {
         LocalDate today = LocalDate.now();
-        return repo.findByTenantIdAndActiveTrueOrderByPublishFromDesc(TENANT).stream()
+        return repo.findByTenantIdAndActiveTrueOrderByPublishFromDesc(TenantContext.current()).stream()
                 .filter(ann -> {
                     // Window check
                     if (ann.getPublishFrom().isAfter(today)) {

@@ -1,4 +1,5 @@
 package az.millers.hcm.lifecycle.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -28,7 +29,6 @@ import az.millers.hcm.common.BusinessNumbers;
  */
 @Service
 public class AssetTransferService {
-    private static final String TENANT = "default";
     private static final String MODULE = "lifecycle";
     private static final String ENTITY = "AssetTransfer";
 
@@ -52,18 +52,18 @@ public class AssetTransferService {
 
     @Transactional(readOnly = true)
     public List<AssetTransfer> listPending() {
-        return repository.findByTenantIdAndStatusOrderByRequestedAtDesc(TENANT, AssetTransferStatus.PENDING);
+        return repository.findByTenantIdAndStatusOrderByRequestedAtDesc(TenantContext.current(), AssetTransferStatus.PENDING);
     }
 
     @Transactional(readOnly = true)
     public List<AssetTransfer> listAll() {
-        return repository.findByTenantIdOrderByRequestedAtDesc(TENANT);
+        return repository.findByTenantIdOrderByRequestedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public AssetTransfer get(UUID id) {
         return repository.findById(id)
-                .filter(t -> TENANT.equals(t.getTenantId()))
+                .filter(t -> TenantContext.current().equals(t.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Transfer not found"));
     }
 
@@ -81,7 +81,7 @@ public class AssetTransferService {
         String transferNo = BusinessNumbers.format("AT", 5, jdbc.queryForObject("SELECT nextval('lifecycle.asset_transfer_no_seq')", Map.of(), Long.class));
 
         AssetTransfer transfer = new AssetTransfer();
-        transfer.setTenantId(TENANT);
+        transfer.setTenantId(TenantContext.current());
         transfer.setTransferNo(transferNo);
         transfer.setAssetId(assetId);
         transfer.setFromEmployeeId(fromEmployeeId);

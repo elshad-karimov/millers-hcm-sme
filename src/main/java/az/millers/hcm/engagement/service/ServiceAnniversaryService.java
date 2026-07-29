@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.engagement.domain.EmployeeRecognition;
@@ -25,7 +26,6 @@ import java.util.UUID;
 @Service
 public class ServiceAnniversaryService {
 
-    private static final String TENANT_ID = "default";
     private static final String MODULE = "engagement";
     private static final UUID SYSTEM_SENDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001"); // placeholder
 
@@ -71,7 +71,7 @@ public class ServiceAnniversaryService {
         List<Map<String, Object>> anniversaries = jdbc.queryForList(sql,
             new MapSqlParameterSource()
                 .addValue("today", today)
-                .addValue("tenantId", TENANT_ID));
+                .addValue("tenantId", TenantContext.current()));
 
         for (Map<String, Object> emp : anniversaries) {
             UUID employeeId = (UUID) emp.get("id");
@@ -85,7 +85,7 @@ public class ServiceAnniversaryService {
 
             // Create recognition
             EmployeeRecognition recognition = new EmployeeRecognition();
-            recognition.setTenantId(TENANT_ID);
+            recognition.setTenantId(TenantContext.current());
             recognition.setFromEmployeeId(SYSTEM_SENDER_ID); // System sender
             recognition.setToEmployeeId(employeeId);
             recognition.setValueTag(RecognitionValueTag.SERVICE_ANNIVERSARY);
@@ -116,7 +116,7 @@ public class ServiceAnniversaryService {
 
         Long count = jdbc.queryForObject(checkSql,
             new MapSqlParameterSource()
-                .addValue("tenantId", TENANT_ID)
+                .addValue("tenantId", TenantContext.current())
                 .addValue("employeeId", employeeId)
                 .addValue("year", currentYear),
             Long.class);
@@ -132,7 +132,7 @@ public class ServiceAnniversaryService {
             String value = jdbc.queryForObject(
                 "SELECT value FROM config.tenant_setting WHERE tenant_id = :tenantId AND key = :key",
                 new MapSqlParameterSource()
-                    .addValue("tenantId", TENANT_ID)
+                    .addValue("tenantId", TenantContext.current())
                     .addValue("key", key),
                 String.class
             );

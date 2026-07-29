@@ -1,4 +1,5 @@
 package az.millers.hcm.selfservice.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,7 +18,6 @@ import az.millers.hcm.selfservice.repo.HrAgentQueueRepository;
 @Service
 public class HrAgentQueueService {
 
-    private static final String TENANT = "default";
 
     private final HrAgentQueueRepository repo;
 
@@ -27,9 +27,9 @@ public class HrAgentQueueService {
 
     @Transactional(readOnly = true)
     public List<HrAgentQueue> listActive() {
-        return repo.findByTenantIdAndActiveTrue(TENANT)
+        return repo.findByTenantIdAndActiveTrue(TenantContext.current())
                 .stream()
-                .filter(q -> TENANT.equals(q.getTenantId()))
+                .filter(q -> TenantContext.current().equals(q.getTenantId()))
                 .collect(Collectors.toList());
     }
 
@@ -37,7 +37,7 @@ public class HrAgentQueueService {
     public HrAgentQueue get(UUID id) {
         HrAgentQueue queue = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue not found: " + id));
-        if (!TENANT.equals(queue.getTenantId())) {
+        if (!TenantContext.current().equals(queue.getTenantId())) {
             throw new ResourceNotFoundException("Queue not found: " + id);
         }
         return queue;

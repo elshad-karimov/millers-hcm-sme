@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,7 +36,6 @@ import az.millers.hcm.compbenefits.repo.BenefitPlanRepository;
 @Service
 public class BenefitCostService {
 
-    private static final String TENANT = "default";
 
     private final BenefitEnrollmentRepository enrollments;
     private final BenefitPlanRepository plans;
@@ -79,7 +79,7 @@ public class BenefitCostService {
     /** Current monthly employer spend across all ENROLLED enrollments (tenant-wide). */
     @Transactional(readOnly = true)
     public BigDecimal currentEmployerMonthlySpend() {
-        return enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TENANT, EnrollmentStatus.ENROLLED).stream()
+        return enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TenantContext.current(), EnrollmentStatus.ENROLLED).stream()
                 .map(e -> e.getEmployerContribution() == null ? BigDecimal.ZERO : e.getEmployerContribution())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -90,7 +90,7 @@ public class BenefitCostService {
         Map<UUID, BenefitPlan> planCache = new java.util.HashMap<>();
         Map<UUID, String> catNames = new java.util.HashMap<>();
         Map<String, CategorySpend> byCat = new LinkedHashMap<>();
-        for (BenefitEnrollment e : enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TENANT, EnrollmentStatus.ENROLLED)) {
+        for (BenefitEnrollment e : enrollments.findByTenantIdAndStatusOrderByStartDateDesc(TenantContext.current(), EnrollmentStatus.ENROLLED)) {
             BenefitPlan plan = planCache.computeIfAbsent(e.getPlanId(),
                     id -> plans.findById(id).orElse(null));
             String catName = "Uncategorised";

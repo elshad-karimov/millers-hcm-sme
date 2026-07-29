@@ -1,4 +1,5 @@
 package az.millers.hcm.analytics.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -34,7 +35,6 @@ import az.millers.hcm.analytics.repo.AttritionRiskRepository;
 public class AttritionRiskService {
 
     private static final Logger log = LoggerFactory.getLogger(AttritionRiskService.class);
-    private static final String TENANT = "default";
 
     // Heuristic weights
     private static final int WEIGHT_LOW_TENURE = 30;
@@ -53,7 +53,7 @@ public class AttritionRiskService {
 
     @Transactional(readOnly = true)
     public List<AttritionRisk> listAll() {
-        return repository.findByTenantIdOrderByScoreDesc(TENANT);
+        return repository.findByTenantIdOrderByScoreDesc(TenantContext.current());
     }
 
     /**
@@ -62,7 +62,7 @@ public class AttritionRiskService {
     @Scheduled(cron = "0 30 4 * * ?")
     @Transactional
     public void nightlyRecompute() {
-        log.info("Starting nightly attrition risk recompute for tenant {}", TENANT);
+        log.info("Starting nightly attrition risk recompute for tenant {}", TenantContext.current());
         recomputeAll();
         log.info("Completed attrition risk recompute");
     }
@@ -75,7 +75,7 @@ public class AttritionRiskService {
         // Get all active employees
         List<UUID> activeEmployees = jdbc.query(
                 "SELECT id FROM core_hr.employee WHERE tenant_id = :tenant AND employment_status = 'ACTIVE'",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 (rs, i) -> UUID.fromString(rs.getString("id")));
 
         for (UUID employeeId : activeEmployees) {
@@ -109,7 +109,7 @@ public class AttritionRiskService {
                 "WHERE tenant_id = :tenant AND employee_id = :employeeId " +
                 "AND approved_at > :since AND status = 'APPROVED'",
                 new MapSqlParameterSource()
-                        .addValue("tenant", TENANT)
+                        .addValue("tenant", TenantContext.current())
                         .addValue("employeeId", employeeId)
                         .addValue("since", twoYearsAgo),
                 Long.class);
@@ -170,7 +170,7 @@ public class AttritionRiskService {
                 "WHERE tenant_id = :tenant AND employee_id = :employeeId " +
                 "AND field_name = 'org_unit_id' AND changed_at > :since",
                 new MapSqlParameterSource()
-                        .addValue("tenant", TENANT)
+                        .addValue("tenant", TenantContext.current())
                         .addValue("employeeId", employeeId)
                         .addValue("since", sixMonthsAgo),
                 Long.class);
@@ -181,9 +181,9 @@ public class AttritionRiskService {
         }
 
         // Save or update attrition risk
-        AttritionRisk risk = repository.findByTenantIdAndEmployeeId(TENANT, employeeId)
+        AttritionRisk risk = repository.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
                 .orElse(new AttritionRisk());
-        risk.setTenantId(TENANT);
+        risk.setTenantId(TenantContext.current());
         risk.setEmployeeId(employeeId);
         risk.setScore(score);
         risk.setFactors(String.join(", ", factors));

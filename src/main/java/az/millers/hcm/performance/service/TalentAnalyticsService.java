@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,7 +24,6 @@ import az.millers.hcm.performance.repo.TalentReviewRepository;
 @Service
 public class TalentAnalyticsService {
 
-    private static final String TENANT = "default";
 
     public record NineBoxCell(int performanceBox, int potentialBox, long count) {}
 
@@ -104,10 +104,10 @@ public class TalentAnalyticsService {
                 .toList();
 
         // Pool coverage: active pools + member count.
-        List<PoolCoverage> poolCoverage = pools.findByTenantIdAndActiveTrueOrderByCodeAsc(TENANT)
+        List<PoolCoverage> poolCoverage = pools.findByTenantIdAndActiveTrueOrderByCodeAsc(TenantContext.current())
                 .stream()
                 .map(pool -> {
-                    long count = members.findByTenantIdAndPoolIdOrderByAddedAtDesc(TENANT, pool.getId()).size();
+                    long count = members.findByTenantIdAndPoolIdOrderByAddedAtDesc(TenantContext.current(), pool.getId()).size();
                     return new PoolCoverage(pool.getCode(), pool.getName(), count);
                 })
                 .toList();

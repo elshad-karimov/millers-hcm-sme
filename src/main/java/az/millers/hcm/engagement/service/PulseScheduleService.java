@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +17,6 @@ import az.millers.hcm.engagement.repo.PulseScheduleRepository;
 @Service
 public class PulseScheduleService {
 
-    private static final String TENANT = "default";
 
     private final PulseScheduleRepository repository;
 
@@ -26,24 +26,24 @@ public class PulseScheduleService {
 
     @Transactional(readOnly = true)
     public List<PulseSchedule> listActive() {
-        return repository.findByTenantIdAndActiveOrderByCreatedAtDesc(TENANT, true);
+        return repository.findByTenantIdAndActiveOrderByCreatedAtDesc(TenantContext.current(), true);
     }
 
     @Transactional(readOnly = true)
     public List<PulseSchedule> listAll() {
-        return repository.findByTenantIdAndActiveOrderByCreatedAtDesc(TENANT, null);
+        return repository.findByTenantIdAndActiveOrderByCreatedAtDesc(TenantContext.current(), null);
     }
 
     @Transactional(readOnly = true)
     public PulseSchedule get(UUID id) {
         return repository.findById(id)
-                .filter(s -> TENANT.equals(s.getTenantId()))
+                .filter(s -> TenantContext.current().equals(s.getTenantId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Pulse schedule not found"));
     }
 
     @Transactional
     public PulseSchedule create(PulseSchedule schedule) {
-        schedule.setTenantId(TENANT);
+        schedule.setTenantId(TenantContext.current());
         return repository.save(schedule);
     }
 

@@ -1,4 +1,5 @@
 package az.millers.hcm.config.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.config.domain.TenantSetting;
 import az.millers.hcm.config.repo.TenantSettingRepository;
@@ -12,7 +13,6 @@ import java.time.OffsetDateTime;
  */
 @Service
 public class SettingService {
-    private static final String TENANT = "default";
     public static final String MANAGER_CAN_VIEW_SALARY = "manager_can_view_salary";
 
     private final TenantSettingRepository repo;
@@ -25,16 +25,16 @@ public class SettingService {
 
     @Transactional(readOnly = true)
     public String get(String key, String defaultValue) {
-        return repo.findByTenantIdAndKey(TENANT, key)
+        return repo.findByTenantIdAndKey(TenantContext.current(), key)
                 .map(TenantSetting::getValue)
                 .orElse(defaultValue);
     }
 
     @Transactional
     public void set(String key, String value) {
-        TenantSetting s = repo.findByTenantIdAndKey(TENANT, key).orElseGet(() -> {
+        TenantSetting s = repo.findByTenantIdAndKey(TenantContext.current(), key).orElseGet(() -> {
             TenantSetting ns = new TenantSetting();
-            ns.setTenantId(TENANT);
+            ns.setTenantId(TenantContext.current());
             ns.setKey(key);
             ns.setCreatedBy(currentRequest.username());
             return ns;

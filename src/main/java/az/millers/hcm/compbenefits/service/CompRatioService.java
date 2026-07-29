@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -58,7 +59,6 @@ public class CompRatioService {
     /** Mid-band ceiling. */
     private static final BigDecimal MID_THRESHOLD = BigDecimal.valueOf(110);
 
-    private static final String TENANT = "default";
 
     private final EmployeeRepository employees;
     private final PositionRepository positions;
@@ -91,7 +91,7 @@ public class CompRatioService {
         for (Grade g : grades.findAll()) {
             gradeById.put(g.getId(), g);
         }
-        for (Position p : positions.findByTenantId(TENANT)) {
+        for (Position p : positions.findByTenantId(TenantContext.current())) {
             if (p.getGradeId() != null) {
                 Grade g = gradeById.get(p.getGradeId());
                 if (g != null) gradeByPosition.put(p.getId(), g);

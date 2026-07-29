@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -37,7 +38,6 @@ import az.millers.hcm.security.SecurityRoles;
 @RequestMapping("/api/succession")
 public class SuccessionPlanController {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "SUCCESSION";
     private static final List<String> DIFFICULTIES = List.of("LOW", "MEDIUM", "HIGH");
     private static final List<String> RISKS = List.of("LOW", "MEDIUM", "HIGH", "CRITICAL");
@@ -76,8 +76,8 @@ public class SuccessionPlanController {
     @PreAuthorize(SecurityRoles.READ_HR)
     public List<CriticalPosition> listCritical(@RequestParam(defaultValue = "false") boolean activeOnly) {
         return activeOnly
-                ? critPositions.findByTenantIdAndActiveTrueOrderByCreatedAtDesc(TENANT)
-                : critPositions.findByTenantIdOrderByCreatedAtDesc(TENANT);
+                ? critPositions.findByTenantIdAndActiveTrueOrderByCreatedAtDesc(TenantContext.current())
+                : critPositions.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @PostMapping("/critical-positions")
@@ -88,11 +88,11 @@ public class SuccessionPlanController {
         if (req.positionId() == null) {
             throw new BadRequestException("Position ID is required");
         }
-        if (critPositions.existsByTenantIdAndPositionId(TENANT, req.positionId())) {
+        if (critPositions.existsByTenantIdAndPositionId(TenantContext.current(), req.positionId())) {
             throw new BadRequestException("Position is already critical: " + req.positionId());
         }
         CriticalPosition cp = new CriticalPosition();
-        cp.setTenantId(TENANT);
+        cp.setTenantId(TenantContext.current());
         cp.setPositionId(req.positionId());
         cp.setCriticalityReason(req.criticalityReason());
         cp.setReplacementDifficulty(req.replacementDifficulty());
@@ -110,8 +110,8 @@ public class SuccessionPlanController {
     @PreAuthorize(SecurityRoles.READ_HR)
     public List<SuccessionPlan> listPlans(@RequestParam(required = false) String status) {
         return status == null
-                ? plans.findByTenantIdOrderByUpdatedAtDesc(TENANT)
-                : plans.findByTenantIdAndStatusOrderByUpdatedAtDesc(TENANT, status);
+                ? plans.findByTenantIdOrderByUpdatedAtDesc(TenantContext.current())
+                : plans.findByTenantIdAndStatusOrderByUpdatedAtDesc(TenantContext.current(), status);
     }
 
     @PostMapping("/plans")
@@ -123,7 +123,7 @@ public class SuccessionPlanController {
             throw new BadRequestException("Critical position not found: " + req.criticalPositionId());
         }
         SuccessionPlan plan = new SuccessionPlan();
-        plan.setTenantId(TENANT);
+        plan.setTenantId(TenantContext.current());
         plan.setCriticalPositionId(req.criticalPositionId());
         plan.setPlanOwnerEmployeeId(req.planOwnerEmployeeId());
         plan.setEffectiveDate(req.effectiveDate());

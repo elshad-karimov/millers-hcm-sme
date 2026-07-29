@@ -1,4 +1,5 @@
 package az.millers.hcm.compbenefits.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -35,7 +36,6 @@ import az.millers.hcm.corehr.repo.EmployeeRepository;
 @Service
 public class BenefitReconciliationService {
 
-    private static final String TENANT = "default";
 
     private final BenefitProviderRepository providers;
     private final BenefitPlanRepository plans;
@@ -60,7 +60,7 @@ public class BenefitReconciliationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Benefit provider not found: " + providerId));
 
         // System side: active enrollments in this provider's plans, aggregated per employee.
-        List<UUID> providerPlanIds = plans.findByTenantIdAndProviderId(TENANT, providerId).stream()
+        List<UUID> providerPlanIds = plans.findByTenantIdAndProviderId(TenantContext.current(), providerId).stream()
                 .map(BenefitPlan::getId).toList();
         Map<String, Member> systemByEmpNo = new HashMap<>();
         Map<UUID, Employee> empCache = new HashMap<>();

@@ -1,4 +1,5 @@
 package az.millers.hcm.staffing.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,7 +57,6 @@ import az.millers.hcm.staffing.repo.PositionRepository;
 @Service
 public class PositionVarianceService {
 
-    private static final String TENANT = "default";
 
     private final PositionRepository positions;
     private final PositionBudgetRepository budgets;
@@ -108,7 +108,7 @@ public class PositionVarianceService {
         // with zero actual (e.g. a frozen vacancy still consuming the
         // budget line) and every position with actual cost even if no
         // budget exists yet (over-spend warning).
-        List<Position> all = positions.findByTenantIdAndStatus(TENANT, PositionStatus.ACTIVE);
+        List<Position> all = positions.findByTenantIdAndStatus(TenantContext.current(), PositionStatus.ACTIVE);
 
         List<PositionVarianceRow> rows = new ArrayList<>();
         BigDecimal totalBudget = BigDecimal.ZERO;

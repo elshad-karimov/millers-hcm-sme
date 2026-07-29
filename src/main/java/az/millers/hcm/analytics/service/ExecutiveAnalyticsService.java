@@ -1,4 +1,5 @@
 package az.millers.hcm.analytics.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,7 +23,6 @@ import az.millers.hcm.analytics.api.dto.ExecutiveSummary.PayrollCostTrendSummary
 @Service
 public class ExecutiveAnalyticsService {
 
-    private static final String TENANT = "default";
 
     private final NamedParameterJdbcTemplate jdbc;
     private final KpiValueService kpiValueService;
@@ -63,7 +63,7 @@ public class ExecutiveAnalyticsService {
                 "FROM compliance.compliance_deadline " +
                 "WHERE tenant_id = :tenant AND next_due BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' " +
                 "ORDER BY next_due LIMIT 5",
-                new MapSqlParameterSource("tenant", TENANT),
+                new MapSqlParameterSource("tenant", TenantContext.current()),
                 (rs, i) -> new ComplianceDeadlineItem(
                         rs.getString("title"),
                         rs.getObject("next_due", LocalDate.class).format(DateTimeFormatter.ISO_DATE),
@@ -75,7 +75,7 @@ public class ExecutiveAnalyticsService {
             attritionHighRiskCount = jdbc.queryForObject(
                     "SELECT count(*) FROM analytics.attrition_risk " +
                     "WHERE tenant_id = :tenant AND score >= 70",
-                    new MapSqlParameterSource("tenant", TENANT),
+                    new MapSqlParameterSource("tenant", TenantContext.current()),
                     Long.class);
         } catch (Exception e) {
             // Table doesn't exist yet (M476 not run)
@@ -100,7 +100,7 @@ public class ExecutiveAnalyticsService {
                 "   WHERE t.employee_id = e.id AND t.status = 'PROCESSED' AND t.effective_date <= :end" +
                 ")",
                 new MapSqlParameterSource()
-                        .addValue("tenant", TENANT)
+                        .addValue("tenant", TenantContext.current())
                         .addValue("end", monthEnd),
                 Long.class);
     }
@@ -110,7 +110,7 @@ public class ExecutiveAnalyticsService {
                 "SELECT COALESCE(SUM(net_pay), 0) FROM payroll.payroll_result " +
                 "WHERE tenant_id = :tenant AND payroll_year = :year AND payroll_month = :month",
                 new MapSqlParameterSource()
-                        .addValue("tenant", TENANT)
+                        .addValue("tenant", TenantContext.current())
                         .addValue("year", month.getYear())
                         .addValue("month", month.getMonthValue()),
                 BigDecimal.class);

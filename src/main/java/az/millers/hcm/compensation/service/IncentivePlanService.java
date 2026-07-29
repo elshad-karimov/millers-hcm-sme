@@ -1,4 +1,5 @@
 package az.millers.hcm.compensation.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -25,7 +26,6 @@ public class IncentivePlanService {
 
     private static final String MODULE = "compensation";
     private static final String ENTITY = "IncentivePlan";
-    private static final String TENANT = "default";
 
     private final IncentivePlanRepository plans;
     private final AuditService audit;
@@ -41,12 +41,12 @@ public class IncentivePlanService {
 
     @Transactional(readOnly = true)
     public List<IncentivePlan> listActive() {
-        return plans.findByTenantIdAndIsActiveTrue(TENANT);
+        return plans.findByTenantIdAndIsActiveTrue(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public List<IncentivePlan> listAll() {
-        return plans.findByTenantIdOrderByCreatedAtDesc(TENANT);
+        return plans.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -60,12 +60,12 @@ public class IncentivePlanService {
                                 BigDecimal targetPct, BigDecimal thresholdAchievement,
                                 BigDecimal targetAchievement, BigDecimal capAchievement,
                                 BigDecimal maxPayoutPct, String currency) {
-        if (plans.findByTenantIdAndCode(TENANT, code).isPresent()) {
+        if (plans.findByTenantIdAndCode(TenantContext.current(), code).isPresent()) {
             throw new BadRequestException("INCENTIVE_PLAN_CODE_DUPLICATE");
         }
 
         IncentivePlan plan = new IncentivePlan();
-        plan.setTenantId(TENANT);
+        plan.setTenantId(TenantContext.current());
         plan.setCode(code);
         plan.setName(name);
         plan.setMeasure(measure);

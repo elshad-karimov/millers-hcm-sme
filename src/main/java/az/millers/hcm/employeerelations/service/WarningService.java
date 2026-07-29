@@ -1,4 +1,5 @@
 package az.millers.hcm.employeerelations.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -27,7 +28,6 @@ import az.millers.hcm.selfservice.service.EmployeeContextService;
 @Service
 public class WarningService {
 
-    private static final String TENANT = "default";
     private static final String MODULE = "employee-relations";
     private static final String ENTITY = "WarningRecord";
 
@@ -63,7 +63,7 @@ public class WarningService {
                               UUID attachmentId) {
         // HR only can issue warnings
         WarningRecord warning = new WarningRecord();
-        warning.setTenantId(TENANT);
+        warning.setTenantId(TenantContext.current());
         warning.setEmployeeId(employeeId);
         warning.setWarningLevel(level);
         warning.setReason(reason);
@@ -86,7 +86,7 @@ public class WarningService {
         // Notify employee (via username lookup if available)
         jdbc.query(
                 "SELECT username FROM core_hr.employee WHERE id = :id AND tenant_id = :tenantId AND username IS NOT NULL",
-                Map.of("id", employeeId, "tenantId", TENANT),
+                Map.of("id", employeeId, "tenantId", TenantContext.current()),
                 rs -> {
                     if (rs.next()) {
                         String username = rs.getString("username");
@@ -102,7 +102,7 @@ public class WarningService {
 
     @Transactional
     public WarningRecord acknowledge(UUID id) {
-        WarningRecord warning = repo.findByIdAndTenantId(id, TENANT)
+        WarningRecord warning = repo.findByIdAndTenantId(id, TenantContext.current())
                 .orElseThrow(() -> new ResourceNotFoundException("Warning not found: " + id));
 
         // Only the employee themselves can acknowledge their own warning
@@ -129,18 +129,18 @@ public class WarningService {
     public List<WarningRecord> listByEmployee(UUID employeeId) {
         // Access controlled via @PreAuthorize in controller
         // HR_PLUS_MANAGERS already includes hierarchy filtering
-        return repo.findByTenantIdAndEmployeeIdOrderByIssuedAtDesc(TENANT, employeeId);
+        return repo.findByTenantIdAndEmployeeIdOrderByIssuedAtDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional(readOnly = true)
     public List<WarningRecord> activeWarnings(UUID employeeId) {
         // Access controlled via @PreAuthorize in controller
-        return repo.findActiveWarnings(TENANT, employeeId, OffsetDateTime.now());
+        return repo.findActiveWarnings(TenantContext.current(), employeeId, OffsetDateTime.now());
     }
 
     @Transactional(readOnly = true)
     public List<WarningRecord> myWarnings() {
         UUID currentEmployeeId = employeeContext.currentEmployee().getId();
-        return repo.findByTenantIdAndEmployeeIdOrderByIssuedAtDesc(TENANT, currentEmployeeId);
+        return repo.findByTenantIdAndEmployeeIdOrderByIssuedAtDesc(TenantContext.current(), currentEmployeeId);
     }
 }

@@ -1,4 +1,5 @@
 package az.millers.hcm.engagement.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.audit.AuditService;
 import az.millers.hcm.common.BadRequestException;
@@ -31,7 +32,6 @@ import az.millers.hcm.common.BusinessNumbers;
 public class RewardPointsService {
 
     private static final String MODULE = "engagement";
-    private static final String TENANT_ID = "default"; // Hardcoded per existing pattern
 
     private final RewardCatalogRepository catalogRepo;
     private final RewardWalletRepository walletRepo;
@@ -65,20 +65,20 @@ public class RewardPointsService {
     @Transactional(readOnly = true)
     public List<RewardCatalog> listCatalog(boolean activeOnly) {
         return activeOnly
-            ? catalogRepo.findByTenantIdAndActiveOrderByName(TENANT_ID, true)
-            : catalogRepo.findByTenantIdOrderByName(TENANT_ID);
+            ? catalogRepo.findByTenantIdAndActiveOrderByName(TenantContext.current(), true)
+            : catalogRepo.findByTenantIdOrderByName(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public RewardCatalog getCatalog(UUID id) {
-        RewardCatalog item = catalogRepo.findByIdAndTenantId(id, TENANT_ID)
+        RewardCatalog item = catalogRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Catalog item not found"));
         return item;
     }
 
     @Transactional
     public RewardCatalog createCatalog(RewardCatalog item) {
-        item.setTenantId(TENANT_ID);
+        item.setTenantId(TenantContext.current());
         item.setCreatedBy(currentRequest.username());
         RewardCatalog saved = catalogRepo.save(item);
         audit.record(MODULE, "RewardCatalog", saved.getId().toString(), "CREATE", null,
@@ -113,10 +113,10 @@ public class RewardPointsService {
     @Transactional(readOnly = true)
     public RewardWallet getWallet(UUID employeeId) {
         // Tenant-scoped, IDOR guard: self-or-HR
-        return walletRepo.findByTenantIdAndEmployeeId(TENANT_ID, employeeId)
+        return walletRepo.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
             .orElseGet(() -> {
                 RewardWallet w = new RewardWallet();
-                w.setTenantId(TENANT_ID);
+                w.setTenantId(TenantContext.current());
                 w.setEmployeeId(employeeId);
                 return w;
             });
@@ -130,7 +130,7 @@ public class RewardPointsService {
 
         // Budget check
         int year = Year.now().getValue();
-        RewardBudget budget = budgetRepo.findByTenantIdAndYearAndOrgUnitId(TENANT_ID, year, orgUnitId)
+        RewardBudget budget = budgetRepo.findByTenantIdAndYearAndOrgUnitId(TenantContext.current(), year, orgUnitId)
             .orElse(null);
 
         if (budget != null) {
@@ -144,10 +144,10 @@ public class RewardPointsService {
         }
 
         // Update or create wallet
-        RewardWallet wallet = walletRepo.findByTenantIdAndEmployeeId(TENANT_ID, employeeId)
+        RewardWallet wallet = walletRepo.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
             .orElseGet(() -> {
                 RewardWallet w = new RewardWallet();
-                w.setTenantId(TENANT_ID);
+                w.setTenantId(TenantContext.current());
                 w.setEmployeeId(employeeId);
                 return w;
             });
@@ -170,11 +170,11 @@ public class RewardPointsService {
         }
 
         // Pessimistic lock on wallet to prevent negative-balance race
-        RewardWallet wallet = walletRepo.findByTenantIdAndEmployeeId(TENANT_ID, employeeId)
+        RewardWallet wallet = walletRepo.findByTenantIdAndEmployeeId(TenantContext.current(), employeeId)
             .map(w -> walletRepo.lockById(w.getId()).orElse(w))
             .orElseGet(() -> {
                 RewardWallet w = new RewardWallet();
-                w.setTenantId(TENANT_ID);
+                w.setTenantId(TenantContext.current());
                 w.setEmployeeId(employeeId);
                 return walletRepo.save(w);
             });
@@ -191,7 +191,7 @@ public class RewardPointsService {
         // Create redemption
         String redemptionNo = generateRedemptionNo();
         RewardRedemption redemption = new RewardRedemption();
-        redemption.setTenantId(TENANT_ID);
+        redemption.setTenantId(TenantContext.current());
         redemption.setRedemptionNo(redemptionNo);
         redemption.setEmployeeId(employeeId);
         redemption.setCatalogItemId(catalogItemId);
@@ -209,19 +209,19 @@ public class RewardPointsService {
     @Transactional(readOnly = true)
     public List<RewardRedemption> listRedemptions(String status) {
         if (status != null && !status.isBlank()) {
-            return redemptionRepo.findByTenantIdAndStatusOrderByRequestedAtDesc(TENANT_ID, status);
+            return redemptionRepo.findByTenantIdAndStatusOrderByRequestedAtDesc(TenantContext.current(), status);
         }
-        return redemptionRepo.findByTenantIdOrderByRequestedAtDesc(TENANT_ID);
+        return redemptionRepo.findByTenantIdOrderByRequestedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
     public List<RewardRedemption> listMyRedemptions(UUID employeeId) {
-        return redemptionRepo.findByTenantIdAndEmployeeIdOrderByRequestedAtDesc(TENANT_ID, employeeId);
+        return redemptionRepo.findByTenantIdAndEmployeeIdOrderByRequestedAtDesc(TenantContext.current(), employeeId);
     }
 
     @Transactional(readOnly = true)
     public RewardRedemption getRedemption(UUID id) {
-        return redemptionRepo.findByIdAndTenantId(id, TENANT_ID)
+        return redemptionRepo.findByIdAndTenantId(id, TenantContext.current())
             .orElseThrow(() -> new ResourceNotFoundException("Redemption not found"));
     }
 
@@ -300,15 +300,15 @@ public class RewardPointsService {
 
     @Transactional(readOnly = true)
     public List<RewardBudget> listBudgets(Integer year) {
-        return budgetRepo.findByTenantIdAndYearOrderByOrgUnitId(TENANT_ID, year);
+        return budgetRepo.findByTenantIdAndYearOrderByOrgUnitId(TenantContext.current(), year);
     }
 
     @Transactional
     public RewardBudget createOrUpdateBudget(Integer year, UUID orgUnitId, BigDecimal totalAmount) {
-        RewardBudget budget = budgetRepo.findByTenantIdAndYearAndOrgUnitId(TENANT_ID, year, orgUnitId)
+        RewardBudget budget = budgetRepo.findByTenantIdAndYearAndOrgUnitId(TenantContext.current(), year, orgUnitId)
             .orElseGet(() -> {
                 RewardBudget b = new RewardBudget();
-                b.setTenantId(TENANT_ID);
+                b.setTenantId(TenantContext.current());
                 b.setYear(year);
                 b.setOrgUnitId(orgUnitId);
                 b.setCreatedBy(currentRequest.username());
@@ -346,7 +346,7 @@ public class RewardPointsService {
                 "SELECT CONCAT(first_name, ' ', last_name) FROM core_hr.employee WHERE id = :id AND tenant_id = :tenantId",
                 new MapSqlParameterSource()
                     .addValue("id", employeeId)
-                    .addValue("tenantId", TENANT_ID),
+                    .addValue("tenantId", TenantContext.current()),
                 String.class
             );
         } catch (Exception e) {
