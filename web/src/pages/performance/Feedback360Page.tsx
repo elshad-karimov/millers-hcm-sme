@@ -38,7 +38,7 @@ import {
   type Questionnaire360,
   type ReviewCycle,
 } from '../../api/performance'
-import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -78,7 +78,6 @@ export function Feedback360Page() {
   const canAdmin = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [cycles, setCycles] = useState<ReviewCycle[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [questionnaires, setQuestionnaires] = useState<Questionnaire360[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -116,12 +115,10 @@ export function Feedback360Page() {
     setLoading(true)
     Promise.all([
       performanceApi.cycles(),
-      employeesApi.list({ size: 500 }),
       feedback360Api.questionnaires(),
     ])
-      .then(([c, e, q]) => {
+      .then(([c, q]) => {
         setCycles(c)
-        setEmployees(Array.isArray(e) ? e : (e as { content: Employee[] }).content ?? [])
         setQuestionnaires(q)
         if (!cycleId && c.length) {
           const open = c.find((x) => x.status === 'OPEN') ?? c[0]
@@ -441,18 +438,12 @@ export function Feedback360Page() {
                     onChange={setCycleId}
                     options={cycles.map((c) => ({ value: c.id, label: c.name }))}
                   />
-                  <Select
+                  <EmployeePicker
                     allowClear
-                    showSearch
-                    optionFilterProp="label"
                     style={{ minWidth: 260 }}
                     placeholder="All subjects"
                     value={subjectId}
                     onChange={setSubjectId}
-                    options={employees.map((e) => ({
-                      value: e.id,
-                      label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                    }))}
                   />
                   <Button
                     type="primary"
@@ -543,24 +534,10 @@ export function Feedback360Page() {
       >
         <Form form={nomForm} layout="vertical">
           <Form.Item name="subjectEmployeeId" label="Subject (who is reviewed)" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select subject" />
           </Form.Item>
           <Form.Item name="reviewerEmployeeId" label="Reviewer" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select reviewer" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>

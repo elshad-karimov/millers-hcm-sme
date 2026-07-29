@@ -26,7 +26,7 @@ import {
   type CreateSalaryChangeRequest,
   type CompensationProfileDto,
 } from '../api/compensation'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -56,14 +56,12 @@ export function SalaryChangesPage() {
   const canWrite = hasRole(...RoleSets.COMPENSATION_WRITE)
 
   const [rows, setRows] = useState<SalaryChangeRequestDto[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [changeReasons, setChangeReasons] = useState<ChangeReasonResponse[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<SalaryChangeStatus | undefined>()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [form] = Form.useForm<FormValues>()
 
-  const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [selectedProfile, setSelectedProfile] = useState<CompensationProfileDto | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
 
@@ -109,21 +107,6 @@ export function SalaryChangesPage() {
       setSelectedProfile(null)
     }
   }, [selectedEmployeeId, message])
-
-  const handleSearchEmployees = (search: string) => {
-    if (search.length < 2) {
-      setEmployees([])
-      return
-    }
-    setLoadingEmployees(true)
-    employeesApi
-      .list({ search, size: 50 })
-      .then((resp) => setEmployees(resp.content))
-      .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to search employees'),
-      )
-      .finally(() => setLoadingEmployees(false))
-  }
 
   const openCreate = () => {
     form.resetFields()
@@ -209,16 +192,11 @@ export function SalaryChangesPage() {
     }
   }
 
-  const employeeMap = new Map(employees.map((e) => [e.id, e]))
-
   const columns: ColumnsType<SalaryChangeRequestDto> = [
     {
       title: 'Employee',
       dataIndex: 'employeeId',
-      render: (id: string) => {
-        const e = employeeMap.get(id)
-        return e ? `${e.employeeNo} - ${e.firstName} ${e.lastName}` : id
-      },
+      render: (id: string) => id,
     },
     {
       title: 'Current Salary',
@@ -360,18 +338,7 @@ export function SalaryChangesPage() {
             label="Employee"
             rules={[{ required: true, message: 'Required' }]}
           >
-            <Select
-              showSearch
-              placeholder="Type employee name or number..."
-              filterOption={false}
-              onSearch={handleSearchEmployees}
-              loading={loadingEmployees}
-              notFoundContent={loadingEmployees ? 'Loading...' : 'Type to search'}
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Type employee name or number..." />
           </Form.Item>
 
           {loadingProfile && <Text type="secondary">Loading employee profile...</Text>}

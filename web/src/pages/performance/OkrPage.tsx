@@ -40,7 +40,7 @@ import {
   type OkrObjectiveResponse,
   type ReviewCycle,
 } from '../../api/performance'
-import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -98,7 +98,6 @@ export function OkrPage() {
 
   const [rows, setRows] = useState<OkrObjectiveResponse[]>([])
   const [cycles, setCycles] = useState<ReviewCycle[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [levelFilter, setLevelFilter] = useState<OkrLevel | undefined>()
   const [cycleFilter, setCycleFilter] = useState<string | undefined>()
@@ -135,12 +134,10 @@ export function OkrPage() {
     Promise.all([
       okrsApi.list({ cycleId: cycleFilter, level: levelFilter }),
       performanceApi.cycles(),
-      employeesApi.list({ size: 500 }),
     ])
-      .then(([o, c, e]) => {
+      .then(([o, c]) => {
         setRows(o)
         setCycles(c)
-        setEmployees(Array.isArray(e) ? e : (e as { content: Employee[] }).content ?? [])
       })
       .catch(() => message.error('Failed to load OKRs'))
       .finally(() => setLoading(false))
@@ -542,15 +539,7 @@ export function OkrPage() {
                         : []
                     }
                   >
-                    <Select
-                      allowClear
-                      showSearch
-                      optionFilterProp="label"
-                      options={employees.map((e) => ({
-                        value: e.id,
-                        label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                      }))}
-                    />
+                    <EmployeePicker allowClear placeholder="Select owner" />
                   </Form.Item>
                 )}
               </Form.Item>
@@ -651,15 +640,7 @@ export function OkrPage() {
             </Col>
           </Row>
           <Form.Item name="ownerEmployeeId" label="KR owner">
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker allowClear placeholder="Select KR owner" />
           </Form.Item>
         </Form>
       </Modal>

@@ -17,7 +17,7 @@ import {
   type TotalCompStatementDto,
   type TotalCompStatementStatus,
 } from '../api/compensation'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -38,8 +38,6 @@ export function TotalCompStatementsPage() {
   const [year, setYear] = useState(new Date().getFullYear())
 
   const [generateModalOpen, setGenerateModalOpen] = useState(false)
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>()
 
   const load = () => {
@@ -96,21 +94,6 @@ export function TotalCompStatementsPage() {
         }
       },
     })
-  }
-
-  const handleSearchEmployees = (search: string) => {
-    if (search.length < 2) {
-      setEmployees([])
-      return
-    }
-    setLoadingEmployees(true)
-    employeesApi
-      .list({ search, size: 50 })
-      .then((resp) => setEmployees(resp.content))
-      .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to search employees'),
-      )
-      .finally(() => setLoadingEmployees(false))
   }
 
   const handleGenerate = async () => {
@@ -310,19 +293,11 @@ export function TotalCompStatementsPage() {
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Text>Select employee:</Text>
-          <Select
-            showSearch
+          <EmployeePicker
             placeholder="Type employee name or number..."
             style={{ width: '100%' }}
-            filterOption={false}
-            onSearch={handleSearchEmployees}
+            value={selectedEmployeeId}
             onChange={setSelectedEmployeeId}
-            loading={loadingEmployees}
-            notFoundContent={loadingEmployees ? 'Loading...' : 'Type to search'}
-            options={employees.map((e) => ({
-              value: e.id,
-              label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-            }))}
           />
           <Text type="secondary" style={{ fontSize: 12 }}>
             The statement will be generated for year {year}.

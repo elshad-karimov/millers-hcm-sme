@@ -32,6 +32,7 @@ import dayjs from 'dayjs'
 import { api } from '../../api/client'
 import { learningApi, type Course } from '../../api/learning'
 import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -720,15 +721,7 @@ export function ClassroomTrainingPage() {
       >
         <Form form={instrForm} layout="vertical">
           <Form.Item name="employeeId" label="Internal employee (leave empty for external)">
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker allowClear placeholder="Select internal employee" />
           </Form.Item>
           <Form.Item name="externalName" label="External trainer name">
             <Input placeholder="e.g. PwC Academy — Aysel Aliyeva" />

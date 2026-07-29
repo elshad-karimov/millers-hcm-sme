@@ -37,8 +37,8 @@ import {
   type GapItem,
   type PositionRequirement,
 } from '../api/learning'
-import { employeesApi, type Employee } from '../api/employees'
 import { positionsApi, type Position } from '../api/positions'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -84,11 +84,9 @@ function gapTag(gap: number, _currentProficiency: number | null) {
 
 function CatalogueTab({
   competencies,
-  employees,
   canManage,
 }: {
   competencies: Competency[]
-  employees: Employee[]
   canManage: boolean
 }) {
   const { message } = AntdApp.useApp()
@@ -253,14 +251,10 @@ function CatalogueTab({
             title="Awarded to employee"
             size="small"
             extra={
-              <Select
-                allowClear showSearch optionFilterProp="label"
+              <EmployeePicker
+                allowClear
                 placeholder="Select employee"
                 style={{ width: 240 }}
-                options={employees.map((e) => ({
-                  value: e.id,
-                  label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                }))}
                 value={employeeId}
                 onChange={setEmployeeId}
               />
@@ -351,7 +345,7 @@ function CatalogueTab({
 
 // ── Gap Analysis tab ─────────────────────────────────────────────────────────
 
-function GapAnalysisTab({ employees }: { employees: Employee[] }) {
+function GapAnalysisTab() {
   const { message } = AntdApp.useApp()
   const [employeeId, setEmployeeId] = useState<string | undefined>()
   const [gaps, setGaps] = useState<GapItem[]>([])
@@ -422,14 +416,10 @@ function GapAnalysisTab({ employees }: { employees: Employee[] }) {
   return (
     <Card type="inner" title="Competency Gap Analysis" size="small">
       <Space style={{ marginBottom: 16 }}>
-        <Select
-          allowClear showSearch optionFilterProp="label"
+        <EmployeePicker
+          allowClear
           placeholder="Select employee"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />
@@ -752,16 +742,9 @@ export function CompetenciesPage() {
   const canManage = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
   const [competencies, setCompetencies] = useState<Competency[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
 
   useEffect(() => {
-    Promise.all([
-      learningApi.competencies(false),
-      employeesApi.list({ size: 500 }).then((p) => p.content),
-    ]).then(([c, e]) => {
-      setCompetencies(c)
-      setEmployees(e)
-    })
+    learningApi.competencies(false).then(setCompetencies)
   }, [])
 
   const tabs = [
@@ -769,13 +752,13 @@ export function CompetenciesPage() {
       key: 'catalogue',
       label: 'Catalogue & Awards',
       children: (
-        <CatalogueTab competencies={competencies} employees={employees} canManage={canManage} />
+        <CatalogueTab competencies={competencies} canManage={canManage} />
       ),
     },
     {
       key: 'gap',
       label: 'Gap Analysis',
-      children: <GapAnalysisTab employees={employees} />,
+      children: <GapAnalysisTab />,
     },
     {
       key: 'fit',

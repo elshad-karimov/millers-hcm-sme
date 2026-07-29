@@ -18,6 +18,7 @@ import {
   type EnrollmentStatus,
 } from '../api/learning'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 const STATUS_COLOR: Record<EnrollmentStatus, string> = {
   ENROLLED: 'blue',
@@ -125,16 +126,10 @@ export function MyLearningPage() {
       title={<Typography.Title level={4} style={{ margin: 0 }}>My learning</Typography.Title>}
     >
       <Space style={{ marginBottom: 12 }} wrap>
-        <Select
+        <EmployeePicker
           allowClear
-          showSearch
-          optionFilterProp="label"
           placeholder="All employees"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />

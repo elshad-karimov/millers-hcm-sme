@@ -23,9 +23,9 @@ import {
   type BusinessTripSubmitRequest,
   type TripType,
 } from '../api/businessTrip'
-import { employeesApi, type Employee } from '../api/employees'
 import { selfApi } from '../api/self'
 import { useAuth } from '../auth/AuthContext'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 import { RoleSets } from '../auth/roleSets'
 import { api } from '../api/client'
@@ -66,7 +66,6 @@ export function BusinessTripFormPage() {
   const { t } = useTranslation(['businessTrip', 'common'])
   const [form] = Form.useForm<FormValues>()
   const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [selfLabel, setSelfLabel] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [perDiem, setPerDiem] = useState<PerDiemBreakdown | null>(null)
@@ -79,9 +78,7 @@ export function BusinessTripFormPage() {
 
   useEffect(() => {
     form.setFieldsValue({ tripType: 'DOMESTIC', currency: 'AZN' })
-    if (isHrMode) {
-      employeesApi.list({ size: 500 }).then((r) => setEmployees(r.content))
-    } else {
+    if (!isHrMode) {
       selfApi.profile().then((p) => {
         setSelfLabel(`${p.firstName} ${p.lastName} (${p.employeeNo})`)
         form.setFieldsValue({ employeeId: p.id })
@@ -155,14 +152,7 @@ export function BusinessTripFormPage() {
                 label={t('businessTrip:newRequest.employee')}
                 rules={[{ required: true, message: t('businessTrip:newRequest.validation.selectEmployee') }]}
               >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker placeholder={t('businessTrip:newRequest.employee')} />
               </Form.Item>
             ) : (
               <>

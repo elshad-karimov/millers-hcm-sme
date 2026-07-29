@@ -38,6 +38,7 @@ import {
   type ShiftRequest,
 } from '../api/roster'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 import {
@@ -758,7 +759,6 @@ function SwapRequestsTab() {
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm<SwapRequestDto>()
   const [saving, setSaving] = useState(false)
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [profile, setProfile] = useState<any>(null)
   const [myRosterEntries, setMyRosterEntries] = useState<RosterEntryResponse[]>([])
 
@@ -773,7 +773,6 @@ function SwapRequestsTab() {
   useEffect(() => { load() /* eslint-disable-next-line */ }, [statusFilter])
 
   useEffect(() => {
-    employeesApi.list().then(res => setEmployees(res.content || [])).catch(() => {})
     selfApi.profile().then(p => {
       setProfile(p)
       if (p?.id) {
@@ -906,17 +905,7 @@ function SwapRequestsTab() {
             </Select>
           </Form.Item>
           <Form.Item label="Swap With Employee" name="toEmployeeId" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              placeholder="Select employee"
-              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-            >
-              {employees.map(e => (
-                <Select.Option key={e.id} value={e.id} label={`${e.firstName} ${e.lastName}`}>
-                  {e.firstName} {e.lastName} ({e.employeeNo})
-                </Select.Option>
-              ))}
-            </Select>
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item label="Notes" name="notes">
             <Input.TextArea rows={3} />

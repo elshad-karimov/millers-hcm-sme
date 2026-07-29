@@ -22,6 +22,7 @@ import {
 import { employeesApi, type Employee } from '../api/employees'
 import { useAuth } from '../auth/AuthContext'
 import { AttachmentUploader } from '../components/AttachmentUploader'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { RoleSets } from '../auth/roleSets'
 
 const STATUS_OPTIONS: PermissionRequestStatus[] = [
@@ -186,16 +187,10 @@ export function PermissionRequestsPage() {
       }
     >
       <Space style={{ marginBottom: 12 }} wrap>
-        <Select
+        <EmployeePicker
           allowClear
-          showSearch
-          optionFilterProp="label"
           placeholder="All employees"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={(v) => {
             setEmployeeId(v)

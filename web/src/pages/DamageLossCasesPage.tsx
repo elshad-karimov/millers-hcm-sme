@@ -17,7 +17,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../api/client'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 type CaseType = 'DAMAGE' | 'LOSS'
 type CaseStatus = 'REPORTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CLOSED'
@@ -64,7 +64,6 @@ const CASE_TYPE_COLOR: Record<CaseType, string> = {
 export function DamageLossCasesPage() {
   const { message } = AntdApp.useApp()
   const [rows, setRows] = useState<DamageLossCase[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [assets, setAssets] = useState<AssetOption[]>([])
   const [loading, setLoading] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -103,7 +102,6 @@ export function DamageLossCasesPage() {
   }, [filterStatus])
 
   useEffect(() => {
-    employeesApi.list({ size: 500 }).then((r) => setEmployees(r.content)).catch(() => {})
     // Load active assets for report modal
     api.get<AssetOption[]>('/assets/search', { params: { status: 'ASSIGNED' } })
       .then((r) => setAssets(r.data))
@@ -284,14 +282,7 @@ export function DamageLossCasesPage() {
             />
           </Form.Item>
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} - ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="caseType" label="Type" rules={[{ required: true }]}>
             <Select>

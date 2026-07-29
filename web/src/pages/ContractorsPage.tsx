@@ -30,6 +30,7 @@ import {
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 const { Title, Text } = Typography
 
@@ -248,18 +249,7 @@ export function ContractorsPage() {
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item label="Employee" name="employeeId" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              placeholder="Select employee"
-              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              disabled={!!editing}
-            >
-              {employees.map(e => (
-                <Select.Option key={e.id} value={e.id} label={`${e.firstName} ${e.lastName}`}>
-                  {e.firstName} {e.lastName} ({e.employeeNo})
-                </Select.Option>
-              ))}
-            </Select>
+            <EmployeePicker placeholder="Select employee" disabled={!!editing} />
           </Form.Item>
           <Form.Item label="Vendor Agency ID (optional)" name="vendorAgencyId">
             <Input placeholder="Vendor UUID" />

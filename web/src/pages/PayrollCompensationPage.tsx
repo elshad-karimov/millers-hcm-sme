@@ -7,7 +7,6 @@ import {
   Input,
   InputNumber,
   Modal,
-  Select,
   Space,
   Table,
   Tag,
@@ -17,7 +16,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { payrollApi, type CompensationResponse } from '../api/payroll'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -34,16 +33,11 @@ export function PayrollCompensationPage() {
   const { message } = AntdApp.useApp()
   const canEdit = hasRole(...RoleSets.HR_ADMIN_WRITE)
 
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [employeeId, setEmployeeId] = useState<string | undefined>()
   const [history, setHistory] = useState<CompensationResponse[]>([])
   const [loading, setLoading] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [form] = Form.useForm<FormValues>()
-
-  useEffect(() => {
-    employeesApi.list({ size: 500 }).then((r) => setEmployees(r.content))
-  }, [])
 
   useEffect(() => {
     if (!employeeId) {
@@ -124,15 +118,9 @@ export function PayrollCompensationPage() {
       }
     >
       <Space style={{ marginBottom: 12 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
+        <EmployeePicker
           placeholder="Select an employee"
           style={{ width: 320 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />
@@ -158,14 +146,7 @@ export function PayrollCompensationPage() {
             label="Employee"
             rules={[{ required: true, message: 'Select an employee' }]}
           >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item
             name="monthlyBaseSalary"

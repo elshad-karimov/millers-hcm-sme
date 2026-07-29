@@ -19,7 +19,7 @@ import {
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { recognitionApi, type RecognitionWallItem, type EmployeeRecognition, type RecognitionValueTag } from '../../api/engagement'
-import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 
 dayjs.extend(relativeTime)
 
@@ -38,7 +38,6 @@ export function RecognitionPage() {
   const [wall, setWall] = useState<RecognitionWallItem[]>([])
   const [sent, setSent] = useState<EmployeeRecognition[]>([])
   const [received, setReceived] = useState<EmployeeRecognition[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm()
@@ -58,12 +57,11 @@ export function RecognitionPage() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([recognitionApi.publicWall(), recognitionApi.mySent(), recognitionApi.myReceived(), employeesApi.list({ size: 500 })])
-      .then(([wall, sent, received, empResp]) => {
+    Promise.all([recognitionApi.publicWall(), recognitionApi.mySent(), recognitionApi.myReceived()])
+      .then(([wall, sent, received]) => {
         setWall(wall)
         setSent(sent)
         setReceived(received)
-        setEmployees(empResp.content)
       })
       .catch((e) => message.error(e?.response?.data?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
@@ -161,13 +159,7 @@ export function RecognitionPage() {
       >
         <Form form={form} layout="vertical">
           <Form.Item name="toEmployeeId" label="To Employee" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="children">
-              {employees.map((emp) => (
-                <Select.Option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} ({emp.employeeNo})
-                </Select.Option>
-              ))}
-            </Select>
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="valueTag" label="Value" rules={[{ required: true }]}>
             <Select>

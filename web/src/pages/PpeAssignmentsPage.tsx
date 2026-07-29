@@ -24,7 +24,7 @@ import {
   type PpeAssignmentResponse,
   type PpeItemResponse,
 } from '../api/ehs'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 export function PpeAssignmentsPage() {
   const { message } = AntdApp.useApp()
@@ -42,13 +42,11 @@ export function PpeAssignmentsPage() {
   const [returning, setReturning] = useState(false)
   const [selectedAssignment, setSelectedAssignment] = useState<PpeAssignmentResponse | null>(null)
 
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [ppeItems, setPpeItems] = useState<PpeItemResponse[]>([])
 
   useEffect(() => {
     loadAssignments()
     loadExpiringAssignments()
-    loadEmployees()
     loadPpeItems()
   }, [])
 
@@ -68,15 +66,6 @@ export function PpeAssignmentsPage() {
     try {
       const data = await ppeAssignmentsApi.listExpiring()
       setExpiringAssignments(data)
-    } catch {
-      // non-critical
-    }
-  }
-
-  const loadEmployees = async () => {
-    try {
-      const data = await employeesApi.list()
-      setEmployees(data.content)
     } catch {
       // non-critical
     }
@@ -252,18 +241,12 @@ export function PpeAssignmentsPage() {
               children: (
                 <div>
                   <Space style={{ marginBottom: 16 }}>
-                    <Select
+                    <EmployeePicker
                       placeholder="Filter by employee"
                       style={{ width: 280 }}
                       allowClear
-                      showSearch
-                      optionFilterProp="label"
                       value={filterEmployee}
                       onChange={setFilterEmployee}
-                      options={employees.map((e) => ({
-                        value: e.id,
-                        label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                      }))}
                     />
                   </Space>
 
@@ -312,14 +295,7 @@ export function PpeAssignmentsPage() {
           initialValues={{ issuedAt: dayjs() }}
         >
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
 
           <Form.Item name="ppeItemId" label="PPE item" rules={[{ required: true }]}>

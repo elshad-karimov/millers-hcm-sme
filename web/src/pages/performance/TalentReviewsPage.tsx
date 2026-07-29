@@ -23,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../../api/client'
 import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -390,17 +391,7 @@ export function TalentReviewsPage() {
             label="Employee"
             rules={[{ required: true, message: 'Employee is required' }]}
           >
-            <Select
-              showSearch
-              placeholder="Select employee"
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="performanceBox" label="Performance Box (1=low, 3=high)">
             <Select

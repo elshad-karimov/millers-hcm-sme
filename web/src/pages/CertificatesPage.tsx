@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Card,
-  Select,
   Space,
   Table,
   Tag,
@@ -17,6 +16,7 @@ import {
   type Course,
 } from '../api/learning'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 export function CertificatesPage() {
   const { message } = AntdApp.useApp()
@@ -97,16 +97,10 @@ export function CertificatesPage() {
   return (
     <Card title={<Typography.Title level={4} style={{ margin: 0 }}>Certificates</Typography.Title>}>
       <Space style={{ marginBottom: 12 }} wrap>
-        <Select
+        <EmployeePicker
           allowClear
-          showSearch
-          optionFilterProp="label"
           placeholder="All employees"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />

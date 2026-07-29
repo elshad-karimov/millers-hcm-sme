@@ -40,6 +40,7 @@ import {
   type ReviewCycle,
 } from '../api/performance'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -633,16 +634,10 @@ export function FeedbackPage() {
             children: (
               <>
                 <Space style={{ marginBottom: 12 }} wrap>
-                  <Select
+                  <EmployeePicker
                     allowClear
-                    showSearch
-                    optionFilterProp="label"
                     placeholder="All subjects"
                     style={{ width: 300 }}
-                    options={employees.map(e => ({
-                      value: e.id,
-                      label: empLabel(e),
-                    }))}
                     value={subjectId}
                     onChange={setSubjectId}
                   />
@@ -718,11 +713,7 @@ export function FeedbackPage() {
             label="Subject (person being reviewed)"
             rules={[{ required: true, message: 'Please select a subject' }]}
           >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map(e => ({ value: e.id, label: empLabel(e) }))}
-            />
+            <EmployeePicker placeholder="Select subject" />
           </Form.Item>
 
           <Row gutter={16}>
@@ -756,12 +747,7 @@ export function FeedbackPage() {
             name="authorEmployeeId"
             label="Author employee (leave blank for anonymous submissions)"
           >
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              options={employees.map(e => ({ value: e.id, label: empLabel(e) }))}
-            />
+            <EmployeePicker allowClear placeholder="Select author" />
           </Form.Item>
 
           <Form.Item name="overallRating" label="Overall rating (0 – 5)">

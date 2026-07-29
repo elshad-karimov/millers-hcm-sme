@@ -35,7 +35,7 @@ import {
 } from '../api/rewards'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { payrollApi } from '../api/payroll'
 
 const { Title, Text } = Typography
@@ -472,13 +472,8 @@ function BudgetsTab() {
 
 function GrantPointsTab() {
   const { message } = AntdApp.useApp()
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [form] = Form.useForm<GrantPointsRequest>()
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    employeesApi.list().then(res => setEmployees(res.content || [])).catch(() => {})
-  }, [])
 
   const handleGrant = async () => {
     const values = await form.validateFields()
@@ -496,17 +491,7 @@ function GrantPointsTab() {
     <Card title="Grant Points to Employee">
       <Form form={form} layout="vertical" onFinish={handleGrant}>
         <Form.Item label="Employee" name="employeeId" rules={[{ required: true }]}>
-          <Select
-            showSearch
-            placeholder="Select employee"
-            filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-          >
-            {employees.map(e => (
-              <Select.Option key={e.id} value={e.id} label={`${e.firstName} ${e.lastName}`}>
-                {e.firstName} {e.lastName} ({e.employeeNo})
-              </Select.Option>
-            ))}
-          </Select>
+          <EmployeePicker placeholder="Select employee" />
         </Form.Item>
         <Form.Item label="Points" name="points" rules={[{ required: true }]}>
           <InputNumber min={1} style={{ width: '100%' }} />

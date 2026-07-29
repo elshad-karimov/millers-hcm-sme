@@ -22,9 +22,9 @@ import {
   type PermissionSubmitRequest,
   type PermissionType,
 } from '../api/permission'
-import { employeesApi, type Employee } from '../api/employees'
 import { selfApi } from '../api/self'
 import { useAuth } from '../auth/AuthContext'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 import { RoleSets } from '../auth/roleSets'
 
@@ -47,7 +47,6 @@ export function PermissionRequestFormPage() {
   const { t } = useTranslation(['permission', 'common'])
   const [form] = Form.useForm<FormValues>()
   const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [selfLabel, setSelfLabel] = useState<string>('')
   const [types, setTypes] = useState<PermissionType[]>([])
   const [saving, setSaving] = useState(false)
@@ -55,10 +54,7 @@ export function PermissionRequestFormPage() {
 
   useEffect(() => {
     if (isHrMode) {
-      Promise.all([permissionApi.types(true), employeesApi.list({ size: 500 })]).then(([t, e]) => {
-        setTypes(t)
-        setEmployees(e.content)
-      })
+      permissionApi.types(true).then(setTypes)
     } else {
       Promise.all([permissionApi.types(true), selfApi.profile()]).then(([t, p]) => {
         setTypes(t)
@@ -138,14 +134,7 @@ export function PermissionRequestFormPage() {
                 label={t('permission:newRequest.employee')}
                 rules={[{ required: true, message: t('permission:newRequest.validation.selectEmployee') }]}
               >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker placeholder={t('permission:newRequest.employee')} />
               </Form.Item>
             ) : (
               <>

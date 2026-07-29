@@ -25,6 +25,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../../api/client'
 import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -190,17 +191,11 @@ export function CheckInsPage() {
 
       <Card size="small">
         <Space style={{ marginBottom: 12 }} wrap>
-          <Select
-            showSearch
-            optionFilterProp="label"
+          <EmployeePicker
             style={{ minWidth: 280 }}
             placeholder="Pick an employee"
             value={employeeId}
             onChange={setEmployeeId}
-            options={employees.map((e) => ({
-              value: e.id,
-              label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-            }))}
           />
           <Button
             type="primary"

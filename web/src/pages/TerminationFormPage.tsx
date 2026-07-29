@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Button,
   Col,
@@ -18,7 +18,7 @@ import {
   type TerminationReason,
   type TerminationSubmitRequest,
 } from '../api/lifecycle'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 
 const LIST_PATH = '/lifecycle/terminations'
@@ -50,12 +50,7 @@ export function TerminationFormPage() {
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<FormValues>()
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    employeesApi.list({ size: 500 }).then((r) => setEmployees(r.content))
-  }, [])
 
   const onFinish = async (v: FormValues) => {
     setSaving(true)
@@ -89,14 +84,7 @@ export function TerminationFormPage() {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-              <Select
-                showSearch
-                optionFilterProp="label"
-                options={employees.map((e) => ({
-                  value: e.id,
-                  label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                }))}
-              />
+              <EmployeePicker placeholder="Select employee" />
             </Form.Item>
           </Col>
           <Col span={12}>

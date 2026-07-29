@@ -19,8 +19,8 @@ import {
   type ChangeType,
   type ContractChangeSubmitRequest,
 } from '../api/lifecycle'
-import { employeesApi, type Employee } from '../api/employees'
 import { positionsApi, type Position } from '../api/positions'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 
 const LIST_PATH = '/lifecycle/contract-changes'
@@ -60,18 +60,12 @@ export function ContractChangeFormPage() {
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<FormValues>()
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [positions, setPositions] = useState<Position[]>([])
   const [saving, setSaving] = useState(false)
   const [changeType, setChangeType] = useState<ChangeType | undefined>()
 
   useEffect(() => {
-    Promise.all([employeesApi.list({ size: 500 }), positionsApi.list({ size: 500 })]).then(
-      ([e, p]) => {
-        setEmployees(e.content)
-        setPositions(p.content)
-      },
-    )
+    positionsApi.list({ size: 500 }).then((p) => setPositions(p.content))
   }, [])
 
   const onFinish = async (v: FormValues) => {
@@ -147,14 +141,7 @@ export function ContractChangeFormPage() {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-              <Select
-                showSearch
-                optionFilterProp="label"
-                options={employees.map((e) => ({
-                  value: e.id,
-                  label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                }))}
-              />
+              <EmployeePicker placeholder="Select employee" />
             </Form.Item>
           </Col>
           <Col span={6}>
@@ -212,14 +199,7 @@ export function ContractChangeFormPage() {
         )}
         {changeType === 'MANAGER' && (
           <Form.Item name="managerId" label="New manager" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select manager" />
           </Form.Item>
         )}
         {changeType === 'JOB_TITLE' && (

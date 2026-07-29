@@ -26,7 +26,7 @@ import {
   type AddMarketDataRequest,
   type MarketComparisonDto,
 } from '../api/compensation'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -69,8 +69,6 @@ export function MarketDataPage() {
   const [dataForm] = Form.useForm<DataFormValues>()
 
   // Comparison panel
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>()
   const [comparisonSurveyId, setComparisonSurveyId] = useState<string | undefined>()
   const [comparison, setComparison] = useState<MarketComparisonDto | null>(null)
@@ -222,21 +220,6 @@ export function MarketDataPage() {
         }
       },
     })
-  }
-
-  const handleSearchEmployees = (search: string) => {
-    if (search.length < 2) {
-      setEmployees([])
-      return
-    }
-    setLoadingEmployees(true)
-    employeesApi
-      .list({ search, size: 50 })
-      .then((resp) => setEmployees(resp.content))
-      .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to search employees'),
-      )
-      .finally(() => setLoadingEmployees(false))
   }
 
   const handleCompare = () => {
@@ -403,19 +386,11 @@ export function MarketDataPage() {
       <Card title="Compare Employee to Market" size="small">
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Space wrap>
-            <Select
-              showSearch
+            <EmployeePicker
               placeholder="Select employee..."
               style={{ width: 300 }}
-              filterOption={false}
-              onSearch={handleSearchEmployees}
+              value={selectedEmployeeId}
               onChange={setSelectedEmployeeId}
-              loading={loadingEmployees}
-              notFoundContent={loadingEmployees ? 'Loading...' : 'Type to search'}
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
             />
             <Select
               placeholder="Survey (optional)"

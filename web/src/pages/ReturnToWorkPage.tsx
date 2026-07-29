@@ -25,7 +25,7 @@ import {
   type InjuryReportResponse,
   RETURN_TO_WORK_STATUS_OPTIONS,
 } from '../api/ehs'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 export function ReturnToWorkPage() {
   const { message } = AntdApp.useApp()
@@ -38,7 +38,6 @@ export function ReturnToWorkPage() {
   const [submitting, setSubmitting] = useState(false)
   const [editing, setEditing] = useState<ReturnToWorkResponse | null>(null)
 
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [injuries, setInjuries] = useState<InjuryReportResponse[]>([])
 
   const [selectedPlan, setSelectedPlan] = useState<ReturnToWorkResponse | null>(null)
@@ -47,7 +46,6 @@ export function ReturnToWorkPage() {
 
   useEffect(() => {
     loadPlans()
-    loadEmployees()
     loadInjuries()
   }, [])
 
@@ -60,15 +58,6 @@ export function ReturnToWorkPage() {
       message.error('Failed to load return-to-work plans')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadEmployees = async () => {
-    try {
-      const data = await employeesApi.list()
-      setEmployees(data.content)
-    } catch {
-      // non-critical
     }
   }
 
@@ -300,14 +289,7 @@ export function ReturnToWorkPage() {
                 label="Employee"
                 rules={[{ required: true }]}
               >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker placeholder="Select employee" />
               </Form.Item>
             </>
           )}

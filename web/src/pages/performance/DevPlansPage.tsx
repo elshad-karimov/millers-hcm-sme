@@ -33,6 +33,7 @@ import {
   type DevPlanStatus,
 } from '../../api/performance'
 import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -317,15 +318,7 @@ export function DevPlansPage() {
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  disabled={!!editing}
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker disabled={!!editing} placeholder="Select employee" />
               </Form.Item>
             </Col>
             <Col span={12}>

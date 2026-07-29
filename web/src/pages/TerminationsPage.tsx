@@ -17,6 +17,7 @@ import {
   type TerminationStatus,
 } from '../api/lifecycle'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -136,16 +137,10 @@ export function TerminationsPage() {
       }
     >
       <Space style={{ marginBottom: 12 }} wrap>
-        <Select
+        <EmployeePicker
           allowClear
-          showSearch
-          optionFilterProp="label"
           placeholder="All employees"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={(v) => {
             setEmployeeId(v)

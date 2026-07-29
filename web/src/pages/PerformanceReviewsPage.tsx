@@ -20,6 +20,7 @@ import {
   type ReviewStatus,
 } from '../api/performance'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -255,25 +256,10 @@ export function PerformanceReviewsPage() {
             />
           </Form.Item>
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="managerId" label="Manager (optional, defaults to employee's manager)">
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker allowClear placeholder="Select manager" />
           </Form.Item>
         </Form>
       </Modal>

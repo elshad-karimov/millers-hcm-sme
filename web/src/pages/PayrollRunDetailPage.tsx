@@ -37,6 +37,7 @@ import {
   type PayrollRunStatus,
 } from '../api/payroll'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { attendanceApi, type AttendancePayrollSummary } from '../api/attendance'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
@@ -988,19 +989,11 @@ export function PayrollRunDetailPage() {
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text>Employee:</Typography.Text>
-          <Select
+          <EmployeePicker
             style={{ width: '100%' }}
             placeholder="Select employee"
             value={holdEmployeeId}
             onChange={setHoldEmployeeId}
-            options={employees.map((e) => ({
-              value: e.id,
-              label: `${e.employeeNo} ${e.lastName} ${e.firstName}`,
-            }))}
-            showSearch
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
           />
           <Typography.Text>Reason:</Typography.Text>
           <Input.TextArea

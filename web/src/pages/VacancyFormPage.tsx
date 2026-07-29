@@ -23,7 +23,7 @@ import {
   type VacancyRequest,
 } from '../api/recruitment'
 import { positionsApi, type Position } from '../api/positions'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 
 const LIST_PATH = '/recruitment/vacancies'
@@ -99,18 +99,11 @@ export function VacancyFormPage() {
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<FormValues>()
   const [positions, setPositions] = useState<Position[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      positionsApi.list({ size: 500 }),
-      employeesApi.list({ size: 500 }),
-    ]).then(([p, e]) => {
-      setPositions(p.content)
-      setEmployees(e.content)
-    })
+    positionsApi.list({ size: 500 }).then((p) => setPositions(p.content))
   }, [])
 
   useEffect(() => {
@@ -296,28 +289,12 @@ export function VacancyFormPage() {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="hiringManagerId" label="Hiring manager">
-                <Select
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker allowClear placeholder="Select hiring manager" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="recruiterId" label="Recruiter">
-                <Select
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker allowClear placeholder="Select recruiter" />
               </Form.Item>
             </Col>
           </Row>
@@ -364,16 +341,7 @@ export function VacancyFormPage() {
                 {({ getFieldValue }) =>
                   getFieldValue('requisitionType') === 'REPLACEMENT' ? (
                     <Form.Item name="replacedEmployeeId" label="Replacing employee">
-                      <Select
-                        allowClear
-                        showSearch
-                        optionFilterProp="label"
-                        placeholder="Who is being backfilled?"
-                        options={employees.map((e) => ({
-                          value: e.id,
-                          label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                        }))}
-                      />
+                      <EmployeePicker allowClear placeholder="Who is being backfilled?" />
                     </Form.Item>
                   ) : null
                 }

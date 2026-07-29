@@ -7,7 +7,6 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Table,
   Tag,
@@ -22,6 +21,7 @@ import {
   type SummaryStatus,
 } from '../api/attendance'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -224,16 +224,10 @@ export function AttendanceSummaryPage() {
           value={range}
           onChange={(v) => v && v[0] && v[1] && setRange([v[0], v[1]])}
         />
-        <Select
+        <EmployeePicker
           allowClear
-          showSearch
-          optionFilterProp="label"
           placeholder="All employees"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={(v) => setEmployeeId(v)}
         />

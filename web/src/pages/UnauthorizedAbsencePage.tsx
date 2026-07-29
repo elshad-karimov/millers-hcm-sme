@@ -21,7 +21,7 @@ import {
   type AbsenceScanResult,
 } from '../api/unauthorizedAbsence'
 import { leaveApi, type LeaveType } from '../api/leave'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 const STATUS_COLOR: Record<string, string> = {
   PENDING: 'orange',
@@ -32,7 +32,6 @@ const STATUS_COLOR: Record<string, string> = {
 export function UnauthorizedAbsencePage() {
   const { message } = AntdApp.useApp()
   const [records, setRecords] = useState<AbsenceScanResult[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [types, setTypes] = useState<LeaveType[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>()
@@ -46,11 +45,9 @@ export function UnauthorizedAbsencePage() {
 
   useEffect(() => {
     Promise.all([
-      employeesApi.list({ size: 500 }),
       leaveApi.types(true),
       unauthorizedAbsenceApi.listPending(),
-    ]).then(([e, t, p]) => {
-      setEmployees(e.content)
+    ]).then(([t, p]) => {
       setTypes(t)
       setRecords(p)
     })
@@ -151,16 +148,10 @@ export function UnauthorizedAbsencePage() {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={7}>
-          <Select
-            showSearch
+          <EmployeePicker
             allowClear
             placeholder="Select employee to scan"
             style={{ width: '100%' }}
-            optionFilterProp="label"
-            options={employees.map((e) => ({
-              value: e.id,
-              label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-            }))}
             value={selectedEmployeeId}
             onChange={setSelectedEmployeeId}
           />

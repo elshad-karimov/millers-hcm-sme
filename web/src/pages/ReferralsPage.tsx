@@ -22,7 +22,7 @@ import {
   type ReferralStatus,
   type Vacancy,
 } from '../api/recruitment'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { payrollApi, type PayrollRun } from '../api/payroll'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -54,7 +54,6 @@ export function ReferralsPage() {
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
   const [form] = Form.useForm()
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
 
@@ -77,12 +76,10 @@ export function ReferralsPage() {
     form.resetFields()
     setNewOpen(true)
     try {
-      const [emp, cand, vac] = await Promise.all([
-        employeesApi.list({ size: 500 }),
+      const [cand, vac] = await Promise.all([
         recruitmentApi.candidates({ size: 500 }),
         recruitmentApi.vacancies({ size: 200 }),
       ])
-      setEmployees(emp.content)
       setCandidates(cand.content)
       setVacancies(vac.content)
     } catch (e) {
@@ -214,15 +211,7 @@ export function ReferralsPage() {
       >
         <Form form={form} layout="vertical">
           <Form.Item name="referrerEmployeeId" label="Referrer (employee)" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              placeholder="Employee who referred"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Employee who referred" />
           </Form.Item>
           <Form.Item name="candidateId" label="Referred candidate" rules={[{ required: true }]}>
             <Select

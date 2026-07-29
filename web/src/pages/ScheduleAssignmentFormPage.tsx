@@ -5,7 +5,6 @@ import {
   DatePicker,
   Form,
   Row,
-  Select,
   Space,
   Spin,
   Typography,
@@ -14,7 +13,7 @@ import {
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { attendanceApi, type WorkSchedule } from '../api/attendance'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 
 interface FormValues {
@@ -31,16 +30,13 @@ export function ScheduleAssignmentFormPage() {
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<FormValues>()
   const [schedule, setSchedule] = useState<WorkSchedule | null>(null)
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    Promise.all([attendanceApi.schedules(), employeesApi.list({ size: 500 })])
-      .then(([schedules, employeesRes]) => {
-        setSchedule(schedules.find((s) => s.id === scheduleId) ?? null)
-        setEmployees(employeesRes.content)
-      })
+    attendanceApi
+      .schedules()
+      .then((schedules) => setSchedule(schedules.find((s) => s.id === scheduleId) ?? null))
       .catch((err) => message.error(err?.message ?? 'Failed to load'))
       .finally(() => setLoading(false))
   }, [scheduleId, message])
@@ -86,14 +82,7 @@ export function ScheduleAssignmentFormPage() {
             label="Employee"
             rules={[{ required: true, message: 'Select an employee' }]}
           >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>

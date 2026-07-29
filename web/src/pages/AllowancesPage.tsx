@@ -27,7 +27,7 @@ import {
   type EmployeeAllowance,
   type EmployeeAllowanceRequest,
 } from '../api/compbenefits'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -89,7 +89,6 @@ export function AllowancesPage() {
   const canEdit = hasRole(...RoleSets.HR_WRITE)
 
   const [types, setTypes] = useState<AllowanceType[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [employeeId, setEmployeeId] = useState<string | undefined>()
   const [allowances, setAllowances] = useState<EmployeeAllowance[]>([])
   const [loading, setLoading] = useState(false)
@@ -100,13 +99,7 @@ export function AllowancesPage() {
   const [assignForm] = Form.useForm<AssignForm>()
 
   useEffect(() => {
-    Promise.all([
-      compBenefitsApi.allowanceTypes(false),
-      employeesApi.list({ size: 500 }).then((p) => p.content),
-    ]).then(([t, e]) => {
-      setTypes(t)
-      setEmployees(e)
-    })
+    compBenefitsApi.allowanceTypes(false).then(setTypes)
   }, [])
 
   useEffect(() => {
@@ -296,15 +289,9 @@ export function AllowancesPage() {
         }
       >
         <Space style={{ marginBottom: 12 }}>
-          <Select
-            showSearch
-            optionFilterProp="label"
+          <EmployeePicker
             placeholder="Select employee"
             style={{ width: 320 }}
-            options={employees.map((e) => ({
-              value: e.id,
-              label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-            }))}
             value={employeeId}
             onChange={setEmployeeId}
             allowClear
@@ -397,14 +384,7 @@ export function AllowancesPage() {
       >
         <Form form={assignForm} layout="vertical" onFinish={onAssign}>
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="allowanceTypeId" label="Allowance type" rules={[{ required: true }]}>
             <Select

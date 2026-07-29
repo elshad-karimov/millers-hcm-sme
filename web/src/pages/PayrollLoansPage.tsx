@@ -7,7 +7,6 @@ import {
   Input,
   InputNumber,
   Modal,
-  Select,
   Table,
   Tag,
   Typography,
@@ -22,6 +21,7 @@ import {
   type WriteOffLoanRequest,
 } from '../api/payroll'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -227,14 +227,7 @@ export function PayrollLoansPage() {
             label="Employee"
             rules={[{ required: true, message: 'Employee is required' }]}
           >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} - ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item
             name="principalAmount"

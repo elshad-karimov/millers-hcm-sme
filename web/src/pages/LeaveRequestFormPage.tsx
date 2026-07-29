@@ -18,10 +18,10 @@ import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { leaveApi, type LeaveBalance, type LeaveType, type LeaveSubmitRequest } from '../api/leave'
-import { employeesApi, type Employee } from '../api/employees'
 import { selfApi } from '../api/self'
 import type { EmployeePeer } from '../api/self'
 import { useAuth } from '../auth/AuthContext'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 import { RoleSets } from '../auth/roleSets'
 
@@ -50,7 +50,6 @@ export function LeaveRequestFormPage() {
   const [form] = Form.useForm<FormValues>()
   /** HR/admin can pick any employee; plain EMPLOYEE submits for themselves only. */
   const isHrMode = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [peers, setPeers] = useState<EmployeePeer[]>([])
   const [selfLabel, setSelfLabel] = useState<string>('')
   const [types, setTypes] = useState<LeaveType[]>([])
@@ -59,10 +58,9 @@ export function LeaveRequestFormPage() {
 
   useEffect(() => {
     if (isHrMode) {
-      Promise.all([leaveApi.types(true), employeesApi.list({ size: 500 }), selfApi.peers()]).then(
-        ([t, e, p]) => {
+      Promise.all([leaveApi.types(true), selfApi.peers()]).then(
+        ([t, p]) => {
           setTypes(t.filter((x) => x.code !== 'PATERNITY'))
-          setEmployees(e.content)
           setPeers(p)
         },
       )
@@ -171,14 +169,7 @@ export function LeaveRequestFormPage() {
                 label={t('leave:newRequest.employee')}
                 rules={[{ required: true, message: t('leave:newRequest.validation.selectEmployee') }]}
               >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  options={employees.map((e) => ({
-                    value: e.id,
-                    label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-                  }))}
-                />
+                <EmployeePicker placeholder={t('leave:newRequest.employee')} />
               </Form.Item>
             ) : (
               <>

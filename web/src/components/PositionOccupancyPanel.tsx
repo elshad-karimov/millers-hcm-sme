@@ -40,6 +40,7 @@ import {
   type ReplacementRequest,
 } from '../api/positionOccupancy'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from './EmployeePicker'
 import {
   GRANT_STATUS_COLOR,
   GRANT_STATUS_LABEL,
@@ -542,14 +543,7 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
       >
         <Form form={assignForm} layout="vertical" preserve={false}>
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} · ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="occupancyType" label="Type" rules={[{ required: true }]}>
             <Select options={OCCUPANCY_TYPE_OPTIONS} />
@@ -657,14 +651,7 @@ export function PositionOccupancyPanel({ positionId, canEdit = true }: Props) {
                     label="Replacement employee"
                     rules={[{ required: true }]}
                   >
-                    <Select
-                      showSearch
-                      optionFilterProp="label"
-                      options={employees.map((e) => ({
-                        value: e.id,
-                        label: `${e.employeeNo} · ${e.firstName} ${e.lastName}`,
-                      }))}
-                    />
+                    <EmployeePicker placeholder="Select employee" />
                   </Form.Item>
                   <Space size="small">
                     <Form.Item name="replacementStartDate" label="Replacement start">

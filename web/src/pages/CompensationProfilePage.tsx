@@ -4,7 +4,6 @@ import {
   Col,
   Descriptions,
   Row,
-  Select,
   Statistic,
   Table,
   Tag,
@@ -18,7 +17,7 @@ import {
   type CompensationProfileDto,
   type SalaryHistoryItem,
 } from '../api/compensation'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 const { Title, Text } = Typography
 
@@ -33,27 +32,10 @@ const RANGE_POSITION_COLOR: Record<string, string> = {
 export function CompensationProfilePage() {
   const { message } = AntdApp.useApp()
 
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>()
   const [profile, setProfile] = useState<CompensationProfileDto | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
-
-  const handleSearchEmployees = (search: string) => {
-    if (search.length < 2) {
-      setEmployees([])
-      return
-    }
-    setLoadingEmployees(true)
-    employeesApi
-      .list({ search, size: 50 })
-      .then((resp) => setEmployees(resp.content))
-      .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to search employees'),
-      )
-      .finally(() => setLoadingEmployees(false))
-  }
 
   const handleSelectEmployee = (empId: string) => {
     setSelectedEmployeeId(empId)
@@ -109,20 +91,12 @@ export function CompensationProfilePage() {
 
       <Card style={{ marginBottom: 24 }}>
         <Text strong>Select Employee:</Text>
-        <Select
-          showSearch
+        <EmployeePicker
           placeholder="Type employee name or number..."
           style={{ width: '100%', marginTop: 8 }}
-          filterOption={false}
-          onSearch={handleSearchEmployees}
-          onChange={handleSelectEmployee}
+          allowClear={false}
           value={selectedEmployeeId}
-          loading={loadingEmployees}
-          notFoundContent={loadingEmployees ? 'Loading...' : 'Type to search'}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
+          onChange={(id) => { if (id) handleSelectEmployee(id) }}
         />
       </Card>
 

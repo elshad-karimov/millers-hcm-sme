@@ -17,7 +17,6 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Table,
   Tag,
@@ -31,7 +30,7 @@ import {
   type IssueRequest,
   type PreboardingStatus,
 } from '../api/preboarding'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -52,7 +51,6 @@ export function PreboardingPage() {
   const [issueOpen, setIssueOpen] = useState(false)
   const [revealedToken, setRevealedToken] = useState<{ summary: InviteSummary; token: string } | null>(null)
   const [detail, setDetail] = useState<InviteDetail | null>(null)
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [form] = Form.useForm()
 
   const reload = () => {
@@ -65,10 +63,6 @@ export function PreboardingPage() {
 
   useEffect(() => {
     reload()
-    employeesApi
-      .list({ size: 200 })
-      .then((page) => setEmployees(page.content))
-      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -230,17 +224,7 @@ export function PreboardingPage() {
             label="Employee"
             rules={[{ required: true, message: 'Pick an employee' }]}
           >
-            <Select
-              showSearch
-              placeholder="Search by name"
-              filterOption={(input, opt) =>
-                String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
-              }))}
-            />
+            <EmployeePicker placeholder="Search by name" />
           </Form.Item>
           <Form.Item name="expiresInDays" label="Expires in (days)">
             <InputNumber min={1} max={90} style={{ width: '100%' }} />

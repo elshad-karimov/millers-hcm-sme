@@ -26,7 +26,7 @@ import {
   type MeritRangePosition,
   type MeritSuggestionDto,
 } from '../api/compensation'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -56,8 +56,6 @@ export function MeritMatricesPage() {
   const [cells, setCells] = useState<MeritMatrixCellDto[]>([])
 
   // Merit suggestion panel
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>()
   const [selectedMatrixId, setSelectedMatrixId] = useState<string | undefined>()
   const [suggestion, setSuggestion] = useState<MeritSuggestionDto | null>(null)
@@ -187,21 +185,6 @@ export function MeritMatricesPage() {
     })
   }
 
-  const handleSearchEmployees = (search: string) => {
-    if (search.length < 2) {
-      setEmployees([])
-      return
-    }
-    setLoadingEmployees(true)
-    employeesApi
-      .list({ search, size: 50 })
-      .then((resp) => setEmployees(resp.content))
-      .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to search employees'),
-      )
-      .finally(() => setLoadingEmployees(false))
-  }
-
   const handleSuggest = () => {
     if (!selectedEmployeeId || !selectedMatrixId) {
       message.warning('Select both employee and matrix')
@@ -282,19 +265,11 @@ export function MeritMatricesPage() {
       <Card title="Merit Suggestion" style={{ marginTop: 16 }}>
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Space wrap>
-            <Select
-              showSearch
+            <EmployeePicker
               placeholder="Select employee..."
               style={{ width: 300 }}
-              filterOption={false}
-              onSearch={handleSearchEmployees}
+              value={selectedEmployeeId}
               onChange={setSelectedEmployeeId}
-              loading={loadingEmployees}
-              notFoundContent={loadingEmployees ? 'Loading...' : 'Type to search'}
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
             />
             <Select
               placeholder="Select merit matrix..."

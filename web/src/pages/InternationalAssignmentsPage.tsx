@@ -33,6 +33,7 @@ import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 import { employeesApi, type Employee } from '../api/employees'
 import { AttachmentUploader } from '../components/AttachmentUploader'
+import { EmployeePicker } from '../components/EmployeePicker'
 
 const { Title, Text } = Typography
 
@@ -213,18 +214,7 @@ function AssignmentsTab() {
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item label="Employee" name="employeeId" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              placeholder="Select employee"
-              filterOption={(input, opt) => String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              disabled={!!editing}
-            >
-              {employees.map(e => (
-                <Select.Option key={e.id} value={e.id} label={`${e.firstName} ${e.lastName}`}>
-                  {e.firstName} {e.lastName} ({e.employeeNo})
-                </Select.Option>
-              ))}
-            </Select>
+            <EmployeePicker placeholder="Select employee" disabled={!!editing} />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>

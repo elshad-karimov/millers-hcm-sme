@@ -18,6 +18,7 @@ import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { hrPartnerApi, type HrPartnerRequest, type HrPartnerResponse } from '../api/hrPartner'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { orgApi, type OrgUnitResponse } from '../api/org'
 
 const { Title } = Typography
@@ -139,11 +140,6 @@ export function HrPartnersPage() {
     }
   }
 
-  const empOptions = employees.map((e) => ({
-    value: e.id,
-    label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
-  }))
-
   const unitOptions = orgUnits.map((u) => ({
     value: u.id,
     label: `${u.name} (${u.code})`,
@@ -230,12 +226,7 @@ export function HrPartnersPage() {
             />
           </Form.Item>
           <Form.Item name="employeeId" label="HRBP employee" rules={[{ required: true }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={empOptions}
-              placeholder="Select employee"
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="backup" label="Role" valuePropName="checked">
             <Switch checkedChildren="Backup" unCheckedChildren="Primary" />

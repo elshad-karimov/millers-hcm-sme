@@ -4,7 +4,6 @@ import {
   Card,
   DatePicker,
   Empty,
-  Select,
   Space,
   Spin,
   Table,
@@ -21,6 +20,7 @@ import {
   type TimesheetStatus,
 } from '../api/timesheet'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -169,15 +169,9 @@ export function TimesheetsPage() {
         />
         {canGenerate && (
           <>
-            <Select
-              showSearch
-              optionFilterProp="label"
+            <EmployeePicker
               placeholder="Employee to generate"
               style={{ width: 280 }}
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
               value={genEmployee}
               onChange={setGenEmployee}
             />

@@ -15,6 +15,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { leaveApi, type LeaveBalance, type LeaveType, type LedgerEntry } from '../api/leave'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -207,16 +208,10 @@ export function LeaveBalancesPage() {
           }))}
           onChange={setYear}
         />
-        <Select
+        <EmployeePicker
           allowClear
-          showSearch
-          optionFilterProp="label"
           placeholder="All employees"
           style={{ width: 280 }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={employeeId}
           onChange={setEmployeeId}
         />

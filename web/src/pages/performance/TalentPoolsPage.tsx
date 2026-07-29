@@ -12,7 +12,6 @@ import {
   Form,
   Input,
   Modal,
-  Select,
   Space,
   Switch,
   Table,
@@ -22,6 +21,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../../api/client'
 import { employeesApi, type Employee } from '../../api/employees'
+import { EmployeePicker } from '../../components/EmployeePicker'
 import { useAuth } from '../../auth/AuthContext'
 import { RoleSets } from '../../auth/roleSets'
 
@@ -305,18 +305,7 @@ export function TalentPoolsPage() {
             <TextArea rows={3} placeholder="Description of this talent pool..." />
           </Form.Item>
           <Form.Item name="ownerEmployeeId" label="Owner (HR Analyst)">
-            <Select
-              showSearch
-              allowClear
-              placeholder="Select owner"
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
-              }))}
-            />
+            <EmployeePicker allowClear placeholder="Select owner" />
           </Form.Item>
           <Form.Item name="active" label="Active" valuePropName="checked">
             <Switch />
@@ -379,17 +368,7 @@ export function TalentPoolsPage() {
             label="Employee"
             rules={[{ required: true, message: 'Employee is required' }]}
           >
-            <Select
-              showSearch
-              placeholder="Select employee"
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
-              }))}
-            />
+            <EmployeePicker placeholder="Select employee" />
           </Form.Item>
           <Form.Item name="note" label="Note">
             <TextArea rows={2} placeholder="Optional note..." />

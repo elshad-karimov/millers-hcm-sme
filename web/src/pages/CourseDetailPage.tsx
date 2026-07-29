@@ -34,6 +34,7 @@ import {
 } from '../api/learning'
 import { employeesApi, type Employee } from '../api/employees'
 import { AttachmentUploader } from '../components/AttachmentUploader'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -516,15 +517,9 @@ export function CourseDetailPage() {
         onOk={onEnroll}
         okText="Enroll"
       >
-        <Select
-          showSearch
-          optionFilterProp="label"
+        <EmployeePicker
           placeholder="Select employee"
           style={{ width: '100%' }}
-          options={employees.map((e) => ({
-            value: e.id,
-            label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-          }))}
           value={enrollEmployeeId}
           onChange={setEnrollEmployeeId}
         />

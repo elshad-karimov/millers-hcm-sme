@@ -30,7 +30,7 @@ import {
   type CommissionPayoutStatus,
   type CreateCommissionPayoutRequest,
 } from '../api/compensation'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -83,9 +83,6 @@ export function CommissionPlansPage() {
   const [payoutModalOpen, setPayoutModalOpen] = useState(false)
   const [payoutForm] = Form.useForm<PayoutFormValues>()
   const [statusFilter, setStatusFilter] = useState<CommissionPayoutStatus | undefined>()
-
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(false)
 
   const loadPlans = () => {
     setLoadingPlans(true)
@@ -195,21 +192,6 @@ export function CommissionPlansPage() {
   }
 
   // Payout actions
-  const handleSearchEmployees = (search: string) => {
-    if (search.length < 2) {
-      setEmployees([])
-      return
-    }
-    setLoadingEmployees(true)
-    employeesApi
-      .list({ search, size: 50 })
-      .then((resp) => setEmployees(resp.content))
-      .catch((err) =>
-        message.error(err?.response?.data?.message ?? 'Failed to search employees'),
-      )
-      .finally(() => setLoadingEmployees(false))
-  }
-
   const openCreatePayout = () => {
     payoutForm.resetFields()
     setPayoutModalOpen(true)
@@ -330,17 +312,12 @@ export function CommissionPlansPage() {
     },
   ]
 
-  const employeeMap = new Map(employees.map((e) => [e.id, e]))
-
   const payoutColumns: ColumnsType<CommissionPayoutDto> = [
     {
       title: 'Employee',
       dataIndex: 'employeeName',
       key: 'employeeName',
-      render: (name: string | undefined, rec) => {
-        const e = employeeMap.get(rec.employeeId)
-        return name ?? (e ? `${e.employeeNo} — ${e.firstName} ${e.lastName}` : rec.employeeId)
-      },
+      render: (name: string | undefined, rec) => name ?? rec.employeeId,
     },
     {
       title: 'Plan',
@@ -607,18 +584,7 @@ export function CommissionPlansPage() {
             label="Employee"
             rules={[{ required: true, message: 'Required' }]}
           >
-            <Select
-              showSearch
-              placeholder="Type employee name or number..."
-              filterOption={false}
-              onSearch={handleSearchEmployees}
-              loading={loadingEmployees}
-              notFoundContent={loadingEmployees ? 'Loading...' : 'Type to search'}
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
-            />
+            <EmployeePicker placeholder="Type employee name or number..." />
           </Form.Item>
 
           <Form.Item name="period" label="Period (e.g., 2026-06)" rules={[{ required: true, message: 'Required' }]}>

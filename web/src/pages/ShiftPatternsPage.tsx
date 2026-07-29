@@ -41,6 +41,7 @@ import {
 } from '../api/shiftPatterns'
 import { shiftsApi, type Shift } from '../api/roster'
 import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -592,15 +593,7 @@ function GenerateTab() {
             label="Employee"
             rules={[{ required: true, message: 'Pick an employee' }]}
           >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.firstName} ${e.lastName} (${e.employeeNo})`,
-              }))}
-              placeholder="Pick an employee"
-            />
+            <EmployeePicker placeholder="Pick an employee" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
