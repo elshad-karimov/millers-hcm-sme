@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** HCM_12 M389 — one section of a {@link PerfReviewTemplate} with its §18.1 weight. */
 @Entity
@@ -25,8 +26,9 @@ public class PerfTemplateSection {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "template_id", nullable = false)
     private UUID templateId;

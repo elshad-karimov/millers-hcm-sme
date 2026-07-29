@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * HCM_12 M388 — tenant-configurable rating scale master (PRD §5.3). Replaces the
@@ -30,8 +31,9 @@ public class RatingScale {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "scale_code", nullable = false, length = 40)
     private String scaleCode;

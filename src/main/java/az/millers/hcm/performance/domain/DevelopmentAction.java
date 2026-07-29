@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** HCM_12 M399 — one typed development action (PRD §21.2). */
 @Entity
@@ -24,8 +25,9 @@ public class DevelopmentAction {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "plan_id", nullable = false)
     private UUID planId;

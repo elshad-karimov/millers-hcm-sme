@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** HCM_12 M391 — OKR objective; parent link = alignment map (PRD §5.6 / §8). */
 @Entity
@@ -26,8 +27,9 @@ public class OkrObjective {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(nullable = false, length = 300)
     private String title;

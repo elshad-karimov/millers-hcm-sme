@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * HCM_15 M410 — talent pool membership (PRD §15.6). Each employee can appear in
@@ -26,8 +27,9 @@ public class EmployeePoolMember {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "pool_id", nullable = false)
     private UUID poolId;

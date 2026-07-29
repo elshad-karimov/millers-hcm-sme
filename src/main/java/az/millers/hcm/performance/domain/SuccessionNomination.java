@@ -15,6 +15,7 @@ import az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Explicit named-successor record (M103).
@@ -33,8 +34,9 @@ public class SuccessionNomination {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "position_id", nullable = false)
     private UUID positionId;

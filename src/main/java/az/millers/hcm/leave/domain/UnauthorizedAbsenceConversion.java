@@ -16,6 +16,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "unauthorized_absence_conversion", schema = "leave_mgmt",
@@ -28,8 +29,9 @@ public class UnauthorizedAbsenceConversion {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;

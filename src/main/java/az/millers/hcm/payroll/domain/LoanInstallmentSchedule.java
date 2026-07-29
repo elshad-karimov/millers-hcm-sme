@@ -12,6 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M462 — Loan installment schedule (computed at approval, regenerated on settle/reschedule).
@@ -24,8 +25,9 @@ public class LoanInstallmentSchedule {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
+    private String tenantId;
 
     @Column(name = "loan_request_id", nullable = false)
     private UUID loanRequestId;

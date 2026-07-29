@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M437 — Comment/note on an HR service request.
@@ -25,8 +26,9 @@ public class HrServiceRequestComment {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "request_id", nullable = false)
     private UUID requestId;

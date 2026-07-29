@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M492 — Integration execution log. Purged after 90 days.
@@ -27,8 +28,9 @@ public class IntegrationLog {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "config_id", nullable = false)
     private UUID configId;

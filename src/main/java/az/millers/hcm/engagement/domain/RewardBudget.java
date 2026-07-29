@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M481: Annual reward budget per org unit (or global if org_unit_id is null).
@@ -20,7 +21,8 @@ public class RewardBudget {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
     private String tenantId;
 
     @Column(nullable = false)

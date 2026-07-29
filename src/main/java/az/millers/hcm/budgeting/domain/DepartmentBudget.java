@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
+import org.hibernate.annotations.TenantId;
 
 /**
  * HCM_20 M425 — Department budget (PRD §20.3).
@@ -26,8 +27,9 @@ public class DepartmentBudget {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "cycle_id", nullable = false)
     private UUID cycleId;

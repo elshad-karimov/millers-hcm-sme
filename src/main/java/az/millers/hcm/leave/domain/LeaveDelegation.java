@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(schema = "leave_mgmt", name = "leave_delegation")
@@ -25,8 +26,9 @@ public class LeaveDelegation {
     @Id @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "leave_request_id", nullable = false)
     private UUID leaveRequestId;

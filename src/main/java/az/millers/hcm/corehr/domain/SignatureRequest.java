@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "signature_request", schema = "core_hr")
@@ -13,8 +14,9 @@ public class SignatureRequest {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "title", nullable = false, length = 500)
     private String title;

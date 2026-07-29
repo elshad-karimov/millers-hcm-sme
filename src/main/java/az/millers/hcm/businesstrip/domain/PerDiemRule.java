@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Per-diem allowance rule for business trips (M452).
@@ -32,8 +33,9 @@ public class PerDiemRule {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
+    private String tenantId;
 
     // Matching dimensions
     @Column(name = "destination_country", nullable = false, length = 80)

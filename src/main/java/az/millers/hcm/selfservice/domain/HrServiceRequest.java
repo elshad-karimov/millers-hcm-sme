@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "hr_service_request", schema = "selfservice")
@@ -21,8 +22,9 @@ public class HrServiceRequest {
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "request_no", nullable = false, unique = true, length = 20)
     private String requestNo;

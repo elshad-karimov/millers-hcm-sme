@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M457 — Asset transfer request between employees (simple HR-approve flow).
@@ -23,8 +24,9 @@ public class AssetTransfer {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
+    private String tenantId;
 
     @Column(name = "transfer_no", nullable = false, unique = true, length = 20)
     private String transferNo;

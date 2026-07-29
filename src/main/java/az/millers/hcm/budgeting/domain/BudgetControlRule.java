@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
+import org.hibernate.annotations.TenantId;
 
 /**
  * HCM_20 M428 — Budget control rule (PRD §20.6).
@@ -26,8 +27,9 @@ public class BudgetControlRule {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "trigger_point", nullable = false, length = 30)

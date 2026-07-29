@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Expense policy validation rule (M454).
@@ -31,8 +32,9 @@ public class ExpensePolicy {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
+    private String tenantId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)

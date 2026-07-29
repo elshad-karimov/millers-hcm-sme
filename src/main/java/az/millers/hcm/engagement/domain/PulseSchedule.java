@@ -6,6 +6,7 @@ import java.util.UUID;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M477 — Pulse survey schedule for recurring campaign creation.
@@ -18,8 +19,9 @@ public class PulseSchedule {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "survey_template_id", nullable = false)
     private UUID surveyTemplateId;

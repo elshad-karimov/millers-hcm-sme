@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M485: Labor cost allocation per timesheet day.
@@ -17,7 +18,8 @@ public class LaborCostAllocation {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
     private String tenantId;
 
     @Column(name = "timesheet_day_id", nullable = false)

@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M456 — Tenant-specific asset category master (replaces hardcoded AssetType enum).
@@ -21,8 +22,9 @@ public class AssetCategory {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
+    private String tenantId;
 
     @Column(nullable = false, length = 60)
     private String code;

@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M359 — Tenant-scoped compensation configuration.
@@ -30,8 +31,9 @@ public class CompConfig {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "max_increase_pct_without_approval", nullable = false, precision = 5, scale = 2)
     private BigDecimal maxIncreasePctWithoutApproval = new BigDecimal("15.00");

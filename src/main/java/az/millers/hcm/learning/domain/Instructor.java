@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** HCM_14 M404 — internal (employee) or external trainer (PRD 14 §18). */
 @Entity
@@ -24,8 +25,9 @@ public class Instructor {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     /** Set for internal instructors; null → external trainer. */
     @Column(name = "employee_id")

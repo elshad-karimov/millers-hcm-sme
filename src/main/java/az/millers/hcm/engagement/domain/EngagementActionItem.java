@@ -6,6 +6,7 @@ import java.util.UUID;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M479 — Engagement action plan item.
@@ -18,8 +19,9 @@ public class EngagementActionItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "plan_id", nullable = false)
     private UUID planId;

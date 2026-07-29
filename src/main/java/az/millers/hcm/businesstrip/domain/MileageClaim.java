@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Employee mileage claim for business use of personal/company vehicle (M453).
@@ -31,8 +32,9 @@ public class MileageClaim {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
+    private String tenantId;
 
     @Column(name = "claim_no", nullable = false, unique = true, updatable = false, length = 20)
     private String claimNo;

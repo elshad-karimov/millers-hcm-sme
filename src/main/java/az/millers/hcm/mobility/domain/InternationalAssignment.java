@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M487: International assignment (tracking only).
@@ -17,7 +18,8 @@ public class InternationalAssignment {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
     private String tenantId;
 
     @Column(name = "assignment_no", nullable = false, unique = true, length = 20)

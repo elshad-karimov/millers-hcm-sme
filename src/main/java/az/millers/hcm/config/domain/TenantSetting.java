@@ -10,9 +10,12 @@ import lombok.Data;
 @IdClass(TenantSetting.TenantSettingId.class)
 @Data
 public class TenantSetting {
+    // tenant_id is part of the composite primary key (per-tenant settings keyed
+    // by (tenant_id, key)), so isolation comes from the key itself — Hibernate's
+    // @TenantId discriminator is illegal on an @Id field and unnecessary here.
     @Id
     @Column(name = "tenant_id", nullable = false)
-    private String tenantId;
+    private String tenantId = "default";
 
     @Id
     @Column(name = "key", nullable = false, length = 100)

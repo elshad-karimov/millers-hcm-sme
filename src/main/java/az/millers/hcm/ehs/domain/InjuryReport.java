@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "injury_report", schema = "ehs")
@@ -15,8 +16,9 @@ public class InjuryReport {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "incident_id")
     private UUID incidentId;

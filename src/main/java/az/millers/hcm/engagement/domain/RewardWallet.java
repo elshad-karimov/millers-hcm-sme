@@ -3,6 +3,7 @@ package az.millers.hcm.engagement.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M481: Employee points wallet. One per employee per tenant.
@@ -19,7 +20,8 @@ public class RewardWallet {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
     private String tenantId;
 
     @Column(name = "employee_id", nullable = false)

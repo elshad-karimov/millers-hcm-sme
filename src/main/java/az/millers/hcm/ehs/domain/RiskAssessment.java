@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "risk_assessment", schema = "ehs")
@@ -16,8 +17,9 @@ public class RiskAssessment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "work_location_id")
     private UUID workLocationId;

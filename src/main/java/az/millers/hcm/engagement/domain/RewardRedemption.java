@@ -3,6 +3,7 @@ package az.millers.hcm.engagement.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M481: Employee redemption request for catalog items.
@@ -18,7 +19,8 @@ public class RewardRedemption {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
     private String tenantId;
 
     @Column(name = "redemption_no", nullable = false, unique = true, length = 20)

@@ -3,6 +3,7 @@ package az.millers.hcm.attendance.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M482: Shift swap request between two employees.
@@ -15,7 +16,8 @@ public class ShiftSwapRequest {
     @GeneratedValue
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 80)
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 80, updatable = false)
     private String tenantId;
 
     @Column(name = "request_no", nullable = false, unique = true, length = 20)

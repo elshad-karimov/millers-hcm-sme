@@ -16,6 +16,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "performance_review", schema = "performance",
@@ -28,8 +29,9 @@ public class PerformanceReview {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     @Column(name = "review_no", nullable = false, unique = true)
     private String reviewNo;

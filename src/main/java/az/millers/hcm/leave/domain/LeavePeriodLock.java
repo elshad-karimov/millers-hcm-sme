@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "leave_period_lock", schema = "leave_mgmt")
@@ -24,8 +25,9 @@ public class LeavePeriodLock {
     @Id
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false, length = 64)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, length = 64, updatable = false)
+    private String tenantId;
 
     /** NULL = applies to ALL leave types. */
     @Column(name = "leave_type_id")

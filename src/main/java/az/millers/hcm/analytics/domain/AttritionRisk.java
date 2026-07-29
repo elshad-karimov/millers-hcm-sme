@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M476 — Attrition risk heuristic scoring.
@@ -18,8 +19,9 @@ public class AttritionRisk {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private String tenantId = "default";
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "employee_id", nullable = false)
     private UUID employeeId;
