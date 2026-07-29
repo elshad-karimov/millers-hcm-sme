@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M259 — Reason master (PRD §22).
@@ -33,6 +34,10 @@ public class ReasonMaster {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 32)

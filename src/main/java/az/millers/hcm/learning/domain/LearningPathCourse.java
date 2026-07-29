@@ -11,6 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * One step in a {@link LearningPath} — the pairing of a course with its
@@ -32,6 +33,10 @@ public class LearningPathCourse {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "path_id", nullable = false)
     private UUID pathId;

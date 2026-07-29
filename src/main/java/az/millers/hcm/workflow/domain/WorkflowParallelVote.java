@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Records a single voter's decision on one parallel-gate step (M172 / PRD §9.1).
@@ -28,6 +29,10 @@ public class WorkflowParallelVote {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "instance_id", nullable = false)
     private UUID instanceId;

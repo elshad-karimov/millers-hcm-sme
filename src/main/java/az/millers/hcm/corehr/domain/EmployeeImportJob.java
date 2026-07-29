@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * One bulk-import attempt (M69 / P1-16). Tracks both dry-run previews and
@@ -36,6 +37,10 @@ public class EmployeeImportJob {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "started_at", nullable = false, updatable = false)
     private OffsetDateTime startedAt;

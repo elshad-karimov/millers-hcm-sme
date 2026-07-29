@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Single line of a staffing table (M245). One row per approved position
@@ -29,6 +30,10 @@ public class StaffingTableLine {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "staffing_table_id", nullable = false)
     private UUID staffingTableId;

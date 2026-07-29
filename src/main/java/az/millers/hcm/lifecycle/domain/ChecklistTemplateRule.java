@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * One match rule for a {@link ChecklistTemplate} (M298 — Onboarding Phase A.1).
@@ -30,6 +31,10 @@ public class ChecklistTemplateRule {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "template_id", nullable = false)
     private UUID templateId;

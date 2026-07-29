@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Reusable HR letter template (M77 / P2-16). {@code body} carries
@@ -33,6 +34,10 @@ public class LetterTemplate {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /**
      * M77 left this UNIQUE-by-code. M139 splits the constraint: same

@@ -10,6 +10,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Append-only audit row for a single position lifecycle transition (M243).
@@ -23,6 +24,10 @@ public class PositionLifecycleEvent {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "position_id", nullable = false)
     private UUID positionId;

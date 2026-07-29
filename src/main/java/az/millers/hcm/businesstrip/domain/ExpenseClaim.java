@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Post-trip expense claim (M104). One claim per trip (at most one active
@@ -28,6 +29,10 @@ public class ExpenseClaim {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "claim_no", nullable = false, unique = true, updatable = false)
     private String claimNo;

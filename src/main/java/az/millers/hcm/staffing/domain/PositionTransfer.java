@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M260 — Position transfer (PRD §40).
@@ -35,6 +36,10 @@ public class PositionTransfer {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "position_id", nullable = false)
     private UUID positionId;

@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** Per-task progress on a {@link ChecklistAssignment} (M105/M106). */
 @Entity
@@ -25,6 +26,10 @@ public class ChecklistTaskStatus {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "assignment_id", nullable = false)
     private UUID assignmentId;

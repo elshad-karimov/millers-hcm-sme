@@ -19,6 +19,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import az.millers.hcm.leave.api.dto.SeniorityBracket;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Per-({@link LeaveGroup}, {@link LeaveType}) override of an entitlement
@@ -41,6 +42,10 @@ public class LeaveGroupEntitlement {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "leave_group_id", nullable = false)
     private UUID leaveGroupId;

@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Public + religious + company holiday (PRD 8.4 / 8.5 / 8.9 — M38).
@@ -39,6 +40,10 @@ public class Holiday {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /**
      * ISO-3166 alpha-2 country code (or extended subdivision code).

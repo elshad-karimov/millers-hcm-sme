@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Singleton funding state for a position (M244 / PRD §21). One row per
@@ -31,6 +32,10 @@ public class PositionFunding {
     @Id
     @Column(name = "position_id")
     private UUID positionId;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

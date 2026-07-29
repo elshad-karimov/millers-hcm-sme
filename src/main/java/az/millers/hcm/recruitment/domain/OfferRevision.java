@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M284 — Recruitment PRD §33: a snapshot of an offer's terms BEFORE
@@ -32,6 +33,10 @@ public class OfferRevision {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "offer_id", nullable = false)
     private UUID offerId;

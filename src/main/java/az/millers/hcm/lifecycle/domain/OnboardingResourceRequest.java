@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * A provisioning request spawned by an onboarding checklist task (M301 — Phase
@@ -31,6 +32,10 @@ public class OnboardingResourceRequest {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "request_no", nullable = false, unique = true, length = 20)
     private String requestNo;

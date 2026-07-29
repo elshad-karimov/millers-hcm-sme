@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * One employee request for a letter (M77 / P2-17). Lifecycle managed by
@@ -32,6 +33,10 @@ public class LetterRequest {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "request_no", nullable = false, unique = true, length = 20)
     private String requestNo;

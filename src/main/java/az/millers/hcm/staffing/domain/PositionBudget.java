@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Versioned monthly budget for a position (M244 / PRD §6).
@@ -37,6 +38,10 @@ public class PositionBudget {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "position_id", nullable = false)
     private UUID positionId;

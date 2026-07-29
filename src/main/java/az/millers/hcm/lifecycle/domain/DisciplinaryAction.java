@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * One disciplinary record (M67 / P1-12). Goes through an approval workflow
@@ -35,6 +36,10 @@ public class DisciplinaryAction {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "action_no", nullable = false, unique = true, length = 20)
     private String actionNo;

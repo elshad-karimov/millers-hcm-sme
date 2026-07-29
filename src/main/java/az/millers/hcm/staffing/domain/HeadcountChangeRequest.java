@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * A manager's request to change the approved headcount on a position (M156 / §8.3.7).
@@ -30,6 +31,10 @@ public class HeadcountChangeRequest {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "position_id", nullable = false)
     private UUID positionId;

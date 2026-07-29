@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "course_competency", schema = "learning")
@@ -22,6 +23,10 @@ public class CourseCompetency {
     @Id
     @Column(name = "course_id")
     private UUID courseId;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Id
     @Column(name = "competency_id")

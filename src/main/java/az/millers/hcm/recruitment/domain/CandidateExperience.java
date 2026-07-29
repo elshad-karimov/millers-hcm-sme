@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** M291 — one work-experience entry on a {@link Candidate} (PRD §11). */
 @Entity
@@ -23,6 +24,10 @@ public class CandidateExperience {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "candidate_id", nullable = false)
     private UUID candidateId;

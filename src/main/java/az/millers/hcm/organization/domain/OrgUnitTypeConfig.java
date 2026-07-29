@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M143 — runtime-configurable org-unit type definition (§5).
@@ -34,6 +35,10 @@ public class OrgUnitTypeConfig {
     @Id
     @Column(length = 64)
     private String code;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(nullable = false, length = 200)
     private String label;

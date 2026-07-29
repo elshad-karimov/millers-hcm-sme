@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M138 — a single version of a company policy. Versions share
@@ -32,6 +33,10 @@ public class PolicyDocument {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /** Stable identifier across versions (e.g. CODE-OF-CONDUCT). */
     @Column(nullable = false, length = 80)

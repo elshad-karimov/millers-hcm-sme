@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M124 — one append-only row per state-change on an {@link EmployeeAsset}.
@@ -30,6 +31,10 @@ public class AssetEvent {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "asset_id", nullable = false, updatable = false)
     private UUID assetId;

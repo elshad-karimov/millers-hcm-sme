@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import az.millers.hcm.corehr.domain.EmploymentType;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(schema = "leave_mgmt", name = "leave_entitlement_rule")
@@ -27,6 +28,10 @@ public class LeaveEntitlementRule {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "leave_type_id", nullable = false)
     private UUID leaveTypeId;

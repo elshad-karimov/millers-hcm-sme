@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import az.millers.hcm.corehr.domain.EmploymentType;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "notice_period_rule", schema = "lifecycle")
@@ -26,6 +27,10 @@ public class NoticePeriodRule {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /** Null means this rule matches any employment type (catch-all / lowest priority). */
     @Enumerated(EnumType.STRING)

@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Persistent record for each database backup attempt (PRD §14.4 / M53).
@@ -24,6 +25,10 @@ public class BackupLog {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "started_at", nullable = false)
     private OffsetDateTime startedAt;

@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** M291 — one rated skill on a {@link Candidate} (PRD §11). */
 @Entity
@@ -25,6 +26,10 @@ public class CandidateSkill {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "candidate_id", nullable = false)
     private UUID candidateId;

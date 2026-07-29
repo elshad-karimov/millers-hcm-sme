@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Employee-initiated personal-info edit pending HR approval (M79 / P2-25).
@@ -31,6 +32,10 @@ public class PersonalInfoChangeRequest {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "request_no", nullable = false, unique = true, length = 20)
     private String requestNo;

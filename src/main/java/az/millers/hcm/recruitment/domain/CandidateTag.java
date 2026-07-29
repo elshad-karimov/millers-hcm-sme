@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Free-text tag on a candidate (M87). One row per tag; the DB enforces
@@ -26,6 +27,10 @@ public class CandidateTag {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "candidate_id", nullable = false)
     private UUID candidateId;

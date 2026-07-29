@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Persists non-imported (DUPLICATE or FAILED) rows from a CSV batch so that
@@ -25,6 +26,10 @@ public class TurnstileImportRow {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "batch_id", nullable = false)
     private UUID batchId;

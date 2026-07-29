@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Persisted record of every notification sent (or attempted) across all
@@ -28,6 +29,10 @@ public class NotificationLog {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /** Keycloak username of the intended recipient. */
     @Column(nullable = false, length = 255)

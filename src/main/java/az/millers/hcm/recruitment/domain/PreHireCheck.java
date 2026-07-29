@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M286 — Recruitment PRD §25-§27: a pre-hire check on an application
@@ -46,6 +47,10 @@ public class PreHireCheck {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "check_no", nullable = false, unique = true)
     private String checkNo;

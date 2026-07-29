@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Per-(org_unit, version) default leave / payroll group assignment
@@ -29,6 +30,10 @@ public class OrgUnitPolicy {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "org_unit_id", nullable = false)
     private UUID orgUnitId;

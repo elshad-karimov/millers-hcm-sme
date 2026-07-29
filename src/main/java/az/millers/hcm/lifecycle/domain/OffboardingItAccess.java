@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "offboarding_it_access", schema = "lifecycle")
@@ -22,6 +23,10 @@ import lombok.Setter;
 public class OffboardingItAccess {
 
     @Id private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "case_id", nullable = false)
     private UUID caseId;

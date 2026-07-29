@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Append-only audit slice per org-unit change (M81). Sits next to the
@@ -31,6 +32,10 @@ public class OrgUnitHistory {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "org_unit_id", nullable = false)
     private UUID orgUnitId;

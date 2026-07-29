@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M142 — HRBP assignment registry (§24).
@@ -34,6 +35,10 @@ public class HrPartner {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /** Soft FK to {@code organization.org_unit} (not versioned). */
     @Column(name = "org_unit_id", nullable = false)

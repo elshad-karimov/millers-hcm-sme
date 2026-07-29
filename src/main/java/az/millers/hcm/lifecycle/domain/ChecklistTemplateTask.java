@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** One ordered task in a {@link ChecklistTemplate} (M105/M106). */
 @Entity
@@ -23,6 +24,10 @@ public class ChecklistTemplateTask {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "template_id", nullable = false)
     private UUID templateId;

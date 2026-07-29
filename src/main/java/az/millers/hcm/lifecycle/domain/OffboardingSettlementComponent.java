@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "offboarding_settlement_component", schema = "lifecycle")
@@ -20,6 +21,10 @@ import lombok.Setter;
 public class OffboardingSettlementComponent {
 
     @Id private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "settlement_id", nullable = false)
     private UUID settlementId;

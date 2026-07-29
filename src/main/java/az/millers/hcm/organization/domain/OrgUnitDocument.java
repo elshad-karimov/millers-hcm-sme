@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import az.millers.hcm.common.expiry.ExpiryTrackable;
+import org.hibernate.annotations.TenantId;
 
 /**
  * M147 / §31 — document attached to an org unit (licences, permits,
@@ -35,6 +36,10 @@ public class OrgUnitDocument implements ExpiryTrackable {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "org_unit_id", nullable = false)
     private UUID orgUnitId;

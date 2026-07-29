@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** Header row for a workforce plan version (M247). Lines in {@link WorkforcePlanLine}. */
 @Entity
@@ -27,6 +28,10 @@ public class WorkforcePlan {
     @Id
     @Column(name = "id")
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "legal_entity_id", nullable = false)
     private UUID legalEntityId;

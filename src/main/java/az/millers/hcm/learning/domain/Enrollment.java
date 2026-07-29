@@ -17,6 +17,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "enrollment", schema = "learning",
@@ -28,6 +29,10 @@ public class Enrollment {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "enrollment_no", nullable = false, unique = true)
     private String enrollmentNo;

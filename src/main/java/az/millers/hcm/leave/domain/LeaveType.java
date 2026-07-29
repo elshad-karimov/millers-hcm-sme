@@ -21,6 +21,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import az.millers.hcm.leave.api.dto.SeniorityBracket;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "leave_type", schema = "leave_mgmt")
@@ -31,6 +32,10 @@ public class LeaveType {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(nullable = false, unique = true)
     private String code;

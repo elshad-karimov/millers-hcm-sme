@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /** A single run of a {@link SurveyTemplate} over a date window (M116). */
 @Entity
@@ -26,6 +27,10 @@ public class SurveyCampaign {
 
     @Id
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Column(name = "template_id", nullable = false)
     private UUID templateId;

@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Persistent audit record for every BI export request (PRD §17.6 / M55).
@@ -22,6 +23,10 @@ public class BiExportLog {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     /** One of: employees, payroll_runs, leave_balances, attendance_summary, headcount_trend */
     @Column(name = "entity", nullable = false, length = 50)

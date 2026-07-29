@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Maps a {@code staffing.position} to the competency levels required for an
@@ -32,6 +33,10 @@ public class PositionCompetencyRequirement {
     @Id
     @Column(name = "position_id", nullable = false)
     private UUID positionId;
+
+    @TenantId
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private String tenantId;
 
     @Id
     @ManyToOne(optional = false)
