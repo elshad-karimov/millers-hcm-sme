@@ -1,4 +1,5 @@
 package az.millers.hcm.staffing.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -107,7 +108,7 @@ public class PositionImpactService {
         String currency = budgetOpt.map(PositionBudget::getCurrency).orElse(p.getCurrency());
 
         // ── Successor coverage ───────────────────────────────────
-        var noms = nominations.findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", positionId);
+        var noms = nominations.findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(TenantContext.current(), positionId);
         int nominationCount = noms.size();
         boolean readyNow = noms.stream().anyMatch(n ->
                 n.getReadinessTier() == az.millers.hcm.performance.api.dto.SuccessionGridDtos.Readiness.READY_NOW);

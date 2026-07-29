@@ -1,4 +1,5 @@
 package az.millers.hcm.compliance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,7 +31,7 @@ public class StatutoryReportTemplateService {
 
     @Transactional(readOnly = true)
     public List<StatutoryReportTemplate> listActive() {
-        return templates.findByTenantIdAndActiveOrderByCodeAsc("default", true);
+        return templates.findByTenantIdAndActiveOrderByCodeAsc(TenantContext.current(), true);
     }
 
     @Transactional(readOnly = true)
@@ -38,7 +39,7 @@ public class StatutoryReportTemplateService {
         StatutoryReportTemplate template = templates.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Statutory report template not found: " + id));
 
-        if (!"default".equals(template.getTenantId())) {
+        if (!TenantContext.current().equals(template.getTenantId())) {
             throw new ResourceNotFoundException("Statutory report template not found: " + id);
         }
 
@@ -47,7 +48,7 @@ public class StatutoryReportTemplateService {
 
     @Transactional
     public StatutoryReportTemplate create(StatutoryReportTemplate template) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         if (templates.findByTenantIdAndCode(tenantId, template.getCode()).isPresent()) {
             throw new BadRequestException("TEMPLATE_CODE_EXISTS");

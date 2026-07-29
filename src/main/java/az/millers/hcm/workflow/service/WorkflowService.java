@@ -1,4 +1,5 @@
 package az.millers.hcm.workflow.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.Arrays;
@@ -222,7 +223,7 @@ public class WorkflowService {
         }
 
         // M443 — include instances where current step is assigned to an approval group the user belongs to
-        List<UUID> myGroups = groupMembers.findByTenantIdAndUsername("default", myUsername).stream()
+        List<UUID> myGroups = groupMembers.findByTenantIdAndUsername(TenantContext.current(), myUsername).stream()
                 .map(az.millers.hcm.workflow.domain.ApprovalGroupMember::getGroupId)
                 .toList();
         if (!myGroups.isEmpty()) {
@@ -899,7 +900,7 @@ public class WorkflowService {
         // M443 — approval group takes precedence
         if (step.getApprovalGroupId() != null) {
             String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
-            boolean isMember = groupMembers.findByTenantIdAndUsername("default", currentUser).stream()
+            boolean isMember = groupMembers.findByTenantIdAndUsername(TenantContext.current(), currentUser).stream()
                     .anyMatch(m -> m.getGroupId().equals(step.getApprovalGroupId()));
             if (!isMember) {
                 throw new BadRequestException("You are not a member of the approval group for this step");

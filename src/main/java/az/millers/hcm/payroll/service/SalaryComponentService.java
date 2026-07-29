@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -68,7 +69,7 @@ public class SalaryComponentService {
 
     @Transactional
     public SalaryComponent create(SalaryComponentRequest req) {
-        repository.findByTenantIdAndCode("default", req.code())
+        repository.findByTenantIdAndCode(TenantContext.current(), req.code())
                 .ifPresent(existing -> {
                     throw new BadRequestException("Component code already exists: " + req.code());
                 });
@@ -100,7 +101,7 @@ public class SalaryComponentService {
             throw new BadRequestException("COMPONENT_IS_STATUTORY");
         }
 
-        Optional<SalaryComponent> existing = repository.findByTenantIdAndCode("default", req.code());
+        Optional<SalaryComponent> existing = repository.findByTenantIdAndCode(TenantContext.current(), req.code());
         if (existing.isPresent() && !existing.get().getId().equals(id)) {
             throw new BadRequestException("Component code already exists: " + req.code());
         }

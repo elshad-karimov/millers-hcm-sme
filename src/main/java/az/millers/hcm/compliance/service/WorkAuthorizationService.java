@@ -1,4 +1,5 @@
 package az.millers.hcm.compliance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,7 +26,7 @@ public class WorkAuthorizationService {
      */
     @Transactional(readOnly = true)
     public List<ExpiringWorkAuth> getExpiring(int daysAhead) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         LocalDate today = LocalDate.now();
         LocalDate horizon = today.plusDays(daysAhead);
 

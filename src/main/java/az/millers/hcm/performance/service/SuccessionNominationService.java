@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -116,7 +117,7 @@ public class SuccessionNominationService {
     public List<NominationResponse> forPosition(UUID positionId) {
         Position pos = positions.findById(positionId).orElse(null);
         return nominations
-                .findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", positionId).stream()
+                .findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(TenantContext.current(), positionId).stream()
                 .map(n -> toResponse(n, pos))
                 .toList();
     }
@@ -124,7 +125,7 @@ public class SuccessionNominationService {
     @Transactional(readOnly = true)
     public List<NominationResponse> forNominee(UUID employeeId) {
         return nominations
-                .findByTenantIdAndNomineeEmployeeIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", employeeId).stream()
+                .findByTenantIdAndNomineeEmployeeIdAndCancelledAtIsNullOrderByCreatedAtDesc(TenantContext.current(), employeeId).stream()
                 .map(n -> {
                     Position pos = positions.findById(n.getPositionId()).orElse(null);
                     return toResponse(n, pos);

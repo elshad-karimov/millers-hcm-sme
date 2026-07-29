@@ -1,4 +1,5 @@
 package az.millers.hcm.businesstrip.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,7 +40,7 @@ public class ExpensePolicyService {
     @Transactional(readOnly = true)
     public ValidationResult validate(ExpenseCategory category, BigDecimal amount,
                                       LocalDate date, String grade, boolean hasReceipt) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         List<ExpensePolicy> matches = policies.findMatchingPolicies(
                 tenantId, category, grade, date);
 
@@ -86,13 +87,13 @@ public class ExpensePolicyService {
 
     @Transactional(readOnly = true)
     public List<ExpensePolicy> listActive() {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         return policies.findByTenantIdAndActiveOrderByCategory(tenantId, true);
     }
 
     @Transactional(readOnly = true)
     public ExpensePolicy get(UUID id) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         ExpensePolicy policy = policies.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense policy not found: " + id));
         return policy;
@@ -100,7 +101,7 @@ public class ExpensePolicyService {
 
     @Transactional
     public ExpensePolicy create(ExpensePolicy policy) {
-        policy.setTenantId("default");
+        policy.setTenantId(TenantContext.current());
         return policies.save(policy);
     }
 

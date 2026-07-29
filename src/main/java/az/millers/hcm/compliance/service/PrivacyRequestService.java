@@ -1,4 +1,5 @@
 package az.millers.hcm.compliance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -37,7 +38,7 @@ public class PrivacyRequestService {
 
     @Transactional(readOnly = true)
     public List<PrivacyRequest> list() {
-        return requests.findByTenantIdOrderByCreatedAtDesc("default");
+        return requests.findByTenantIdOrderByCreatedAtDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -45,7 +46,7 @@ public class PrivacyRequestService {
         PrivacyRequest request = requests.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Privacy request not found: " + id));
 
-        if (!"default".equals(request.getTenantId())) {
+        if (!TenantContext.current().equals(request.getTenantId())) {
             throw new ResourceNotFoundException("Privacy request not found: " + id);
         }
 
@@ -54,7 +55,7 @@ public class PrivacyRequestService {
 
     @Transactional
     public PrivacyRequest create(PrivacyRequest request) {
-        request.setTenantId("default");
+        request.setTenantId(TenantContext.current());
         request.setCreatedBy(currentRequest.username());
         request.setUpdatedBy(currentRequest.username());
 

@@ -491,7 +491,7 @@ public class WorkforcePlanService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         CompensationBudget budget = new CompensationBudget();
-        budget.setTenantId("default");
+        budget.setTenantId(TenantContext.current());
         budget.setScopeType(BudgetScopeType.GLOBAL);
         budget.setScopeRef(scopeRef);
         budget.setBudgetType(BudgetType.MERIT);

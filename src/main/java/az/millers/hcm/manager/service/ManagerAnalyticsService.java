@@ -1,4 +1,5 @@
 package az.millers.hcm.manager.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
@@ -28,7 +29,7 @@ public class ManagerAnalyticsService {
     @Transactional(readOnly = true)
     public Map<String, Object> analytics() {
         Employee me = context.currentEmployee();
-        String tenantId = "default"; // tenant_id constant (Employee JPA entity doesn't map it)
+        String tenantId = TenantContext.current(); // tenant_id constant (Employee JPA entity doesn't map it)
         List<Employee> reports = employees.findDirectReports(me.getId());
         List<UUID> reportIds = reports.stream().map(Employee::getId).toList();
 

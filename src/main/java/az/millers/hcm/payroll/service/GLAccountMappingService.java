@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,13 +38,13 @@ public class GLAccountMappingService {
 
     @Transactional(readOnly = true)
     public List<GLAccountMapping> list() {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         return mappings.findByTenantIdAndIsActiveTrueOrderByComponentKindAscComponentCodeAsc(tenantId);
     }
 
     @Transactional
     public GLAccountMapping create(MappingRequest req) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         GLAccountMapping mapping = new GLAccountMapping();
         mapping.setTenantId(tenantId);
@@ -69,7 +70,7 @@ public class GLAccountMappingService {
     @Transactional(readOnly = true)
     public Optional<GLAccountMapping> resolve(String componentKind, String componentCode,
                                                 GLAccountType accountType) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         // Try exact match first
         if (componentCode != null) {

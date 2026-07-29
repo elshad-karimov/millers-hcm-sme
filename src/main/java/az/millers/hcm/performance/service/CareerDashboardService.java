@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,19 +58,19 @@ public class CareerDashboardService {
         }
 
         // Career interests
-        List<CareerInterest> interestsList = interests.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc("default", employeeId);
+        List<CareerInterest> interestsList = interests.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         List<InterestInfo> interestInfos = interestsList.stream()
                 .map(i -> new InterestInfo(i.getId(), i.getTargetRole(), i.getTargetDepartment(), i.getTargetLocation()))
                 .toList();
 
         // Development plans
-        List<DevelopmentPlan> plansList = devPlans.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc("default", employeeId);
+        List<DevelopmentPlan> plansList = devPlans.findByTenantIdAndEmployeeIdOrderByCreatedAtDesc(TenantContext.current(), employeeId);
         List<DevPlanInfo> planInfos = plansList.stream()
                 .map(p -> new DevPlanInfo(p.getId(), p.getTitle(), p.getStatus()))
                 .toList();
 
         // Mentoring relationships
-        List<MentoringRelationship> mentorList = mentoring.findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId("default", employeeId, employeeId);
+        List<MentoringRelationship> mentorList = mentoring.findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId(TenantContext.current(), employeeId, employeeId);
         List<MentoringInfo> mentoringInfos = mentorList.stream()
                 .map(m -> new MentoringInfo(
                         m.getId(),

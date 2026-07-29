@@ -1,4 +1,5 @@
 package az.millers.hcm.staffing.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,7 +40,7 @@ public class CareerPathService {
 
     @Transactional(readOnly = true)
     public List<CareerPathResponse> list() {
-        String tenant = "default";
+        String tenant = TenantContext.current();
         return paths.findByTenantIdOrderByCodeAsc(tenant).stream()
                 .map(this::toResponse)
                 .toList();
@@ -57,7 +58,7 @@ public class CareerPathService {
         if (req.code == null || req.name == null) {
             throw new BadRequestException("code and name are required");
         }
-        String tenant = "default";
+        String tenant = TenantContext.current();
         if (paths.findByTenantIdAndCode(tenant, req.code).isPresent()) {
             throw new BadRequestException("Career path code already exists: " + req.code);
         }

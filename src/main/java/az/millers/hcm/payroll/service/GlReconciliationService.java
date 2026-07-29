@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,7 +29,7 @@ public class GlReconciliationService {
 
     @Transactional(readOnly = true)
     public ReconciliationReport reconcile(int year, int month) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         LocalDate periodStart = LocalDate.of(year, month, 1);
         LocalDate periodEnd = periodStart.plusMonths(1).minusDays(1);
 

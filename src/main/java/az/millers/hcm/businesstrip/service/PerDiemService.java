@@ -1,4 +1,5 @@
 package az.millers.hcm.businesstrip.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,7 +51,7 @@ public class PerDiemService {
             throw new BadRequestException("Days must be positive");
         }
 
-        String tenantId = "default";  // Multi-tenant: hardcoded for now
+        String tenantId = TenantContext.current();  // Multi-tenant: hardcoded for now
         List<PerDiemRule> matches = rules.findMatchingRules(
                 tenantId, country, city, grade, tripType, date);
 
@@ -76,14 +77,14 @@ public class PerDiemService {
 
     @Transactional(readOnly = true)
     public List<PerDiemRule> listActive() {
-        String tenantId = "default";  // Multi-tenant: hardcoded for now
+        String tenantId = TenantContext.current();  // Multi-tenant: hardcoded for now
         return rules.findByTenantIdAndActiveOrderByDestinationCountryAscDestinationCityAsc(
                 tenantId, true);
     }
 
     @Transactional(readOnly = true)
     public PerDiemRule get(UUID id) {
-        String tenantId = "default";  // Multi-tenant: hardcoded for now
+        String tenantId = TenantContext.current();  // Multi-tenant: hardcoded for now
         PerDiemRule rule = rules.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Per-diem rule not found: " + id));
         return rule;
@@ -91,7 +92,7 @@ public class PerDiemService {
 
     @Transactional
     public PerDiemRule create(PerDiemRule rule) {
-        rule.setTenantId("default");  // Multi-tenant: hardcoded for now
+        rule.setTenantId(TenantContext.current());  // Multi-tenant: hardcoded for now
         return rules.save(rule);
     }
 

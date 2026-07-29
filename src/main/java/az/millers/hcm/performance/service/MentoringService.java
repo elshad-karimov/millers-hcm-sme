@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -68,7 +69,7 @@ public class MentoringService {
             throw new AccessDeniedException("Cannot register mentor for another employee");
         }
 
-        String tenant = "default";
+        String tenant = TenantContext.current();
         if (profiles.findByTenantIdAndEmployeeId(tenant, req.employeeId).isPresent()) {
             throw new BadRequestException("Mentor profile already exists for this employee");
         }
@@ -87,7 +88,7 @@ public class MentoringService {
     /** List active mentors (all authenticated users see them — transparent). */
     @Transactional(readOnly = true)
     public List<MentorProfileResponse> listMentors() {
-        String tenant = "default";
+        String tenant = TenantContext.current();
         return profiles.findByTenantIdAndActiveTrueOrderByCreatedAtDesc(tenant).stream()
                 .map(this::toProfileResponse)
                 .toList();
@@ -137,7 +138,7 @@ public class MentoringService {
         }
 
         // Capacity check with pessimistic lock to prevent race
-        MentorProfile profile = profiles.findByTenantIdAndEmployeeId("default", rel.getMentorEmployeeId())
+        MentorProfile profile = profiles.findByTenantIdAndEmployeeId(TenantContext.current(), rel.getMentorEmployeeId())
                 .orElseThrow(() -> new BadRequestException("Mentor profile not found"));
         // Lock the profile row to prevent concurrent approvals
         profiles.lockById(profile.getId())
@@ -196,13 +197,13 @@ public class MentoringService {
         boolean isHR = currentRequest.hasRole("HR_ADMIN") || currentRequest.hasRole("HR_SPECIALIST");
         if (isHR) {
             // HR sees all
-            return relationships.findByTenantIdOrderByCreatedAtDesc("default").stream()
+            return relationships.findByTenantIdOrderByCreatedAtDesc(TenantContext.current()).stream()
                     .map(this::toRelationshipResponse)
                     .toList();
         } else {
             // Non-HR: only see where they're mentor or mentee
             UUID empId = empContext.currentEmployee().getId();
-            return relationships.findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId("default", empId, empId).stream()
+            return relationships.findByTenantIdAndMentorEmployeeIdOrMenteeEmployeeId(TenantContext.current(), empId, empId).stream()
                     .map(this::toRelationshipResponse)
                     .toList();
         }

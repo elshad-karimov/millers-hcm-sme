@@ -1,4 +1,5 @@
 package az.millers.hcm.compliance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -41,7 +42,7 @@ public class ComplianceDeadlineService {
 
     @Transactional(readOnly = true)
     public List<ComplianceDeadline> listActive() {
-        return deadlines.findByTenantIdAndActiveOrderByDueDayAsc("default", true);
+        return deadlines.findByTenantIdAndActiveOrderByDueDayAsc(TenantContext.current(), true);
     }
 
     @Transactional(readOnly = true)
@@ -49,7 +50,7 @@ public class ComplianceDeadlineService {
         ComplianceDeadline deadline = deadlines.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Compliance deadline not found: " + id));
 
-        if (!"default".equals(deadline.getTenantId())) {
+        if (!TenantContext.current().equals(deadline.getTenantId())) {
             throw new ResourceNotFoundException("Compliance deadline not found: " + id);
         }
 
@@ -58,7 +59,7 @@ public class ComplianceDeadlineService {
 
     @Transactional
     public ComplianceDeadline create(ComplianceDeadline deadline) {
-        deadline.setTenantId("default");
+        deadline.setTenantId(TenantContext.current());
         deadline.setCreatedBy(currentRequest.username());
         return deadlines.save(deadline);
     }

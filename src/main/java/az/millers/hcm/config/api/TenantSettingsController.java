@@ -1,4 +1,5 @@
 package az.millers.hcm.config.api;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,7 @@ public class TenantSettingsController {
     @GetMapping
     @PreAuthorize("hasRole('HR_ADMIN')")
     public List<SettingDto> list() {
-        return repo.findByTenantId("default").stream()
+        return repo.findByTenantId(TenantContext.current()).stream()
                 .map(s -> new SettingDto(s.getKey(), s.getValue()))
                 .toList();
     }

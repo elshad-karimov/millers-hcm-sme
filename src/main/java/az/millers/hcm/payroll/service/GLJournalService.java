@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -84,7 +85,7 @@ public class GLJournalService {
      */
     @Transactional
     public GLJournal generate(UUID runId) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         PayrollRun run = runs.findById(runId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payroll run not found: " + runId));
@@ -459,7 +460,7 @@ public class GLJournalService {
      */
     @Transactional
     public GLJournal reverse(UUID journalId) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         GLJournal original = journals.findById(journalId)
                 .orElseThrow(() -> new ResourceNotFoundException("GL journal not found: " + journalId));
@@ -530,7 +531,7 @@ public class GLJournalService {
      * Resolve GL account, with fallback to default "Unmapped" if mapping missing.
      */
     private AccountInfo resolveAccount(String componentKind, String componentCode, GLAccountType accountType) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         // Try exact match
         if (componentCode != null) {

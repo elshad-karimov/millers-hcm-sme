@@ -1,4 +1,5 @@
 package az.millers.hcm.businesstrip.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -61,7 +62,7 @@ public class MileageClaimService {
         }
 
         MileageClaim claim = new MileageClaim();
-        claim.setTenantId("default");
+        claim.setTenantId(TenantContext.current());
         claim.setClaimNo(BusinessNumbers.format("MC", 5, claims.nextClaimNoSequence()));
         claim.setEmployeeId(employeeId);
         claim.setClaimDate(claimDate != null ? claimDate : LocalDate.now());
@@ -160,7 +161,7 @@ public class MileageClaimService {
 
     @Transactional(readOnly = true)
     public MileageClaim get(UUID claimId) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         MileageClaim claim = claims.findByIdAndTenantId(claimId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mileage claim not found: " + claimId));
         // ABAC: hide rows the caller isn't scoped to
@@ -172,7 +173,7 @@ public class MileageClaimService {
 
     @Transactional(readOnly = true)
     public List<MileageClaim> forEmployee(UUID employeeId) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         // IDOR guard: enforce access scope (employee = self only; manager = team; HR = all)
         if (!accessScope.isAccessible(employeeId)) {
@@ -184,7 +185,7 @@ public class MileageClaimService {
 
     @Transactional(readOnly = true)
     public List<MileageClaim> list(MileageClaimStatus status) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         Set<UUID> scope = accessScope.scopeOrNullForCurrentUser();
         if (scope == null) {
             // HR: see all

@@ -1,4 +1,5 @@
 package az.millers.hcm.businesstrip.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -113,7 +114,7 @@ public class ReimbursementService {
 
         // Create batch
         ReimbursementBatch batch = new ReimbursementBatch();
-        batch.setTenantId("default");
+        batch.setTenantId(TenantContext.current());
         batch.setBatchNo(BusinessNumbers.format("RB", 5, batches.nextBatchNoSequence()));
         batch.setTotalAmount(total);
         batch.setCreatedBy(currentRequest.username());
@@ -241,14 +242,14 @@ public class ReimbursementService {
 
     @Transactional(readOnly = true)
     public ReimbursementBatch get(UUID batchId) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         return batches.findByIdAndTenantId(batchId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reimbursement batch not found: " + batchId));
     }
 
     @Transactional(readOnly = true)
     public List<ReimbursementBatch> list(ReimbursementBatchStatus status) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         return status != null
                 ? batches.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status)
                 : batches.findByTenantIdOrderByCreatedAtDesc(tenantId);

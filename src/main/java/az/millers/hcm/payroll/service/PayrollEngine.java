@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -341,7 +342,7 @@ public class PayrollEngine {
 
                 // Snapshot for audit trail
                 PayrollResultComponent snapshot = new PayrollResultComponent();
-                snapshot.setTenantId("default");
+                snapshot.setTenantId(TenantContext.current());
                 snapshot.setComponentId(component.getId());
                 snapshot.setComponentCode(component.getCode());
                 snapshot.setComponentName(component.getName());

@@ -1,4 +1,5 @@
 package az.millers.hcm.compliance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -58,7 +59,7 @@ public class StatutoryReportSubmissionService {
 
     @Transactional(readOnly = true)
     public List<StatutoryReportSubmission> list() {
-        return submissions.findByTenantIdOrderByPeriodStartDesc("default");
+        return submissions.findByTenantIdOrderByPeriodStartDesc(TenantContext.current());
     }
 
     @Transactional(readOnly = true)
@@ -66,7 +67,7 @@ public class StatutoryReportSubmissionService {
         StatutoryReportSubmission submission = submissions.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Statutory report submission not found: " + id));
 
-        if (!"default".equals(submission.getTenantId())) {
+        if (!TenantContext.current().equals(submission.getTenantId())) {
             throw new ResourceNotFoundException("Statutory report submission not found: " + id);
         }
 
@@ -75,7 +76,7 @@ public class StatutoryReportSubmissionService {
 
     @Transactional
     public StatutoryReportSubmission create(UUID templateId, LocalDate periodStart, LocalDate periodEnd) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         StatutoryReportTemplate template = templates.findById(templateId)
                 .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + templateId));
@@ -179,7 +180,7 @@ public class StatutoryReportSubmissionService {
      * Aggregate payroll data for the reporting period.
      */
     private Map<String, Object> aggregatePayrollData(LocalDate periodStart, LocalDate periodEnd) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         String sql = """
             SELECT

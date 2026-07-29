@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,7 +58,7 @@ public class SuccessionChartService {
     /** Replacement chart: all active critical positions + incumbents + successors. */
     @Transactional(readOnly = true)
     public ReplacementChartResponse replacementChart() {
-        String tenant = "default";
+        String tenant = TenantContext.current();
         List<CriticalPosition> crits = criticalPositions.findByTenantIdAndActiveTrueOrderByCreatedAtDesc(tenant);
 
         // Load all position IDs
@@ -75,7 +76,7 @@ public class SuccessionChartService {
         // Load nominations for these positions
         Map<UUID, List<SuccessionNomination>> nomsMap = new HashMap<>();
         for (UUID posId : positionIds) {
-            nomsMap.put(posId, nominations.findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", posId));
+            nomsMap.put(posId, nominations.findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(TenantContext.current(), posId));
         }
 
         // Load dev plans for all nominations

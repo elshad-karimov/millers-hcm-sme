@@ -1,4 +1,5 @@
 package az.millers.hcm.payroll.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,7 +50,7 @@ public class CostCenterAllocationService {
 
     @Transactional(readOnly = true)
     public List<CostCenterAllocation> list(UUID employeeId) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         return allocations.findByTenantIdAndEmployeeIdOrderByEffectiveFromDesc(tenantId, employeeId);
     }
 
@@ -60,7 +61,7 @@ public class CostCenterAllocationService {
     @Transactional
     public void setAllocations(UUID employeeId, List<AllocationRequest> requests,
                                 LocalDate effectiveFrom) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
 
         Employee emp = employees.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + employeeId));
@@ -109,7 +110,7 @@ public class CostCenterAllocationService {
      */
     @Transactional(readOnly = true)
     public List<CostCenterAllocation> resolveAllocations(UUID employeeId, LocalDate periodDate) {
-        String tenantId = "default";
+        String tenantId = TenantContext.current();
         List<CostCenterAllocation> active = allocations.findActiveOn(tenantId, employeeId, periodDate);
 
         if (!active.isEmpty()) {

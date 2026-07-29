@@ -1,4 +1,5 @@
 package az.millers.hcm.performance.service;
+import az.millers.hcm.common.tenant.TenantContext;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -270,13 +271,13 @@ public class SuccessionPlanService {
     @Transactional(readOnly = true)
     public CriticalRolesReport criticalRolesAtRisk() {
         List<Position> critical = positions
-                .findByTenantIdAndCriticalFlagTrueOrderByBusinessImpactScoreDescTitleAsc("default");
+                .findByTenantIdAndCriticalFlagTrueOrderByBusinessImpactScoreDescTitleAsc(TenantContext.current());
 
         List<CriticalRoleRow> rows = new ArrayList<>(critical.size());
         int atRiskCount = 0;
         for (Position p : critical) {
             List<SuccessionNomination> active = nominations
-                    .findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc("default", p.getId());
+                    .findByTenantIdAndPositionIdAndCancelledAtIsNullOrderByCreatedAtDesc(TenantContext.current(), p.getId());
             int total = active.size();
             int readyNow = 0, readySoon = 0, readyLong = 0;
             for (SuccessionNomination n : active) {
