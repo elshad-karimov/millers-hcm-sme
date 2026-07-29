@@ -8,7 +8,6 @@ import {
   Form,
   Input,
   Modal,
-  Select,
   Space,
   Table,
   Tag,
@@ -17,7 +16,7 @@ import {
 import { PlusOutlined, CheckOutlined, CloseOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { leaveApi, type LeaveDelegation } from '../api/leave'
-import { employeesApi, type Employee } from '../api/employees'
+import { EmployeePicker } from './EmployeePicker'
 
 const STATUS_COLOR: Record<string, string> = {
   PENDING: 'orange',
@@ -33,7 +32,6 @@ interface Props {
 export function LeaveDelegationPanel({ leaveRequestId }: Props) {
   const { message } = AntdApp.useApp()
   const [items, setItems] = useState<LeaveDelegation[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [addModal, setAddModal] = useState(false)
   const [responseModal, setResponseModal] = useState<{ id: string; action: 'accept' | 'decline' } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -46,7 +44,6 @@ export function LeaveDelegationPanel({ leaveRequestId }: Props) {
 
   useEffect(() => {
     reload()
-    employeesApi.list({ size: 500 }).then((p) => setEmployees(p.content))
   }, [leaveRequestId])
 
   const doAdd = async () => {
@@ -152,13 +149,7 @@ export function LeaveDelegationPanel({ leaveRequestId }: Props) {
       >
         <Form layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item label="Delegate employee" required>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={employees.map((e) => ({
-                value: e.id,
-                label: `${e.employeeNo} — ${e.firstName} ${e.lastName}`,
-              }))}
+            <EmployeePicker
               value={delegateId}
               onChange={setDelegateId}
               placeholder="Select employee"
