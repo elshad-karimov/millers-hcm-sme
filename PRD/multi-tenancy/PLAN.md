@@ -126,8 +126,9 @@ it real.
 - [x] **Duplicate-provision → 409** (ResponseStatusException) instead of 500.
 - [x] **API-key auth is tenant-aware** — native tenant-blind `findTenantIdByKeyHash` + `ApiKeyAuthFilter` binds TenantContext from the key's tenant (previously a non-default tenant's key could never authenticate because `resolve()` was `@TenantId`-filtered).
 
-## Still deferred (documented, non-blocking niceties)
-- **Per-tenant numbering sequences** — `employee_no`, `*_no` are minted from global sequences, so numbers interleave across tenants (e.g. acme got EMP-00021+). Collision-free and not a leak; true per-tenant numbering (each tenant starts at 1) needs per-tenant sequences or a numbering service.
+- [x] **Per-tenant numbering** (commit c9e60aa) — V314 `config.tenant_sequence` counter table + `next_tenant_seq(seq)` (reads the `hcm.tenant` GUC set per-connection by `TenantAwareDataSource`); 57 repos/services rewritten `nextval('x.y')` → `config.next_tenant_seq('x.y')`; 54 `*_no` uniques widened to `(tenant_id, *_no)`; 'default' counters seeded from the global sequences for continuity. **Proven**: acme's first employee = EMP-00001 (fresh) while default's counter continues at 24, both tenants hold EMP-00001.
+
+## Still deferred (documented, non-blocking nicety)
 - **Attendance UUID-tenant rename** (Tier-2, see above) — legal-entity-as-tenant UUID model; transitively isolated, cosmetic rename only.
 
 ## Deferred (Tier-2, non-blocking) — attendance UUID-tenant rename
