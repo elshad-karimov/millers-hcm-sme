@@ -14,7 +14,7 @@ import az.millers.hcm.lifecycle.domain.TerminationStatus;
 
 public interface TerminationRequestRepository extends JpaRepository<TerminationRequest, UUID> {
 
-    @Query(value = "SELECT nextval('lifecycle.termination_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.termination_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Page<TerminationRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);

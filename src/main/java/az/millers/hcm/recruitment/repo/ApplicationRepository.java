@@ -11,7 +11,7 @@ import az.millers.hcm.recruitment.domain.ApplicationStatus;
 
 public interface ApplicationRepository extends JpaRepository<Application, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.application_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.application_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<Application> findByVacancyIdOrderByCreatedAtAsc(UUID vacancyId);

@@ -15,7 +15,7 @@ import az.millers.hcm.corehr.domain.EmploymentStatus;
 
 public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSpecificationExecutor<Employee> {
 
-    @Query(value = "SELECT nextval('core_hr.employee_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('core_hr.employee_no_seq')", nativeQuery = true)
     long nextEmployeeNoSequence();
 
     boolean existsByEmployeeNo(String employeeNo);

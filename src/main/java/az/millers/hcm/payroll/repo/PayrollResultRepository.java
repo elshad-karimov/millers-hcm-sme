@@ -12,7 +12,7 @@ import az.millers.hcm.payroll.domain.PayrollResult;
 
 public interface PayrollResultRepository extends JpaRepository<PayrollResult, UUID> {
 
-    @Query(value = "SELECT nextval('payroll.payslip_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('payroll.payslip_no_seq')", nativeQuery = true)
     long nextPayslipNoSequence();
 
     List<PayrollResult> findByRunIdOrderByEmployeeIdAsc(UUID runId);

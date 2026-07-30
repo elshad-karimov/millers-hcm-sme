@@ -11,7 +11,7 @@ import az.millers.hcm.recruitment.domain.InterviewStatus;
 
 public interface InterviewRepository extends JpaRepository<Interview, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.interview_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.interview_no_seq')", nativeQuery = true)
     long nextInterviewNoSequence();
 
     List<Interview> findByApplicationIdOrderByScheduledAtDesc(UUID applicationId);

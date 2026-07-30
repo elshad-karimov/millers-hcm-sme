@@ -328,7 +328,7 @@ public class RewardPointsService {
 
     private String generateRedemptionNo() {
         Long seq = jdbc.queryForObject(
-            "SELECT nextval('engagement.redemption_seq')",
+            "SELECT config.next_tenant_seq('engagement.redemption_seq')",
             new MapSqlParameterSource(),
             Long.class
         );

@@ -14,7 +14,7 @@ import az.millers.hcm.lifecycle.domain.EmploymentContract;
 public interface EmploymentContractRepository
         extends JpaRepository<EmploymentContract, UUID> {
 
-    @Query(value = "SELECT nextval('lifecycle.contract_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.contract_no_seq')", nativeQuery = true)
     long nextContractNoSequence();
 
     List<EmploymentContract> findByEmployeeIdOrderByStartDateDesc(UUID employeeId);

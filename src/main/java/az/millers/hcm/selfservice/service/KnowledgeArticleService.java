@@ -63,7 +63,7 @@ public class KnowledgeArticleService {
 
         // Generate article number
         String articleNo = BusinessNumbers.format("KB", 5, jdbc.queryForObject(
-                "SELECT nextval('selfservice.knowledge_article_no_seq')",
+                "SELECT config.next_tenant_seq('selfservice.knowledge_article_no_seq')",
                 Map.of(), Long.class));
         saved.setArticleNo(articleNo);
         saved = repo.save(saved);

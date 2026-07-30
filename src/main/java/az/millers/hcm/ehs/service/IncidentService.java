@@ -327,7 +327,7 @@ public class IncidentService {
 
     private String generateIncidentNo() {
         Long seq = jdbc.queryForObject(
-                "SELECT nextval('ehs.incident_no_seq')",
+                "SELECT config.next_tenant_seq('ehs.incident_no_seq')",
                 Map.of(),
                 Long.class
         );

@@ -13,7 +13,7 @@ import az.millers.hcm.recruitment.domain.SubmissionStatus;
 
 public interface AgencySubmissionRepository extends JpaRepository<AgencySubmission, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.agency_submission_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.agency_submission_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<AgencySubmission> findAllByOrderByCreatedAtDesc();

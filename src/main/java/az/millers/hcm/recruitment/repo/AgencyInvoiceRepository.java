@@ -11,7 +11,7 @@ import az.millers.hcm.recruitment.domain.InvoiceStatus;
 
 public interface AgencyInvoiceRepository extends JpaRepository<AgencyInvoice, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.agency_invoice_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.agency_invoice_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<AgencyInvoice> findAllByOrderByCreatedAtDesc();

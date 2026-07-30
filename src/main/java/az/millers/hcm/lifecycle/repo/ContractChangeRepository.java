@@ -15,7 +15,7 @@ import az.millers.hcm.lifecycle.domain.ContractChangeStatus;
 
 public interface ContractChangeRepository extends JpaRepository<ContractChange, UUID> {
 
-    @Query(value = "SELECT nextval('lifecycle.contract_change_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.contract_change_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Page<ContractChange> findAllByOrderByCreatedAtDesc(Pageable pageable);

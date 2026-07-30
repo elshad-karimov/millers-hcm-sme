@@ -14,7 +14,7 @@ import az.millers.hcm.performance.domain.ReviewStatus;
 
 public interface PerformanceReviewRepository extends JpaRepository<PerformanceReview, UUID> {
 
-    @Query(value = "SELECT nextval('performance.review_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('performance.review_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Optional<PerformanceReview> findByCycleIdAndEmployeeId(UUID cycleId, UUID employeeId);

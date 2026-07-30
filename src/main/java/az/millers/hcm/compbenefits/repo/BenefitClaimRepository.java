@@ -17,6 +17,6 @@ public interface BenefitClaimRepository extends JpaRepository<BenefitClaim, UUID
 
     List<BenefitClaim> findByTenantIdAndEmployeeIdOrderByClaimDateDesc(String tenantId, UUID employeeId);
 
-    @Query(value = "SELECT nextval('compbenefits.benefit_claim_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('compbenefits.benefit_claim_seq')", nativeQuery = true)
     long nextClaimSeq();
 }

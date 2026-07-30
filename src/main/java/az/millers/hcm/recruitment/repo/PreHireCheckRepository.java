@@ -10,7 +10,7 @@ import az.millers.hcm.recruitment.domain.PreHireCheck;
 public interface PreHireCheckRepository extends JpaRepository<PreHireCheck, UUID> {
 
     @org.springframework.data.jpa.repository.Query(
-            value = "SELECT nextval('recruitment.check_no_seq')", nativeQuery = true)
+            value = "SELECT config.next_tenant_seq('recruitment.check_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<PreHireCheck> findByApplicationIdOrderByCreatedAtAsc(UUID applicationId);

@@ -14,7 +14,7 @@ import az.millers.hcm.recruitment.domain.CandidatePoolStatus;
 
 public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.candidate_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.candidate_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Page<Candidate> findByLastNameContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrEmailContainingIgnoreCase(

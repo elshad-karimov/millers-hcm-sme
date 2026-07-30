@@ -15,7 +15,7 @@ import az.millers.hcm.leave.domain.LeaveRequestStatus;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID> {
 
-    @Query(value = "SELECT nextval('leave_mgmt.leave_request_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('leave_mgmt.leave_request_no_seq')", nativeQuery = true)
     long nextRequestNoSequence();
 
     List<LeaveRequest> findByStartDateBetween(LocalDate from, LocalDate to);

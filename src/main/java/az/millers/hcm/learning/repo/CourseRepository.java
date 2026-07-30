@@ -15,7 +15,7 @@ import az.millers.hcm.learning.domain.CourseStatus;
 
 public interface CourseRepository extends JpaRepository<Course, UUID> {
 
-    @Query(value = "SELECT nextval('learning.course_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('learning.course_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     boolean existsByCode(String code);

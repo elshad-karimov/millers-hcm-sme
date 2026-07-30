@@ -78,7 +78,7 @@ public class AssetTransferService {
             throw new BadRequestException("Asset must be ASSIGNED to transfer");
         }
 
-        String transferNo = BusinessNumbers.format("AT", 5, jdbc.queryForObject("SELECT nextval('lifecycle.asset_transfer_no_seq')", Map.of(), Long.class));
+        String transferNo = BusinessNumbers.format("AT", 5, jdbc.queryForObject("SELECT config.next_tenant_seq('lifecycle.asset_transfer_no_seq')", Map.of(), Long.class));
 
         AssetTransfer transfer = new AssetTransfer();
         transfer.setTenantId(TenantContext.current());

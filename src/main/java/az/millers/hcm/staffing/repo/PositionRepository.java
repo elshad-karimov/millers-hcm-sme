@@ -15,7 +15,7 @@ import az.millers.hcm.staffing.domain.VacancyState;
 
 public interface PositionRepository extends JpaRepository<Position, UUID> {
 
-    @Query(value = "SELECT nextval('staffing.position_code_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('staffing.position_code_seq')", nativeQuery = true)
     long nextPositionCodeSequence();
 
     boolean existsByTenantIdAndCode(String tenantId, String code);

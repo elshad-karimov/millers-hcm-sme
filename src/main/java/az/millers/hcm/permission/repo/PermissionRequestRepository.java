@@ -13,7 +13,7 @@ import az.millers.hcm.permission.domain.PermissionRequestStatus;
 
 public interface PermissionRequestRepository extends JpaRepository<PermissionRequest, UUID> {
 
-    @Query(value = "SELECT nextval('permission.permission_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('permission.permission_no_seq')", nativeQuery = true)
     long nextRequestNoSequence();
 
     Page<PermissionRequest> findByEmployeeIdOrderByPermissionDateDesc(UUID employeeId, Pageable pageable);

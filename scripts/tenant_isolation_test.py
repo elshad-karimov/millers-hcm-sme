@@ -176,6 +176,14 @@ def main():
     acme_emp_no = created.get("employeeNo") or created.get("employee_no")
     record("acme admin creates an employee (write path)", True, "id=%s no=%s" % (acme_emp_id, acme_emp_no))
 
+    # Per-tenant numbering: acme's counter starts fresh at 1 (its first employee
+    # is EMP-00001) — coexisting with default's own EMP-00001 thanks to the
+    # per-tenant (tenant_id, employee_no) unique. Proves numbering is per-tenant,
+    # not a shared global sequence.
+    record("per-tenant numbering: acme's first employee is EMP-00001",
+           acme_emp_no == "EMP-00001",
+           "acme employeeNo=%s (default also has EMP-00001)" % acme_emp_no)
+
     def ids_of(listing):
         rows = listing.get("content") if isinstance(listing, dict) else listing
         return {r.get("id") for r in (rows or []) if isinstance(r, dict)}

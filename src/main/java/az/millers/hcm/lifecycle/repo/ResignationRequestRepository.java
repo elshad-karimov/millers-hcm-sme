@@ -14,7 +14,7 @@ import az.millers.hcm.lifecycle.domain.ResignationStatus;
 
 public interface ResignationRequestRepository extends JpaRepository<ResignationRequest, UUID> {
 
-    @Query(value = "SELECT nextval('lifecycle.resignation_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.resignation_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Optional<ResignationRequest> findByWorkflowInstanceId(UUID workflowInstanceId);

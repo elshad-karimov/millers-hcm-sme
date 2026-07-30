@@ -12,7 +12,7 @@ import az.millers.hcm.reporting.domain.ReportRun;
 
 public interface ReportRunRepository extends JpaRepository<ReportRun, UUID> {
 
-    @Query(value = "SELECT nextval('reporting.run_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('reporting.run_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Page<ReportRun> findAllByOrderByStartedAtDesc(Pageable pageable);

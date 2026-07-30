@@ -14,7 +14,7 @@ import az.millers.hcm.lifecycle.domain.DisciplinaryStatus;
 public interface DisciplinaryActionRepository
         extends JpaRepository<DisciplinaryAction, UUID> {
 
-    @Query(value = "SELECT nextval('lifecycle.disciplinary_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.disciplinary_no_seq')", nativeQuery = true)
     long nextActionNoSequence();
 
     List<DisciplinaryAction> findByEmployeeIdOrderByActionDateDesc(UUID employeeId);

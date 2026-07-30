@@ -123,7 +123,7 @@ public class EmployeeMovementService {
 
         // Generate request number
         String requestNo = BusinessNumbers.format("MV", 5, jdbc.queryForObject(
-                "SELECT nextval('lifecycle.employee_movement_request_no_seq')",
+                "SELECT config.next_tenant_seq('lifecycle.employee_movement_request_no_seq')",
                 java.util.Map.of(), Long.class));
         saved.setRequestNo(requestNo);
         saved = repo.save(saved);

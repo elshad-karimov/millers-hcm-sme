@@ -12,7 +12,7 @@ import az.millers.hcm.businesstrip.domain.ReimbursementBatchStatus;
 
 public interface ReimbursementBatchRepository extends JpaRepository<ReimbursementBatch, UUID> {
 
-    @Query(value = "SELECT nextval('business_trip.reimbursement_batch_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('business_trip.reimbursement_batch_no_seq')", nativeQuery = true)
     long nextBatchNoSequence();
 
     Optional<ReimbursementBatch> findByIdAndTenantId(UUID id, String tenantId);

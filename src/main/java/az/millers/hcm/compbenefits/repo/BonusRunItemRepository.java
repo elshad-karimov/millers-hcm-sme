@@ -10,7 +10,7 @@ import az.millers.hcm.compbenefits.domain.BonusRunItem;
 
 public interface BonusRunItemRepository extends JpaRepository<BonusRunItem, UUID> {
 
-    @Query(value = "SELECT nextval('comp_benefits.bonus_run_item_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('comp_benefits.bonus_run_item_no_seq')", nativeQuery = true)
     long nextItemNoSequence();
 
     List<BonusRunItem> findByRunIdOrderByCreatedAt(UUID runId);

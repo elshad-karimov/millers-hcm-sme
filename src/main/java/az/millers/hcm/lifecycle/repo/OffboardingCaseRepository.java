@@ -15,7 +15,7 @@ import az.millers.hcm.lifecycle.domain.OffboardingCaseStatus;
 
 public interface OffboardingCaseRepository extends JpaRepository<OffboardingCase, UUID> {
 
-    @Query(value = "SELECT nextval('lifecycle.offboarding_case_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.offboarding_case_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Optional<OffboardingCase> findByResignationId(UUID resignationId);

@@ -14,7 +14,7 @@ import az.millers.hcm.letters.domain.LetterStatus;
 
 public interface LetterRequestRepository extends JpaRepository<LetterRequest, UUID> {
 
-    @Query(value = "SELECT nextval('hr_letters.request_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('hr_letters.request_no_seq')", nativeQuery = true)
     long nextRequestNoSequence();
 
     boolean existsByRequestNo(String requestNo);

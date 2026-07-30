@@ -15,7 +15,7 @@ import az.millers.hcm.corehr.domain.PersonalInfoChangeStatus;
 public interface PersonalInfoChangeRepository
         extends JpaRepository<PersonalInfoChangeRequest, UUID> {
 
-    @Query(value = "SELECT nextval('core_hr.personal_info_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('core_hr.personal_info_no_seq')", nativeQuery = true)
     long nextRequestNoSequence();
 
     List<PersonalInfoChangeRequest> findByEmployeeIdOrderBySubmittedAtDesc(UUID employeeId);

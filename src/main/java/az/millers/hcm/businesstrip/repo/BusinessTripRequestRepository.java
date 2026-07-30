@@ -13,7 +13,7 @@ import az.millers.hcm.businesstrip.domain.TripStatus;
 
 public interface BusinessTripRequestRepository extends JpaRepository<BusinessTripRequest, UUID> {
 
-    @Query(value = "SELECT nextval('business_trip.trip_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('business_trip.trip_no_seq')", nativeQuery = true)
     long nextTripNoSequence();
 
     Page<BusinessTripRequest> findByEmployeeIdOrderByStartDateDesc(UUID employeeId, Pageable pageable);

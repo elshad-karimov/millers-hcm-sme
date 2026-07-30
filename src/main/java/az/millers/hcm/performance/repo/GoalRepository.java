@@ -10,7 +10,7 @@ import az.millers.hcm.performance.domain.Goal;
 
 public interface GoalRepository extends JpaRepository<Goal, UUID> {
 
-    @Query(value = "SELECT nextval('performance.goal_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('performance.goal_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<Goal> findByCycleIdAndEmployeeIdOrderByCreatedAt(UUID cycleId, UUID employeeId);

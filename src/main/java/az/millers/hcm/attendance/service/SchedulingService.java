@@ -273,7 +273,7 @@ public class SchedulingService {
 
     private String generateSwapRequestNo() {
         Long seq = jdbc.queryForObject(
-            "SELECT nextval('attendance.shift_swap_seq')",
+            "SELECT config.next_tenant_seq('attendance.shift_swap_seq')",
             new MapSqlParameterSource(),
             Long.class
         );

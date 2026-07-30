@@ -93,7 +93,7 @@ public class LoanRequestService {
             throw new BadRequestException("ELIGIBILITY_CHECK_FAILED: " + eligibility.notes);
         }
 
-        String requestNo = BusinessNumbers.format("LR", 5, jdbc.queryForObject("SELECT nextval('payroll.loan_request_no_seq')", Map.of(), Long.class));
+        String requestNo = BusinessNumbers.format("LR", 5, jdbc.queryForObject("SELECT config.next_tenant_seq('payroll.loan_request_no_seq')", Map.of(), Long.class));
 
         LoanRequest request = new LoanRequest();
         request.setTenantId(TenantContext.current());

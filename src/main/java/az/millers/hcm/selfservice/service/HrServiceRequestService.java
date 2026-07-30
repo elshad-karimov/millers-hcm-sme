@@ -95,7 +95,7 @@ public class HrServiceRequestService {
 
         // Generate request number
         String requestNo = BusinessNumbers.format("SR", 5, jdbc.queryForObject(
-                "SELECT nextval('selfservice.hr_service_request_no_seq')",
+                "SELECT config.next_tenant_seq('selfservice.hr_service_request_no_seq')",
                 java.util.Map.of(), Long.class));
         saved.setRequestNo(requestNo);
         saved = repo.save(saved);

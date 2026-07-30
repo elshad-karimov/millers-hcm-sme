@@ -178,7 +178,7 @@ public class DocumentExpiryRenewalService {
     }
 
     private String generateRequestNo() {
-        String sql = "SELECT nextval('selfservice.hr_service_request_no_seq')";
+        String sql = "SELECT config.next_tenant_seq('selfservice.hr_service_request_no_seq')";
         Long seq = jdbc.queryForObject(sql, Map.of(), Long.class);
         return BusinessNumbers.format("HR", 6, seq == null ? 1 : seq);
     }

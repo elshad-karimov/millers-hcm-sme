@@ -13,7 +13,7 @@ import az.millers.hcm.compbenefits.domain.EmployeeAllowance;
 public interface EmployeeAllowanceRepository extends JpaRepository<EmployeeAllowance, UUID> {
 
     @org.springframework.data.jpa.repository.Query(
-        value = "SELECT nextval('comp_benefits.allowance_no_seq')", nativeQuery = true)
+        value = "SELECT config.next_tenant_seq('comp_benefits.allowance_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<EmployeeAllowance> findByEmployeeIdOrderByEffectiveFromDesc(UUID employeeId);

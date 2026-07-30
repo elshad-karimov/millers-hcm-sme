@@ -11,7 +11,7 @@ import az.millers.hcm.reporting.domain.ReportSchedule;
 
 public interface ReportScheduleRepository extends JpaRepository<ReportSchedule, UUID> {
 
-    @Query(value = "SELECT nextval('reporting.schedule_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('reporting.schedule_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<ReportSchedule> findAllByOrderByNameAsc();

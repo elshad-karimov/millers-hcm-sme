@@ -12,7 +12,7 @@ import az.millers.hcm.recruitment.domain.VacancyStatus;
 
 public interface VacancyRepository extends JpaRepository<Vacancy, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.vacancy_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.vacancy_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Page<Vacancy> findAllByOrderByCreatedAtDesc(Pageable pageable);

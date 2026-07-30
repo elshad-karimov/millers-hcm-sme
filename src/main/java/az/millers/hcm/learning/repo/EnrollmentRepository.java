@@ -14,7 +14,7 @@ import az.millers.hcm.learning.domain.EnrollmentStatus;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
-    @Query(value = "SELECT nextval('learning.enrollment_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('learning.enrollment_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Optional<Enrollment> findByCourseIdAndEmployeeId(UUID courseId, UUID employeeId);

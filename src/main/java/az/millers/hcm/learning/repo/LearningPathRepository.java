@@ -12,6 +12,6 @@ public interface LearningPathRepository extends JpaRepository<LearningPath, UUID
 
     List<LearningPath> findByActiveOrderByPathNoAsc(boolean active);
 
-    @Query(value = "SELECT nextval('learning.learning_path_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('learning.learning_path_no_seq')", nativeQuery = true)
     long nextNoSequence();
 }

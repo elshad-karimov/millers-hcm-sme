@@ -96,7 +96,7 @@ public class MobilityService {
     }
 
     private String generateAssignmentNo() {
-        Long seq = jdbc.queryForObject("SELECT nextval('mobility.assignment_seq')",
+        Long seq = jdbc.queryForObject("SELECT config.next_tenant_seq('mobility.assignment_seq')",
             new MapSqlParameterSource(), Long.class);
         return BusinessNumbers.format("IA", 5, seq);
     }

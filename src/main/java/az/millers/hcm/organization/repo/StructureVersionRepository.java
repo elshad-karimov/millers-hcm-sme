@@ -12,7 +12,7 @@ import az.millers.hcm.organization.domain.VersionStatus;
 
 public interface StructureVersionRepository extends JpaRepository<StructureVersion, UUID> {
 
-    @Query(value = "SELECT nextval('organization.structure_version_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('organization.structure_version_no_seq')", nativeQuery = true)
     long nextVersionNumber();
 
     Optional<StructureVersion> findFirstByStatus(VersionStatus status);

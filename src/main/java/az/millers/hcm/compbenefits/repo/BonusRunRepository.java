@@ -13,7 +13,7 @@ import az.millers.hcm.compbenefits.domain.BonusRunStatus;
 
 public interface BonusRunRepository extends JpaRepository<BonusRun, UUID> {
 
-    @Query(value = "SELECT nextval('comp_benefits.bonus_run_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('comp_benefits.bonus_run_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Page<BonusRun> findAllByOrderByCreatedAtDesc(Pageable pageable);

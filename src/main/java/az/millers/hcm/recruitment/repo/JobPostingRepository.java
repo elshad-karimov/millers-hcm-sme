@@ -12,7 +12,7 @@ import az.millers.hcm.recruitment.domain.JobPosting;
 
 public interface JobPostingRepository extends JpaRepository<JobPosting, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.posting_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.posting_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<JobPosting> findByTenantIdAndVacancyIdOrderByCreatedAtDesc(String tenantId, UUID vacancyId);

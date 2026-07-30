@@ -11,7 +11,7 @@ import az.millers.hcm.recruitment.domain.Assessment;
 
 public interface AssessmentRepository extends JpaRepository<Assessment, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.assessment_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.assessment_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<Assessment> findByApplicationIdOrderByCreatedAtAsc(UUID applicationId);

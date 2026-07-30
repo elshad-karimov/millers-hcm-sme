@@ -80,7 +80,7 @@ public class ErCaseService {
 
         // Generate case number
         String caseNo = BusinessNumbers.format("ER", 5, jdbc.queryForObject(
-                "SELECT nextval('employee_relations.er_case_no_seq')",
+                "SELECT config.next_tenant_seq('employee_relations.er_case_no_seq')",
                 Map.of(), Long.class));
         saved.setCaseNo(caseNo);
         saved = caseRepo.save(saved);

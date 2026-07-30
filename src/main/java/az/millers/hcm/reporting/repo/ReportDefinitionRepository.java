@@ -11,7 +11,7 @@ import az.millers.hcm.reporting.domain.ReportType;
 
 public interface ReportDefinitionRepository extends JpaRepository<ReportDefinition, UUID> {
 
-    @Query(value = "SELECT nextval('reporting.definition_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('reporting.definition_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<ReportDefinition> findAllByOrderByNameAsc();

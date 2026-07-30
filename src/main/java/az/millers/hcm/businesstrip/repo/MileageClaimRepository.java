@@ -13,7 +13,7 @@ import az.millers.hcm.businesstrip.domain.MileageClaimStatus;
 
 public interface MileageClaimRepository extends JpaRepository<MileageClaim, UUID> {
 
-    @Query(value = "SELECT nextval('business_trip.mileage_claim_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('business_trip.mileage_claim_no_seq')", nativeQuery = true)
     long nextClaimNoSequence();
 
     Optional<MileageClaim> findByIdAndTenantId(UUID id, String tenantId);

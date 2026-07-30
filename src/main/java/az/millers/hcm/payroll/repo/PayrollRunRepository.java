@@ -11,7 +11,7 @@ import az.millers.hcm.payroll.domain.PayrollRun;
 
 public interface PayrollRunRepository extends JpaRepository<PayrollRun, UUID> {
 
-    @Query(value = "SELECT nextval('payroll.run_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('payroll.run_no_seq')", nativeQuery = true)
     long nextRunNoSequence();
 
     Optional<PayrollRun> findByPeriodYearAndPeriodMonthAndJurisdiction(

@@ -11,7 +11,7 @@ import az.millers.hcm.learning.domain.Certificate;
 
 public interface CertificateRepository extends JpaRepository<Certificate, UUID> {
 
-    @Query(value = "SELECT nextval('learning.certificate_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('learning.certificate_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     Optional<Certificate> findByEnrollmentId(UUID enrollmentId);

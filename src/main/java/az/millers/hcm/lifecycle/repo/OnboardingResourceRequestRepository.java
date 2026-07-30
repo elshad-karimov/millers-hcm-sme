@@ -18,6 +18,6 @@ public interface OnboardingResourceRequestRepository
 
     List<OnboardingResourceRequest> findByStatusInOrderByRequestedAtAsc(List<ResourceRequestStatus> statuses);
 
-    @Query(value = "SELECT nextval('lifecycle.onboarding_resource_request_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('lifecycle.onboarding_resource_request_no_seq')", nativeQuery = true)
     long nextNoSequence();
 }

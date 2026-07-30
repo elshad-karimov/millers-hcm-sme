@@ -65,7 +65,7 @@ public class AssetDamageLossCaseService {
     @Transactional
     public AssetDamageLossCase report(UUID assetId, UUID employeeId, AssetDamageLossCaseType caseType,
                                       String description, BigDecimal estimatedAmount) {
-        String caseNo = BusinessNumbers.format("ADL", 5, jdbc.queryForObject("SELECT nextval('lifecycle.asset_damage_loss_case_no_seq')", Map.of(), Long.class));
+        String caseNo = BusinessNumbers.format("ADL", 5, jdbc.queryForObject("SELECT config.next_tenant_seq('lifecycle.asset_damage_loss_case_no_seq')", Map.of(), Long.class));
 
         AssetDamageLossCase c = new AssetDamageLossCase();
         c.setTenantId(TenantContext.current());

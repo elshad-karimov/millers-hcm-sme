@@ -13,7 +13,7 @@ import az.millers.hcm.recruitment.domain.ReferralStatus;
 
 public interface ReferralRepository extends JpaRepository<Referral, UUID> {
 
-    @Query(value = "SELECT nextval('recruitment.referral_no_seq')", nativeQuery = true)
+    @Query(value = "SELECT config.next_tenant_seq('recruitment.referral_no_seq')", nativeQuery = true)
     long nextNoSequence();
 
     List<Referral> findAllByOrderByCreatedAtDesc();
