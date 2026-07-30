@@ -120,12 +120,15 @@ it real.
 
 **→ MULTI-TENANCY COMPLETE.** True row-level multi-tenancy is live and proven with two real realms. Latest migration V312.
 
-## Deferred (documented, non-blocking)
-- **org_unit_type composite PK** `(tenant_id, code)` so it can be per-tenant-cloned (currently excluded from provisioning seed).
-- **Broader per-tenant uniqueness sweep** for transactional tables + per-tenant numbering **sequences** (employee_no etc. are global today — interleaved numbering across tenants, not a leak). Gotcha #7 done for reference tables; transactional tables remain.
-- **Duplicate-provision returns 500** (IllegalArgumentException) — should be 409 Conflict.
-- **API-key auth path** leaves TenantContext unbound → 'default'; per-key tenant binding is a follow-up when API keys go multi-tenant.
-- **Attendance UUID-tenant rename** (Tier-2, see above).
+## Follow-ups — CLOSED (commit 58ec37b)
+- [x] **org_unit_type** made a **shared** universal taxonomy (dropped `@TenantId`) — every tenant sees the seeded types; no composite-PK surgery, no cloning needed.
+- [x] **Per-tenant uniqueness for user-entered `code`s** — V313 widened 19 `UNIQUE(code)` → `(tenant_id, code)` across attendance/comp/benefits/engagement/learning/lifecycle/organization/performance/recruitment/staffing. `*_no`/token/hash keys stay global (collision-free via global sequences / randomness); `(parent_uuid,…)` composites are naturally per-tenant.
+- [x] **Duplicate-provision → 409** (ResponseStatusException) instead of 500.
+- [x] **API-key auth is tenant-aware** — native tenant-blind `findTenantIdByKeyHash` + `ApiKeyAuthFilter` binds TenantContext from the key's tenant (previously a non-default tenant's key could never authenticate because `resolve()` was `@TenantId`-filtered).
+
+## Still deferred (documented, non-blocking niceties)
+- **Per-tenant numbering sequences** — `employee_no`, `*_no` are minted from global sequences, so numbers interleave across tenants (e.g. acme got EMP-00021+). Collision-free and not a leak; true per-tenant numbering (each tenant starts at 1) needs per-tenant sequences or a numbering service.
+- **Attendance UUID-tenant rename** (Tier-2, see above) — legal-entity-as-tenant UUID model; transitively isolated, cosmetic rename only.
 
 ## Deferred (Tier-2, non-blocking) — attendance UUID-tenant rename
 The 8 attendance entities above should eventually rename their misleading UUID
