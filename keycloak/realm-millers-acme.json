@@ -1,0 +1,95 @@
+{
+  "realm": "millers-acme",
+  "enabled": true,
+  "displayName": "Acme Corp (HCM tenant 2)",
+  "displayNameHtml": "Acme Corp",
+  "sslRequired": "${env.KC_REALM_SSL_REQUIRED:none}",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+
+  "passwordPolicy": "length(12) and digits(1) and upperCase(1) and lowerCase(1) and specialChars(1) and notUsername(undefined)",
+
+  "bruteForceProtected": true,
+  "failureFactor": 20,
+
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      { "name": "SYSTEM_ADMIN",       "description": "Full administrative access" },
+      { "name": "HR_ADMIN",           "description": "HR administrator — approve/manage all HR" },
+      { "name": "HR_SPECIALIST",      "description": "HR specialist — submit / first-line approve" },
+      { "name": "AUDITOR",            "description": "Read-only auditor access" },
+      { "name": "DEPARTMENT_MANAGER", "description": "Line manager — approve team requests" },
+      { "name": "EMPLOYEE",           "description": "Self-service only" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "hcm-web",
+      "name": "Millers HCM Web (SPA) — Acme",
+      "baseUrl": "http://localhost:5180/",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5180/*##http://127.0.0.1:5180/*"
+      },
+      "redirectUris": [
+        "http://localhost:5180/*",
+        "http://127.0.0.1:5180/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5180",
+        "http://127.0.0.1:5180"
+      ],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "acmeadmin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Admin",
+      "email": "admin@acme.example",
+      "credentials": [
+        { "type": "password", "value": "AcmeAdmin#2026!", "temporary": false }
+      ],
+      "realmRoles": ["SYSTEM_ADMIN", "HR_ADMIN"]
+    },
+    {
+      "username": "acmehr",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "HR",
+      "email": "hr@acme.example",
+      "credentials": [
+        { "type": "password", "value": "AcmeHr#2026!", "temporary": false }
+      ],
+      "realmRoles": ["HR_ADMIN"]
+    }
+  ]
+}

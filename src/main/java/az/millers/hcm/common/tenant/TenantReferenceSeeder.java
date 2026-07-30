@@ -67,11 +67,14 @@ public class TenantReferenceSeeder {
             // letters / documents / permissions / org taxonomy
             "hr_letters.letter_template",
             "permission.permission_type",
-            "organization.org_unit_type",
             "staffing.reason_master",
             "lifecycle.notice_period_rule",
             "lifecycle.asset_category",
             "recruitment.document_type",
+            // NOTE: organization.org_unit_type is intentionally NOT cloned — its
+            // primary key is the natural code (not a UUID id), so it needs a
+            // composite (tenant_id, code) PK migration before it can be
+            // per-tenant. Deferred; not required for a functional tenant.
             // performance config (scale -> value)
             "performance.rating_scale",
             "performance.rating_scale_value",

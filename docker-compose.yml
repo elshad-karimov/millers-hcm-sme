@@ -157,6 +157,9 @@ services:
       - "127.0.0.1:8090:8090"
     volumes:
       - ./keycloak/realm-millers-hcm.json:/opt/keycloak/data/import/realm-millers-hcm.json:ro
+      # Multi-tenancy Phase 5 — a 2nd tenant realm to end-to-end validate
+      # cross-tenant isolation. --import-realm imports it on first start.
+      - ./keycloak/realm-millers-acme.json:/opt/keycloak/data/import/realm-millers-acme.json:ro
       # Custom login theme — Keycloak picks up any subdirectory of
       # /opt/keycloak/themes/ as a selectable theme. The realm's
       # loginTheme setting names "millers" (set via kcadm after first
