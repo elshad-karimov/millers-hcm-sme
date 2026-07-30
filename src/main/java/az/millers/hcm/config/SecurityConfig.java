@@ -22,6 +22,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import az.millers.hcm.apikey.security.ApiKeyAuthFilter;
+import az.millers.hcm.common.tenant.TenantRegistry;
+import az.millers.hcm.security.tenant.TenantAuthenticationResolver;
+import az.millers.hcm.security.tenant.TenantResolutionFilter;
 
 /**
  * Stateless OAuth2 / OIDC resource-server security (PRD 14.6).
@@ -46,7 +49,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                            ApiKeyAuthFilter apiKeyAuthFilter) throws Exception {
+                                            ApiKeyAuthFilter apiKeyAuthFilter,
+                                            TenantAuthenticationResolver tenantAuthResolver,
+                                            TenantRegistry tenantRegistry) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -88,12 +93,22 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml").permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                // Multi-tenancy Phase 3: a multi-issuer resolver replaces the
+                // single fixed JwtDecoder. Each token is routed to a per-realm
+                // decoder by its `iss` claim, and only issuers mapped to an
+                // active tenant in the registry are trusted.
+                .oauth2ResourceServer(oauth2 -> oauth2.authenticationManagerResolver(tenantAuthResolver))
                 // M120 — recognise X-API-Key BEFORE the bearer-token filter. A
                 // request with both headers prefers the key (cheaper than a
                 // JWT decode + validates rate limit too); without the key,
                 // the chain falls through to the standard JWT path unchanged.
                 .addFilterBefore(apiKeyAuthFilter, BearerTokenAuthenticationFilter.class)
+                // Multi-tenancy Phase 3: after the bearer token is authenticated,
+                // bind TenantContext from the token's issuer → tenant mapping so
+                // Hibernate @TenantId + native-SQL TenantContext.current() scope
+                // to the caller's tenant. Cleared in the filter's finally.
+                .addFilterAfter(new TenantResolutionFilter(tenantRegistry),
+                        BearerTokenAuthenticationFilter.class)
                 // Default HTTP security headers (PRD 14.4). HSTS is only meaningful
                 // when the app is served behind HTTPS — reverse proxies should
                 // pin max-age appropriately for production. CSP locks down API
