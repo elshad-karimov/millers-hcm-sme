@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import az.millers.hcm.apikey.domain.ApiKey;
 import az.millers.hcm.apikey.service.ApiKeyService;
+import az.millers.hcm.common.tenant.TenantContext;
 import az.millers.hcm.apikey.service.TokenBucket;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -60,43 +61,59 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        ApiKey key = apiKeyService.resolve(header);
-        if (key == null) {
-            // Opaque body so a probe can't distinguish "unknown" from "expired".
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"invalid_api_key\"}");
-            return;
+        // Multi-tenancy: an API key belongs to a tenant, but no tenant is bound
+        // yet. Resolve it tenant-blind and bind TenantContext so the key lookup,
+        // rate-limit state, usage recording AND the request itself all scope to
+        // the key's tenant. Cleared in the outer finally.
+        String tenant = apiKeyService.tenantForKey(header);
+        boolean tenantBound = false;
+        if (tenant != null) {
+            TenantContext.set(tenant);
+            tenantBound = true;
         }
-
-        long now = System.nanoTime();
-        TokenBucket bucket = TokenBucket.get(key.getId(), key.getRateLimitPerMin(), now);
-        if (!bucket.tryConsume(now)) {
-            long retry = bucket.retryAfterSeconds(now);
-            response.setStatus(429);
-            response.setHeader("Retry-After", String.valueOf(retry));
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"rate_limited\",\"retryAfterSeconds\":" + retry + "}");
-            // Best-effort record the rejection.
-            try {
-                apiKeyService.recordUsage(key.getId(), request.getRemoteAddr(), false);
-            } catch (RuntimeException ignored) {}
-            return;
-        }
-
-        // Authenticate.
-        List<GrantedAuthority> auths = new ArrayList<>(key.getScopes().size());
-        for (String s : key.getScopes()) auths.add(new SimpleGrantedAuthority("ROLE_" + s));
-        ApiKeyAuthentication token = new ApiKeyAuthentication(key.getOwnerUser(), auths, key.getId());
-        SecurityContextHolder.getContext().setAuthentication(token);
-
         try {
-            chain.doFilter(request, response);
-        } finally {
-            SecurityContextHolder.clearContext();
+            ApiKey key = apiKeyService.resolve(header);
+            if (key == null) {
+                // Opaque body so a probe can't distinguish "unknown" from "expired".
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"invalid_api_key\"}");
+                return;
+            }
+
+            long now = System.nanoTime();
+            TokenBucket bucket = TokenBucket.get(key.getId(), key.getRateLimitPerMin(), now);
+            if (!bucket.tryConsume(now)) {
+                long retry = bucket.retryAfterSeconds(now);
+                response.setStatus(429);
+                response.setHeader("Retry-After", String.valueOf(retry));
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"rate_limited\",\"retryAfterSeconds\":" + retry + "}");
+                // Best-effort record the rejection.
+                try {
+                    apiKeyService.recordUsage(key.getId(), request.getRemoteAddr(), false);
+                } catch (RuntimeException ignored) {}
+                return;
+            }
+
+            // Authenticate.
+            List<GrantedAuthority> auths = new ArrayList<>(key.getScopes().size());
+            for (String s : key.getScopes()) auths.add(new SimpleGrantedAuthority("ROLE_" + s));
+            ApiKeyAuthentication token = new ApiKeyAuthentication(key.getOwnerUser(), auths, key.getId());
+            SecurityContextHolder.getContext().setAuthentication(token);
+
             try {
-                apiKeyService.recordUsage(key.getId(), request.getRemoteAddr(), true);
-            } catch (RuntimeException ignored) {}
+                chain.doFilter(request, response);
+            } finally {
+                SecurityContextHolder.clearContext();
+                try {
+                    apiKeyService.recordUsage(key.getId(), request.getRemoteAddr(), true);
+                } catch (RuntimeException ignored) {}
+            }
+        } finally {
+            if (tenantBound) {
+                TenantContext.clear();
+            }
         }
     }
 

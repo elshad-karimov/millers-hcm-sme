@@ -4,8 +4,10 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Provisions a new tenant (multi-tenancy Phase 4).
@@ -49,10 +51,10 @@ public class TenantProvisioningService {
     public ProvisionResult provision(String tenantId, String name, String issuerUri,
                                      String realm, String seedFromTenant, String actor) {
         if (tenants.existsById(tenantId)) {
-            throw new IllegalArgumentException("Tenant already exists: " + tenantId);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tenant already exists: " + tenantId);
         }
         if (tenants.existsByIssuerUri(issuerUri)) {
-            throw new IllegalArgumentException("Issuer already registered: " + issuerUri);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Issuer already registered: " + issuerUri);
         }
 
         Tenant tenant = new Tenant(tenantId, name, issuerUri, realm);

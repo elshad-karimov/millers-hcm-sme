@@ -179,6 +179,17 @@ public class ApiKeyService {
     }
 
     /**
+     * Multi-tenancy: which tenant owns this key, resolved tenant-blind (native
+     * SQL) so the auth filter can bind TenantContext BEFORE {@link #resolve}
+     * runs its {@code @TenantId}-filtered lookup. Returns null for an unknown /
+     * malformed key.
+     */
+    public String tenantForKey(String plaintext) {
+        if (!ApiKeyCrypto.looksValid(plaintext)) return null;
+        return repo.findTenantIdByKeyHash(ApiKeyCrypto.hash(plaintext)).orElse(null);
+    }
+
+    /**
      * Record one successful (or rejected, if {@code accepted == false})
      * API call. Bumps last_used_at + usage_count and rolls up the minute
      * bucket. Best-effort — failures here don't break the request.

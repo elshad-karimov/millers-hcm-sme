@@ -14,7 +14,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.TenantId;
 
 /**
  * M143 — runtime-configurable org-unit type definition (§5).
@@ -36,9 +35,15 @@ public class OrgUnitTypeConfig {
     @Column(length = 64)
     private String code;
 
-    @TenantId
+    /**
+     * Multi-tenancy: org-unit TYPES are a universal taxonomy shared across all
+     * tenants (COMPANY/DIVISION/DEPARTMENT/…), so this is intentionally NOT a
+     * {@code @TenantId} discriminator entity — every tenant sees the same seeded
+     * set. The column stays (defaulted 'default') for schema uniformity; the PK
+     * is the code, which is globally unique as befits a shared lookup.
+     */
     @Column(name = "tenant_id", nullable = false, updatable = false)
-    private String tenantId;
+    private String tenantId = "default";
 
     @Column(nullable = false, length = 200)
     private String label;
