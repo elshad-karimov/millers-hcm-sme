@@ -24,7 +24,8 @@ COPY web/ ./
 RUN npm run build
 
 # ── Stage 1: Maven build ────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# Maven base image (Temurin JDK 21 + Maven) — the plain temurin image has no mvn.
+FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /workspace
 
 # Cache Maven dependencies before copying source to maximise layer reuse.
