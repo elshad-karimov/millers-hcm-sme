@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -92,6 +94,13 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml").permitAll()
+                        // Bundled SPA (served from classpath:/static): allow GET for the
+                        // app shell, its hashed assets, and client-side routes. Every REST
+                        // endpoint lives under /api (verified) and stays authenticated;
+                        // actuator + swagger keep their own rules above. Only GET is opened
+                        // and only for non-/api paths, so no data endpoint is exposed.
+                        .requestMatchers(RegexRequestMatcher.regexMatcher(HttpMethod.GET,
+                                "^/(?!api/|api$|actuator/|actuator$|swagger-ui|v3/api-docs).*$")).permitAll()
                         .anyRequest().authenticated())
                 // Multi-tenancy Phase 3: a multi-issuer resolver replaces the
                 // single fixed JwtDecoder. Each token is routed to a per-realm

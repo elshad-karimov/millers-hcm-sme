@@ -203,6 +203,7 @@ import { InterviewScheduleFormPage } from './pages/InterviewScheduleFormPage'
 import { TalentPoolPage } from './pages/TalentPoolPage'
 import { RecruitmentAnalyticsPage } from './pages/RecruitmentAnalyticsPage'
 import { DashboardPage } from './pages/DashboardPage'
+import HomePage from './pages/HomePage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { ApiKeysPage } from './pages/ApiKeysPage'
 import { PreboardingPage } from './pages/PreboardingPage'
@@ -297,7 +298,8 @@ export default function App() {
         <Route index element={<IndexRedirect />} />
 
         {/* ── Always-accessible ─────────────────────────────────── */}
-        <Route path="home" element={<DashboardPage />} />
+        <Route path="home" element={<HomePage />} />
+        <Route path="home/overview" element={<DashboardPage />} />
         <Route path="my" element={<MyWorkspacePage />} />
         <Route path="my/team" element={<TeamPage />} />
         {/* M115 — per-user notification preferences */}

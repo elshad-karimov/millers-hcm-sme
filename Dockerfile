@@ -12,6 +12,17 @@
 #     -e SPRING_DATASOURCE_URL=jdbc:postgresql://hcm-postgres:5432/hcm \
 #     millers-hcm:latest
 
+# ── Stage 0: Frontend build (React SPA → served as static resources) ────────
+# The built bundle is copied into the backend's static resources so the single
+# image serves both the API and the web app (Spring's SpaResourceConfig routes
+# client-side deep links to index.html).
+FROM node:20-slim AS webbuilder
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
 # ── Stage 1: Maven build ────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /workspace
@@ -22,6 +33,8 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn -f pom.xml dependency:go-offline -B -q
 
 COPY src ./src
+# Bundle the built SPA into Spring Boot's static resources.
+COPY --from=webbuilder /web/dist ./src/main/resources/static
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -f pom.xml package -DskipTests -B -q
 

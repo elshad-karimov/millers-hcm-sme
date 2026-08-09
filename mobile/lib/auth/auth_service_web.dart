@@ -90,6 +90,15 @@ class AuthService {
     html.window.location.href = logoutUri.toString();
   }
 
+  // ── Biometric stubs (web has no biometric hardware) ─────────────────────────
+  // The login/settings screens call these unconditionally; on web they are
+  // no-ops so biometric UI simply stays hidden/disabled.
+  Future<bool> isBiometricEnabled() async => false;
+
+  Future<void> setBiometricEnabled(bool enabled) async {}
+
+  Future<bool> loginWithBiometric() async => false;
+
   // ── Callback handler ───────────────────────────────────────────────────────
 
   Future<void> _handleCallback() async {

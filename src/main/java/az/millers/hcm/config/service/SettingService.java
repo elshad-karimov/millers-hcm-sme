@@ -7,6 +7,8 @@ import az.millers.hcm.security.CurrentRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * M433 — Tenant setting service. manager_can_view_salary default false.
@@ -14,6 +16,8 @@ import java.time.OffsetDateTime;
 @Service
 public class SettingService {
     public static final String MANAGER_CAN_VIEW_SALARY = "manager_can_view_salary";
+    /** CSV of module keys the tenant has switched off (hidden from the nav). */
+    public static final String DISABLED_MODULES = "disabled_modules";
 
     private final TenantSettingRepository repo;
     private final CurrentRequest currentRequest;
@@ -47,5 +51,18 @@ public class SettingService {
 
     public boolean managerCanViewSalary() {
         return "true".equalsIgnoreCase(get(MANAGER_CAN_VIEW_SALARY, "false"));
+    }
+
+    /** Module keys the current tenant has disabled (empty when all are on). */
+    @Transactional(readOnly = true)
+    public List<String> disabledModules() {
+        String raw = get(DISABLED_MODULES, "");
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 }

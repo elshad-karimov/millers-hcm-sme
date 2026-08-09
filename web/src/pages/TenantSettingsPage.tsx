@@ -14,6 +14,13 @@ import {
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../api/client'
+import { CATEGORIES } from '../nav/modules'
+import { refreshModuleSettings } from '../nav/moduleSettings'
+
+/** Modules that can never be switched off (users would lose their workspace /
+ *  admins would lose the settings screen that re-enables everything). */
+const ALWAYS_ON_MODULES = new Set(['self-service', 'platform-admin'])
+const DISABLED_MODULES_KEY = 'disabled_modules'
 
 interface SettingDto {
   key: string
@@ -44,6 +51,7 @@ export function TenantSettingsPage() {
   const [customSettings, setCustomSettings] = useState<SettingDto[]>([])
   const [newKey, setNewKey] = useState('')
   const [newValue, setNewValue] = useState('')
+  const [disabledMods, setDisabledMods] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     api
@@ -52,8 +60,14 @@ export function TenantSettingsPage() {
         const data = r.data
         // Separate known from custom
         const knownKeys = KNOWN_SETTINGS.map((s) => s.key)
-        const custom = data.filter((s) => !knownKeys.includes(s.key))
+        const custom = data.filter(
+          (s) => !knownKeys.includes(s.key) && s.key !== DISABLED_MODULES_KEY,
+        )
         setCustomSettings(custom)
+
+        // Module enablement lives in the disabled_modules CSV setting.
+        const dm = data.find((s) => s.key === DISABLED_MODULES_KEY)?.value ?? ''
+        setDisabledMods(new Set(dm.split(',').map((x) => x.trim()).filter(Boolean)))
 
         // Initialize form with known settings
         const initialValues: Record<string, boolean | string> = {}
@@ -91,8 +105,11 @@ export function TenantSettingsPage() {
       customSettings.forEach((s) => {
         payload[s.key] = s.value
       })
+      // Module enablement (CSV of disabled module keys)
+      payload[DISABLED_MODULES_KEY] = Array.from(disabledMods).join(',')
 
       await api.put('/settings', payload)
+      refreshModuleSettings() // update the live nav without a reload
       message.success('Settings saved')
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } }
@@ -178,6 +195,53 @@ export function TenantSettingsPage() {
             </Form.Item>
           ))}
         </Form>
+      </Card>
+
+      <Card
+        title="Modules"
+        extra={
+          <Typography.Text type="secondary">
+            Switch off modules this tenant should not see
+          </Typography.Text>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+          {CATEGORIES.map((c) => {
+            const alwaysOn = ALWAYS_ON_MODULES.has(c.key)
+            const enabled = alwaysOn || !disabledMods.has(c.key)
+            return (
+              <div
+                key={c.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  background: 'rgba(0,0,0,0.02)',
+                }}
+              >
+                <span>
+                  {c.label}
+                  {alwaysOn && <Typography.Text type="secondary"> · always on</Typography.Text>}
+                </span>
+                <Switch
+                  checked={enabled}
+                  disabled={alwaysOn}
+                  onChange={(on) =>
+                    setDisabledMods((prev) => {
+                      const next = new Set(prev)
+                      if (on) next.delete(c.key)
+                      else next.add(c.key)
+                      return next
+                    })
+                  }
+                />
+              </div>
+            )
+          })}
+        </div>
       </Card>
 
       <Card title="Custom Settings">

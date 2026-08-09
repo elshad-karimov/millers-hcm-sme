@@ -67,7 +67,7 @@ function moduleRoute(module: string | null): string | null {
  * Notification bell icon with unread badge and dropdown inbox panel.
  * Polls the unread count every 60 seconds.
  */
-export function NotificationBell() {
+export function NotificationBell({ color = brand.ink }: { color?: string } = {}) {
   const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
   const [items, setItems] = useState<NotificationItem[]>([])
@@ -255,7 +255,7 @@ export function NotificationBell() {
       <Badge count={unread} size="small" offset={[-2, 2]}>
         <Button
           type="text"
-          icon={<BellOutlined style={{ fontSize: 18, color: brand.ink }} />}
+          icon={<BellOutlined style={{ fontSize: 18, color }} />}
           style={{ display: 'flex', alignItems: 'center', padding: '0 8px' }}
         />
       </Badge>

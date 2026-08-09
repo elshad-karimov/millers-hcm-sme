@@ -1,0 +1,76 @@
+# Manual deploy to the TEST VPS.
+#
+# Trigger: workflow_dispatch (Actions tab → "Deploy to Test" → Run workflow).
+# Prereq:  a push to main has finished CI, which builds & pushes the image to
+#          ghcr.io/<owner>/millers-hcm:latest (and :<sha>). This job pulls that
+#          image on the VPS and restarts the backend container. The image now
+#          bundles the React SPA, so this ships both API and UI in one shot.
+#
+# Repo secrets required (Settings → Secrets and variables → Actions):
+#   TEST_HOST         — test VPS hostname / IP
+#   TEST_USER         — SSH username
+#   TEST_SSH_KEY      — SSH private key for that user (paste into GitHub; never shared with me)
+#   TEST_COMPOSE_DIR  — path on the VPS to the docker-compose dir that defines hcm-backend
+#   GHCR_PAT          — read PAT so the VPS can pull from GHCR (same one prod uses)
+
+name: Deploy to Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: false
+        default: "latest"
+      reason:
+        description: "Reason for this deployment"
+        required: false
+        default: "manual test deploy"
+
+env:
+  IMAGE_NAME: millers-hcm
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.image_tag }} → Test VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log deployment intent
+        run: |
+          echo "Deploying image tag: ${{ inputs.image_tag }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Triggered by: ${{ github.actor }}"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TEST_HOST }}
+          username: ${{ secrets.TEST_USER }}
+          key: ${{ secrets.TEST_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.TEST_COMPOSE_DIR }}"
+
+            # Authenticate to GHCR so the VPS can pull the image.
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io \
+              -u "${{ github.repository_owner }}" --password-stdin
+
+            docker pull "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+
+            # Roll the backend container to the new image.
+            export HCM_IMAGE_TAG="${{ inputs.image_tag }}"
+            docker compose up -d --no-build hcm-backend
+
+            echo "Container status:"
+            docker compose ps hcm-backend
+
+            # Best-effort readiness wait (backend exposes 8080 inside the container).
+            echo "Waiting for readiness..."
+            for i in $(seq 1 20); do
+              if docker compose exec -T hcm-backend wget -qO- http://localhost:8080/actuator/health/readiness 2>/dev/null | grep -q UP; then
+                echo "Backend reports READY"
+                break
+              fi
+              sleep 5
+            done
+            docker compose logs --tail=20 hcm-backend || true
