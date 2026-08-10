@@ -148,7 +148,7 @@ SELECT
 FROM core_hr.employee e
 JOIN staffing.position p ON p.id = e.position_id
 WHERE e.position_id IS NOT NULL
-  AND e.status IN ('ACTIVE', 'ON_PROBATION', 'ON_LEAVE')
+  AND e.employment_status IN ('ACTIVE', 'ON_PROBATION', 'ON_LEAVE')
   AND NOT EXISTS (
       SELECT 1 FROM staffing.position_occupancy o
       WHERE o.position_id = e.position_id
