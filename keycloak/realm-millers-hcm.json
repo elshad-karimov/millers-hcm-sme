@@ -47,7 +47,7 @@
     {
       "clientId": "hcm-web",
       "name": "Millers HCM Web (SPA)",
-      "baseUrl": "http://localhost:5180/",
+      "baseUrl": "http://localhost:5181/",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -57,15 +57,15 @@
       "frontchannelLogout": true,
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5180/*##http://127.0.0.1:5180/*"
+        "post.logout.redirect.uris": "http://localhost:5181/*##http://127.0.0.1:5181/*"
       },
       "redirectUris": [
-        "http://localhost:5180/*",
-        "http://127.0.0.1:5180/*"
+        "http://localhost:5181/*",
+        "http://127.0.0.1:5181/*"
       ],
       "webOrigins": [
-        "http://localhost:5180",
-        "http://127.0.0.1:5180"
+        "http://localhost:5181",
+        "http://127.0.0.1:5181"
       ],
       "protocol": "openid-connect",
       "fullScopeAllowed": true,

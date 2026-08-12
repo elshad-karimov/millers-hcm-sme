@@ -10,7 +10,7 @@ spring:
           # the JWKS endpoint advertised by /.well-known/openid-configuration.
           #
           # Issuer matches Keycloak's KC_HOSTNAME_URL (docker-compose).
-          # In dev that's http://localhost:5180 — the SPA origin — so
+          # In dev that's http://localhost:5181 — the SPA origin — so
           # the browser-issued `iss` claim matches what the backend
           # validates against. Keycloak resolves through Vite's dev
           # proxy (web/vite.config.ts), so JWKS fetching from this URL
@@ -19,9 +19,9 @@ spring:
           # longer needed for the HTTP path; leave the property set so
           # a production swap to https:// just works.
           # Production: set HCM_OIDC_ISSUER to the public Keycloak URL.
-          issuer-uri: ${HCM_OIDC_ISSUER:http://localhost:5180/realms/millers-hcm}
+          issuer-uri: ${HCM_OIDC_ISSUER:http://localhost:5181/realms/millers-hcm}
   datasource:
-    url: jdbc:postgresql://localhost:5433/hcm
+    url: jdbc:postgresql://localhost:5533/hcm
     username: hcm
     password: hcm
   jpa:
@@ -65,7 +65,7 @@ spring:
   data:
     redis:
       host: ${HCM_REDIS_HOST:localhost}
-      port: ${HCM_REDIS_PORT:6380}
+      port: ${HCM_REDIS_PORT:6480}
       # No password in dev; production: set HCM_REDIS_PASSWORD
       password: ${HCM_REDIS_PASSWORD:}
       lettuce:
@@ -97,7 +97,7 @@ spring:
           writetimeout: 5000
 
 server:
-  port: 8082
+  port: 8083
 
 hcm:
   keycloak:
@@ -109,7 +109,7 @@ hcm:
       # can call the Admin REST API directly via HTTP.  Loopback access bypasses
       # Keycloak's sslRequired:external check on the master realm.
       # Production: set HCM_KEYCLOAK_ADMIN_URL to the internal service URL.
-      server-url: ${HCM_KEYCLOAK_ADMIN_URL:http://localhost:8090}
+      server-url: ${HCM_KEYCLOAK_ADMIN_URL:http://localhost:8190}
       realm: millers-hcm
       master-realm: master
       admin-client-id: admin-cli
@@ -135,7 +135,7 @@ hcm:
       # in production where the cert is signed by a real CA.
       #
       # Dev now defaults to empty: backend talks plain HTTP to Vite at
-      # http://localhost:5180 which proxies to the nginx HTTPS leg.
+      # http://localhost:5181 which proxies to the nginx HTTPS leg.
       # Set HCM_KEYCLOAK_TRUSTSTORE explicitly if you want to bypass the
       # Vite proxy and hit https://localhost:8443 directly from the JVM.
       trust-store-path: ${HCM_KEYCLOAK_TRUSTSTORE:}
@@ -174,7 +174,7 @@ hcm:
   preboarding:
     # Public-facing base URL for the pre-boarding portal (M193).
     # The hire flow appends ?token=<plaintext> and emails the link to the candidate.
-    base-url: ${HCM_PREBOARDING_BASE_URL:http://localhost:5180/preboarding}
+    base-url: ${HCM_PREBOARDING_BASE_URL:http://localhost:5181/preboarding}
     # Validity window for auto-issued invite tokens (days). Default 30 days.
     auto-invite-expiry-days: ${HCM_PREBOARDING_AUTO_EXPIRY_DAYS:30}
   mail:

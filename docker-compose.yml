@@ -1,13 +1,13 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: hcm-postgres
+    container_name: sme-postgres
     environment:
       POSTGRES_DB: hcm
       POSTGRES_USER: hcm
       POSTGRES_PASSWORD: hcm
     ports:
-      - "5433:5432"
+      - "5533:5432"
     volumes:
       - hcm-pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,14 +18,14 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    container_name: hcm-redis
+    container_name: sme-redis
     # M168 (PRD §15.2): Redis for Spring Cache. Used by @Cacheable caches on
     # high-read, low-change reference data: leave types, org units, workflow
     # definitions, positions. AOF persistence (appendonly yes) ensures the warm
     # cache survives a container restart without a cold-start latency spike.
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6380:6379"
+      - "6480:6379"
     volumes:
       - hcm-redisdata:/data
     healthcheck:
@@ -36,14 +36,14 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: hcm-minio
+    container_name: sme-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio12345
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Web console
+      - "9100:9000"   # S3 API
+      - "9101:9001"   # Web console
     volumes:
       - hcm-miniodata:/data
     healthcheck:
@@ -54,13 +54,13 @@ services:
 
   mailhog:
     image: mailhog/mailhog:latest
-    container_name: hcm-mailhog
+    container_name: sme-mailhog
     # SMTP on 1025 (Spring Mail target), web UI on 8025 for browsing captured mail.
     # Production swap: drop this service and point spring.mail.host at a real
     # SMTP provider (SendGrid / SES / Mailgun / Office365) via env override.
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "1126:1025"
+      - "8126:8025"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8025/api/v2/messages"]
       interval: 10s
@@ -69,7 +69,7 @@ services:
 
   keycloak-pg:
     image: postgres:16-alpine
-    container_name: hcm-keycloak-pg
+    container_name: sme-keycloak-pg
     # Dedicated Postgres for Keycloak's auth state (PRD 14.6 hardening).
     # Kept separate from `hcm-postgres` so the IdP and the HCM data plane
     # have independent backup / retention / scaling decisions.
@@ -79,7 +79,7 @@ services:
       POSTGRES_PASSWORD: keycloak
     ports:
       # 5434 to avoid conflicting with hcm-postgres on 5433.
-      - "5434:5432"
+      - "5534:5432"
     volumes:
       - hcm-keycloak-pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -90,7 +90,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.5
-    container_name: hcm-keycloak
+    container_name: sme-keycloak
     # Production `start` mode (was `start-dev` until milestone 23).
     # Image auto-runs the build phase when KC_DB / KC_HOSTNAME etc. change.
     command:
@@ -154,7 +154,7 @@ services:
     # Keycloak's sslRequired:external check for the master realm.
     # nginx still serves browser traffic on :8443 → http://hcm-keycloak:8090.
     ports:
-      - "127.0.0.1:8090:8090"
+      - "127.0.0.1:8190:8090"
     volumes:
       - ./keycloak/realm-millers-hcm.json:/opt/keycloak/data/import/realm-millers-hcm.json:ro
       # Multi-tenancy Phase 5 — a 2nd tenant realm to end-to-end validate
@@ -178,7 +178,7 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: hcm-nginx
+    container_name: sme-nginx
     # TLS terminator in front of Keycloak (PRD 14.6 — milestone 28).
     # Browser hits https://localhost:8443 → nginx → http://hcm-keycloak:8090.
     # The backend on the host keeps using http://localhost:8090 directly,
@@ -189,8 +189,8 @@ services:
       keycloak:
         condition: service_healthy
     ports:
-      - "8443:443"
-      - "8444:80"   # plain-HTTP → HTTPS redirect entry point
+      - "8543:443"
+      - "8544:80"   # plain-HTTP → HTTPS redirect entry point
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/certs/localhost.crt:/etc/nginx/certs/localhost.crt:ro
@@ -205,7 +205,7 @@ services:
 
   openldap:
     image: osixia/openldap:1.5.0
-    container_name: hcm-openldap
+    container_name: sme-openldap
     # M54 (PRD §14.6): OpenLDAP dev directory — Keycloak federates from this.
     # osixia/openldap creates the root dc=millers,dc=az entry automatically.
     # bootstrap.ldif seeds ou=users, ou=groups, 4 test users, and 5 role groups.
@@ -234,7 +234,7 @@ services:
 
   clamav:
     image: clamav/clamav:stable
-    container_name: hcm-clamav
+    container_name: sme-clamav
     # M50 (PRD 14.8): ClamAV daemon for virus scanning uploaded files.
     # clamd listens on TCP 3310 inside the container.
     # First start downloads the virus-definition DB via freshclam (~250 MB);
@@ -262,7 +262,7 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.3-alpine
-    container_name: hcm-clickhouse
+    container_name: sme-clickhouse
     # M58: Materialized analytics warehouse (PRD Could-Have).
     # Spring WarehouseEtlService talks to the HTTP interface on 18123.
     # Native TCP exposed on 19000 for CLI / DBeaver access.
@@ -289,12 +289,12 @@ services:
   # M164 — Loki log aggregation (PRD §18.3)
   loki:
     image: grafana/loki:2.9.8
-    container_name: hcm-loki
+    container_name: sme-loki
     # Single-process mode: no separate ingester / querier; suitable for dev.
     # Production: use the distributed / microservices mode with S3 or GCS backend.
     command: -config.file=/etc/loki/local-config.yaml
     ports:
-      - "3100:3100"
+      - "3200:3100"
     volumes:
       - hcm-lokidata:/loki
     healthcheck:
@@ -306,7 +306,7 @@ services:
 
   promtail:
     image: grafana/promtail:2.9.8
-    container_name: hcm-promtail
+    container_name: sme-promtail
     # Scrapes Docker container log files and ships them to Loki.
     # /var/lib/docker/containers is mounted read-only; /run/docker.sock
     # is used for metadata enrichment (container name, labels).
@@ -325,16 +325,16 @@ services:
   # M167 — Jaeger distributed tracing backend (PRD §18.3)
   jaeger:
     image: jaegertracing/all-in-one:1.57
-    container_name: hcm-jaeger
+    container_name: sme-jaeger
     # all-in-one bundles collector, query, and UI.
     # OTLP receiver on 4317 (gRPC) / 4318 (HTTP) receives spans from Spring Boot.
     # Jaeger UI on 16686 for trace browsing.
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "4317:4317"    # OTLP gRPC — Spring Boot exporter endpoint
-      - "4318:4318"    # OTLP HTTP — alternative exporter
-      - "16686:16686"  # Jaeger UI
+      - "4417:4317"    # OTLP gRPC — Spring Boot exporter endpoint
+      - "4418:4318"    # OTLP HTTP — alternative exporter
+      - "16786:16686"  # Jaeger UI
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:16686/ | grep -q 'Jaeger' || exit 1"]
       interval: 10s
@@ -345,7 +345,7 @@ services:
   # M161 — Prometheus + Grafana monitoring stack (PRD §18.3)
   prometheus:
     image: prom/prometheus:v2.52.0
-    container_name: hcm-prometheus
+    container_name: sme-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - hcm-prometheusdata:/prometheus
@@ -356,7 +356,7 @@ services:
       - "--web.console.libraries=/usr/share/prometheus/console_libraries"
       - "--web.console.templates=/usr/share/prometheus/consoles"
     ports:
-      - "9090:9090"
+      - "9190:9090"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -365,7 +365,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.0.0
-    container_name: hcm-grafana
+    container_name: sme-grafana
     depends_on:
       prometheus:
         condition: service_healthy
@@ -377,7 +377,7 @@ services:
       GF_SERVER_ROOT_URL: http://localhost:3001
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/hcm-overview.json
     ports:
-      - "3001:3000"
+      - "3101:3000"
     volumes:
       - hcm-grafanadata:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro

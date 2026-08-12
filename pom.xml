@@ -12,9 +12,9 @@
     </parent>
 
     <groupId>az.millers.hcm</groupId>
-    <artifactId>hcm-platform</artifactId>
+    <artifactId>hcm-sme-platform</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>Enterprise HCM Platform</name>
+    <name>Millers HCM SME</name>
     <description>Human Capital Management platform - modular monolith</description>
 
     <properties>

@@ -28,7 +28,7 @@ on:
         default: "manual test deploy"
 
 env:
-  IMAGE_NAME: millers-hcm
+  IMAGE_NAME: millers-hcm-sme
 
 jobs:
   deploy:
