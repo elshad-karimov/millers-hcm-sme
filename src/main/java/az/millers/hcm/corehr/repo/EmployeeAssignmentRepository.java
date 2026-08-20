@@ -45,9 +45,26 @@ public interface EmployeeAssignmentRepository
             from EmployeeAssignment a
             where a.employeeId = :employeeId
               and a.effectiveTo is null
-              and (:excludeId is null or a.id <> :excludeId)
             """)
-    BigDecimal sumOpenAllocationForEmployee(UUID employeeId, UUID excludeId);
+    BigDecimal sumOpenAllocationForEmployee(UUID employeeId);
+
+    /**
+     * As {@link #sumOpenAllocationForEmployee(UUID)}, skipping the row being
+     * updated.
+     *
+     * <p>Split in two for the same reason as
+     * {@code BankAccountRepository.sumActiveSplitForEmployeeExcluding}: the
+     * combined form tested a null-valued parameter with {@code :excludeId is
+     * null}, which Postgres refuses to type, and the create path passes null.
+     */
+    @Query("""
+            select coalesce(sum(a.allocationPercent), 0)
+            from EmployeeAssignment a
+            where a.employeeId = :employeeId
+              and a.effectiveTo is null
+              and a.id <> :excludeId
+            """)
+    BigDecimal sumOpenAllocationForEmployeeExcluding(UUID employeeId, UUID excludeId);
 
     /** Employees currently assigned to a given position — for org-chart queries. */
     @Query("""

@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,11 +82,12 @@ public class AuditLogQueryService {
         if (f.from() != null && f.to() != null && f.to().isBefore(f.from())) {
             throw new BadRequestException("'to' must be on or after 'from'");
         }
-        Page<AuditLog> result = repository.search(
-                f.from(), f.to(),
-                f.module(), f.entityName(), f.entityId(),
-                f.action(), f.actor(),
-                PageRequest.of(page, size));
+        Page<AuditLog> result = repository.findAll(
+                AuditLogSpecifications.forFilter(
+                        f.from(), f.to(),
+                        f.module(), f.entityName(), f.entityId(),
+                        f.action(), f.actor()),
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return PageResponse.of(result, AuditLogRow::from);
     }
 

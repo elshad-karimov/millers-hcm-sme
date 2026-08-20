@@ -54,7 +54,25 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, UUID> 
             from BankAccount b
             where b.employeeId = :employeeId
               and b.active = true
-              and (:excludeId is null or b.id <> :excludeId)
             """)
-    BigDecimal sumActiveSplitForEmployee(UUID employeeId, UUID excludeId);
+    BigDecimal sumActiveSplitForEmployee(UUID employeeId);
+
+    /**
+     * As {@link #sumActiveSplitForEmployee(UUID)}, skipping one row.
+     *
+     * <p>Two methods rather than one with a nullable {@code excludeId}, because
+     * the single-method form was {@code (:excludeId is null or b.id <> :excludeId)}
+     * and the create path passes null. Postgres cannot infer a type for a
+     * placeholder whose only context is a null test and rejects the statement
+     * outright — 42P18, "could not determine data type of parameter" — so
+     * adding a bank account failed before its split could ever be validated.
+     */
+    @Query("""
+            select coalesce(sum(b.salarySplitPercent), 0)
+            from BankAccount b
+            where b.employeeId = :employeeId
+              and b.active = true
+              and b.id <> :excludeId
+            """)
+    BigDecimal sumActiveSplitForEmployeeExcluding(UUID employeeId, UUID excludeId);
 }

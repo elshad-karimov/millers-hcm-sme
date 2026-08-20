@@ -256,7 +256,9 @@ public class EmployeeAssignmentService {
     }
 
     private void ensureAllocationCap(UUID employeeId, BigDecimal newAllocation, UUID excludeId) {
-        BigDecimal soFar = repository.sumOpenAllocationForEmployee(employeeId, excludeId);
+        BigDecimal soFar = excludeId == null
+                ? repository.sumOpenAllocationForEmployee(employeeId)
+                : repository.sumOpenAllocationForEmployeeExcluding(employeeId, excludeId);
         BigDecimal total = (soFar == null ? BigDecimal.ZERO : soFar).add(newAllocation);
         if (total.compareTo(HUNDRED) > 0) {
             throw new BadRequestException(

@@ -3,11 +3,13 @@ package az.millers.hcm.reporting.service;
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import az.millers.hcm.audit.domain.AuditLog;
 import az.millers.hcm.audit.repo.AuditLogRepository;
+import az.millers.hcm.audit.service.AuditLogSpecifications;
 import az.millers.hcm.reporting.api.dto.EmpMgmtDtos.ActivityFeed;
 import az.millers.hcm.reporting.api.dto.EmpMgmtDtos.ActivityRow;
 
@@ -36,7 +38,13 @@ public class ActivityFeedService {
     @Transactional(readOnly = true)
     public ActivityFeed recent(String module, String entityName, String actor, Integer limit) {
         int cap = limit == null || limit < 1 || limit > 500 ? DEFAULT_LIMIT : limit;
-        List<AuditLog> rows = auditLogs.findRecent(module, entityName, actor, PageRequest.of(0, cap));
+        // Same null-parameter trap as the audit browser: findRecent's
+        // (:module is null or ...) JPQL could not run with the filters empty,
+        // which is exactly how the dashboard calls it.
+        List<AuditLog> rows = auditLogs.findAll(
+                AuditLogSpecifications.forActivityFeed(module, entityName, actor),
+                PageRequest.of(0, cap, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).getContent();
         var mapped = rows.stream()
                 .map(r -> new ActivityRow(
                         r.getCreatedAt(),

@@ -198,8 +198,10 @@ public class BankAccountService {
      */
     private void validateSplit(BankAccount candidate, UUID excludeId) {
         if (!candidate.isActive()) return;     // inactive rows don't count
-        BigDecimal sumOfOthers = repository
-                .sumActiveSplitForEmployee(candidate.getEmployeeId(), excludeId);
+        BigDecimal sumOfOthers = excludeId == null
+                ? repository.sumActiveSplitForEmployee(candidate.getEmployeeId())
+                : repository.sumActiveSplitForEmployeeExcluding(
+                        candidate.getEmployeeId(), excludeId);
         BigDecimal total = sumOfOthers.add(candidate.getSalarySplitPercent());
         if (total.compareTo(new BigDecimal("100.00")) != 0) {
             throw new BadRequestException(

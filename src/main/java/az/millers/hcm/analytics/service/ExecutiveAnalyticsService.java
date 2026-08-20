@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -16,6 +17,7 @@ import az.millers.hcm.analytics.api.dto.ExecutiveSummary;
 import az.millers.hcm.analytics.api.dto.ExecutiveSummary.ComplianceDeadlineItem;
 import az.millers.hcm.analytics.api.dto.ExecutiveSummary.HeadcountTrendSummary;
 import az.millers.hcm.analytics.api.dto.ExecutiveSummary.PayrollCostTrendSummary;
+import az.millers.hcm.compliance.service.ComplianceDeadlineService;
 
 /**
  * M475 — Executive analytics summary service.
@@ -26,11 +28,14 @@ public class ExecutiveAnalyticsService {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final KpiValueService kpiValueService;
+    private final ComplianceDeadlineService complianceDeadlines;
 
     public ExecutiveAnalyticsService(NamedParameterJdbcTemplate jdbc,
-                                    KpiValueService kpiValueService) {
+                                    KpiValueService kpiValueService,
+                                    ComplianceDeadlineService complianceDeadlines) {
         this.jdbc = jdbc;
         this.kpiValueService = kpiValueService;
+        this.complianceDeadlines = complianceDeadlines;
     }
 
     @Transactional(readOnly = true)
@@ -57,17 +62,23 @@ public class ExecutiveAnalyticsService {
         // eNPS
         Integer enps = (Integer) kpiValueService.value("ENPS");
 
-        // Upcoming compliance deadlines (next 30 days)
-        List<ComplianceDeadlineItem> upcomingDeadlines = jdbc.query(
-                "SELECT title, next_due, 'upcoming' AS status " +
-                "FROM compliance.compliance_deadline " +
-                "WHERE tenant_id = :tenant AND next_due BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' " +
-                "ORDER BY next_due LIMIT 5",
-                new MapSqlParameterSource("tenant", TenantContext.current()),
-                (rs, i) -> new ComplianceDeadlineItem(
-                        rs.getString("title"),
-                        rs.getObject("next_due", LocalDate.class).format(DateTimeFormatter.ISO_DATE),
-                        rs.getString("status")));
+        // Upcoming compliance deadlines (next 30 days).
+        //
+        // This used to SELECT a next_due column. There is no such column:
+        // compliance_deadline stores a recurrence RULE — frequency, due_day,
+        // month — and the next occurrence is derived from it. The date the
+        // query wanted has to be computed, so it asks the service that already
+        // computes it rather than growing a second, divergent notion of when a
+        // quarterly deadline next falls due.
+        List<ComplianceDeadlineItem> upcomingDeadlines = complianceDeadlines
+                .getUpcoming(30).stream()
+                .sorted(Comparator.comparing(ComplianceDeadlineService.UpcomingDeadline::nextDue))
+                .limit(5)
+                .map(d -> new ComplianceDeadlineItem(
+                        d.title(),
+                        d.nextDue().format(DateTimeFormatter.ISO_DATE),
+                        "upcoming"))
+                .toList();
 
         // Attrition high risk count (from M476 if exists, else 0)
         Long attritionHighRiskCount = 0L;
