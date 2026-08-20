@@ -12,10 +12,42 @@
 # the app (which serves the REST API and the bundled SPA). Serving both halves
 # from one origin is what keeps the OIDC round trip free of CORS.
 #
-# Apply:  docker exec millerscrm-caddy-1 caddy validate --config /etc/caddy/Caddyfile
-#   then: docker exec millerscrm-caddy-1 caddy reload   --config /etc/caddy/Caddyfile
+# Apply — NOTE the container mounts /etc/caddy read-only, and the host path can
+# drift from the mounted inode if the file is ever replaced by a rename (editors
+# and `awk … > new && mv` both do this), in which case the container keeps
+# reading the old, orphaned inode and a reload silently changes nothing. Copying
+# through to a writable path sidesteps both problems and needs no restart:
+#
+#   docker exec -i millerscrm-caddy-1 sh -c 'cat > /tmp/Caddyfile' \
+#     < /opt/millerscrm/caddy/Caddyfile
+#   docker exec millerscrm-caddy-1 caddy validate --config /tmp/Caddyfile --adapter caddyfile
+#   docker exec millerscrm-caddy-1 caddy reload   --config /tmp/Caddyfile --adapter caddyfile
+#
+# Verify it landed (not just that reload printed OK):
+#   docker exec millerscrm-caddy-1 wget -qO- http://127.0.0.1:2019/config/ | grep -c encode
 
 hcm-sme.millers-software.com {
+	# The SPA bundle is ~4 MB uncompressed and was taking 8-40s to download,
+	# which is what the "Loading Millers HCM…" screen actually was. JS/CSS
+	# compress roughly 4:1, so this is the single biggest win available.
+	encode zstd gzip
+
+	# Vite emits content-hashed filenames under /assets, so a given URL never
+	# changes content and can be cached forever; a new build yields new names.
+	# Spring Security stamps `no-store` on every response, which made the browser
+	# re-download the whole bundle on every page load — so the wait was not just
+	# a first-visit cost, it repeated forever.
+	#
+	# The `>` prefix matters: a plain `header` ADDS a second Cache-Control next to
+	# the upstream one, and a browser reading both still honours no-store. `>`
+	# defers the set until after the proxy has written its headers, replacing it.
+	@assets path /assets/*
+	header @assets >Cache-Control "public, max-age=31536000, immutable"
+	header @assets -Pragma
+	header @assets -Expires
+
+	# index.html deliberately keeps no-store: it is what points at the hashed
+	# bundles, so it must be re-fetched for a new deploy to be picked up.
 	@keycloak path /realms/* /resources/* /js/*
 	reverse_proxy @keycloak sme-keycloak:8090
 	reverse_proxy sme-backend:8080
