@@ -33,6 +33,36 @@
     </encoder>
   </appender>
 
+  <!-- ── Rolling file appender ────────────────────────────────────────────
+       Console logging alone means the logs live inside the container, and
+       `docker compose up -d` REPLACES the container rather than restarting it.
+       Every deploy therefore destroyed the evidence for anything reported just
+       before it — three separate 500s were investigated this way, each traceId
+       already unrecoverable by the time it was quoted.
+
+       So the same lines also go to a file. Point HCM_LOG_DIR at a bind mount and
+       the trail outlives the container that wrote it. Default is relative to
+       WORKDIR (/app), which the non-root `hcm` user owns, so this is safe
+       wherever it runs — it just isn't durable until something is mounted.
+       Independent of the Loki appender below, which is opt-in and needs a
+       server; a file needs nothing. -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${HCM_LOG_DIR:-logs}/hcm.log</file>
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] %-40.40logger{40} : %msg%n</pattern>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${HCM_LOG_DIR:-logs}/hcm.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <!-- 14 days is longer than any plausible gap between a user hitting an
+           error and someone quoting the traceId; totalSizeCap is the real
+           guard on a box with ~880MB free. -->
+      <maxHistory>14</maxHistory>
+      <totalSizeCap>500MB</totalSizeCap>
+      <cleanHistoryOnStart>true</cleanHistoryOnStart>
+    </rollingPolicy>
+  </appender>
+
   <!-- ── Loki appender ────────────────────────────────────────────────────── -->
   <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
     <!-- Batch: send every 1 s or when 1 000 lines accumulate, whichever first -->
@@ -77,6 +107,7 @@
   <!-- ── Root logger ──────────────────────────────────────────────────────── -->
   <root level="${LOG_LEVEL_ROOT:-INFO}">
     <appender-ref ref="CONSOLE" />
+    <appender-ref ref="FILE" />
     <!--
       Loki shipping is OPT-IN via the "loki" profile.
 

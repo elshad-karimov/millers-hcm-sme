@@ -92,6 +92,12 @@ services:
       # screen served a 500 for users Keycloak was holding locally all along.
       HCM_LDAP_AUTO_SETUP: "${HCM_LDAP_AUTO_SETUP:-false}"
 
+      # Logs to a bind mount, because a deploy REPLACES this container and takes
+      # its console log with it. Without this, any error reported shortly before
+      # a roll is unrecoverable — the traceId in the user's screenshot resolves
+      # to nothing. See the FILE appender in logback-spring.xml.
+      HCM_LOG_DIR: /var/log/hcm
+
       HCM_REDIS_HOST: redis
       HCM_REDIS_PORT: "6379"
 
@@ -107,6 +113,15 @@ services:
       # Off unless the box actually runs these services.
       HCM_STORAGE_MINIO_ENABLED: "${HCM_STORAGE_MINIO_ENABLED:-false}"
       HCM_VIRUS_SCAN_ENABLED: "${HCM_VIRUS_SCAN_ENABLED:-false}"
+    volumes:
+      # Survives `docker compose up -d`, which the container itself does not.
+      # Logback rotates and caps this at 500MB; the box has little to spare.
+      #
+      # The image runs as the non-root hcm user (uid 100, gid 101) and a bind
+      # mount keeps the HOST directory's ownership, so root:root here means the
+      # app silently cannot write and the appender is dead on arrival. Create it
+      # once, on the box:  mkdir -p deploy/logs && chown 100:101 deploy/logs
+      - ./logs:/var/log/hcm
     ports:
       # Loopback only, for curl/debugging from the box. Caddy reaches the
       # container over the network, not through this binding.

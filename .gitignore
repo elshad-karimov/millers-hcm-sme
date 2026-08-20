@@ -42,3 +42,6 @@ volumes/
 # Python bytecode (from scripts/uat_smoke.py and UAT generators)
 __pycache__/
 *.pyc
+
+# Rolling application log (logback FILE appender; HCM_LOG_DIR)
+logs/
