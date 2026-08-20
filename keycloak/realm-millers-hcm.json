@@ -69,7 +69,7 @@
       "frontchannelLogout": true,
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5181/*##http://127.0.0.1:5181/*"
+        "post.logout.redirect.uris": "+"
       },
       "redirectUris": [
         "https://hcm-sme.millers-software.com/*",
