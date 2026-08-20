@@ -87,6 +87,14 @@ services:
       # Loopback only, for curl/debugging from the box. Caddy reaches the
       # container over the network, not through this binding.
       - "127.0.0.1:8083:8080"
+    # REQUIRED, not a nicety. The image sets -XX:MaxRAMPercentage=75, which with
+    # no limit sizes the heap off the HOST's RAM (3.8G here → ~2.8G heap) while
+    # this shared box only has ~1.6G free. The JVM grows until the kernel
+    # OOM-kills it, and the container restart-loops with exit code 0, which
+    # looks like a clean shutdown rather than a kill. Mirrors the enterprise
+    # hcm-backend's 900M limit; it runs at ~115M in practice.
+    mem_limit: 900m
+    memswap_limit: 900m
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q UP"]
       interval: 15s
