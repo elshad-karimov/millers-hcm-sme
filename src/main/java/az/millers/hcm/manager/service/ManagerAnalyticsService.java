@@ -75,9 +75,14 @@ public class ManagerAnalyticsService {
         double absenceRate = (leaveDays == null ? 0 : leaveDays) / Math.max(1, reportIds.size() * 22);
         result.put("absenceRateCurrentMonth", absenceRate);
 
-        // Overtime hours: sum approved OT hours in last 3 months
+        // Overtime hours: sum approved OT in the last 3 months.
+        //
+        // There is no approved_hours column. overtime_request records
+        // requested_minutes, and "approved" is a state of the row
+        // (workflow_status), not a separate amount — so the approved hours are
+        // the requested minutes of approved rows, converted.
         String overtimeSql = """
-            SELECT COALESCE(SUM(approved_hours), 0)
+            SELECT COALESCE(SUM(requested_minutes), 0) / 60.0
             FROM attendance.overtime_request
             WHERE tenant_id = :tenantId
               AND employee_id = ANY(:reportIds)

@@ -46,7 +46,7 @@ public class SkillInventoryService {
             FROM learning.employee_competency ec
             JOIN learning.competency c ON c.id = ec.competency_id
             JOIN core_hr.employee e ON e.id = ec.employee_id
-            LEFT JOIN organization.org_unit ou ON ou.id = e.department_id
+            LEFT JOIN organization.org_unit ou ON ou.id = e.org_unit_id
             WHERE e.tenant_id = :tenantId
             """ + (scope.isPresent() && !scope.get().isEmpty()
                     ? "AND e.id IN (:scopeIds)" : "") + """

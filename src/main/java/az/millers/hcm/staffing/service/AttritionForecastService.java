@@ -49,15 +49,15 @@ public class AttritionForecastService {
         // 1. Historical turnover per org-unit (trailing 12 months)
         String historicalSql = """
             SELECT
-                e.department_id AS org_unit_id,
+                e.org_unit_id AS org_unit_id,
                 COUNT(*) AS termination_count
             FROM lifecycle.termination t
             JOIN core_hr.employee e ON e.id = t.employee_id
             WHERE t.effective_date >= :start
               AND t.effective_date < :end
               AND e.tenant_id = :tenantId
-              AND e.department_id IS NOT NULL
-            GROUP BY e.department_id
+              AND e.org_unit_id IS NOT NULL
+            GROUP BY e.org_unit_id
             """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -85,15 +85,15 @@ public class AttritionForecastService {
         if (horizonDate != null) {
             String expirySQL = """
                 SELECT
-                    e.department_id AS org_unit_id,
+                    e.org_unit_id AS org_unit_id,
                     COUNT(DISTINCT e.id) AS expiring_count
                 FROM lifecycle.employment_contract ec
                 JOIN core_hr.employee e ON e.id = ec.employee_id
                 WHERE ec.end_date IS NOT NULL
                   AND ec.end_date BETWEEN :today AND :horizon
                   AND e.tenant_id = :tenantId
-                  AND e.department_id IS NOT NULL
-                GROUP BY e.department_id
+                  AND e.org_unit_id IS NOT NULL
+                GROUP BY e.org_unit_id
                 """;
 
             MapSqlParameterSource expiryParams = new MapSqlParameterSource()

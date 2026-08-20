@@ -40,21 +40,27 @@ public class EmployeeDirectoryService {
             SELECT
                 e.id,
                 CONCAT(e.first_name, ' ', e.last_name) AS full_name,
-                d.name AS department_name,
+                e.department_name AS department_name,
                 ou.name AS org_unit_name,
                 p.title AS position_title,
                 e.work_email,
                 e.work_phone,
-                e.photo_attachment_id
+                -- No employee photo is stored anywhere in this schema, and
+                -- nothing else in the codebase references one. Selecting a
+                -- typed NULL keeps the response shape the DTO promises instead
+                -- of naming a column that has never existed.
+                CAST(NULL AS uuid) AS photo_attachment_id
             FROM core_hr.employee e
-            LEFT JOIN organization.department d ON e.department_id = d.id
+            -- Was: LEFT JOIN organization.department d ON e.department_id = d.id
+            -- Neither side exists — there is no department table, and the
+            -- employee's own department is the denormalized department_name.
             LEFT JOIN organization.org_unit ou ON e.org_unit_id = ou.id
-            LEFT JOIN organization.position p ON e.position_id = p.id
+            LEFT JOIN staffing.position p ON e.position_id = p.id
             WHERE e.tenant_id = ?
-              AND e.status = 'ACTIVE'
+              AND e.employment_status = 'ACTIVE'
               AND (
                 LOWER(CONCAT(e.first_name, ' ', e.last_name)) LIKE ?
-                OR LOWER(d.name) LIKE ?
+                OR LOWER(e.department_name) LIKE ?
                 OR LOWER(ou.name) LIKE ?
                 OR LOWER(p.title) LIKE ?
               )
