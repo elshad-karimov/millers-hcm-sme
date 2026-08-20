@@ -197,7 +197,13 @@ hcm:
     # connection-url is sent to Keycloak (which runs in Docker) so it uses
     # the Docker-internal hostname+port.  osixia/openldap listens on :389
     # internally; host-side mapping is 127.0.0.1:1389:389.
-    connection-url: ${HCM_LDAP_URL:ldap://hcm-openldap:389}
+    #
+    # 'openldap' is this repo's compose SERVICE name, which is what resolves on
+    # the network Keycloak is on.  It used to read 'hcm-openldap' — the
+    # ENTERPRISE stack's container, on a different network and unreachable from
+    # here — so the provider was registered pointing at a host that resolves
+    # nowhere, and Keycloak then failed every user query in the realm.
+    connection-url: ${HCM_LDAP_URL:ldap://openldap:389}
     bind-dn: ${HCM_LDAP_BIND_DN:cn=admin,dc=millers,dc=az}
     bind-credential: ${HCM_LDAP_BIND_CREDENTIAL:adminpassword}
     users-dn: ${HCM_LDAP_USERS_DN:ou=users,dc=millers,dc=az}

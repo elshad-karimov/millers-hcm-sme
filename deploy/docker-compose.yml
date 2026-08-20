@@ -84,6 +84,14 @@ services:
       HCM_KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
       HCM_PREBOARDING_BASE_URL: ${PUBLIC_URL}/preboarding
 
+      # This stack ships no LDAP directory (see the service list below), so the
+      # startup runner must not register an LDAP federation provider with
+      # Keycloak. It did, pointing at a host that does not exist here, and
+      # Keycloak fans every user query out to every registered provider — so
+      # GET /admin/realms/millers-hcm/users returned 400 and the admin Users
+      # screen served a 500 for users Keycloak was holding locally all along.
+      HCM_LDAP_AUTO_SETUP: "${HCM_LDAP_AUTO_SETUP:-false}"
+
       HCM_REDIS_HOST: redis
       HCM_REDIS_PORT: "6379"
 

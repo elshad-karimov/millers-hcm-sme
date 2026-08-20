@@ -59,6 +59,25 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(payload);
     }
 
+    /**
+     * A dependency (Keycloak, LDAP) failed. 502, not 500: our own request
+     * handling was sound, so the operator should be pointed outward rather than
+     * at this application. The message is thrown from a seam that knows which
+     * dependency broke, so unlike the catch-all it can name it — and these
+     * endpoints are admin-only, so naming it leaks nothing to an ordinary user.
+     */
+    @ExceptionHandler(UpstreamServiceException.class)
+    public ResponseEntity<Map<String, Object>> handleUpstream(UpstreamServiceException ex) {
+        log.error("Upstream dependency failed — returning 502 (traceId={})", MDC.get("traceId"), ex);
+        Map<String, Object> payload = baseBody(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        payload.put("code", "UPSTREAM_ERROR");
+        String traceId = MDC.get("traceId");
+        if (traceId != null) {
+            payload.put("traceId", traceId);
+        }
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(payload);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> errors = new LinkedHashMap<>();

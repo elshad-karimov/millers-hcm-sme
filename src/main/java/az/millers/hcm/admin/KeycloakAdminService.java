@@ -1,5 +1,6 @@
 package az.millers.hcm.admin;
 
+import az.millers.hcm.common.UpstreamServiceException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import javax.net.ssl.*;
 import java.io.IOException;
@@ -109,11 +111,26 @@ public class KeycloakAdminService {
 
     public List<UserAdminDto> listUsers() {
         String token = adminToken();
-        JsonNode usersNode = restClient.get()
-                .uri(realmUrl("/users?max=200&briefRepresentation=false"))
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(JsonNode.class);
+        JsonNode usersNode;
+        try {
+            usersNode = restClient.get()
+                    .uri(realmUrl("/users?max=200&briefRepresentation=false"))
+                    .header("Authorization", "Bearer " + token)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RestClientResponseException ex) {
+            // Keycloak answers this endpoint from every user-storage provider in
+            // the realm, and reports one broken provider as a flat 400
+            // unknown_error over the whole query — the local users disappear
+            // along with the federated ones. Left bare that surfaced as "500,
+            // something went wrong", which points the operator at this
+            // application when the fault is a federation provider next door.
+            throw new UpstreamServiceException(
+                    "Keycloak refused the user list (HTTP " + ex.getStatusCode().value()
+                            + "). This is usually a user-federation provider in realm '"
+                            + props.realm() + "' that Keycloak cannot reach — check the"
+                            + " realm's user-storage providers and the Keycloak log.", ex);
+        }
 
         List<UserAdminDto> result = new ArrayList<>();
         if (usersNode != null) {

@@ -1,6 +1,7 @@
 package az.millers.hcm.ldap;
 
 import az.millers.hcm.admin.KeycloakAdminService;
+import az.millers.hcm.common.UpstreamServiceException;
 import az.millers.hcm.ldap.api.LdapStatusResponse;
 import az.millers.hcm.ldap.api.LdapSyncResult;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,6 +43,10 @@ import java.util.*;
  * (e.g. during a rolling deploy or first-boot race), the method logs a
  * warning and returns gracefully. This prevents startup failures when the
  * LDAP or Keycloak container is still initialising.
+ *
+ * <p>An unreachable <em>LDAP</em> directory is the one thing not shrugged off:
+ * see {@link #requireLdapReachable()} for why registering a provider that
+ * cannot answer is worse than registering none.
  */
 @Service
 @EnableConfigurationProperties(LdapProperties.class)
@@ -76,11 +81,22 @@ public class LdapFederationService {
      * an initial full synchronisation.
      *
      * <p>Safe to call multiple times; each step is guarded by an existence
-     * check. All exceptions are swallowed and logged as warnings so that
-     * application startup is never blocked by a temporarily unavailable
-     * Keycloak or OpenLDAP instance.
+     * check. Keycloak-side failures are swallowed and logged as warnings so
+     * that application startup is never blocked by a Keycloak instance that is
+     * still initialising.
+     *
+     * @throws UpstreamServiceException if the LDAP directory itself is not
+     *         reachable — nothing is registered in that case, and the caller
+     *         (the startup runner, or an admin hitting {@code POST
+     *         /api/admin/ldap/setup}) is told why rather than left to discover
+     *         it through a broken user list
      */
     public void setupIfNeeded() {
+        // Before Keycloak is told about this directory, check that the directory
+        // is there. See requireLdapReachable() for why an absent one must stay
+        // unregistered rather than be registered and left to fail.
+        requireLdapReachable();
+
         try {
             String token = keycloakAdminService.getAdminToken();
             String realmId = fetchRealmId(token);
@@ -183,6 +199,71 @@ public class LdapFederationService {
     // ─────────────────────────────────────────────────────────────────────────
     // Internal helpers
     // ─────────────────────────────────────────────────────────────────────────
+
+    /** How long to wait for the directory's TCP port before calling it absent. */
+    private static final int LDAP_PROBE_TIMEOUT_MS = 3_000;
+
+    /**
+     * Throws unless the LDAP directory named by
+     * {@link LdapProperties#connectionUrl()} accepts a TCP connection.
+     *
+     * <p>Registering the federation provider is not a contained act. From the
+     * moment the component exists, Keycloak fans <em>every</em> user query in
+     * the realm out to it, and a provider that cannot answer fails the whole
+     * query rather than its own share of it:
+     * {@code GET /admin/realms/{realm}/users} comes back 400 {@code
+     * unknown_error}, which is how a directory that was never deployed took the
+     * entire user-administration screen down with it — the users Keycloak holds
+     * locally became unlistable because of a provider that had contributed
+     * none of them. A directory we cannot reach therefore stays unregistered
+     * until it exists.
+     *
+     * <p>The probe runs from this application while Keycloak is what ultimately
+     * connects. In every stack we ship the two share a compose network, so this
+     * asks the same reachability question one hop away — close enough to catch
+     * the case that matters, which is a host that resolves nowhere at all.
+     *
+     * <p>Throwing (rather than returning quietly) is what makes
+     * {@code LdapSetupRunner}'s retry loop wait out a directory that is merely
+     * slow to boot.
+     */
+    private void requireLdapReachable() {
+        String url = props.connectionUrl();
+        if (url == null || url.isBlank()) {
+            throw new UpstreamServiceException(
+                    "No LDAP connection URL is configured (hcm.ldap.connection-url), "
+                            + "so no federation provider was registered with Keycloak.");
+        }
+
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(url);
+        } catch (IllegalArgumentException ex) {
+            throw new UpstreamServiceException(
+                    "LDAP connection URL is not a valid URI: " + url, ex);
+        }
+
+        String host = uri.getHost();
+        int port = uri.getPort() > 0
+                ? uri.getPort()
+                : ("ldaps".equalsIgnoreCase(uri.getScheme()) ? 636 : 389);
+
+        if (host == null) {
+            throw new UpstreamServiceException(
+                    "LDAP connection URL names no host: " + url);
+        }
+
+        try (java.net.Socket socket = new java.net.Socket()) {
+            socket.connect(new java.net.InetSocketAddress(host, port), LDAP_PROBE_TIMEOUT_MS);
+        } catch (java.io.IOException ex) {
+            throw new UpstreamServiceException(
+                    "LDAP directory at " + url + " is not reachable (" + ex.getMessage()
+                            + "), so it was not registered with Keycloak: an unreachable "
+                            + "federation provider makes the realm's whole user list fail. "
+                            + "Set hcm.ldap.auto-setup=false if this deployment has no LDAP "
+                            + "directory.", ex);
+        }
+    }
 
     private LdapSyncResult sync(String action) {
         try {
