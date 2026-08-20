@@ -51,6 +51,15 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
 
+      # Behind Caddy, Spring otherwise sees every request as
+      # http://sme-backend:8080. Vite emits <script type="module" crossorigin>,
+      # so the browser sends an Origin header; against that wrong self-view the
+      # request looks CROSS-origin, gets checked against the CORS allow-list
+      # (which still holds only dev ports) and is rejected with 403 — the SPA's
+      # own JS and CSS were being blocked. Honouring X-Forwarded-* makes the
+      # request same-origin again, so CORS is skipped entirely.
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+
       # Override the image default (-XX:+UseZGC -XX:MaxRAMPercentage=75).
       # ZGC's own footprint plus a 75% heap does not fit a 900M container: the
       # JVM died just after startup, restart-looping with exit code 0. This
