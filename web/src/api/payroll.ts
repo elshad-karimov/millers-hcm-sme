@@ -639,9 +639,31 @@ export const payrollApi = {
   setBankAccount: (payload: BankAccountRequest) =>
     api.post<BankAccountResponse>('/payroll/bank-accounts', payload).then((r) => r.data),
 
-  // M349: Salary components
+  // M349: Salary components.
+  //
+  // GET /payroll/components is the one payroll list endpoint that returns a
+  // Spring Page ({content, totalElements, …}) rather than a bare array — every
+  // sibling (runs, advances, loans, groups) returns a List. Callers reasonably
+  // assumed an array and called .map() on it, which threw
+  // "components.map is not a function" and, with no error boundary, blanked
+  // the whole employee profile.
+  //
+  // Unwrap here rather than at each call site, and accept either shape so this
+  // keeps working if the endpoint is ever aligned with its siblings.
+  //
+  // The explicit size is deliberate: Spring defaults to 20 rows per page, so
+  // without it a tenant with more than 20 components would silently lose the
+  // rest — a wrong dropdown rather than a visible error.
   components: (params?: { kind?: ComponentKind; isActive?: boolean; isStatutory?: boolean }) =>
-    api.get<SalaryComponent[]>('/payroll/components', { params }).then((r) => r.data),
+    api
+      .get<SalaryComponent[] | { content?: SalaryComponent[] }>('/payroll/components', {
+        params: { size: 500, ...params },
+      })
+      .then((r) => {
+        const body = r.data
+        if (Array.isArray(body)) return body
+        return Array.isArray(body?.content) ? body.content : []
+      }),
   component: (id: string) =>
     api.get<SalaryComponent>(`/payroll/components/${id}`).then((r) => r.data),
   createComponent: (payload: SalaryComponentRequest) =>

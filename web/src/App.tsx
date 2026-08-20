@@ -173,6 +173,7 @@ import { CustomReportBuilderPage } from './pages/CustomReportBuilderPage'
 import { ReportSchedulesPage } from './pages/ReportSchedulesPage'
 import { MyWorkspacePage } from './pages/MyWorkspacePage'
 import { MyPoliciesPage } from './pages/MyPoliciesPage'
+import { UpgradePage } from './pages/UpgradePage'
 import { PoliciesAdminPage } from './pages/PoliciesAdminPage'
 import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { LocationsPage } from './pages/LocationsPage'
@@ -204,6 +205,12 @@ import { TalentPoolPage } from './pages/TalentPoolPage'
 import { RecruitmentAnalyticsPage } from './pages/RecruitmentAnalyticsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import HomePage from './pages/HomePage'
+import SelfServiceAreaPage from './pages/SelfServiceAreaPage'
+import MyTimesheetPage from './pages/MyTimesheetPage'
+import TimesheetApprovalsPage from './pages/TimesheetApprovalsPage'
+import TimesheetReviewPage from './pages/TimesheetReviewPage'
+import TimesheetControlPage from './pages/TimesheetControlPage'
+import PayrollTimeInputsPage from './pages/PayrollTimeInputsPage'
 import { UserManagementPage } from './pages/UserManagementPage'
 import { ApiKeysPage } from './pages/ApiKeysPage'
 import { PreboardingPage } from './pages/PreboardingPage'
@@ -229,7 +236,6 @@ import { PermissionMatrixPage } from './pages/PermissionMatrixPage'
 import { AppLayout } from './components/AppLayout'
 import { RequireAuth } from './auth/RequireAuth'
 import { useAuth } from './auth/AuthContext'
-import { RoleSets } from './auth/roleSets'
 import { EhsIncidentsPage } from './pages/EhsIncidentsPage'
 import { ReturnToWorkPage } from './pages/ReturnToWorkPage'
 import { RiskRegisterPage } from './pages/RiskRegisterPage'
@@ -252,13 +258,14 @@ import { LaborCostReportPage } from './pages/LaborCostReportPage'
 import { InternationalAssignmentsPage } from './pages/InternationalAssignmentsPage'
 import { ContractorsPage } from './pages/ContractorsPage'
 
-/** Lands HR/admins on the home dashboard; non-HR users on their My Workspace. */
+/**
+ * Everyone lands on the Home springboard.  It is role-aware — an employee sees
+ * the Self-Service board (their whole menu: leave, pay, timesheets, learning,
+ * requests …), HR/admins additionally see their module tabs — so dropping a
+ * plain employee straight into /my used to hide every other thing they can do.
+ */
 function IndexRedirect() {
-  const { hasRole } = useAuth()
-  const target = hasRole(...RoleSets.HR_PLUS_MANAGERS_READ)
-    ? '/home'
-    : '/my'
-  return <Navigate to={target} replace />
+  return <Navigate to="/home" replace />
 }
 
 /**
@@ -300,7 +307,14 @@ export default function App() {
         {/* ── Always-accessible ─────────────────────────────────── */}
         <Route path="home" element={<HomePage />} />
         <Route path="home/overview" element={<DashboardPage />} />
+        {/* SME editions — plan badge target and the landing page for a deep
+            link into a module the tenant's plan doesn't include. */}
+        <Route path="upgrade" element={<UpgradePage />} />
         <Route path="my" element={<MyWorkspacePage />} />
+        {/* Second level of self-service — /me/<area> card boards. */}
+        <Route path="me/:area" element={<SelfServiceAreaPage />} />
+        {/* Employee daily timesheet capture — own month only, scoped server-side. */}
+        <Route path="my/timesheet" element={<MyTimesheetPage />} />
         <Route path="my/team" element={<TeamPage />} />
         {/* M115 — per-user notification preferences */}
         <Route path="my/notifications" element={<NotificationPreferencesPage />} />
@@ -336,6 +350,11 @@ export default function App() {
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
           {/* M125 — real-time presence map (manager + HR scope) */}
           <Route path="presence" element={<PresenceMapPage />} />
+          {/* Timesheet approval — hierarchy-scoped inside the service. */}
+          <Route path="manager/timesheets" element={<TimesheetApprovalsPage />} />
+          <Route path="manager/timesheets/:id" element={<TimesheetReviewPage />} />
+          {/* HR period control + payroll readiness. */}
+          <Route path="timesheets/control" element={<TimesheetControlPage />} />
           {/* HR letters — request queue (scope-restricted in service) */}
           <Route path="letters" element={<LetterRequestsPage />} />
 
@@ -580,6 +599,8 @@ export default function App() {
 
           {/* Payroll */}
           <Route path="payroll/runs" element={<PayrollRunsPage />} />
+          {/* Read-only pricing of approved timesheets — creates nothing. */}
+          <Route path="payroll/time-inputs" element={<PayrollTimeInputsPage />} />
           <Route path="payroll/runs/:id" element={<PayrollRunDetailPage />} />
           <Route path="payroll/compensation" element={<PayrollCompensationPage />} />
           <Route path="payroll/components" element={<SalaryComponentsPage />} />

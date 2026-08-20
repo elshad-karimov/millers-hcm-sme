@@ -22,6 +22,7 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.config.plan.PlanLimitGate;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.security.scope.AccessScopeService;
 import az.millers.hcm.staffing.service.PositionHeadcountService;
@@ -45,6 +46,8 @@ public class EmployeeService {
     // M249 — Phase D.2: every position assignment open/close is mirrored
     // into the position_occupancy table for full history + auto-grant.
     private final az.millers.hcm.staffing.service.PositionOccupancyService occupancyService;
+    /** SME editions: the tenant's plan may cap active headcount. */
+    private final PlanLimitGate planLimitGate;
 
     public EmployeeService(EmployeeRepository repository,
                            AuditService auditService,
@@ -54,7 +57,8 @@ public class EmployeeService {
                            EmployeeHistoryService historyService,
                            PositionHeadcountService headcountGate,
                            StaffingService staffingService,
-                           az.millers.hcm.staffing.service.PositionOccupancyService occupancyService) {
+                           az.millers.hcm.staffing.service.PositionOccupancyService occupancyService,
+                           PlanLimitGate planLimitGate) {
         this.repository = repository;
         this.auditService = auditService;
         this.onboardingWorkflow = onboardingWorkflow;
@@ -64,6 +68,7 @@ public class EmployeeService {
         this.headcountGate = headcountGate;
         this.staffingService = staffingService;
         this.occupancyService = occupancyService;
+        this.planLimitGate = planLimitGate;
     }
 
     /**
@@ -130,6 +135,9 @@ public class EmployeeService {
             throw new BadRequestException("An employee with this email already exists");
         }
         validateNationalIdUnique(request.nationalId(), null);
+        validateExternalHrIdUnique(request.externalHrId(), null);
+        // SME editions — the tenant's plan may cap active headcount.
+        planLimitGate.assertCanAddEmployee();
         // M109 — direct hire path must respect position budget.
         headcountGate.assertCanFill(request.positionId());
 
@@ -178,6 +186,7 @@ public class EmployeeService {
         }
         validateDelegation(id, request);
         validateNationalIdUnique(request.nationalId(), id);
+        validateExternalHrIdUnique(request.externalHrId(), id);
         EmployeeResponse before = EmployeeResponse.from(employee);
 
         // M109 — if the position changes, gate the move AND keep seat counters
@@ -319,6 +328,91 @@ public class EmployeeService {
         }
         employee.setEmployeeCategory(request.employeeCategory());
         employee.setSeniorityDate(request.seniorityDate());
+        // M150 — workforce-register master data. Same null-means-clear
+        // pattern as the M132/M133/M134 blocks above.
+        employee.setExternalHrId(trimToNull(request.externalHrId()));
+        employee.setFullNameLocal(request.fullNameLocal());
+        employee.setSourceOfHire(request.sourceOfHire());
+        employee.setPositionTitleLocal(request.positionTitleLocal());
+        employee.setOccupationClassification(request.occupationClassification());
+        employee.setPositionClassification(request.positionClassification());
+        employee.setWorkType(request.workType());
+        employee.setProjectName(request.projectName());
+        employee.setProfessionalExperienceYears(request.professionalExperienceYears());
+        employee.setJobDescriptionStatus(request.jobDescriptionStatus());
+        // The three approver references are real routing targets, so they
+        // must point at an employee that exists and never at the employee
+        // themselves — otherwise a timesheet or expense claim would be
+        // self-approved, which defeats the approval audit trail entirely.
+        employee.setTimesheetApproverId(
+                validateApprover(request.timesheetApproverId(), employee, "timesheet approver"));
+        employee.setExpenseApproverId(
+                validateApprover(request.expenseApproverId(), employee, "expense approver"));
+        employee.setHrTimesheetVerifierId(
+                validateApprover(request.hrTimesheetVerifierId(), employee, "HR timesheet verifier"));
+        employee.setWorkScheduleText(request.workScheduleText());
+        employee.setWorkTimeText(request.workTimeText());
+        employee.setLunchTimeText(request.lunchTimeText());
+        employee.setOffshoreWorkScheduleText(request.offshoreWorkScheduleText());
+        employee.setSummarizedPeriodMethod(request.summarizedPeriodMethod());
+    }
+
+    /**
+     * M150 — the customer's external HR number identifies one person in the
+     * source system, so it must not repeat inside a tenant. Checked here so
+     * the caller gets a clean 400 instead of the partial unique index
+     * surfacing as an unhandled constraint violation.
+     *
+     * @param incoming the candidate number — null / blank short-circuits
+     * @param selfId   the employee being updated (null on create) so the row's
+     *                 own existing value isn't rejected
+     */
+    // Package-private so EmployeeWorkforceFieldsTest can exercise it against a
+    // stub repository. Mocking EmployeeService's concrete collaborators is not
+    // possible on this toolchain (see BulkAssignServiceTest), and going through
+    // update() would drag in the audit, staffing and headcount paths for a
+    // check that depends on nothing but the repository.
+    void validateExternalHrIdUnique(String incoming, UUID selfId) {
+        String trimmed = trimToNull(incoming);
+        if (trimmed == null) return;
+        repository.findByExternalHrIdIgnoreCase(trimmed).ifPresent(existing -> {
+            if (!existing.getId().equals(selfId)) {
+                throw new BadRequestException(
+                        "An employee with external HR ID " + trimmed + " already exists");
+            }
+        });
+    }
+
+    /** M150 — blank external IDs must land as NULL so the partial unique index ignores them. */
+    static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * M150 — an approver reference must resolve to an existing employee in
+     * this tenant and must not be the employee themselves. Returns the value
+     * unchanged so it can be inlined into the setter call.
+     *
+     * @param approverId the candidate reference; null short-circuits (means
+     *                   "fall back to the line manager")
+     * @param employee   the employee being written — {@code getId()} is null
+     *                   on create, in which case self-reference is impossible
+     * @param label      human-readable field name for the error message
+     */
+    UUID validateApprover(UUID approverId, Employee employee, String label) {
+        if (approverId == null) return null;
+        if (approverId.equals(employee.getId())) {
+            throw new BadRequestException("An employee cannot be their own " + label);
+        }
+        // existsById is tenant-scoped by the Hibernate @TenantId filter, so a
+        // cross-tenant UUID reads as "not found" rather than silently linking.
+        if (!repository.existsById(approverId)) {
+            throw new BadRequestException(
+                    "Employee not found for " + label + ": " + approverId);
+        }
+        return approverId;
     }
 
     private void validateManager(UUID managerId) {

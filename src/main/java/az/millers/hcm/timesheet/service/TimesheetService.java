@@ -24,7 +24,9 @@ import az.millers.hcm.timesheet.api.dto.DayCorrectionRequest;
 import az.millers.hcm.timesheet.api.dto.TimesheetDayResponse;
 import az.millers.hcm.timesheet.domain.Timesheet;
 import az.millers.hcm.timesheet.domain.TimesheetDay;
+import az.millers.hcm.timesheet.domain.DayApprovalState;
 import az.millers.hcm.timesheet.domain.TimesheetStatus;
+import az.millers.hcm.timesheet.repo.DayQuantityRepository;
 import az.millers.hcm.timesheet.repo.TimesheetDayRepository;
 import az.millers.hcm.timesheet.repo.TimesheetRepository;
 import az.millers.hcm.workflow.api.dto.StartWorkflowRequest;
@@ -40,6 +42,7 @@ public class TimesheetService {
 
     private final TimesheetRepository timesheets;
     private final TimesheetDayRepository days;
+    private final DayQuantityRepository dayQuantities;
     private final TimesheetGenerator generator;
     private final EmployeeRepository employees;
     private final PermissionRequestRepository permissions;
@@ -50,6 +53,7 @@ public class TimesheetService {
 
     public TimesheetService(TimesheetRepository timesheets,
                              TimesheetDayRepository days,
+                             DayQuantityRepository dayQuantities,
                              TimesheetGenerator generator,
                              EmployeeRepository employees,
                              PermissionRequestRepository permissions,
@@ -59,6 +63,7 @@ public class TimesheetService {
                              AccessScopeService accessScope) {
         this.timesheets = timesheets;
         this.days = days;
+        this.dayQuantities = dayQuantities;
         this.generator = generator;
         this.employees = employees;
         this.permissions = permissions;
@@ -119,6 +124,13 @@ public class TimesheetService {
                     "Cannot regenerate a " + ts.getStatus() + " timesheet. Reopen it first.");
         }
 
+        // timesheet_day is partitioned, so day_quantity cannot FK-cascade off it
+        // (see V317). Clear the child rows here or a regenerate orphans them.
+        List<UUID> existingDayIds = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId())
+                .stream().map(TimesheetDay::getId).toList();
+        if (!existingDayIds.isEmpty()) {
+            dayQuantities.deleteAll(dayQuantities.findByTimesheetDayIdIn(existingDayIds));
+        }
         days.deleteByTimesheetId(ts.getId());
         days.flush();
         List<TimesheetDay> generated = generator.buildDays(employeeId, year, month);
@@ -181,15 +193,64 @@ public class TimesheetService {
         return saved;
     }
 
+    /** A month somewhere inside the approval chain, at either stage. */
+    private static boolean awaitingDecision(Timesheet ts) {
+        return ts.getStatus() == TimesheetStatus.SUBMITTED
+                || ts.getStatus() == TimesheetStatus.PENDING_HR;
+    }
+
     @Transactional
     public Timesheet onApproved(UUID id, String comment) {
         Timesheet ts = get(id);
-        if (ts.getStatus() != TimesheetStatus.SUBMITTED) return ts;
+        // PENDING_HR is the mid-chain state of the two-step definition: the
+        // manager has approved and HR's sign-off is what completes the
+        // workflow. Accepting only SUBMITTED here would silently ignore the
+        // event that actually finalises the month.
+        if (!awaitingDecision(ts)) return ts;
+        OffsetDateTime now = OffsetDateTime.now();
+        String actor = currentRequest.username();
+
         ts.setStatus(TimesheetStatus.APPROVED);
-        ts.setApprovedAt(OffsetDateTime.now());
-        ts.setApprovedBy(currentRequest.username());
+        ts.setApprovedAt(now);
+        ts.setApprovedBy(actor);
         Timesheet saved = timesheets.save(ts);
+
+        // Settle the individual days too. The month's status alone is not
+        // enough: day-level approval is what the return-for-correction flow and
+        // the downstream payroll read, and leaving every day PENDING under an
+        // APPROVED month is a contradiction that surfaces much later.
+        List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(id);
+        for (TimesheetDay d : allDays) {
+            if (d.getWorkType() == null) continue;
+            d.setApprovalState(DayApprovalState.APPROVED);
+            d.setApprovedBy(actor);
+            d.setApprovedAt(now);
+        }
+        days.saveAll(allDays);
+
         audit.record(MODULE, ENTITY, id.toString(), "APPROVED", null,
+                Map.of("comment", comment == null ? "" : comment,
+                        "daysApproved", allDays.stream().filter(d -> d.getWorkType() != null).count()));
+        return saved;
+    }
+
+    /**
+     * Workflow returned the month for correction.
+     *
+     * <p>Kept separate from a reject: the employee's entries and the approver's
+     * reason both survive, and only the days a manager named re-open. Sending
+     * it to DRAFT here — the pre-slice-2 behaviour — discarded both.
+     */
+    @Transactional
+    public Timesheet onReturned(UUID id, String comment) {
+        Timesheet ts = get(id);
+        if (!awaitingDecision(ts)) return ts;
+        ts.setStatus(TimesheetStatus.RETURNED);
+        ts.setReturnedAt(OffsetDateTime.now());
+        ts.setReturnedBy(currentRequest.username());
+        ts.setReturnReason(comment);
+        Timesheet saved = timesheets.save(ts);
+        audit.record(MODULE, ENTITY, id.toString(), "RETURNED", null,
                 Map.of("comment", comment == null ? "" : comment));
         return saved;
     }
@@ -197,7 +258,7 @@ public class TimesheetService {
     @Transactional
     public Timesheet onRejected(UUID id, String comment) {
         Timesheet ts = get(id);
-        if (ts.getStatus() != TimesheetStatus.SUBMITTED) return ts;
+        if (!awaitingDecision(ts)) return ts;
         // Reject sends the timesheet back to DRAFT so HR can fix and resubmit.
         ts.setStatus(TimesheetStatus.DRAFT);
         Timesheet saved = timesheets.save(ts);

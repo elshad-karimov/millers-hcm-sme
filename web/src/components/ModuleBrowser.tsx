@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LeftOutlined, RightOutlined, StarFilled, StarOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
 import { CATEGORIES, icon, moduleOfRoute, type Tile } from '../nav/modules'
+import { areaVisible } from '../nav/selfServiceAreas'
 import { useFavorites, useRecents } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
 
@@ -31,8 +32,15 @@ export function ModuleBrowser({
     () => CATEGORIES.filter((c) => (!c.roles || hasRole(...c.roles)) && !disabledModules.has(c.key)),
     [hasRole, disabledModules],
   )
-  // Hide favorites / recents that point at a now-disabled module.
-  const visible = (tiles: Tile[]) => tiles.filter((t) => !disabledModules.has(moduleOfRoute(t.to) ?? ''))
+  // Hide any tile whose owning module is off for this tenant — `needs` when the
+  // tile is borrowed from another module (Self-Service's "Pay and Payslips",
+  // "Learning", …), otherwise the module its route belongs to.
+  const visible = (tiles: Tile[]) =>
+    tiles.filter(
+      (t) =>
+        areaVisible(t.to, disabledModules) &&
+        !disabledModules.has(t.needs ?? moduleOfRoute(t.to) ?? ''),
+    )
   const favVisible = visible(favorites)
   const recentVisible = visible(recents)
   const [active, setActive] = useState(cats[0]?.key ?? '')
@@ -43,7 +51,8 @@ export function ModuleBrowser({
     onNavigate?.()
   }
 
-  const apps = cat?.apps ?? []
+  const apps = visible(cat?.apps ?? [])
+  const quick = visible(cat?.quick ?? [])
 
   // Single-row tab strip that scrolls, with ‹ › arrows when it overflows.
   const stripRef = useRef<HTMLDivElement>(null)
@@ -115,7 +124,7 @@ export function ModuleBrowser({
         <div>
           <div style={sectionLabel}>QUICK ACTIONS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {(cat?.quick ?? []).map((tl) => (
+            {quick.map((tl) => (
               <button
                 key={tl.label + tl.to}
                 onClick={() => open(tl.to)}

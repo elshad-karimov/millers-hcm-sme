@@ -145,6 +145,29 @@ public class Position {
     @Column(name = "critical_flag", nullable = false)
     private boolean criticalFlag = false;
 
+    /**
+     * M151 — the position appears on the statutory list of harmful/hazardous
+     * occupations (Art. 115.2), so whoever holds it earns additional annual
+     * leave.
+     *
+     * <p>Carried by the position rather than the employee so the entitlement
+     * follows a transfer in and out on its own — a welder moving to a desk
+     * role stops earning it without anyone remembering to clear a flag.
+     * Confirmed against the customer's register: the 18 recipients are
+     * specific trades, not everyone at an offshore location.
+     */
+    @Column(nullable = false)
+    private boolean hazardous = false;
+
+    /**
+     * Additional annual leave days for {@link #hazardous} positions. Required
+     * when {@code hazardous} is set and null otherwise — enforced by a DB
+     * CHECK, because a hazardous position granting zero days is
+     * indistinguishable on a payslip from one that was never flagged.
+     */
+    @Column(name = "hazardous_leave_days", precision = 5, scale = 2)
+    private BigDecimal hazardousLeaveDays;
+
     /** 1 (low) … 5 (extreme). Null when not yet scored. */
     @Column(name = "business_impact_score")
     private Short businessImpactScore;

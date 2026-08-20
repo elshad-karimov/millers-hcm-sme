@@ -30,6 +30,7 @@ import {
   type Identification,
 } from '../api/personalDetails'
 import { contractsApi, type Contract } from '../api/contracts'
+import { LeaveEntitlementBreakdown } from '../components/LeaveEntitlementBreakdown'
 import {
   credentialsApi,
   type Certification,
@@ -708,6 +709,58 @@ export function EmployeeDetailPage() {
       </Descriptions.Item>
       <Descriptions.Item label="Native language">{employee.nativeLanguage ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Religion">{employee.religion ?? '—'}</Descriptions.Item>
+      {/* M150 — workforce-register master data */}
+      <Descriptions.Item label="External HR ID">{employee.externalHrId ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Full name (local)">{employee.fullNameLocal ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Position (local)">
+        {employee.positionTitleLocal ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Occupation classification">
+        {employee.occupationClassification ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Position classification">
+        {employee.positionClassification ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Work type">
+        {employee.workType ? <Tag>{employee.workType}</Tag> : '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Project">{employee.projectName ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Professional experience">
+        {employee.professionalExperienceYears != null
+          ? `${employee.professionalExperienceYears} yrs`
+          : '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Source of hire">{employee.sourceOfHire ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Job description">
+        {employee.jobDescriptionStatus ?? '—'}
+      </Descriptions.Item>
+      {/* Null approver = routes to the line manager; say so rather than showing a dash. */}
+      <Descriptions.Item label="Timesheet approver">
+        {employee.timesheetApproverId
+          ? <Link to={`/employees/${employee.timesheetApproverId}`}>{employee.timesheetApproverId}</Link>
+          : <span style={{ opacity: 0.5 }}>= line manager</span>}
+      </Descriptions.Item>
+      <Descriptions.Item label="Expense approver">
+        {employee.expenseApproverId
+          ? <Link to={`/employees/${employee.expenseApproverId}`}>{employee.expenseApproverId}</Link>
+          : <span style={{ opacity: 0.5 }}>= line manager</span>}
+      </Descriptions.Item>
+      <Descriptions.Item label="HR timesheet verifier">
+        {employee.hrTimesheetVerifierId
+          ? <Link to={`/employees/${employee.hrTimesheetVerifierId}`}>{employee.hrTimesheetVerifierId}</Link>
+          : '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Work schedule">
+        {employee.workScheduleText ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Work time">{employee.workTimeText ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Lunch time">{employee.lunchTimeText ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Offshore schedule">
+        {employee.offshoreWorkScheduleText ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Summarized period">
+        {employee.summarizedPeriodMethod ?? '—'}
+      </Descriptions.Item>
       <Descriptions.Item label="Badge QR">
         <img
           src={`/api/employees/${employee.id}/qr?size=120`}
@@ -1118,6 +1171,14 @@ export function EmployeeDetailPage() {
       ),
     })
   }
+
+  // M151 — itemised annual leave entitlement. Sits next to Compensation
+  // because it answers the same kind of question: what is this number made of.
+  tabItems.push({
+    key: 'leaveEntitlement',
+    label: 'Leave entitlement',
+    children: <LeaveEntitlementBreakdown employeeId={id!} canEdit={canEdit} />,
+  })
 
   // M169 — employee document management (all HR readers).
   tabItems.push({

@@ -345,6 +345,122 @@ public class Employee {
     @Column(name = "rehire_reason", columnDefinition = "text")
     private String rehireReason;
 
+    // ── M150 — workforce-register master data ───────────────────────────────
+    // Mapped from the customer's live personnel register. Everything already
+    // owned by another module (salary, allowances, leave entitlement, contract
+    // dates, termination) is deliberately absent here — see V325.
+
+    /**
+     * The customer's GHRS / legacy-HRIS number. Distinct from
+     * {@code employeeNo}, which this platform generates; both are needed to
+     * reconcile against the source system after migration. Unique per tenant.
+     */
+    @Column(name = "external_hr_id", length = 40)
+    private String externalHrId;
+
+    /**
+     * Full legal name in the local script and order — e.g.
+     * "ABBASLI Abbas Elxan oğlu". Azerbaijani labour contracts and state
+     * filings require this form; it cannot be reassembled from
+     * first/last/middle because the patronymic suffix is not derivable.
+     */
+    @Column(name = "full_name_local", length = 300)
+    private String fullNameLocal;
+
+    /** Recruitment channel the hire came through (agency, referral, direct, …). */
+    @Column(name = "source_of_hire", length = 80)
+    private String sourceOfHire;
+
+    /** Job title in the local language — used on contracts and orders. */
+    @Column(name = "position_title_local", length = 300)
+    private String positionTitleLocal;
+
+    /**
+     * State occupational classifier entry ("Məşğulluq təsnifatı") — mandatory
+     * on Azerbaijani labour-contract filings.
+     */
+    @Column(name = "occupation_classification", length = 160)
+    private String occupationClassification;
+
+    /**
+     * Internal grade bucket (Specialist / Manager / Worker / Director).
+     * Free-form: each tenant runs its own taxonomy.
+     */
+    @Column(name = "position_classification", length = 60)
+    private String positionClassification;
+
+    /** Onshore / offshore / quayside / hybrid — selects rate + schedule pattern. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "work_type", length = 20)
+    private EmployeeWorkType workType;
+
+    /**
+     * Cost-bearing project the employee is charged to, as labelled in the
+     * personnel register. The timesheet project remains the authoritative
+     * booking dimension — this is the master-data label.
+     */
+    @Column(name = "project_name", length = 200)
+    private String projectName;
+
+    /**
+     * Total professional experience in years. Feeds seniority-based leave
+     * entitlement (Art. 116.1) and grading reviews. Bounded 0..70 by the DB.
+     */
+    @Column(name = "professional_experience_years", precision = 4, scale = 1)
+    private BigDecimal professionalExperienceYears;
+
+    /**
+     * Whether a signed job description is on file — "Provided",
+     * "Waiting from &lt;party&gt;", etc. Compliance checklists key off this.
+     */
+    @Column(name = "job_description_status", length = 120)
+    private String jobDescriptionStatus;
+
+    /**
+     * Approves this employee's timesheets when that is not the line manager.
+     * Null = fall back to {@code managerId}.
+     */
+    @Column(name = "timesheet_approver_id")
+    private UUID timesheetApproverId;
+
+    /** Approves this employee's expense claims. Null = fall back to {@code managerId}. */
+    @Column(name = "expense_approver_id")
+    private UUID expenseApproverId;
+
+    /**
+     * HR-side verifier who checks the timesheet after the approver signs it
+     * and before payroll picks it up.
+     */
+    @Column(name = "hr_timesheet_verifier_id")
+    private UUID hrTimesheetVerifierId;
+
+    /**
+     * Agreed work pattern as worded in the contract — e.g.
+     * "5 days/40 hrs per week/Random Offshore trip". Reproduced verbatim on
+     * contracts and orders; the attendance module still computes actual time.
+     */
+    @Column(name = "work_schedule_text", length = 200)
+    private String workScheduleText;
+
+    /** Agreed daily working hours as worded in the contract — e.g. "8:00 - 17:00". */
+    @Column(name = "work_time_text", length = 60)
+    private String workTimeText;
+
+    /** Agreed unpaid break as worded in the contract — e.g. "13:00 - 14:00". */
+    @Column(name = "lunch_time_text", length = 60)
+    private String lunchTimeText;
+
+    /** Offshore rotation pattern when it differs — e.g. "12 hrs p/d". */
+    @Column(name = "offshore_work_schedule_text", length = 120)
+    private String offshoreWorkScheduleText;
+
+    /**
+     * Summarized working-time accounting period (Art. 62) — e.g. "1 mnth",
+     * or a fixed-date scheme such as "EoC or FD".
+     */
+    @Column(name = "summarized_period_method", length = 80)
+    private String summarizedPeriodMethod;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

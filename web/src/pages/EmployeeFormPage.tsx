@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react'
 import {
+  Alert,
   Button,
   Col,
   DatePicker,
   Form,
   Input,
+  InputNumber,
   Row,
   Select,
   Space,
   Spin,
+  Tabs,
   App as AntdApp,
 } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
-import { employeesApi, type Employee } from '../api/employees'
+import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
+import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 
 interface FormValues {
@@ -47,6 +51,25 @@ interface FormValues {
   // M134 — Section 4 employment fields
   employeeCategory?: string
   seniorityDate?: dayjs.Dayjs
+  // M150 — workforce-register master data
+  externalHrId?: string
+  fullNameLocal?: string
+  sourceOfHire?: string
+  positionTitleLocal?: string
+  occupationClassification?: string
+  positionClassification?: string
+  workType?: EmployeeWorkType
+  projectName?: string
+  professionalExperienceYears?: number
+  jobDescriptionStatus?: string
+  timesheetApproverId?: string
+  expenseApproverId?: string
+  hrTimesheetVerifierId?: string
+  workScheduleText?: string
+  workTimeText?: string
+  lunchTimeText?: string
+  offshoreWorkScheduleText?: string
+  summarizedPeriodMethod?: string
 }
 
 const BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
@@ -59,6 +82,68 @@ const COMMON_LANGUAGES = [
   { value: 'ar', label: 'Arabic (ar)' },
 ]
 
+// M150 — mirrors the EmployeeWorkType enum. Labels spell out what each one selects,
+// because the choice drives which compensation rate applies downstream.
+const WORK_TYPES: { value: EmployeeWorkType; label: string }[] = [
+  { value: 'ONSHORE', label: 'Onshore — base / city office' },
+  { value: 'OFFSHORE', label: 'Offshore — offshore rate + rotation schedule' },
+  { value: 'QUAYSIDE', label: 'Quayside — yard / quayside rate' },
+  { value: 'HYBRID', label: 'Hybrid — split, rate resolved per timesheet day' },
+]
+
+/**
+ * M150 — which tab each field lives on. Used to jump the user to the first
+ * tab carrying a validation error: a required field failing on a hidden tab
+ * would otherwise silently block the save with nothing visible on screen.
+ */
+const FIELD_TAB: Record<string, string> = {
+  firstName: 'personal',
+  lastName: 'personal',
+  middleName: 'personal',
+  preferredName: 'personal',
+  fullNameLocal: 'personal',
+  gender: 'personal',
+  birthDate: 'personal',
+  placeOfBirth: 'personal',
+  nationalId: 'personal',
+  bloodGroup: 'personal',
+  nativeLanguage: 'personal',
+  religion: 'personal',
+  email: 'contact',
+  phone: 'contact',
+  altPhone: 'contact',
+  workEmail: 'contact',
+  workPhone: 'contact',
+  extension: 'contact',
+  deskNumber: 'contact',
+  externalHrId: 'job',
+  hireDate: 'job',
+  seniorityDate: 'job',
+  employeeCategory: 'job',
+  departmentName: 'job',
+  positionTitle: 'job',
+  positionTitleLocal: 'job',
+  positionClassification: 'job',
+  occupationClassification: 'job',
+  costCentre: 'job',
+  workLocationId: 'job',
+  workType: 'job',
+  projectName: 'job',
+  professionalExperienceYears: 'job',
+  sourceOfHire: 'job',
+  jobDescriptionStatus: 'job',
+  timesheetApproverId: 'approvals',
+  expenseApproverId: 'approvals',
+  hrTimesheetVerifierId: 'approvals',
+  workScheduleText: 'schedule',
+  workTimeText: 'schedule',
+  lunchTimeText: 'schedule',
+  offshoreWorkScheduleText: 'schedule',
+  summarizedPeriodMethod: 'schedule',
+}
+
+const TAB_ORDER = ['personal', 'contact', 'job', 'approvals', 'schedule']
+
 const LIST_PATH = '/employees'
 
 export function EmployeeFormPage() {
@@ -69,6 +154,7 @@ export function EmployeeFormPage() {
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState<boolean>(editing)
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('personal')
   const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([])
 
   useEffect(() => {
@@ -113,6 +199,25 @@ export function EmployeeFormPage() {
           // M134 — Section 4 employment fields
           employeeCategory: e.employeeCategory ?? undefined,
           seniorityDate: e.seniorityDate ? dayjs(e.seniorityDate) : undefined,
+          // M150 — workforce-register master data
+          externalHrId: e.externalHrId ?? undefined,
+          fullNameLocal: e.fullNameLocal ?? undefined,
+          sourceOfHire: e.sourceOfHire ?? undefined,
+          positionTitleLocal: e.positionTitleLocal ?? undefined,
+          occupationClassification: e.occupationClassification ?? undefined,
+          positionClassification: e.positionClassification ?? undefined,
+          workType: e.workType ?? undefined,
+          projectName: e.projectName ?? undefined,
+          professionalExperienceYears: e.professionalExperienceYears ?? undefined,
+          jobDescriptionStatus: e.jobDescriptionStatus ?? undefined,
+          timesheetApproverId: e.timesheetApproverId ?? undefined,
+          expenseApproverId: e.expenseApproverId ?? undefined,
+          hrTimesheetVerifierId: e.hrTimesheetVerifierId ?? undefined,
+          workScheduleText: e.workScheduleText ?? undefined,
+          workTimeText: e.workTimeText ?? undefined,
+          lunchTimeText: e.lunchTimeText ?? undefined,
+          offshoreWorkScheduleText: e.offshoreWorkScheduleText ?? undefined,
+          summarizedPeriodMethod: e.summarizedPeriodMethod ?? undefined,
         })
       })
       .catch((err) =>
@@ -149,172 +254,271 @@ export function EmployeeFormPage() {
     }
   }
 
-  return (
-    <FormPageShell title={editing ? 'Edit employee' : 'New employee'} backTo={LIST_PATH}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <Spin />
-        </div>
-      ) : (
-        <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 720 }}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="firstName"
-                label="First name"
-                rules={[{ required: true, max: 100 }]}
-              >
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="lastName"
-                label="Last name"
-                rules={[{ required: true, max: 100 }]}
-              >
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="middleName" label="Middle name" rules={[{ max: 100 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              {/* M132 — Section 1 spec field */}
-              <Form.Item name="preferredName" label="Preferred name (nickname)"
-                rules={[{ max: 120 }]}>
-                <Input placeholder="Used on the directory + printable badge" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="email"
-                label="Personal email"
-                rules={[{ type: 'email', message: 'Enter a valid email' }, { max: 160 }]}
-              >
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="phone" label="Personal phone" rules={[{ max: 32 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              {/* M133 — Section 3 spec field */}
-              <Form.Item name="altPhone" label="Alternative phone" rules={[{ max: 32 }]}>
-                <Input placeholder="Optional second personal number" />
-              </Form.Item>
-            </Col>
-          </Row>
-          {/* M133 — Section 3 work-contact row */}
-          <Row gutter={16}>
-            <Col span={9}>
-              <Form.Item
-                name="workEmail"
-                label="Work email"
-                tooltip="Typically @company.com — used for payslip + letter delivery"
-                rules={[{ type: 'email', message: 'Enter a valid email' }, { max: 160 }]}
-              >
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={5}>
-              <Form.Item name="workPhone" label="Work phone" rules={[{ max: 32 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="extension" label="Extension" rules={[{ max: 10 }]}>
-                <Input placeholder="e.g. 4012" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="deskNumber" label="Desk / seat"
-                tooltip="Facility + IT teams use this for asset assignment."
-                rules={[{ max: 32 }]}>
-                <Input placeholder="e.g. 4-A-12" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="gender" label="Gender" rules={[{ max: 16 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="birthDate" label="Date of birth">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="nationalId" label="National ID" rules={[{ max: 64 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="hireDate"
-                label="Hire date"
-                rules={[{ required: true, message: 'Hire date is required' }]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            {/* M134 — Section 4 spec fields */}
-            <Col span={8}>
-              <Form.Item
-                name="seniorityDate"
-                label="Seniority date"
-                tooltip="Tenure anchor for benefits + leave. Leave blank to use hire date. Rehires can carry forward their original date here."
-                rules={[{
-                  validator: (_, v: dayjs.Dayjs | undefined) =>
-                    !v || !v.isAfter(dayjs(), 'day')
-                      ? Promise.resolve()
-                      : Promise.reject(new Error('Seniority date cannot be in the future')),
-                }]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="employeeCategory"
-                label="Employee category"
-                tooltip="Configurable bucket — e.g. white-collar / blue-collar, salaried / hourly, executive / IC."
-                rules={[{ max: 60 }]}
-              >
-                <Input placeholder="Free text" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="departmentName" label="Department" rules={[{ max: 160 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="positionTitle" label="Position" rules={[{ max: 160 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="costCentre" label="Cost centre" rules={[{ max: 64 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          {/* M141 — work location */}
+  /**
+   * Validation failures on a hidden tab produce no visible feedback, so jump
+   * to the earliest tab that has one.
+   */
+  const onFinishFailed = ({ errorFields }: { errorFields: { name: (string | number)[] }[] }) => {
+    const tabs = new Set(
+      errorFields
+        .map((f) => FIELD_TAB[String(f.name[0])])
+        .filter((t): t is string => !!t),
+    )
+    const first = TAB_ORDER.find((t) => tabs.has(t))
+    if (first) setActiveTab(first)
+    message.error('Some required fields need attention — check the highlighted tab.')
+  }
+
+  const personalTab = (
+    <>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item name="firstName" label="First name" rules={[{ required: true, max: 100 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="lastName" label="Last name" rules={[{ required: true, max: 100 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="middleName" label="Middle name" rules={[{ max: 100 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          {/* M150 — local-script legal name. Contracts and state filings need
+              the patronymic form, which first/middle/last cannot rebuild. */}
+          <Form.Item
+            name="fullNameLocal"
+            label="Full name (local script)"
+            tooltip="As it appears on the labour contract and state filings — e.g. “ABBASLI Abbas Elxan oğlu”."
+            rules={[{ max: 300 }]}
+          >
+            <Input placeholder="SURNAME Name Patronymic oğlu / qızı" />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          {/* M132 — Section 1 spec field */}
+          <Form.Item name="preferredName" label="Preferred name (nickname)" rules={[{ max: 120 }]}>
+            <Input placeholder="Used on the directory + printable badge" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item name="gender" label="Gender" rules={[{ max: 16 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="birthDate" label="Date of birth">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="nationalId" label="National ID" rules={[{ max: 64 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item name="placeOfBirth" label="Place of birth" rules={[{ max: 160 }]}>
+            <Input placeholder="City, Country" />
+          </Form.Item>
+        </Col>
+        <Col span={4}>
+          <Form.Item name="bloodGroup" label="Blood group">
+            <Select allowClear placeholder="—"
+              options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item name="nativeLanguage" label="Native language"
+            tooltip="ISO 639-1 alpha-2 (lowercase). Drives letter-engine locale.">
+            <Select allowClear showSearch placeholder="—"
+              optionFilterProp="label" options={COMMON_LANGUAGES} />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item name="religion" label="Religion (optional)"
+            tooltip="Collection legally restricted in some jurisdictions."
+            rules={[{ max: 60 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
+
+  const contactTab = (
+    <>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item
+            name="email"
+            label="Personal email"
+            rules={[{ type: 'email', message: 'Enter a valid email' }, { max: 160 }]}
+          >
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="phone" label="Personal phone" rules={[{ max: 32 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          {/* M133 — Section 3 spec field */}
+          <Form.Item name="altPhone" label="Alternative phone" rules={[{ max: 32 }]}>
+            <Input placeholder="Optional second personal number" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={9}>
+          <Form.Item
+            name="workEmail"
+            label="Work email"
+            tooltip="Typically @company.com — used for payslip + letter delivery"
+            rules={[{ type: 'email', message: 'Enter a valid email' }, { max: 160 }]}
+          >
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={5}>
+          <Form.Item name="workPhone" label="Work phone" rules={[{ max: 32 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={4}>
+          <Form.Item name="extension" label="Extension" rules={[{ max: 10 }]}>
+            <Input placeholder="e.g. 4012" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item name="deskNumber" label="Desk / seat"
+            tooltip="Facility + IT teams use this for asset assignment."
+            rules={[{ max: 32 }]}>
+            <Input placeholder="e.g. 4-A-12" />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
+
+  const jobTab = (
+    <>
+      <Row gutter={16}>
+        <Col span={8}>
+          {/* M150 — reconciliation key against the customer's legacy HRIS. */}
+          <Form.Item
+            name="externalHrId"
+            label="External HR ID"
+            tooltip="The number this person carries in your previous/parallel HR system (e.g. GHRS). Must be unique — used to reconcile against the source register."
+            rules={[{ max: 40 }]}
+          >
+            <Input placeholder="e.g. 2004209" />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="hireDate"
+            label="Hire date"
+            rules={[{ required: true, message: 'Hire date is required' }]}
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          {/* M134 — Section 4 spec fields */}
+          <Form.Item
+            name="seniorityDate"
+            label="Seniority date"
+            tooltip="Tenure anchor for benefits + leave. Leave blank to use hire date. Rehires can carry forward their original date here."
+            rules={[{
+              validator: (_, v: dayjs.Dayjs | undefined) =>
+                !v || !v.isAfter(dayjs(), 'day')
+                  ? Promise.resolve()
+                  : Promise.reject(new Error('Seniority date cannot be in the future')),
+            }]}
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item name="departmentName" label="Department" rules={[{ max: 160 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="positionTitle" label="Position" rules={[{ max: 160 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          {/* M150 — local-language title, reproduced on contracts and orders. */}
+          <Form.Item
+            name="positionTitleLocal"
+            label="Position (local language)"
+            tooltip="Job title as written on the labour contract and internal orders."
+            rules={[{ max: 300 }]}
+          >
+            <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          {/* M150 — mandatory on Azerbaijani labour-contract filings. */}
+          <Form.Item
+            name="occupationClassification"
+            label="Occupation classification"
+            tooltip="State occupational classifier entry (“Məşğulluq təsnifatı”) — required on labour-contract filings."
+            rules={[{ max: 160 }]}
+          >
+            <Input placeholder="e.g. baş mühəndis" />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="positionClassification"
+            label="Position classification"
+            tooltip="Internal grade bucket — e.g. Specialist, Manager, Worker, Director. Free text: use your own taxonomy."
+            rules={[{ max: 60 }]}
+          >
+            <Input placeholder="e.g. Specialist" />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="employeeCategory"
+            label="Employee category"
+            tooltip="Configurable bucket — e.g. white-collar / blue-collar, salaried / hourly, executive / IC."
+            rules={[{ max: 60 }]}
+          >
+            <Input placeholder="Free text" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          {/* M150 — selects which compensation rate applies downstream. */}
+          <Form.Item
+            name="workType"
+            label="Work type"
+            tooltip="Where the work is physically performed. Selects which rate and schedule pattern apply — the amounts themselves live in Compensation."
+          >
+            <Select allowClear placeholder="—" options={WORK_TYPES} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
           <Form.Item
             name="workLocationId"
             label="Work location"
@@ -326,42 +530,197 @@ export function EmployeeFormPage() {
               placeholder="— none —"
               optionFilterProp="label"
               options={locationOptions}
-              style={{ maxWidth: 360 }}
             />
           </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="costCentre" label="Cost centre" rules={[{ max: 64 }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          {/* M150 — register label. Timesheet booking remains authoritative. */}
+          <Form.Item
+            name="projectName"
+            label="Project"
+            tooltip="Project this person is charged to, as named in your personnel register. Timesheet project bookings remain the authoritative cost dimension."
+            rules={[{ max: 200 }]}
+          >
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          {/* M150 — feeds seniority leave brackets (Art. 116.1). */}
+          <Form.Item
+            name="professionalExperienceYears"
+            label="Professional experience (years)"
+            tooltip="Total professional experience. Feeds seniority-based leave entitlement and grading reviews."
+          >
+            <InputNumber min={0} max={70} step={0.5} style={{ width: '100%' }} placeholder="e.g. 8.5" />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="sourceOfHire"
+            label="Source of hire"
+            tooltip="Recruitment channel this person came through. Populated automatically for hires made through Recruitment."
+            rules={[{ max: 80 }]}
+          >
+            <Input placeholder="e.g. Agency, Referral, Direct" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="jobDescriptionStatus"
+            label="Job description status"
+            tooltip="Whether a signed job description is on file. Compliance checklists read this."
+            rules={[{ max: 120 }]}
+          >
+            <Input placeholder="e.g. Provided / Waiting from line manager" />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
 
-          {/* M132 — remaining Section 1 cosmetic fields */}
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="placeOfBirth" label="Place of birth"
-                rules={[{ max: 160 }]}>
-                <Input placeholder="City, Country" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="bloodGroup" label="Blood group">
-                <Select allowClear placeholder="—"
-                  options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="nativeLanguage" label="Native language"
-                tooltip="ISO 639-1 alpha-2 (lowercase). Drives letter-engine locale.">
-                <Select allowClear showSearch placeholder="—"
-                  optionFilterProp="label"
-                  options={COMMON_LANGUAGES} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="religion" label="Religion (optional)"
-                tooltip="Collection legally restricted in some jurisdictions."
-                rules={[{ max: 60 }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
+  const approvalsTab = (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Leave any of these blank to route to the line manager"
+        description="These override the default routing only when the approver is somebody other than this employee's line manager. Nobody can be set as their own approver."
+      />
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item
+            name="timesheetApproverId"
+            label="Timesheet approver"
+            tooltip="Approves this employee's timesheets."
+          >
+            <EmployeePicker placeholder="— line manager —" style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="expenseApproverId"
+            label="Expense approver"
+            tooltip="Approves this employee's expense claims."
+          >
+            <EmployeePicker placeholder="— line manager —" style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="hrTimesheetVerifierId"
+            label="HR timesheet verifier"
+            tooltip="HR-side check after the approver signs off and before payroll picks the timesheet up."
+          >
+            <EmployeePicker placeholder="— none —" style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
 
-          <Form.Item>
+  const scheduleTab = (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Agreed pattern, as worded in the contract"
+        description="These are reproduced verbatim on contracts and orders. Actual worked time, overtime and absence are computed by Attendance from clock records — nothing here changes those calculations."
+      />
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="workScheduleText"
+            label="Work schedule"
+            rules={[{ max: 200 }]}
+          >
+            <Input placeholder="e.g. 5 days/40 hrs per week/Random Offshore trip" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item name="workTimeText" label="Work time" rules={[{ max: 60 }]}>
+            <Input placeholder="e.g. 8:00 - 17:00" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item name="lunchTimeText" label="Lunch time" rules={[{ max: 60 }]}>
+            <Input placeholder="e.g. 13:00 - 14:00" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="offshoreWorkScheduleText"
+            label="Offshore work schedule"
+            tooltip="Rotation pattern when offshore differs from the onshore schedule."
+            rules={[{ max: 120 }]}
+          >
+            <Input placeholder="e.g. 12 hrs p/d" />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="summarizedPeriodMethod"
+            label="Summarized working-time period"
+            tooltip="Accounting period for summarized working time (Art. 62) — e.g. “1 mnth”, or a fixed-date scheme."
+            rules={[{ max: 80 }]}
+          >
+            <Input placeholder="e.g. 1 mnth" />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
+
+  // forceRender keeps every pane's Form.Items mounted. Without it Ant Design
+  // unmounts hidden tabs, which drops their values from the submitted payload
+  // and skips their validation entirely.
+  const tabItems = [
+    { key: 'personal', label: 'Personal', children: personalTab, forceRender: true },
+    { key: 'contact', label: 'Contact', children: contactTab, forceRender: true },
+    { key: 'job', label: 'Job & organisation', children: jobTab, forceRender: true },
+    { key: 'approvals', label: 'Approvals', children: approvalsTab, forceRender: true },
+    { key: 'schedule', label: 'Work schedule', children: scheduleTab, forceRender: true },
+  ]
+
+  return (
+    <FormPageShell title={editing ? 'Edit employee' : 'New employee'} backTo={LIST_PATH}>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <Spin />
+        </div>
+      ) : (
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          onFinishFailed={onFinishFailed}
+          scrollToFirstError
+        >
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+
+          {editing && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Salary, allowances, leave entitlement, contracts and termination are edited elsewhere"
+              description="They are owned by the payroll, benefits, leave and lifecycle modules — open this employee's profile to view or change them on the Compensation, Contracts and Documents tabs. Keeping them there is what preserves payroll traceability and the approval audit trail."
+            />
+          )}
+
+          <Form.Item style={{ marginBottom: 0 }}>
             <Space>
               <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>
               <Button type="primary" htmlType="submit" loading={saving}>

@@ -28,4 +28,12 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, UUID> {
     /** Used by the auto-submit scheduler (M189): find DRAFT or REOPENED timesheets for a period. */
     List<Timesheet> findByPeriodYearAndPeriodMonthAndStatusIn(
             int year, int month, Collection<TimesheetStatus> statuses);
+
+    /** Manager approval queue, already narrowed to the caller's hierarchy. */
+    List<Timesheet> findByPeriodYearAndPeriodMonthAndStatusInAndEmployeeIdInOrderByEmployeeIdAsc(
+            int year, int month, Collection<TimesheetStatus> statuses, Collection<UUID> employeeIds);
+
+    /** True while anything in the period is still awaiting a decision — blocks the lock. */
+    boolean existsByPeriodYearAndPeriodMonthAndStatusIn(
+            int year, int month, Collection<TimesheetStatus> statuses);
 }

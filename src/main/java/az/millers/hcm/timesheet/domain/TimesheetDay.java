@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -80,6 +82,50 @@ public class TimesheetDay {
     @Column(name = "corrected_at")
     private OffsetDateTime correctedAt;
 
+    // ---- Daily capture (prd/timesheet-daily-capture) ----------------------
+    // Where the day was worked. Decides which time categories may be entered
+    // against it. Null on rows generated before the work-type dimension
+    // existed — "never classified", which must stay distinct from ONSHORE.
+    @Column(name = "work_type", length = 20)
+    @Enumerated(EnumType.STRING)
+    private WorkType workType;
+
+    /** Who put the numbers there — employee declaration vs derived vs HR. */
+    @Column(name = "entry_source", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private EntrySource entrySource = EntrySource.ATTENDANCE;
+
+    @Column(name = "employee_note", columnDefinition = "text")
+    private String employeeNote;
+
+    /** Entered hours minus attendance hours; null when there is no attendance. */
+    @Column(name = "attendance_variance_hours", precision = 6, scale = 2)
+    private BigDecimal attendanceVarianceHours;
+
+    @Column(name = "variance_explanation", columnDefinition = "text")
+    private String varianceExplanation;
+
+    // ---- Approval (PRD/timesheet-approval-control) ------------------------
+    /** Per-day state, so a return can name days instead of the whole month. */
+    @Column(name = "approval_state", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private DayApprovalState approvalState = DayApprovalState.PENDING;
+
+    @Column(name = "return_reason", columnDefinition = "text")
+    private String returnReason;
+
+    @Column(name = "returned_by")
+    private String returnedBy;
+
+    @Column(name = "returned_at")
+    private OffsetDateTime returnedAt;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
+
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
+
     // M484: Project dimension
     @Column(name = "project_id")
     private UUID projectId;
@@ -89,6 +135,10 @@ public class TimesheetDay {
 
     @Column(name = "billable")
     private Boolean billable;
+
+    /** V322: where the day was worked (SCV, BDWJF, Business Trip…). */
+    @Column(name = "work_location", length = 80)
+    private String workLocation;
 
     @PrePersist
     void onCreate() {

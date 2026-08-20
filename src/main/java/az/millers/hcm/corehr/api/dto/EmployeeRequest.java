@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.domain.MaritalStatus;
+import az.millers.hcm.corehr.domain.EmployeeWorkType;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
@@ -100,5 +101,44 @@ public record EmployeeRequest(
         /** Configurable category (white/blue-collar, exec/mgr/IC, local/expat, …). */
         @Size(max = 60) String employeeCategory,
         /** Tenure anchor when set; otherwise {@code hireDate} is used. Cannot be in the future. */
-        LocalDate seniorityDate) {
+        LocalDate seniorityDate,
+        // ── M150 — workforce-register master data ───────────────────────
+        /** Customer's GHRS / legacy-HRIS number. Unique per tenant when present. */
+        @Size(max = 40) String externalHrId,
+        /** Full legal name in local script — "SURNAME Name Patronymic oğlu". */
+        @Size(max = 300) String fullNameLocal,
+        /** Recruitment channel (agency, referral, direct, …). */
+        @Size(max = 80) String sourceOfHire,
+        /** Job title in the local language — used on contracts and orders. */
+        @Size(max = 300) String positionTitleLocal,
+        /** State occupational classifier entry ("Məşğulluq təsnifatı"). */
+        @Size(max = 160) String occupationClassification,
+        /** Internal grade bucket (Specialist / Manager / Worker / Director). */
+        @Size(max = 60) String positionClassification,
+        /** Onshore / offshore / quayside / hybrid. */
+        EmployeeWorkType workType,
+        /** Cost-bearing project label from the personnel register. */
+        @Size(max = 200) String projectName,
+        /** Total professional experience in years; feeds seniority leave brackets. */
+        @DecimalMin(value = "0", message = "professionalExperienceYears must be ≥ 0")
+        @DecimalMax(value = "70", message = "professionalExperienceYears must be ≤ 70")
+        BigDecimal professionalExperienceYears,
+        /** Signed-job-description tracking flag ("Provided", "Waiting from …"). */
+        @Size(max = 120) String jobDescriptionStatus,
+        /** Timesheet approver. Null = fall back to the line manager. */
+        UUID timesheetApproverId,
+        /** Expense approver. Null = fall back to the line manager. */
+        UUID expenseApproverId,
+        /** HR-side timesheet verifier, checked before payroll pickup. */
+        UUID hrTimesheetVerifierId,
+        /** Agreed work pattern as worded in the contract. */
+        @Size(max = 200) String workScheduleText,
+        /** Agreed daily working hours — e.g. "8:00 - 17:00". */
+        @Size(max = 60) String workTimeText,
+        /** Agreed unpaid break — e.g. "13:00 - 14:00". */
+        @Size(max = 60) String lunchTimeText,
+        /** Offshore rotation pattern when it differs — e.g. "12 hrs p/d". */
+        @Size(max = 120) String offshoreWorkScheduleText,
+        /** Summarized working-time accounting period (Art. 62). */
+        @Size(max = 80) String summarizedPeriodMethod) {
 }

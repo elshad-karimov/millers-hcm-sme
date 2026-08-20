@@ -29,7 +29,12 @@ public class TimesheetWorkflowListener {
         UUID id = UUID.fromString(event.subjectId());
         switch (event.status()) {
             case APPROVED, AUTO_APPROVED -> service.onApproved(id, event.comment());
-            case REJECTED, RETURNED      -> service.onRejected(id, event.comment());
+            // RETURNED is no longer folded into REJECTED. A return means "fix
+            // these days and resubmit" and must keep the employee's entries and
+            // the approver's instruction; mapping it to a reject sent the month
+            // back to DRAFT and threw both away.
+            case RETURNED                -> service.onReturned(id, event.comment());
+            case REJECTED                -> service.onRejected(id, event.comment());
             case CANCELLED               -> service.onCancelled(id, event.comment());
             default -> log.warn("Unexpected terminal status {} for timesheet workflow {}",
                     event.status(), event.instanceId());

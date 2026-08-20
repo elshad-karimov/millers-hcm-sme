@@ -3,6 +3,7 @@ package az.millers.hcm.leave.domain;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.hibernate.annotations.JdbcTypeCode;
@@ -20,6 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import az.millers.hcm.leave.api.dto.ExperienceBracket;
 import az.millers.hcm.leave.api.dto.SeniorityBracket;
 import org.hibernate.annotations.TenantId;
 
@@ -113,6 +115,36 @@ public class LeaveType {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "seniority_brackets_json", columnDefinition = "jsonb")
     private List<SeniorityBracket> seniorityBrackets;
+
+    // ── M151 — itemised entitlement ─────────────────────────────────────
+
+    /**
+     * Opt-in to the component model. When true this type's annual entitlement
+     * is resolved from {@code LeaveEntitlementComponent} rows and the monthly
+     * accrual chain is skipped for it, so the two never both write
+     * {@code entitlement_days}. Every other type is unaffected.
+     */
+    @Column(name = "entitlement_components_enabled", nullable = false)
+    private boolean entitlementComponentsEnabled = false;
+
+    /**
+     * Base days keyed by {@code employee.position_classification} — e.g.
+     * {@code {"Specialist": 30, "Labour": 21}}. Config rather than an enum
+     * because the classification taxonomy belongs to the tenant.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "base_days_by_classification_json", columnDefinition = "jsonb")
+    private Map<String, BigDecimal> baseDaysByClassification;
+
+    /**
+     * Art. 116.1 uplift bracketed on <em>total professional experience</em>.
+     * Distinct from {@link #seniorityBrackets}, which brackets on company
+     * tenure and expresses a whole entitlement rather than an uplift — see
+     * {@link ExperienceBracket}.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "experience_brackets_json", columnDefinition = "jsonb")
+    private List<ExperienceBracket> experienceBrackets;
 
     /** M341: How this leave type is measured and requested (DAYS/HALF_DAY/HOURS). */
     @Enumerated(EnumType.STRING)

@@ -27,6 +27,12 @@ public record LeaveTypeResponse(
         BigDecimal monthlyAccrualDays,
         /** Seniority bracket schedule, empty list when none configured (M47). */
         List<SeniorityBracket> seniorityBrackets,
+        /**
+         * M151 — when true, this type's annual entitlement is resolved from
+         * itemised components rather than the monthly accrual chain. Only
+         * these types have an entitlement breakdown to show.
+         */
+        boolean entitlementComponentsEnabled,
         boolean negativeBalanceAllowed,
         BigDecimal maxNegativeDays,
         /** M341: How this leave type is measured and requested. */
@@ -48,6 +54,7 @@ public record LeaveTypeResponse(
                 t.getMaxConsecutiveDays(), t.isExcludeWeekends(), t.isExcludeHolidays(),
                 t.isActive(), t.isAccruesMonthly(), t.getMonthlyAccrualDays(),
                 brackets,
+                t.isEntitlementComponentsEnabled(),
                 t.isNegativeBalanceAllowed(), t.getMaxNegativeDays(),
                 t.getLeaveUnit() != null ? t.getLeaveUnit() : LeaveUnit.DAYS,
                 t.getHoursPerDay(),
