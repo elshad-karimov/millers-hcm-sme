@@ -5,9 +5,17 @@ separate Postgres, separate Keycloak, different ports, its own Docker network.
 Nothing here touches `hcm-*` containers, the enterprise database, or
 `hcm-test.millers-software.com`.
 
+Target box: **49.13.18.119**, public hostname
+**https://hcm-sme.millers-software.com**.
+
 Artifacts: [`deploy/docker-compose.yml`](../deploy/docker-compose.yml),
-[`deploy/nginx/nginx.conf`](../deploy/nginx/nginx.conf),
+[`deploy/Caddyfile.snippet`](../deploy/Caddyfile.snippet),
 [`deploy/env.example`](../deploy/env.example).
+
+> **TLS and routing are not in this stack.** The box already runs a shared
+> Caddy (`millerscrm-caddy-1`) that owns :80/:443 and fronts every app on it,
+> issuing certificates automatically. A second thing binding :80 would fight it
+> for the ACME challenge and break every other site on the machine.
 
 ---
 
@@ -24,7 +32,7 @@ push to main ──► CI: checkstyle, tests, package, docker build
                           docker compose up -d --no-build hcm-backend
 ```
 
-Only `hcm-backend` is rolled. Postgres, Keycloak, Redis and nginx keep running
+Only `hcm-backend` is rolled. Postgres, Keycloak and Redis keep running
 across deploys. The image bundles the React SPA, so one roll ships API and UI
 together.
 
@@ -42,12 +50,12 @@ deploy.
 | Keycloak DB | 5434 | **5534** |
 | Keycloak HTTP | 8090 | **8190** |
 | Redis | 6380 | **6480** |
-| nginx HTTPS / HTTP | 8443 / 8444 | **8543 / 8544** |
-| Backend | — | **8083** (loopback) |
+| Backend | 8080 (internal) | **8083** (loopback) |
+| TLS / routing | shared Caddy | shared Caddy |
 
-Only nginx binds `0.0.0.0`. Databases, Redis, the backend and the Keycloak
-admin port bind to `127.0.0.1` — reachable over an SSH tunnel, never from the
-internet.
+**Nothing in this stack binds `0.0.0.0`.** Every host port sits on `127.0.0.1`
+for psql and the Keycloak admin console over an SSH tunnel. The only public
+door is Caddy.
 
 ---
 
@@ -56,7 +64,7 @@ internet.
 ### 1. On the VPS
 
 ```bash
-sudo mkdir -p /opt/millers-hcm-sme && cd /opt/millers-hcm-sme
+sudo mkdir -p /opt/hcm-sme && cd /opt/hcm-sme
 git clone https://github.com/<owner>/millers-hcm-sme.git .
 cp deploy/env.example deploy/.env
 ```
@@ -76,27 +84,39 @@ openssl rand -base64 32
 becomes the OIDC issuer *and* Keycloak's advertised hostname; a mismatch means
 every token is rejected as an untrusted issuer.
 
-### 2. DNS and TLS
+### 2. DNS
 
-Point a hostname at the box, then issue a certificate:
+Add an A record before anything else — Caddy cannot issue a certificate for a
+name that does not resolve:
 
-```bash
-sudo certbot certonly --standalone -d sme.millers-software.com \
-     --http-01-port 8544
+```
+hcm-sme.millers-software.com.  A  49.13.18.119
 ```
 
-Set `TLS_CERT_PATH` / `TLS_KEY_PATH` in `.env` to the resulting
-`fullchain.pem` / `privkey.pem`.
+Check with `dig +short hcm-sme.millers-software.com`.
 
 ### 3. Start the supporting stack
 
 ```bash
-cd /opt/millers-hcm-sme/deploy
-docker compose up -d postgres keycloak-pg keycloak redis nginx
+cd /opt/hcm-sme/deploy
+docker compose up -d postgres keycloak-pg keycloak redis
 docker compose ps
 ```
 
-Wait for `sme-keycloak` to report healthy — the first start imports the realm.
+Wait for `sme-keycloak` to report healthy — the first start imports the realm
+and can take a couple of minutes.
+
+### 3b. Wire it into Caddy
+
+```bash
+docker network connect sme-net millerscrm-caddy-1
+cat /opt/hcm-sme/deploy/Caddyfile.snippet >> /opt/millerscrm/caddy/Caddyfile
+docker exec millerscrm-caddy-1 caddy validate --config /etc/caddy/Caddyfile
+docker exec millerscrm-caddy-1 caddy reload   --config /etc/caddy/Caddyfile
+```
+
+> **Back the Caddyfile up first.** It serves every site on this box, so a
+> syntax error takes them all down. Always `validate` before `reload`.
 
 ### 4. GitHub secrets
 
@@ -108,8 +128,8 @@ currently has none of these**, which is why the deploy workflows cannot run:
 | `TEST_HOST` | VPS hostname or IP |
 | `TEST_USER` | SSH user (needs Docker rights) |
 | `TEST_SSH_KEY` | Private key for that user — paste into GitHub, share with nobody |
-| `TEST_COMPOSE_DIR` | `/opt/millers-hcm-sme/deploy` |
-| `GHCR_PAT` | PAT with `read:packages` so the VPS can pull the image |
+| `TEST_COMPOSE_DIR` | `/opt/hcm-sme/deploy` |
+| `GHCR_PAT` | PAT with `read:packages`. **The package is public today**, so a plain `docker pull` works and this is only needed if you make it private. |
 
 `deploy-prod.yml` uses the same names with a `PROD_` prefix and additionally
 needs a **`production` environment** (*Settings ▸ Environments*) with required
@@ -121,7 +141,7 @@ Push to `main`, wait for CI to publish the image, then *Actions ▸ Deploy to
 Test ▸ Run workflow*. Or roll by hand on the box:
 
 ```bash
-cd /opt/millers-hcm-sme/deploy
+cd /opt/hcm-sme/deploy
 echo "$GHCR_PAT" | docker login ghcr.io -u <owner> --password-stdin
 docker compose pull hcm-backend
 docker compose up -d --no-build hcm-backend
@@ -139,7 +159,7 @@ dev URL and must be corrected to the public one, or no token resolves:
 ```bash
 docker compose exec postgres psql -U hcm -d hcm -c \
   "UPDATE config.tenant
-      SET issuer_uri = 'https://sme.millers-software.com/realms/millers-hcm'
+      SET issuer_uri = 'https://hcm-sme.millers-software.com/realms/millers-hcm'
     WHERE id = 'default';"
 ```
 
@@ -147,7 +167,7 @@ Then create the base employee records so the logins resolve to people:
 
 ```bash
 docker compose exec -T postgres psql -U hcm -d hcm \
-  < /opt/millers-hcm-sme/scripts/seed-sme-base-users.sql
+  < /opt/hcm-sme/scripts/seed-sme-base-users.sql
 ```
 
 ---
@@ -178,10 +198,10 @@ docker compose ps hcm-backend
 docker compose exec -T hcm-backend wget -qO- http://localhost:8080/actuator/health/readiness
 
 # Public surface (401 unauthenticated is CORRECT — it means security is on)
-curl -o /dev/null -w '%{http_code}\n' https://sme.millers-software.com/api/module-settings
+curl -o /dev/null -w '%{http_code}\n' https://hcm-sme.millers-software.com/api/module-settings
 
 # The login page renders (not a 502)
-curl -s https://sme.millers-software.com/realms/millers-hcm/.well-known/openid-configuration \
+curl -s https://hcm-sme.millers-software.com/realms/millers-hcm/.well-known/openid-configuration \
   | head -c 120
 
 # Migrations landed
@@ -208,14 +228,14 @@ HCM_IMAGE_TAG=<previous-sha> docker compose up -d --no-build hcm-backend
 
 ## Troubleshooting
 
-**502 on the login page, everything else fine.** The Keycloak login response
-carries several large `Set-Cookie` headers that overflow nginx's default 4 KB
-proxy buffer. `deploy/nginx/nginx.conf` already sets `proxy_buffer_size 32k`;
-if you replace that file, keep those three directives.
+**502 for this host only.** Caddy is not on the SME network:
+`docker network connect sme-net millerscrm-caddy-1`.
 
-**`nginx -t` reports a truncated config after you edited it.** A single-file
-bind mount can hold a stale inode when the file is replaced. Recreate the
-container: `docker compose up -d --force-recreate nginx`.
+**502 on the login page specifically.** Caddy sizes proxy buffers dynamically,
+so the large-`Set-Cookie` problem that 502s nginx does not apply here. If you
+ever front this with nginx instead, it needs `proxy_buffer_size 32k` or the
+login page fails while JWKS keeps working — which reads as a broken login
+rather than a proxy misconfiguration.
 
 **Every token rejected / 401 on all API calls.** `PUBLIC_URL`,
 `KC_HOSTNAME_URL` and `config.tenant.issuer_uri` disagree. All three must be
