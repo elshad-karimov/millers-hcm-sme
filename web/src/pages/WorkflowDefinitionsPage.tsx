@@ -23,7 +23,7 @@ export function WorkflowDefinitionsPage() {
   const fetchDefinitions = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/api/workflow/definitions')
+      const { data } = await api.get('/workflow/definitions')
       setDefinitions(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load workflow definitions')

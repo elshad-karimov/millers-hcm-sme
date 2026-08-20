@@ -50,35 +50,35 @@ export interface SwapRequestDto {
 
 export const openShiftsApi = {
   list: (from?: string, to?: string) =>
-    api.get<OpenShift[]>('/api/attendance/scheduling/open-shifts', { params: { from, to } })
+    api.get<OpenShift[]>('/attendance/scheduling/open-shifts', { params: { from, to } })
       .then(r => r.data),
   get: (id: string) =>
-    api.get<OpenShift>(`/api/attendance/scheduling/open-shifts/${id}`)
+    api.get<OpenShift>(`/attendance/scheduling/open-shifts/${id}`)
       .then(r => r.data),
   create: (req: OpenShiftRequest) =>
-    api.post<OpenShift>('/api/attendance/scheduling/open-shifts', req)
+    api.post<OpenShift>('/attendance/scheduling/open-shifts', req)
       .then(r => r.data),
   update: (id: string, req: Partial<OpenShiftRequest>) =>
-    api.put<OpenShift>(`/api/attendance/scheduling/open-shifts/${id}`, req)
+    api.put<OpenShift>(`/attendance/scheduling/open-shifts/${id}`, req)
       .then(r => r.data),
   claim: (id: string, employeeId: string) =>
-    api.post(`/api/attendance/scheduling/open-shifts/${id}/claim`, null, { params: { employeeId } }),
+    api.post(`/attendance/scheduling/open-shifts/${id}/claim`, null, { params: { employeeId } }),
 }
 
 export const swapRequestsApi = {
   list: (status?: string) =>
-    api.get<ShiftSwapRequest[]>('/api/attendance/scheduling/swap-requests', { params: { status } })
+    api.get<ShiftSwapRequest[]>('/attendance/scheduling/swap-requests', { params: { status } })
       .then(r => r.data),
   get: (id: string) =>
-    api.get<ShiftSwapRequest>(`/api/attendance/scheduling/swap-requests/${id}`)
+    api.get<ShiftSwapRequest>(`/attendance/scheduling/swap-requests/${id}`)
       .then(r => r.data),
   create: (req: SwapRequestDto) =>
-    api.post<ShiftSwapRequest>('/api/attendance/scheduling/swap-requests', req)
+    api.post<ShiftSwapRequest>('/attendance/scheduling/swap-requests', req)
       .then(r => r.data),
   approve: (id: string) =>
-    api.post(`/api/attendance/scheduling/swap-requests/${id}/approve`),
+    api.post(`/attendance/scheduling/swap-requests/${id}/approve`),
   reject: (id: string, reason: string) =>
-    api.post(`/api/attendance/scheduling/swap-requests/${id}/reject`, null, { params: { reason } }),
+    api.post(`/attendance/scheduling/swap-requests/${id}/reject`, null, { params: { reason } }),
 }
 
 export const SWAP_STATUS_COLOR: Record<string, string> = {

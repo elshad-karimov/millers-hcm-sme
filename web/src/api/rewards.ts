@@ -95,52 +95,52 @@ export interface BudgetRequest {
 
 export const rewardCatalogApi = {
   list: (activeOnly = true) =>
-    api.get<RewardCatalog[]>('/api/engagement/rewards/catalog', { params: { activeOnly } })
+    api.get<RewardCatalog[]>('/engagement/rewards/catalog', { params: { activeOnly } })
       .then(r => r.data),
   get: (id: string) =>
-    api.get<RewardCatalog>(`/api/engagement/rewards/catalog/${id}`)
+    api.get<RewardCatalog>(`/engagement/rewards/catalog/${id}`)
       .then(r => r.data),
   create: (req: RewardCatalogRequest) =>
-    api.post<RewardCatalog>('/api/engagement/rewards/catalog', req)
+    api.post<RewardCatalog>('/engagement/rewards/catalog', req)
       .then(r => r.data),
   update: (id: string, req: RewardCatalogRequest) =>
-    api.put<RewardCatalog>(`/api/engagement/rewards/catalog/${id}`, req)
+    api.put<RewardCatalog>(`/engagement/rewards/catalog/${id}`, req)
       .then(r => r.data),
 }
 
 export const rewardWalletApi = {
   get: (employeeId: string) =>
-    api.get<RewardWallet>(`/api/engagement/rewards/wallet/${employeeId}`)
+    api.get<RewardWallet>(`/engagement/rewards/wallet/${employeeId}`)
       .then(r => r.data),
   grantPoints: (req: GrantPointsRequest) =>
-    api.post('/api/engagement/rewards/grant', req),
+    api.post('/engagement/rewards/grant', req),
 }
 
 export const rewardRedemptionApi = {
   list: (status?: string) =>
-    api.get<RewardRedemption[]>('/api/engagement/rewards/redemptions', { params: { status } })
+    api.get<RewardRedemption[]>('/engagement/rewards/redemptions', { params: { status } })
       .then(r => r.data),
   listMy: (employeeId: string) =>
-    api.get<RewardRedemption[]>(`/api/engagement/rewards/redemptions/my/${employeeId}`)
+    api.get<RewardRedemption[]>(`/engagement/rewards/redemptions/my/${employeeId}`)
       .then(r => r.data),
   get: (id: string) =>
-    api.get<RewardRedemption>(`/api/engagement/rewards/redemptions/${id}`)
+    api.get<RewardRedemption>(`/engagement/rewards/redemptions/${id}`)
       .then(r => r.data),
   redeem: (req: RedeemRewardRequest) =>
-    api.post<RewardRedemption>('/api/engagement/rewards/redeem', req)
+    api.post<RewardRedemption>('/engagement/rewards/redeem', req)
       .then(r => r.data),
   fulfill: (id: string, req: FulfillRedemptionRequest) =>
-    api.post(`/api/engagement/rewards/redemptions/${id}/fulfill`, req),
+    api.post(`/engagement/rewards/redemptions/${id}/fulfill`, req),
   reject: (id: string, reason: string) =>
-    api.post(`/api/engagement/rewards/redemptions/${id}/reject`, null, { params: { reason } }),
+    api.post(`/engagement/rewards/redemptions/${id}/reject`, null, { params: { reason } }),
 }
 
 export const rewardBudgetApi = {
   list: (year: number) =>
-    api.get<RewardBudget[]>('/api/engagement/rewards/budgets', { params: { year } })
+    api.get<RewardBudget[]>('/engagement/rewards/budgets', { params: { year } })
       .then(r => r.data),
   createOrUpdate: (req: BudgetRequest) =>
-    api.post<RewardBudget>('/api/engagement/rewards/budgets', req)
+    api.post<RewardBudget>('/engagement/rewards/budgets', req)
       .then(r => r.data),
 }
 

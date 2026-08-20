@@ -42,19 +42,19 @@ export interface ConvertToFTERequest {
 
 export const contingentApi = {
   list: (status?: string) =>
-    api.get<ContractorEngagement[]>('/api/contingent/contractors', { params: { status } })
+    api.get<ContractorEngagement[]>('/contingent/contractors', { params: { status } })
       .then(r => r.data),
   get: (id: string) =>
-    api.get<ContractorEngagement>(`/api/contingent/contractors/${id}`)
+    api.get<ContractorEngagement>(`/contingent/contractors/${id}`)
       .then(r => r.data),
   create: (req: ContractorEngagementRequest) =>
-    api.post<ContractorEngagement>('/api/contingent/contractors', req)
+    api.post<ContractorEngagement>('/contingent/contractors', req)
       .then(r => r.data),
   update: (id: string, req: ContractorEngagementRequest) =>
-    api.put<ContractorEngagement>(`/api/contingent/contractors/${id}`, req)
+    api.put<ContractorEngagement>(`/contingent/contractors/${id}`, req)
       .then(r => r.data),
   convertToFTE: (id: string, req: ConvertToFTERequest) =>
-    api.post(`/api/contingent/contractors/${id}/convert`, req),
+    api.post(`/contingent/contractors/${id}/convert`, req),
 }
 
 export const ENGAGEMENT_STATUS_COLOR: Record<string, string> = {

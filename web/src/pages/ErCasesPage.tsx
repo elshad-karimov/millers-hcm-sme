@@ -157,7 +157,7 @@ export function ErCasesPage() {
       if (filters.severity) params.append('severity', filters.severity)
       if (filters.status) params.append('status', filters.status)
 
-      const { data } = await api.get(`/api/er/cases?${params}`)
+      const { data } = await api.get(`/er/cases?${params}`)
       setCases(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load cases')
@@ -172,7 +172,7 @@ export function ErCasesPage() {
 
   const handleCreate = async (values: any) => {
     try {
-      await api.post('/api/er/cases', {
+      await api.post('/er/cases', {
         caseType: values.caseType,
         category: values.category,
         severity: values.severity,
@@ -192,7 +192,7 @@ export function ErCasesPage() {
 
   const openDetail = async (caseId: string) => {
     try {
-      const { data } = await api.get(`/api/er/cases/${caseId}`)
+      const { data } = await api.get(`/er/cases/${caseId}`)
       setSelectedCase(data)
       setDetailOpen(true)
     } catch (err: any) {
@@ -432,7 +432,7 @@ function ErCaseDetailDrawer({ caseData, open, onClose }: ErCaseDetailDrawerProps
 
   const fetchNotes = async () => {
     try {
-      const { data } = await api.get(`/api/er/cases/${caseData.id}/notes`)
+      const { data } = await api.get(`/er/cases/${caseData.id}/notes`)
       setNotes(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load notes')
@@ -441,7 +441,7 @@ function ErCaseDetailDrawer({ caseData, open, onClose }: ErCaseDetailDrawerProps
 
   const fetchInvestigations = async () => {
     try {
-      const { data } = await api.get(`/api/er/cases/${caseData.id}/investigations`)
+      const { data } = await api.get(`/er/cases/${caseData.id}/investigations`)
       setInvestigations(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load investigations')
@@ -476,7 +476,7 @@ function DetailsTab({ caseData, onUpdate }: { caseData: ErCase; onUpdate: () => 
 
   const handleStatusUpdate = async (values: any) => {
     try {
-      await api.put(`/api/er/cases/${caseData.id}/status`, {
+      await api.put(`/er/cases/${caseData.id}/status`, {
         status: values.status,
         outcome: values.outcome,
       })
@@ -489,7 +489,7 @@ function DetailsTab({ caseData, onUpdate }: { caseData: ErCase; onUpdate: () => 
 
   const handleDetailsUpdate = async (values: any) => {
     try {
-      await api.put(`/api/er/cases/${caseData.id}`, {
+      await api.put(`/er/cases/${caseData.id}`, {
         category: values.category,
         severity: values.severity,
         description: values.description,
@@ -586,7 +586,7 @@ function NotesTab({
 
   const handleAddNote = async (values: any) => {
     try {
-      await api.post(`/api/er/cases/${caseId}/notes`, {
+      await api.post(`/er/cases/${caseId}/notes`, {
         body: values.body,
         isInternal: values.isInternal ?? false,
       })
@@ -658,7 +658,7 @@ function InvestigationTab({
 
   const handleOpenInvestigation = async (values: any) => {
     try {
-      await api.post(`/api/er/cases/${caseId}/investigations`, {
+      await api.post(`/er/cases/${caseId}/investigations`, {
         investigatorUsername: values.investigatorUsername,
       })
       message.success('Investigation opened')
@@ -672,7 +672,7 @@ function InvestigationTab({
 
   const handleCloseInvestigation = async (investigationId: string, values: any) => {
     try {
-      await api.put(`/api/er/investigations/${investigationId}/close`, {
+      await api.put(`/er/investigations/${investigationId}/close`, {
         findings: values.findings,
         recommendation: values.recommendation,
       })
@@ -687,7 +687,7 @@ function InvestigationTab({
 
   const fetchInterviews = async (investigationId: string) => {
     try {
-      const { data } = await api.get(`/api/er/investigations/${investigationId}/interviews`)
+      const { data } = await api.get(`/er/investigations/${investigationId}/interviews`)
       setInterviews(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load interviews')
@@ -696,7 +696,7 @@ function InvestigationTab({
 
   const handleAddInterview = async (investigationId: string, values: any) => {
     try {
-      await api.post(`/api/er/investigations/${investigationId}/interviews`, {
+      await api.post(`/er/investigations/${investigationId}/interviews`, {
         intervieweeName: values.intervieweeName,
         intervieweeRole: values.intervieweeRole,
         interviewDate: values.interviewDate?.format('YYYY-MM-DD'),
@@ -712,7 +712,7 @@ function InvestigationTab({
 
   const fetchEvidence = async (investigationId: string) => {
     try {
-      const { data } = await api.get(`/api/er/investigations/${investigationId}/evidence`)
+      const { data } = await api.get(`/er/investigations/${investigationId}/evidence`)
       setEvidence(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load evidence')
@@ -721,7 +721,7 @@ function InvestigationTab({
 
   const handleAddEvidence = async (investigationId: string, values: any) => {
     try {
-      await api.post(`/api/er/investigations/${investigationId}/evidence`, {
+      await api.post(`/er/investigations/${investigationId}/evidence`, {
         description: values.description,
         attachmentId: values.attachmentId,
       })

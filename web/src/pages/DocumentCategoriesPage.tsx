@@ -41,7 +41,7 @@ export function DocumentCategoriesPage() {
   const fetchCategories = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/api/documents/categories')
+      const { data } = await api.get('/documents/categories')
       setCategories(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load categories')
@@ -56,7 +56,7 @@ export function DocumentCategoriesPage() {
 
   const handleCreate = async (values: any) => {
     try {
-      await api.post('/api/documents/categories', {
+      await api.post('/documents/categories', {
         code: values.code,
         name: values.name,
         mandatory: values.mandatory ?? false,
@@ -75,7 +75,7 @@ export function DocumentCategoriesPage() {
 
   const handleUpdate = async (categoryId: string, values: any) => {
     try {
-      await api.put(`/api/documents/categories/${categoryId}`, {
+      await api.put(`/documents/categories/${categoryId}`, {
         name: values.name,
         mandatory: values.mandatory,
         retentionDays: values.retentionDays || null,

@@ -508,38 +508,38 @@ export interface OutOfBandReportRow {
 
 export const compensationApi = {
   // Config
-  getConfig: () => api.get<CompConfig>('/api/compensation/config').then((r) => r.data),
+  getConfig: () => api.get<CompConfig>('/compensation/config').then((r) => r.data),
   updateConfig: (payload: CompConfig) =>
-    api.put<CompConfig>('/api/compensation/config', payload).then((r) => r.data),
+    api.put<CompConfig>('/compensation/config', payload).then((r) => r.data),
 
   // Pay Bands
   listPayBands: () =>
-    api.get<PayBandResponse[]>('/api/compensation/pay-bands').then((r) => r.data),
+    api.get<PayBandResponse[]>('/compensation/pay-bands').then((r) => r.data),
   createPayBand: (payload: PayBandRequest) =>
-    api.post<PayBandResponse>('/api/compensation/pay-bands', payload).then((r) => r.data),
+    api.post<PayBandResponse>('/compensation/pay-bands', payload).then((r) => r.data),
   updatePayBand: (id: string, payload: PayBandRequest) =>
-    api.put<PayBandResponse>(`/api/compensation/pay-bands/${id}`, payload).then((r) => r.data),
+    api.put<PayBandResponse>(`/compensation/pay-bands/${id}`, payload).then((r) => r.data),
   deactivatePayBand: (id: string) =>
-    api.delete(`/api/compensation/pay-bands/${id}`).then((r) => r.data),
+    api.delete(`/compensation/pay-bands/${id}`).then((r) => r.data),
 
   // Change Reasons
   listChangeReasons: () =>
-    api.get<ChangeReasonResponse[]>('/api/compensation/change-reasons').then((r) => r.data),
+    api.get<ChangeReasonResponse[]>('/compensation/change-reasons').then((r) => r.data),
   createChangeReason: (payload: ChangeReasonRequest) =>
     api
-      .post<ChangeReasonResponse>('/api/compensation/change-reasons', payload)
+      .post<ChangeReasonResponse>('/compensation/change-reasons', payload)
       .then((r) => r.data),
   updateChangeReason: (id: string, payload: ChangeReasonRequest) =>
     api
-      .put<ChangeReasonResponse>(`/api/compensation/change-reasons/${id}`, payload)
+      .put<ChangeReasonResponse>(`/compensation/change-reasons/${id}`, payload)
       .then((r) => r.data),
   deactivateChangeReason: (id: string) =>
-    api.delete(`/api/compensation/change-reasons/${id}`).then((r) => r.data),
+    api.delete(`/compensation/change-reasons/${id}`).then((r) => r.data),
 
   // Profile
   getProfile: (employeeId: string) =>
     api
-      .get<CompensationProfileDto>(`/api/compensation/employees/${employeeId}/profile`)
+      .get<CompensationProfileDto>(`/compensation/employees/${employeeId}/profile`)
       .then((r) => r.data),
 
   // Salary Change Requests
@@ -549,19 +549,19 @@ export const compensationApi = {
     if (filters?.status) params.set('status', filters.status)
     const query = params.toString()
     return api
-      .get<SalaryChangeRequestDto[]>(`/api/compensation/salary-changes${query ? `?${query}` : ''}`)
+      .get<SalaryChangeRequestDto[]>(`/compensation/salary-changes${query ? `?${query}` : ''}`)
       .then((r) => r.data)
   },
   getSalaryChange: (id: string) =>
-    api.get<SalaryChangeRequestDto>(`/api/compensation/salary-changes/${id}`).then((r) => r.data),
+    api.get<SalaryChangeRequestDto>(`/compensation/salary-changes/${id}`).then((r) => r.data),
   createSalaryChange: (payload: CreateSalaryChangeRequest) =>
     api
-      .post<SalaryChangeRequestDto>('/api/compensation/salary-changes', payload)
+      .post<SalaryChangeRequestDto>('/compensation/salary-changes', payload)
       .then((r) => r.data),
   submitSalaryChange: (id: string) =>
-    api.post(`/api/compensation/salary-changes/${id}/submit`).then((r) => r.data),
+    api.post(`/compensation/salary-changes/${id}/submit`).then((r) => r.data),
   cancelSalaryChange: (id: string) =>
-    api.post(`/api/compensation/salary-changes/${id}/cancel`).then((r) => r.data),
+    api.post(`/compensation/salary-changes/${id}/cancel`).then((r) => r.data),
 
   // Exceptions
   listExceptions: (filters?: { status?: CompensationExceptionStatus; exceptionType?: CompensationExceptionType }) => {
@@ -570,27 +570,27 @@ export const compensationApi = {
     if (filters?.exceptionType) params.set('exceptionType', filters.exceptionType)
     const query = params.toString()
     return api
-      .get<CompensationExceptionDto[]>(`/api/compensation/exceptions${query ? `?${query}` : ''}`)
+      .get<CompensationExceptionDto[]>(`/compensation/exceptions${query ? `?${query}` : ''}`)
       .then((r) => r.data)
   },
   resolveException: (id: string, payload: ResolveExceptionRequest) =>
-    api.post(`/api/compensation/exceptions/${id}/resolve`, payload).then((r) => r.data),
+    api.post(`/compensation/exceptions/${id}/resolve`, payload).then((r) => r.data),
 
   // Merit Matrices
   listMeritMatrices: () =>
-    api.get<MeritMatrixDto[]>('/api/compensation/merit-matrices').then((r) => r.data),
+    api.get<MeritMatrixDto[]>('/compensation/merit-matrices').then((r) => r.data),
   getMeritMatrix: (id: string) =>
-    api.get<MeritMatrixDto>(`/api/compensation/merit-matrices/${id}`).then((r) => r.data),
+    api.get<MeritMatrixDto>(`/compensation/merit-matrices/${id}`).then((r) => r.data),
   createMeritMatrix: (payload: MeritMatrixRequest) =>
-    api.post<MeritMatrixDto>('/api/compensation/merit-matrices', payload).then((r) => r.data),
+    api.post<MeritMatrixDto>('/compensation/merit-matrices', payload).then((r) => r.data),
   updateMeritMatrix: (id: string, payload: MeritMatrixRequest) =>
-    api.put<MeritMatrixDto>(`/api/compensation/merit-matrices/${id}`, payload).then((r) => r.data),
+    api.put<MeritMatrixDto>(`/compensation/merit-matrices/${id}`, payload).then((r) => r.data),
   deactivateMeritMatrix: (id: string) =>
-    api.delete(`/api/compensation/merit-matrices/${id}`).then((r) => r.data),
+    api.delete(`/compensation/merit-matrices/${id}`).then((r) => r.data),
   suggestMerit: (employeeId: string, matrixId: string) =>
     api
       .get<MeritSuggestionDto>(
-        `/api/compensation/merit-matrices/suggest?employeeId=${employeeId}&matrixId=${matrixId}`,
+        `/compensation/merit-matrices/suggest?employeeId=${employeeId}&matrixId=${matrixId}`,
       )
       .then((r) => r.data),
 
@@ -601,31 +601,31 @@ export const compensationApi = {
     if (filters?.scopeType) params.set('scopeType', filters.scopeType)
     const query = params.toString()
     return api
-      .get<CompensationBudgetDto[]>(`/api/compensation/budgets${query ? `?${query}` : ''}`)
+      .get<CompensationBudgetDto[]>(`/compensation/budgets${query ? `?${query}` : ''}`)
       .then((r) => r.data)
   },
   getBudget: (id: string) =>
-    api.get<CompensationBudgetDto>(`/api/compensation/budgets/${id}`).then((r) => r.data),
+    api.get<CompensationBudgetDto>(`/compensation/budgets/${id}`).then((r) => r.data),
   createBudget: (payload: CompensationBudgetRequest) =>
-    api.post<CompensationBudgetDto>('/api/compensation/budgets', payload).then((r) => r.data),
+    api.post<CompensationBudgetDto>('/compensation/budgets', payload).then((r) => r.data),
   updateBudget: (id: string, payload: CompensationBudgetRequest) =>
-    api.put<CompensationBudgetDto>(`/api/compensation/budgets/${id}`, payload).then((r) => r.data),
+    api.put<CompensationBudgetDto>(`/compensation/budgets/${id}`, payload).then((r) => r.data),
   deactivateBudget: (id: string) =>
-    api.delete(`/api/compensation/budgets/${id}`).then((r) => r.data),
+    api.delete(`/compensation/budgets/${id}`).then((r) => r.data),
   getBudgetStatus: (id: string) =>
-    api.get<BudgetStatusDto>(`/api/compensation/budgets/${id}/status`).then((r) => r.data),
+    api.get<BudgetStatusDto>(`/compensation/budgets/${id}/status`).then((r) => r.data),
 
   // Incentive Plans
   listIncentivePlans: () =>
-    api.get<IncentivePlanDto[]>('/api/compensation/incentive-plans').then((r) => r.data),
+    api.get<IncentivePlanDto[]>('/compensation/incentive-plans').then((r) => r.data),
   getIncentivePlan: (id: string) =>
-    api.get<IncentivePlanDto>(`/api/compensation/incentive-plans/${id}`).then((r) => r.data),
+    api.get<IncentivePlanDto>(`/compensation/incentive-plans/${id}`).then((r) => r.data),
   createIncentivePlan: (payload: IncentivePlanRequest) =>
-    api.post<IncentivePlanDto>('/api/compensation/incentive-plans', payload).then((r) => r.data),
+    api.post<IncentivePlanDto>('/compensation/incentive-plans', payload).then((r) => r.data),
   updateIncentivePlan: (id: string, payload: IncentivePlanRequest) =>
-    api.put<IncentivePlanDto>(`/api/compensation/incentive-plans/${id}`, payload).then((r) => r.data),
+    api.put<IncentivePlanDto>(`/compensation/incentive-plans/${id}`, payload).then((r) => r.data),
   deactivateIncentivePlan: (id: string) =>
-    api.delete(`/api/compensation/incentive-plans/${id}`).then((r) => r.data),
+    api.delete(`/compensation/incentive-plans/${id}`).then((r) => r.data),
 
   // Incentive Payouts
   listIncentivePayouts: (filters?: { planId?: string; employeeId?: string; status?: IncentivePayoutStatus }) => {
@@ -635,27 +635,27 @@ export const compensationApi = {
     if (filters?.status) params.set('status', filters.status)
     const query = params.toString()
     return api
-      .get<IncentivePayoutDto[]>(`/api/compensation/incentive-payouts${query ? `?${query}` : ''}`)
+      .get<IncentivePayoutDto[]>(`/compensation/incentive-payouts${query ? `?${query}` : ''}`)
       .then((r) => r.data)
   },
   createIncentivePayout: (payload: CreateIncentivePayoutRequest) =>
-    api.post<IncentivePayoutDto>('/api/compensation/incentive-payouts', payload).then((r) => r.data),
+    api.post<IncentivePayoutDto>('/compensation/incentive-payouts', payload).then((r) => r.data),
   approveIncentivePayout: (id: string) =>
-    api.post(`/api/compensation/incentive-payouts/${id}/approve`).then((r) => r.data),
+    api.post(`/compensation/incentive-payouts/${id}/approve`).then((r) => r.data),
   cancelIncentivePayout: (id: string) =>
-    api.post(`/api/compensation/incentive-payouts/${id}/cancel`).then((r) => r.data),
+    api.post(`/compensation/incentive-payouts/${id}/cancel`).then((r) => r.data),
 
   // Commission Plans
   listCommissionPlans: () =>
-    api.get<CommissionPlanDto[]>('/api/compensation/commission-plans').then((r) => r.data),
+    api.get<CommissionPlanDto[]>('/compensation/commission-plans').then((r) => r.data),
   getCommissionPlan: (id: string) =>
-    api.get<CommissionPlanDto>(`/api/compensation/commission-plans/${id}`).then((r) => r.data),
+    api.get<CommissionPlanDto>(`/compensation/commission-plans/${id}`).then((r) => r.data),
   createCommissionPlan: (payload: CommissionPlanRequest) =>
-    api.post<CommissionPlanDto>('/api/compensation/commission-plans', payload).then((r) => r.data),
+    api.post<CommissionPlanDto>('/compensation/commission-plans', payload).then((r) => r.data),
   updateCommissionPlan: (id: string, payload: CommissionPlanRequest) =>
-    api.put<CommissionPlanDto>(`/api/compensation/commission-plans/${id}`, payload).then((r) => r.data),
+    api.put<CommissionPlanDto>(`/compensation/commission-plans/${id}`, payload).then((r) => r.data),
   deactivateCommissionPlan: (id: string) =>
-    api.delete(`/api/compensation/commission-plans/${id}`).then((r) => r.data),
+    api.delete(`/compensation/commission-plans/${id}`).then((r) => r.data),
 
   // Commission Payouts
   listCommissionPayouts: (filters?: { planId?: string; employeeId?: string; status?: CommissionPayoutStatus }) => {
@@ -665,50 +665,50 @@ export const compensationApi = {
     if (filters?.status) params.set('status', filters.status)
     const query = params.toString()
     return api
-      .get<CommissionPayoutDto[]>(`/api/compensation/commission-payouts${query ? `?${query}` : ''}`)
+      .get<CommissionPayoutDto[]>(`/compensation/commission-payouts${query ? `?${query}` : ''}`)
       .then((r) => r.data)
   },
   createCommissionPayout: (payload: CreateCommissionPayoutRequest) =>
-    api.post<CommissionPayoutDto>('/api/compensation/commission-payouts', payload).then((r) => r.data),
+    api.post<CommissionPayoutDto>('/compensation/commission-payouts', payload).then((r) => r.data),
   approveCommissionPayout: (id: string) =>
-    api.post(`/api/compensation/commission-payouts/${id}/approve`).then((r) => r.data),
+    api.post(`/compensation/commission-payouts/${id}/approve`).then((r) => r.data),
   cancelCommissionPayout: (id: string) =>
-    api.post(`/api/compensation/commission-payouts/${id}/cancel`).then((r) => r.data),
+    api.post(`/compensation/commission-payouts/${id}/cancel`).then((r) => r.data),
 
   // ── M367: Market Data ──────────────────────────────────────────────────────
 
   listMarketSurveys: () =>
-    api.get<MarketSalarySurveyDto[]>('/api/compensation/market/surveys').then((r) => r.data),
+    api.get<MarketSalarySurveyDto[]>('/compensation/market/surveys').then((r) => r.data),
   createMarketSurvey: (payload: CreateMarketSurveyRequest) =>
-    api.post<MarketSalarySurveyDto>('/api/compensation/market/surveys', payload).then((r) => r.data),
+    api.post<MarketSalarySurveyDto>('/compensation/market/surveys', payload).then((r) => r.data),
   deleteMarketSurvey: (id: string) =>
-    api.delete(`/api/compensation/market/surveys/${id}`).then((r) => r.data),
+    api.delete(`/compensation/market/surveys/${id}`).then((r) => r.data),
   listMarketData: (surveyId: string) =>
-    api.get<MarketSalaryDataDto[]>(`/api/compensation/market/surveys/${surveyId}/data`).then((r) => r.data),
+    api.get<MarketSalaryDataDto[]>(`/compensation/market/surveys/${surveyId}/data`).then((r) => r.data),
   addMarketData: (surveyId: string, payload: AddMarketDataRequest) =>
-    api.post<MarketSalaryDataDto>(`/api/compensation/market/surveys/${surveyId}/data`, payload).then((r) => r.data),
+    api.post<MarketSalaryDataDto>(`/compensation/market/surveys/${surveyId}/data`, payload).then((r) => r.data),
   deleteMarketData: (id: string) =>
-    api.delete(`/api/compensation/market/data/${id}`).then((r) => r.data),
+    api.delete(`/compensation/market/data/${id}`).then((r) => r.data),
   compareMarket: (employeeId: string, surveyId?: string) => {
     const params = new URLSearchParams({ employeeId })
     if (surveyId) params.set('surveyId', surveyId)
-    return api.get<MarketComparisonDto>(`/api/compensation/market/compare?${params.toString()}`).then((r) => r.data)
+    return api.get<MarketComparisonDto>(`/compensation/market/compare?${params.toString()}`).then((r) => r.data)
   },
 
   // ── M368: Total Comp Statements ─────────────────────────────────────────────
 
   generateStatement: (employeeId: string, year: number) =>
-    api.post<TotalCompStatementDto>(`/api/compensation/total-comp-statements/generate?employeeId=${employeeId}&year=${year}`).then((r) => r.data),
+    api.post<TotalCompStatementDto>(`/compensation/total-comp-statements/generate?employeeId=${employeeId}&year=${year}`).then((r) => r.data),
   generateAllStatements: (year: number) =>
-    api.post<{ generated: number }>(`/api/compensation/total-comp-statements/generate-all?year=${year}`).then((r) => r.data),
+    api.post<{ generated: number }>(`/compensation/total-comp-statements/generate-all?year=${year}`).then((r) => r.data),
   listStatements: (year: number) =>
-    api.get<TotalCompStatementDto[]>(`/api/compensation/total-comp-statements?year=${year}`).then((r) => r.data),
+    api.get<TotalCompStatementDto[]>(`/compensation/total-comp-statements?year=${year}`).then((r) => r.data),
   releaseStatement: (id: string) =>
-    api.post<TotalCompStatementDto>(`/api/compensation/total-comp-statements/${id}/release`).then((r) => r.data),
+    api.post<TotalCompStatementDto>(`/compensation/total-comp-statements/${id}/release`).then((r) => r.data),
   releaseAllStatements: (year: number) =>
-    api.post<{ released: number }>(`/api/compensation/total-comp-statements/release-all?year=${year}`).then((r) => r.data),
+    api.post<{ released: number }>(`/compensation/total-comp-statements/release-all?year=${year}`).then((r) => r.data),
   downloadStatement: async (id: string, employeeName: string, year: number) => {
-    const response = await api.get(`/api/compensation/total-comp-statements/${id}/download`, {
+    const response = await api.get(`/compensation/total-comp-statements/${id}/download`, {
       responseType: 'blob',
     })
     const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
@@ -720,9 +720,9 @@ export const compensationApi = {
     URL.revokeObjectURL(url)
   },
   myStatement: (year: number) =>
-    api.get<TotalCompStatementDto>(`/api/compensation/total-comp-statements/employees/me?year=${year}`).then((r) => r.data),
+    api.get<TotalCompStatementDto>(`/compensation/total-comp-statements/employees/me?year=${year}`).then((r) => r.data),
   downloadMyStatement: async (year: number) => {
-    const response = await api.get(`/api/compensation/total-comp-statements/employees/me/download?year=${year}`, {
+    const response = await api.get(`/compensation/total-comp-statements/employees/me/download?year=${year}`, {
       responseType: 'blob',
     })
     const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' })
@@ -737,31 +737,31 @@ export const compensationApi = {
   // ── M369: Comp → Payroll Transfer ───────────────────────────────────────────
 
   transferToPayroll: (payrollRunId: string) =>
-    api.post<{ transferredCount: number; skippedCount: number }>(`/api/compensation/transfers/to-run/${payrollRunId}`).then((r) => r.data),
+    api.post<{ transferredCount: number; skippedCount: number }>(`/compensation/transfers/to-run/${payrollRunId}`).then((r) => r.data),
   listTransfers: (status?: string) => {
     const params = new URLSearchParams()
     if (status) params.set('status', status)
     const query = params.toString()
-    return api.get<PayrollCompTransferDto[]>(`/api/compensation/transfers${query ? `?${query}` : ''}`).then((r) => r.data)
+    return api.get<PayrollCompTransferDto[]>(`/compensation/transfers${query ? `?${query}` : ''}`).then((r) => r.data)
   },
 
   // ── M370: Dashboard & Analytics ─────────────────────────────────────────────
 
   getDashboard: () =>
-    api.get<CompensationDashboardDto>('/api/compensation/dashboard').then((r) => r.data),
+    api.get<CompensationDashboardDto>('/compensation/dashboard').then((r) => r.data),
   compaRatioDistribution: (gradeId?: string) => {
     const params = new URLSearchParams()
     if (gradeId) params.set('gradeId', gradeId)
     const query = params.toString()
-    return api.get<Record<string, number>>(`/api/compensation/reports/compa-ratio-distribution${query ? `?${query}` : ''}`).then((r) => r.data)
+    return api.get<Record<string, number>>(`/compensation/reports/compa-ratio-distribution${query ? `?${query}` : ''}`).then((r) => r.data)
   },
   outOfBandReport: () =>
-    api.get<OutOfBandReportRow[]>('/api/compensation/reports/out-of-band').then((r) => r.data),
+    api.get<OutOfBandReportRow[]>('/compensation/reports/out-of-band').then((r) => r.data),
   budgetVsActual: () =>
-    api.get<BudgetUtilizationRow[]>('/api/compensation/reports/budget-vs-actual').then((r) => r.data),
+    api.get<BudgetUtilizationRow[]>('/compensation/reports/budget-vs-actual').then((r) => r.data),
 
   // ── M371: Salary Increase Letter ────────────────────────────────────────────
 
   generateSalaryLetter: (salaryChangeId: string) =>
-    api.post<{ letterRequestId: string; letterRequestNo: string; downloadPath: string; status: string }>(`/api/compensation/salary-changes/${salaryChangeId}/letter`).then((r) => r.data),
+    api.post<{ letterRequestId: string; letterRequestNo: string; downloadPath: string; status: string }>(`/compensation/salary-changes/${salaryChangeId}/letter`).then((r) => r.data),
 }

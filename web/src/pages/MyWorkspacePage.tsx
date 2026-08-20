@@ -1679,7 +1679,7 @@ function MyWarningsWidget() {
 
   const fetchWarnings = async () => {
     try {
-      const { data } = await api.get('/api/self/warnings')
+      const { data } = await api.get('/self/warnings')
       setWarnings(data)
     } catch (err: any) {
       console.error('Failed to load warnings:', err)
@@ -1694,7 +1694,7 @@ function MyWarningsWidget() {
 
   const handleAcknowledge = async (warningId: string) => {
     try {
-      await api.post(`/api/self/warnings/${warningId}/acknowledge`, {})
+      await api.post(`/self/warnings/${warningId}/acknowledge`, {})
       message.success('Warning acknowledged')
       fetchWarnings()
     } catch (err: any) {
@@ -1769,9 +1769,9 @@ function MyRewardPointsWidget({ employeeId }: { employeeId: string }) {
   const fetchData = async () => {
     try {
       const [walletRes, catalogRes, redemptionsRes] = await Promise.all([
-        api.get(`/api/engagement/rewards/wallet/${employeeId}`),
-        api.get('/api/engagement/rewards/catalog', { params: { activeOnly: true } }),
-        api.get(`/api/engagement/rewards/redemptions/my/${employeeId}`),
+        api.get(`/engagement/rewards/wallet/${employeeId}`),
+        api.get('/engagement/rewards/catalog', { params: { activeOnly: true } }),
+        api.get(`/engagement/rewards/redemptions/my/${employeeId}`),
       ])
       setWallet(walletRes.data)
       setCatalog(catalogRes.data)
@@ -1787,7 +1787,7 @@ function MyRewardPointsWidget({ employeeId }: { employeeId: string }) {
 
   const handleRedeem = async (values: any) => {
     try {
-      await api.post('/api/engagement/rewards/redeem', {
+      await api.post('/engagement/rewards/redeem', {
         catalogItemId: values.catalogItemId,
         deliveryAddress: values.deliveryAddress,
       })
@@ -1934,7 +1934,7 @@ function PendingSignaturesWidget() {
 
   const fetchRequests = async () => {
     try {
-      const { data } = await api.get('/api/self/signatures')
+      const { data } = await api.get('/self/signatures')
       setRequests(data)
     } catch (err: any) {
       console.error('Failed to load signature requests:', err)
@@ -1949,7 +1949,7 @@ function PendingSignaturesWidget() {
 
   const handleSign = async (requestId: string) => {
     try {
-      await api.post(`/api/self/signatures/${requestId}/sign`, {})
+      await api.post(`/self/signatures/${requestId}/sign`, {})
       message.success('Document signed')
       fetchRequests()
     } catch (err: any) {
@@ -1959,7 +1959,7 @@ function PendingSignaturesWidget() {
 
   const handleDecline = async (requestId: string, values: any) => {
     try {
-      await api.post(`/api/self/signatures/${requestId}/decline`, {
+      await api.post(`/self/signatures/${requestId}/decline`, {
         reason: values.reason,
       })
       message.success('Signature declined')

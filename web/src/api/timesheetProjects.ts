@@ -26,15 +26,15 @@ export interface TimesheetProjectRequest {
 
 export const timesheetProjectsApi = {
   list: (activeOnly = true) =>
-    api.get<TimesheetProject[]>('/api/timesheet/projects', { params: { activeOnly } })
+    api.get<TimesheetProject[]>('/timesheet/projects', { params: { activeOnly } })
       .then(r => r.data),
   get: (id: string) =>
-    api.get<TimesheetProject>(`/api/timesheet/projects/${id}`)
+    api.get<TimesheetProject>(`/timesheet/projects/${id}`)
       .then(r => r.data),
   create: (req: TimesheetProjectRequest) =>
-    api.post<TimesheetProject>('/api/timesheet/projects', req)
+    api.post<TimesheetProject>('/timesheet/projects', req)
       .then(r => r.data),
   update: (id: string, req: TimesheetProjectRequest) =>
-    api.put<TimesheetProject>(`/api/timesheet/projects/${id}`, req)
+    api.put<TimesheetProject>(`/timesheet/projects/${id}`, req)
       .then(r => r.data),
 }

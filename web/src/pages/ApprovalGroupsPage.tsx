@@ -48,7 +48,7 @@ export function ApprovalGroupsPage() {
   const fetchGroups = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/api/workflow/approval-groups')
+      const { data } = await api.get('/workflow/approval-groups')
       setGroups(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load approval groups')
@@ -63,7 +63,7 @@ export function ApprovalGroupsPage() {
 
   const handleCreate = async (values: any) => {
     try {
-      await api.post('/api/workflow/approval-groups', {
+      await api.post('/workflow/approval-groups', {
         code: values.code,
         name: values.name,
       })
@@ -78,7 +78,7 @@ export function ApprovalGroupsPage() {
 
   const handleUpdate = async (groupId: string, values: any) => {
     try {
-      await api.put(`/api/workflow/approval-groups/${groupId}`, {
+      await api.put(`/workflow/approval-groups/${groupId}`, {
         name: values.name,
         active: values.active,
       })
@@ -93,7 +93,7 @@ export function ApprovalGroupsPage() {
 
   const handleDelete = async (groupId: string) => {
     try {
-      await api.delete(`/api/workflow/approval-groups/${groupId}`)
+      await api.delete(`/workflow/approval-groups/${groupId}`)
       message.success('Group deactivated')
       fetchGroups()
     } catch (err: any) {
@@ -268,7 +268,7 @@ function MembersDrawer({ group, open, onClose }: MembersDrawerProps) {
   const fetchMembers = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get(`/api/workflow/approval-groups/${group.id}/members`)
+      const { data } = await api.get(`/workflow/approval-groups/${group.id}/members`)
       setMembers(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load members')
@@ -285,7 +285,7 @@ function MembersDrawer({ group, open, onClose }: MembersDrawerProps) {
 
   const handleAdd = async (values: any) => {
     try {
-      await api.post(`/api/workflow/approval-groups/${group.id}/members`, {
+      await api.post(`/workflow/approval-groups/${group.id}/members`, {
         username: values.username,
       })
       message.success('Member added')
@@ -299,7 +299,7 @@ function MembersDrawer({ group, open, onClose }: MembersDrawerProps) {
 
   const handleRemove = async (memberId: string) => {
     try {
-      await api.delete(`/api/workflow/members/${memberId}`)
+      await api.delete(`/workflow/members/${memberId}`)
       message.success('Member removed')
       fetchMembers()
     } catch (err: any) {

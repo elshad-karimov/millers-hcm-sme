@@ -63,7 +63,7 @@ export function WarningsPage() {
     setLoading(true)
     try {
       if (employeeFilter) {
-        const { data } = await api.get(`/api/er/warnings/employees/${employeeFilter}`)
+        const { data } = await api.get(`/er/warnings/employees/${employeeFilter}`)
         setWarnings(data)
       } else {
         // If no specific employee, show all (or implement a general list endpoint)
@@ -84,7 +84,7 @@ export function WarningsPage() {
 
   const handleIssue = async (values: any) => {
     try {
-      await api.post('/api/er/warnings', {
+      await api.post('/er/warnings', {
         employeeId: values.employeeId,
         level: values.level,
         reason: values.reason,

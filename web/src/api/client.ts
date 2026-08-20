@@ -2,6 +2,16 @@ import axios from 'axios'
 
 const TOKEN_KEY = 'hcm.token'
 
+/**
+ * The `/api` prefix lives HERE and nowhere else. Call paths passed to this
+ * client start at the segment after it — `api.get('/analytics/warehouse/status')`,
+ * not `api.get('/api/analytics/warehouse/status')`, which requests `/api/api/...`
+ * and 404s. 186 call sites across the SPA had the prefix twice; the doubled path
+ * is silent at build time and only shows up as a 404 in the browser.
+ *
+ * Raw browser URLs — an `href`, an `<img src>`, a bare `fetch()` — do NOT go
+ * through this client and so DO need the full `/api/...` path.
+ */
 export const api = axios.create({
   baseURL: '/api',
 })

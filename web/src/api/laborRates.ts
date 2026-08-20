@@ -26,16 +26,16 @@ export interface LaborRateRequest {
 
 export const laborRatesApi = {
   list: () =>
-    api.get<LaborRate[]>('/api/payroll/labor-rates')
+    api.get<LaborRate[]>('/payroll/labor-rates')
       .then(r => r.data),
   get: (id: string) =>
-    api.get<LaborRate>(`/api/payroll/labor-rates/${id}`)
+    api.get<LaborRate>(`/payroll/labor-rates/${id}`)
       .then(r => r.data),
   create: (req: LaborRateRequest) =>
-    api.post<LaborRate>('/api/payroll/labor-rates', req)
+    api.post<LaborRate>('/payroll/labor-rates', req)
       .then(r => r.data),
   update: (id: string, req: LaborRateRequest) =>
-    api.put<LaborRate>(`/api/payroll/labor-rates/${id}`, req)
+    api.put<LaborRate>(`/payroll/labor-rates/${id}`, req)
       .then(r => r.data),
 }
 
@@ -45,12 +45,12 @@ export interface LaborCostRow {
 
 export const laborCostReportApi = {
   byProject: (year: number, month: number) =>
-    api.get<LaborCostRow[]>('/api/reports/labor-cost/by-project', { params: { year, month } })
+    api.get<LaborCostRow[]>('/reports/labor-cost/by-project', { params: { year, month } })
       .then(r => r.data),
   byDepartment: (year: number, month: number) =>
-    api.get<LaborCostRow[]>('/api/reports/labor-cost/by-department', { params: { year, month } })
+    api.get<LaborCostRow[]>('/reports/labor-cost/by-department', { params: { year, month } })
       .then(r => r.data),
   monthlySummary: (year: number, month: number) =>
-    api.get<LaborCostRow[]>('/api/reports/labor-cost/monthly-summary', { params: { year, month } })
+    api.get<LaborCostRow[]>('/reports/labor-cost/monthly-summary', { params: { year, month } })
       .then(r => r.data),
 }

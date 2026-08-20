@@ -23,21 +23,21 @@ export interface SubmitVerificationRequest {
 
 export const skillVerificationApi = {
   submit: (req: SubmitVerificationRequest) =>
-    api.post<SkillVerificationRequest>('/api/skills/verifications', req),
+    api.post<SkillVerificationRequest>('/skills/verifications', req),
 
   pending: () =>
-    api.get<SkillVerificationRequest[]>('/api/skills/verifications/pending'),
+    api.get<SkillVerificationRequest[]>('/skills/verifications/pending'),
 
   myRequests: () =>
-    api.get<SkillVerificationRequest[]>('/api/skills/verifications/my-requests'),
+    api.get<SkillVerificationRequest[]>('/skills/verifications/my-requests'),
 
   approve: (id: string, notes?: string) =>
-    api.post<SkillVerificationRequest>(`/api/skills/verifications/${id}/approve`, {
+    api.post<SkillVerificationRequest>(`/skills/verifications/${id}/approve`, {
       notes,
     }),
 
   reject: (id: string, notes?: string) =>
-    api.post<SkillVerificationRequest>(`/api/skills/verifications/${id}/reject`, {
+    api.post<SkillVerificationRequest>(`/skills/verifications/${id}/reject`, {
       notes,
     }),
 }

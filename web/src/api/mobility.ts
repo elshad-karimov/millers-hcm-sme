@@ -45,22 +45,22 @@ export interface InternationalAssignmentRequest {
 
 export const mobilityApi = {
   list: (status?: string) =>
-    api.get<InternationalAssignment[]>('/api/mobility/assignments', { params: { status } })
+    api.get<InternationalAssignment[]>('/mobility/assignments', { params: { status } })
       .then(r => r.data),
   get: (id: string) =>
-    api.get<InternationalAssignment>(`/api/mobility/assignments/${id}`)
+    api.get<InternationalAssignment>(`/mobility/assignments/${id}`)
       .then(r => r.data),
   listMy: (employeeId: string) =>
-    api.get<InternationalAssignment[]>(`/api/mobility/assignments/my/${employeeId}`)
+    api.get<InternationalAssignment[]>(`/mobility/assignments/my/${employeeId}`)
       .then(r => r.data),
   create: (req: InternationalAssignmentRequest) =>
-    api.post<InternationalAssignment>('/api/mobility/assignments', req)
+    api.post<InternationalAssignment>('/mobility/assignments', req)
       .then(r => r.data),
   update: (id: string, req: InternationalAssignmentRequest) =>
-    api.put<InternationalAssignment>(`/api/mobility/assignments/${id}`, req)
+    api.put<InternationalAssignment>(`/mobility/assignments/${id}`, req)
       .then(r => r.data),
   expiringVisas: (days = 90) =>
-    api.get<InternationalAssignment[]>('/api/mobility/assignments/expiring-visas', { params: { days } })
+    api.get<InternationalAssignment[]>('/mobility/assignments/expiring-visas', { params: { days } })
       .then(r => r.data),
 }
 

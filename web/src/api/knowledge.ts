@@ -30,15 +30,15 @@ export interface CreateArticleRequest {
 }
 
 export const knowledgeApi = {
-  listPublished: () => api.get<KnowledgeArticle[]>('/api/helpdesk/knowledge/published'),
-  listAll: () => api.get<KnowledgeArticle[]>('/api/helpdesk/knowledge'),
-  search: (keyword: string) => api.get<KnowledgeArticle[]>(`/api/helpdesk/knowledge/search?keyword=${encodeURIComponent(keyword)}`),
-  get: (id: string) => api.get<KnowledgeArticle>(`/api/helpdesk/knowledge/${id}`),
-  vote: (id: string, helpful: boolean) => api.post(`/api/helpdesk/knowledge/${id}/vote?helpful=${helpful}`),
-  create: (data: CreateArticleRequest) => api.post<KnowledgeArticle>('/api/helpdesk/knowledge', data),
-  update: (id: string, data: CreateArticleRequest) => api.put<KnowledgeArticle>(`/api/helpdesk/knowledge/${id}`, data),
-  publish: (id: string) => api.post<KnowledgeArticle>(`/api/helpdesk/knowledge/${id}/publish`),
-  archive: (id: string) => api.post<KnowledgeArticle>(`/api/helpdesk/knowledge/${id}/archive`),
+  listPublished: () => api.get<KnowledgeArticle[]>('/helpdesk/knowledge/published'),
+  listAll: () => api.get<KnowledgeArticle[]>('/helpdesk/knowledge'),
+  search: (keyword: string) => api.get<KnowledgeArticle[]>(`/helpdesk/knowledge/search?keyword=${encodeURIComponent(keyword)}`),
+  get: (id: string) => api.get<KnowledgeArticle>(`/helpdesk/knowledge/${id}`),
+  vote: (id: string, helpful: boolean) => api.post(`/helpdesk/knowledge/${id}/vote?helpful=${helpful}`),
+  create: (data: CreateArticleRequest) => api.post<KnowledgeArticle>('/helpdesk/knowledge', data),
+  update: (id: string, data: CreateArticleRequest) => api.put<KnowledgeArticle>(`/helpdesk/knowledge/${id}`, data),
+  publish: (id: string) => api.post<KnowledgeArticle>(`/helpdesk/knowledge/${id}/publish`),
+  archive: (id: string) => api.post<KnowledgeArticle>(`/helpdesk/knowledge/${id}/archive`),
 }
 
 export const CATEGORIES = [

@@ -75,7 +75,7 @@ export function CorrectiveActionsPage() {
       if (filters.status) params.append('status', filters.status)
       if (filters.responsible) params.append('responsible', filters.responsible)
 
-      const { data } = await api.get(`/api/er/corrective-actions?${params}`)
+      const { data } = await api.get(`/er/corrective-actions?${params}`)
       setActions(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load corrective actions')
@@ -90,7 +90,7 @@ export function CorrectiveActionsPage() {
 
   const handleCreate = async (values: any) => {
     try {
-      await api.post('/api/er/corrective-actions', {
+      await api.post('/er/corrective-actions', {
         erCaseId: values.erCaseId || null,
         disciplinaryActionId: values.disciplinaryActionId || null,
         employeeId: values.employeeId,
@@ -110,7 +110,7 @@ export function CorrectiveActionsPage() {
 
   const handleStatusUpdate = async (actionId: string, values: any) => {
     try {
-      await api.put(`/api/er/corrective-actions/${actionId}/status`, {
+      await api.put(`/er/corrective-actions/${actionId}/status`, {
         status: values.status,
         notes: values.notes,
       })

@@ -64,7 +64,7 @@ export function SignaturesPage() {
   const fetchRequests = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/api/documents/signatures')
+      const { data } = await api.get('/documents/signatures')
       setRequests(data)
     } catch (err: any) {
       message.error(err.message || 'Failed to load signature requests')
@@ -79,7 +79,7 @@ export function SignaturesPage() {
 
   const handleCreate = async (values: any) => {
     try {
-      await api.post('/api/documents/signatures', {
+      await api.post('/documents/signatures', {
         title: values.title,
         employeeDocumentId: values.employeeDocumentId || null,
         letterRequestId: values.letterRequestId || null,
@@ -97,7 +97,7 @@ export function SignaturesPage() {
 
   const handleCancel = async (requestId: string) => {
     try {
-      await api.post(`/api/documents/signatures/${requestId}/cancel`, {})
+      await api.post(`/documents/signatures/${requestId}/cancel`, {})
       message.success('Signature request cancelled')
       fetchRequests()
     } catch (err: any) {

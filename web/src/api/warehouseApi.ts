@@ -40,7 +40,7 @@ export interface LeaveSummaryPoint {
   pending_count: string;
 }
 
-const BASE = '/api/analytics/warehouse';
+const BASE = '/analytics/warehouse';
 
 export const warehouseApi = {
   status: () =>

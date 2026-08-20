@@ -21,9 +21,9 @@ export interface CertificationRow {
 }
 
 export const skillInventoryApi = {
-  byDepartment: () => api.get<ByDepartmentRow[]>('/api/reports/skills/inventory'),
+  byDepartment: () => api.get<ByDepartmentRow[]>('/reports/skills/inventory'),
 
-  critical: () => api.get<CriticalSkillRow[]>('/api/reports/skills/critical'),
+  critical: () => api.get<CriticalSkillRow[]>('/reports/skills/critical'),
 
-  certifications: () => api.get<CertificationRow[]>('/api/reports/skills/certifications'),
+  certifications: () => api.get<CertificationRow[]>('/reports/skills/certifications'),
 }
