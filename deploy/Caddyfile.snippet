@@ -1,0 +1,22 @@
+# Append to the shared Caddyfile on the VPS: /opt/millerscrm/caddy/Caddyfile
+#
+# Caddy already owns :80 and :443 and issues certificates automatically, so the
+# SME stack ships no nginx and no certbot. Two prerequisites:
+#
+#   1. DNS: hcm-sme.millers-software.com  A  49.13.18.119
+#      Without it Caddy cannot complete the ACME HTTP-01 challenge.
+#   2. Network: docker network connect sme-net millerscrm-caddy-1
+#      Caddy proxies by container name, so it must share the SME network.
+#
+# Mirrors the hcm-test block: identity paths go to Keycloak, everything else to
+# the app (which serves the REST API and the bundled SPA). Serving both halves
+# from one origin is what keeps the OIDC round trip free of CORS.
+#
+# Apply:  docker exec millerscrm-caddy-1 caddy validate --config /etc/caddy/Caddyfile
+#   then: docker exec millerscrm-caddy-1 caddy reload   --config /etc/caddy/Caddyfile
+
+hcm-sme.millers-software.com {
+	@keycloak path /realms/* /resources/* /js/*
+	reverse_proxy @keycloak sme-keycloak:8090
+	reverse_proxy sme-backend:8080
+}

@@ -1,34 +1,42 @@
 # ============================================================================
 # Millers HCM — SME edition — VPS stack
 #
-# Lives ON THE VPS, not in the dev loop. `deploy-test.yml` / `deploy-prod.yml`
-# ssh in, `cd` to this directory and run:
+# Lives ON THE VPS. `deploy-test.yml` / `deploy-prod.yml` ssh in, `cd` here and
+# run:
 #
 #     docker compose up -d --no-build hcm-backend
 #
 # so the service MUST stay named `hcm-backend` and MUST take its tag from
-# HCM_IMAGE_TAG. Only that one service is rolled by a deploy; Postgres,
-# Keycloak, Redis and nginx keep running untouched.
+# HCM_IMAGE_TAG. Only that service is rolled by a deploy; Postgres, Keycloak
+# and Redis keep running untouched.
 #
 # ---------------------------------------------------------------------------
-# COEXISTENCE WITH THE ENTERPRISE EDITION ON THE SAME BOX
+# TLS AND ROUTING ARE NOT HERE
 #
-# Every container is `sme-*`, on its own network, with its own Postgres and
-# Keycloak. Host ports are the SME set and must not collide with enterprise
-# (5433 / 5434 / 8090 / 8443 / 8444 / 6380):
+# This box already runs a shared Caddy (`millerscrm-caddy-1`) that owns :80 and
+# :443 and fronts every app on it, issuing certificates automatically. There is
+# deliberately no nginx and no certbot in this file — a second thing binding
+# :80 would fight Caddy for the ACME challenge and break every other site.
 #
-#     postgres      5533     keycloak-pg  5534
-#     keycloak      8190     redis        6480
-#     nginx         8543 (https)  8544 (http)
+# Caddy joins each app's network and proxies by container name. Wire this stack
+# in once (see deploy/Caddyfile.snippet):
 #
-# Only nginx is published on 0.0.0.0. Databases, Redis and the Keycloak admin
-# port bind to 127.0.0.1 so they are reachable from the box (and from an SSH
-# tunnel) but never from the internet.
+#     docker network connect sme-net millerscrm-caddy-1
+#
+# ---------------------------------------------------------------------------
+# COEXISTENCE WITH THE ENTERPRISE EDITION
+#
+# Every container is `sme-*` with its own Postgres, Keycloak and network, so
+# nothing collides with the enterprise `hcm-*` stack. Host port bindings exist
+# only on 127.0.0.1, for psql and the Keycloak admin console over an SSH
+# tunnel; nothing here is reachable from the internet except through Caddy.
+#
+#     postgres 5533   keycloak-pg 5534   keycloak 8190   redis 6480   app 8083
 #
 # Copy env.example to .env and fill it in before the first start.
 # ============================================================================
 
-name: millers-hcm-sme
+name: hcm-sme
 
 services:
 
@@ -52,8 +60,8 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?set POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
 
-      # Must equal what the BROWSER uses, because it is the `iss` claim the
-      # multi-issuer resolver matches against config.tenant.issuer_uri.
+      # Must equal what the BROWSER uses: it is the `iss` claim the multi-issuer
+      # resolver matches against config.tenant.issuer_uri.
       HCM_OIDC_ISSUER: ${PUBLIC_URL:?set PUBLIC_URL}/realms/millers-hcm
       HCM_KEYCLOAK_ADMIN_URL: http://keycloak:8090
       HCM_KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:?set KEYCLOAK_ADMIN}
@@ -65,19 +73,19 @@ services:
 
       # AES key for encrypted PII columns (national id, bank details).
       # LOSING OR CHANGING THIS MAKES EXISTING ENCRYPTED ROWS UNREADABLE.
-      # Back it up somewhere other than this VPS.
+      # Keep a copy somewhere other than this VPS.
       HCM_SECURITY_DATA_KEY: ${HCM_SECURITY_DATA_KEY:?set HCM_SECURITY_DATA_KEY}
 
       HCM_MAIL_HOST: ${HCM_MAIL_HOST:-localhost}
       HCM_MAIL_PORT: ${HCM_MAIL_PORT:-1025}
       HCM_MAIL_FROM: ${HCM_MAIL_FROM:-no-reply@millers-software.com}
 
-      # Off by default: these are separate services the SME edition does not
-      # need on day one. Turn them on when the box actually runs them.
+      # Off unless the box actually runs these services.
       HCM_STORAGE_MINIO_ENABLED: "${HCM_STORAGE_MINIO_ENABLED:-false}"
       HCM_VIRUS_SCAN_ENABLED: "${HCM_VIRUS_SCAN_ENABLED:-false}"
     ports:
-      # Loopback only — nginx is the public door.
+      # Loopback only, for curl/debugging from the box. Caddy reaches the
+      # container over the network, not through this binding.
       - "127.0.0.1:8083:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q UP"]
@@ -131,7 +139,12 @@ services:
     image: quay.io/keycloak/keycloak:24.0.5
     container_name: sme-keycloak
     restart: unless-stopped
-    command: ["start", "--optimized", "--http-port=8090", "--import-realm"]
+    # `start` (not start-dev). The image runs its own build phase when KC_DB /
+    # KC_HOSTNAME change, so --optimized is deliberately NOT used.
+    command:
+      - start
+      - --import-realm
+      - --http-port=8090
     depends_on:
       keycloak-pg:
         condition: service_healthy
@@ -142,17 +155,19 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      # Advertise the PUBLIC url: the login form's action, the redirect URIs
-      # and the token's `iss` all come from this. It must match
-      # HCM_OIDC_ISSUER's host or every token is rejected as untrusted.
+      # Advertise the PUBLIC url: the login form's action, the redirect URIs and
+      # the token's `iss` all come from this. It must match HCM_OIDC_ISSUER's
+      # origin or every token is rejected as untrusted.
       KC_HOSTNAME_URL: ${PUBLIC_URL:?set PUBLIC_URL}
       KC_HOSTNAME_ADMIN_URL: ${PUBLIC_URL}
       KC_HTTP_ENABLED: "true"
+      # Caddy terminates TLS and forwards X-Forwarded-*.
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HEALTH_ENABLED: "true"
     ports:
-      # Loopback only. Public traffic reaches Keycloak through nginx.
+      # Loopback only: reach the admin console over an SSH tunnel. Caddy does
+      # not expose /admin publicly.
       - "127.0.0.1:8190:8090"
     volumes:
       - ../keycloak/realm-millers-hcm.json:/opt/keycloak/data/import/realm-millers-hcm.json:ro
@@ -163,7 +178,7 @@ services:
         - "exec 3<>/dev/tcp/127.0.0.1/8090 && printf 'GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q '200 OK'"
       interval: 10s
       timeout: 5s
-      retries: 30
+      retries: 40
       start_period: 120s
     networks: [sme]
 
@@ -171,6 +186,7 @@ services:
     image: redis:7.2-alpine
     container_name: sme-redis
     restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "127.0.0.1:6480:6379"
     volumes:
@@ -182,32 +198,6 @@ services:
       retries: 10
     networks: [sme]
 
-  # ── The only public door ──────────────────────────────────────────────────
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: sme-nginx
-    restart: unless-stopped
-    depends_on:
-      keycloak:
-        condition: service_healthy
-    ports:
-      - "${PUBLIC_HTTPS_PORT:-8543}:443"
-      - "${PUBLIC_HTTP_PORT:-8544}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${TLS_CERT_PATH:?set TLS_CERT_PATH}:/etc/nginx/certs/server.crt:ro
-      - ${TLS_KEY_PATH:?set TLS_KEY_PATH}:/etc/nginx/certs/server.key:ro
-    healthcheck:
-      # 127.0.0.1, NOT localhost: inside the container `localhost` resolves to
-      # ::1 first and nginx listens on IPv4 only, so the probe would always
-      # report unhealthy while the proxy was perfectly fine.
-      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1/realms/millers-hcm/.well-known/openid-configuration >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    networks: [sme]
-
 volumes:
   sme-pgdata:
   sme-keycloak-pgdata:
@@ -215,4 +205,6 @@ volumes:
 
 networks:
   sme:
+    # Fixed name so `docker network connect sme-net millerscrm-caddy-1` is
+    # stable regardless of the compose project directory.
     name: sme-net
