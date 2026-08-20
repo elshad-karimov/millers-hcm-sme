@@ -23,6 +23,8 @@ web/.vite/
 # Environment / secrets
 .env
 .env.*
+# The VPS template lives at deploy/env.example (no leading dot) so it ships
+# without needing a negation of the patterns above.
 application-local.yml
 application-local.properties
 

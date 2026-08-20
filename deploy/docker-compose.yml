@@ -1,0 +1,218 @@
+# ============================================================================
+# Millers HCM — SME edition — VPS stack
+#
+# Lives ON THE VPS, not in the dev loop. `deploy-test.yml` / `deploy-prod.yml`
+# ssh in, `cd` to this directory and run:
+#
+#     docker compose up -d --no-build hcm-backend
+#
+# so the service MUST stay named `hcm-backend` and MUST take its tag from
+# HCM_IMAGE_TAG. Only that one service is rolled by a deploy; Postgres,
+# Keycloak, Redis and nginx keep running untouched.
+#
+# ---------------------------------------------------------------------------
+# COEXISTENCE WITH THE ENTERPRISE EDITION ON THE SAME BOX
+#
+# Every container is `sme-*`, on its own network, with its own Postgres and
+# Keycloak. Host ports are the SME set and must not collide with enterprise
+# (5433 / 5434 / 8090 / 8443 / 8444 / 6380):
+#
+#     postgres      5533     keycloak-pg  5534
+#     keycloak      8190     redis        6480
+#     nginx         8543 (https)  8544 (http)
+#
+# Only nginx is published on 0.0.0.0. Databases, Redis and the Keycloak admin
+# port bind to 127.0.0.1 so they are reachable from the box (and from an SSH
+# tunnel) but never from the internet.
+#
+# Copy env.example to .env and fill it in before the first start.
+# ============================================================================
+
+name: millers-hcm-sme
+
+services:
+
+  # ── The application: API + bundled SPA in one image ──────────────────────
+  hcm-backend:
+    image: ghcr.io/${GHCR_OWNER:?set GHCR_OWNER}/millers-hcm-sme:${HCM_IMAGE_TAG:-latest}
+    container_name: sme-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # The image EXPOSEs 8080 and the deploy job probes 8080 inside the
+      # container; the app defaults to 8083, so pin it.
+      SERVER_PORT: "8080"
+
+      # application.yml hardcodes the dev datasource. Spring's relaxed binding
+      # lets these env vars override it without a placeholder in the file.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hcm
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?set POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+
+      # Must equal what the BROWSER uses, because it is the `iss` claim the
+      # multi-issuer resolver matches against config.tenant.issuer_uri.
+      HCM_OIDC_ISSUER: ${PUBLIC_URL:?set PUBLIC_URL}/realms/millers-hcm
+      HCM_KEYCLOAK_ADMIN_URL: http://keycloak:8090
+      HCM_KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:?set KEYCLOAK_ADMIN}
+      HCM_KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
+      HCM_PREBOARDING_BASE_URL: ${PUBLIC_URL}/preboarding
+
+      HCM_REDIS_HOST: redis
+      HCM_REDIS_PORT: "6379"
+
+      # AES key for encrypted PII columns (national id, bank details).
+      # LOSING OR CHANGING THIS MAKES EXISTING ENCRYPTED ROWS UNREADABLE.
+      # Back it up somewhere other than this VPS.
+      HCM_SECURITY_DATA_KEY: ${HCM_SECURITY_DATA_KEY:?set HCM_SECURITY_DATA_KEY}
+
+      HCM_MAIL_HOST: ${HCM_MAIL_HOST:-localhost}
+      HCM_MAIL_PORT: ${HCM_MAIL_PORT:-1025}
+      HCM_MAIL_FROM: ${HCM_MAIL_FROM:-no-reply@millers-software.com}
+
+      # Off by default: these are separate services the SME edition does not
+      # need on day one. Turn them on when the box actually runs them.
+      HCM_STORAGE_MINIO_ENABLED: "${HCM_STORAGE_MINIO_ENABLED:-false}"
+      HCM_VIRUS_SCAN_ENABLED: "${HCM_VIRUS_SCAN_ENABLED:-false}"
+    ports:
+      # Loopback only — nginx is the public door.
+      - "127.0.0.1:8083:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
+    networks: [sme]
+
+  # ── Application data ──────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: sme-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hcm
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5533:5432"
+    volumes:
+      - sme-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d hcm"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [sme]
+
+  # ── Identity ──────────────────────────────────────────────────────────────
+  keycloak-pg:
+    image: postgres:16-alpine
+    container_name: sme-keycloak-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5534:5432"
+    volumes:
+      - sme-keycloak-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [sme]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: sme-keycloak
+    restart: unless-stopped
+    command: ["start", "--optimized", "--http-port=8090", "--import-realm"]
+    depends_on:
+      keycloak-pg:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:?set KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      # Advertise the PUBLIC url: the login form's action, the redirect URIs
+      # and the token's `iss` all come from this. It must match
+      # HCM_OIDC_ISSUER's host or every token is rejected as untrusted.
+      KC_HOSTNAME_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+      KC_HOSTNAME_ADMIN_URL: ${PUBLIC_URL}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      # Loopback only. Public traffic reaches Keycloak through nginx.
+      - "127.0.0.1:8190:8090"
+    volumes:
+      - ../keycloak/realm-millers-hcm.json:/opt/keycloak/data/import/realm-millers-hcm.json:ro
+      - ../keycloak/themes:/opt/keycloak/themes:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/8090 && printf 'GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q '200 OK'"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+    networks: [sme]
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: sme-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6480:6379"
+    volumes:
+      - sme-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [sme]
+
+  # ── The only public door ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sme-nginx
+    restart: unless-stopped
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "${PUBLIC_HTTPS_PORT:-8543}:443"
+      - "${PUBLIC_HTTP_PORT:-8544}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${TLS_CERT_PATH:?set TLS_CERT_PATH}:/etc/nginx/certs/server.crt:ro
+      - ${TLS_KEY_PATH:?set TLS_KEY_PATH}:/etc/nginx/certs/server.key:ro
+    healthcheck:
+      # 127.0.0.1, NOT localhost: inside the container `localhost` resolves to
+      # ::1 first and nginx listens on IPv4 only, so the probe would always
+      # report unhealthy while the proxy was perfectly fine.
+      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1/realms/millers-hcm/.well-known/openid-configuration >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [sme]
+
+volumes:
+  sme-pgdata:
+  sme-keycloak-pgdata:
+  sme-redisdata:
+
+networks:
+  sme:
+    name: sme-net
