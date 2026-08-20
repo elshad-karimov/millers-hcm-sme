@@ -50,6 +50,13 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
+
+      # Override the image default (-XX:+UseZGC -XX:MaxRAMPercentage=75).
+      # ZGC's own footprint plus a 75% heap does not fit a 900M container: the
+      # JVM died just after startup, restart-looping with exit code 0. This
+      # matches the enterprise hcm-backend on the same box, which has run for
+      # days at ~115M with G1 and a 55% heap.
+      JAVA_OPTS: "-XX:MaxRAMPercentage=55 -Djava.security.egd=file:/dev/./urandom -Dserver.port=8080"
       # The image EXPOSEs 8080 and the deploy job probes 8080 inside the
       # container; the app defaults to 8083, so pin it.
       SERVER_PORT: "8080"
