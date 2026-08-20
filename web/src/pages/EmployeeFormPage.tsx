@@ -16,6 +16,7 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
+import { apiErrorDuration, apiErrorMessage } from '../api/errors'
 import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
 import { EmployeePicker } from '../components/EmployeePicker'
@@ -245,10 +246,7 @@ export function EmployeeFormPage() {
       }
       navigate(LIST_PATH)
     } catch (err) {
-      message.error(
-        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-          'Save failed',
-      )
+      message.error(apiErrorMessage(err, 'Save failed'), apiErrorDuration(err))
     } finally {
       setSaving(false)
     }
