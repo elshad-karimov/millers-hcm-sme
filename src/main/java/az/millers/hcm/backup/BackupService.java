@@ -7,6 +7,7 @@ import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import io.minio.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -69,7 +70,12 @@ public class BackupService {
     private final BackupLogRepository repo;
 
     public BackupService(
-            MinioClient minio,
+            // Optional, exactly as AttachmentService already treats it: the
+            // MinioClient bean only exists when hcm.storage.minio.enabled=true.
+            // Requiring it here made that flag unusable — the whole application
+            // refused to start with storage disabled, which is the supported
+            // configuration for an SME box that has no object store.
+            @Autowired(required = false) MinioClient minio,
             @Value("${spring.datasource.url}") String datasourceUrl,
             @Value("${spring.datasource.username}") String dbUser,
             @Value("${spring.datasource.password}") String dbPassword,
@@ -102,8 +108,21 @@ public class BackupService {
      * @param triggeredBy  display name of the caller ("scheduler" or username)
      * @return the final {@link BackupLog} entry (SUCCESS or FAILED)
      */
+    /**
+     * Backups need somewhere to put the dump. Fail loudly and early rather than
+     * NPE deep inside a running backup.
+     */
+    private void requireStorage() {
+        if (minio == null) {
+            throw new BadRequestException(
+                    "Object storage is disabled (hcm.storage.minio.enabled=false), "
+                            + "so backups cannot run. Enable MinIO to use this feature.");
+        }
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public BackupLog triggerBackup(String triggeredBy) {
+        requireStorage();
         BackupLog entry = new BackupLog();
         entry.setStartedAt(OffsetDateTime.now());
         entry.setStatus(BackupStatus.RUNNING);
@@ -131,6 +150,7 @@ public class BackupService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public BackupLog verifyBackup(UUID id) {
+        requireStorage();
         BackupLog entry = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Backup log not found: " + id));
 

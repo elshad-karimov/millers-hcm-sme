@@ -77,7 +77,20 @@
   <!-- ── Root logger ──────────────────────────────────────────────────────── -->
   <root level="${LOG_LEVEL_ROOT:-INFO}">
     <appender-ref ref="CONSOLE" />
-    <appender-ref ref="LOKI_ASYNC" />
+    <!--
+      Loki shipping is OPT-IN via the "loki" profile.
+
+      It used to be unconditional and defaults to http://localhost:3100. On any
+      host without a Loki container that means every log line triggers a failing
+      HTTP push with retries, and the retry failures are themselves logged — a
+      feedback loop that produced 40k lines and pegged a core within a minute,
+      and buried the real startup error that was underneath it.
+
+      Turn it on with SPRING_PROFILES_ACTIVE=...,loki (and set LOKI_URL).
+    -->
+    <springProfile name="loki">
+      <appender-ref ref="LOKI_ASYNC" />
+    </springProfile>
   </root>
 
 </configuration>
