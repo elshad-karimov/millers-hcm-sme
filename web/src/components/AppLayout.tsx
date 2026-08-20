@@ -18,6 +18,7 @@ import { Navigator } from './Navigator'
 import { brand } from '../theme'
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher'
 import { ALL_TILES, icon, moduleOfRoute } from '../nav/modules'
+import { areaVisible } from '../nav/selfServiceAreas'
 import { useFavorites, useRecents } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
 
@@ -52,30 +53,41 @@ export function AppLayout() {
 
   const { favorites } = useFavorites()
   const { record } = useRecents()
-  const { loaded, disabled: disabledModules } = useEnabledModules()
+  const { loaded, disabled: disabledModules, notInPlan, plan } = useEnabledModules()
 
   // Track visited apps for the Recents rail.
   useEffect(() => {
     record(location.pathname)
   }, [location.pathname, record])
 
-  // Guard: a deep-link into a disabled module bounces to Home (open until loaded).
+  // Guard: a deep-link into an unavailable module bounces (open until loaded).
+  // Out-of-plan lands on the upgrade page — a silent redirect to Home reads as
+  // a broken link when the real answer is "this needs a higher plan". Switched
+  // off by the tenant's own admin still goes Home; nothing to sell there.
   useEffect(() => {
     if (!loaded) return
     const mod = moduleOfRoute(location.pathname)
-    if (mod && disabledModules.has(mod)) navigate('/home', { replace: true })
-  }, [location.pathname, loaded, disabledModules, navigate])
+    if (!mod || !disabledModules.has(mod)) return
+    if (notInPlan.has(mod)) {
+      navigate(`/upgrade?module=${encodeURIComponent(mod)}`, { replace: true })
+    } else {
+      navigate('/home', { replace: true })
+    }
+  }, [location.pathname, loaded, disabledModules, notInPlan, navigate])
 
   const username = user?.username ?? ''
 
   // Search + favorites exclude tiles from disabled modules.
   const searchOptions = useMemo(
-    () => ALL_TILES.filter((t) => !disabledModules.has(t.module)).map((t) => ({ value: t.to, label: t.label })),
+    () =>
+      ALL_TILES.filter((t) => !disabledModules.has(t.module) && areaVisible(t.to, disabledModules)).map(
+        (t) => ({ value: t.to, label: t.label }),
+      ),
     [disabledModules],
   )
 
   const favMenu: MenuProps = useMemo(() => {
-    const shown = favorites.filter((f) => !disabledModules.has(moduleOfRoute(f.to) ?? ''))
+    const shown = favorites.filter((f) => !disabledModules.has(f.needs ?? moduleOfRoute(f.to) ?? ''))
     return {
       items: shown.length
         ? shown.map((f) => ({ key: f.to, icon: icon(f.icon), label: f.label }))
@@ -184,6 +196,24 @@ export function AppLayout() {
 
         {/* Right — utilities */}
         <Space size={4} align="center">
+          {/* Edition badge. Hidden on ENTERPRISE (nothing to upsell) and until
+              the config loads, so it never flashes a wrong plan. */}
+          {loaded && plan !== 'ENTERPRISE' && (
+            <Link to="/upgrade" aria-label={`${plan} plan — see what an upgrade adds`}>
+              <Tag
+                color={brand.green}
+                style={{
+                  color: brand.ink,
+                  fontWeight: 600,
+                  marginInlineEnd: 4,
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+              >
+                {plan}
+              </Tag>
+            </Link>
+          )}
           <Link to="/home">
             <Button type="text" aria-label="Home" icon={<HomeOutlined style={iconBtn} />} />
           </Link>

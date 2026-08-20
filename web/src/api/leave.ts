@@ -37,6 +37,12 @@ export interface LeaveType {
   monthlyAccrualDays?: number | null
   /** Seniority bracket schedule; empty array when none configured (M47). */
   seniorityBrackets: SeniorityBracket[]
+  /**
+   * M151 — when true this type's annual entitlement is resolved from itemised
+   * components (base + statutory uplifts) and the monthly accrual chain is
+   * skipped for it. Only these types have an entitlement breakdown.
+   */
+  entitlementComponentsEnabled?: boolean
   negativeBalanceAllowed: boolean
   maxNegativeDays?: number | null
   /** M341: How this leave type is measured — DAYS (default), HALF_DAY, or HOURS. */

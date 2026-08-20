@@ -154,9 +154,17 @@ public class LeaveBalanceService {
         b.setEmployeeId(employeeId);
         b.setLeaveTypeId(leaveTypeId);
         b.setYear(year);
-        BigDecimal entitlementDays = type.getDefaultAnnualEntitlementDays() == null
+        // M151: a component-driven type must not be seeded with the flat
+        // default — LeaveEntitlementComponentService.recalculate() writes the
+        // resolved sum, and seeding here would add the default on top of it.
+        // The balance opens at zero and the recalculation fills it; that is
+        // also why this method does not call the component service itself
+        // (it would be a cycle — the component service reads this balance).
+        BigDecimal entitlementDays = type.isEntitlementComponentsEnabled()
                 ? BigDecimal.ZERO
-                : type.getDefaultAnnualEntitlementDays();
+                : (type.getDefaultAnnualEntitlementDays() == null
+                        ? BigDecimal.ZERO
+                        : type.getDefaultAnnualEntitlementDays());
         b.setEntitlementDays(entitlementDays);
         LeaveBalance saved = balances.save(b);
         ledger.record(saved.getEmployeeId(), saved.getLeaveTypeId(), saved.getYear(),

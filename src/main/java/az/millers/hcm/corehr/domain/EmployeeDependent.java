@@ -73,6 +73,18 @@ public class EmployeeDependent {
     @Column(length = 160)
     private String email;
 
+    /**
+     * M151 — the dependent has a recognised disability. Drives the higher
+     * Art. 117 leave tier for a parent of a child with a disability under 16.
+     *
+     * <p>Boxed on purpose: null means "not recorded", which is not the same
+     * as "recorded as no". Treating the two alike would silently under-grant
+     * leave to a parent whose record simply hasn't been completed, so the
+     * resolver reports unknown rather than assuming.
+     */
+    @Column(name = "has_disability")
+    private Boolean hasDisability;
+
     @Column(name = "insurance_eligible", nullable = false)
     private boolean insuranceEligible = false;
 

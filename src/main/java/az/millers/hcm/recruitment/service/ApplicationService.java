@@ -292,7 +292,29 @@ public class ApplicationService {
                 null, null, null, null, null,
                 // M134 — Section 4 employment fields. Seniority date defaults
                 // to hire_date downstream; category not captured at hire.
-                null, null);
+                null, null,
+                // M150 — workforce-register master data. Only sourceOfHire is
+                // known at hire time: the candidate's recruitment channel is
+                // exactly what that field records, so carry it across instead
+                // of making HR retype it. The rest (local names, occupation
+                // classifier, work type, schedule wording, approvers) is
+                // agreed on the contract and captured on the employee screen.
+                null,                 // externalHrId — assigned by the legacy HRIS, if at all
+                null,                 // fullNameLocal
+                c.getSource() == null ? null : c.getSource().name(),
+                null,                 // positionTitleLocal
+                null,                 // occupationClassification
+                null,                 // positionClassification
+                null,                 // workType
+                null,                 // projectName
+                null,                 // professionalExperienceYears
+                null,                 // jobDescriptionStatus
+                null, null, null,     // timesheet / expense / HR-verifier approvers
+                null,                 // workScheduleText
+                null,                 // workTimeText
+                null,                 // lunchTimeText
+                null,                 // offshoreWorkScheduleText
+                null);                // summarizedPeriodMethod
         Employee created = employeeService.create(empReq);
 
         a.setCurrentStage(ApplicationStage.HIRED);

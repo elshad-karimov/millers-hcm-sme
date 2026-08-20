@@ -26,6 +26,13 @@ export type EmploymentType =
   | 'CONTRACTOR'
   | 'INTERN'
 
+/**
+ * M150 — where the work is physically performed. Distinct from employment
+ * type (contractual form) and work location (the specific site); this is what
+ * selects the applicable rate and schedule pattern.
+ */
+export type EmployeeWorkType = 'ONSHORE' | 'OFFSHORE' | 'QUAYSIDE' | 'HYBRID'
+
 // M61 / P1-18 — marital status (PRD §8.1)
 export type MaritalStatus =
   | 'SINGLE'
@@ -94,6 +101,30 @@ export interface Employee {
   employeeCategory?: string | null
   /** Tenure anchor when set; otherwise hireDate is used downstream. */
   seniorityDate?: string | null
+  // M150 — workforce-register master data
+  /** Customer's GHRS / legacy-HRIS number. Unique per tenant. */
+  externalHrId?: string | null
+  /** Full legal name in local script — "SURNAME Name Patronymic oğlu". */
+  fullNameLocal?: string | null
+  sourceOfHire?: string | null
+  positionTitleLocal?: string | null
+  /** State occupational classifier ("Məşğulluq təsnifatı"). */
+  occupationClassification?: string | null
+  positionClassification?: string | null
+  workType?: EmployeeWorkType | null
+  projectName?: string | null
+  professionalExperienceYears?: number | null
+  jobDescriptionStatus?: string | null
+  /** Null = fall back to the line manager. */
+  timesheetApproverId?: string | null
+  /** Null = fall back to the line manager. */
+  expenseApproverId?: string | null
+  hrTimesheetVerifierId?: string | null
+  workScheduleText?: string | null
+  workTimeText?: string | null
+  lunchTimeText?: string | null
+  offshoreWorkScheduleText?: string | null
+  summarizedPeriodMethod?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -149,6 +180,25 @@ export interface EmployeeRequest {
   // M134 — Section 4 employment fields
   employeeCategory?: string
   seniorityDate?: string
+  // M150 — workforce-register master data
+  externalHrId?: string
+  fullNameLocal?: string
+  sourceOfHire?: string
+  positionTitleLocal?: string
+  occupationClassification?: string
+  positionClassification?: string
+  workType?: EmployeeWorkType
+  projectName?: string
+  professionalExperienceYears?: number
+  jobDescriptionStatus?: string
+  timesheetApproverId?: string
+  expenseApproverId?: string
+  hrTimesheetVerifierId?: string
+  workScheduleText?: string
+  workTimeText?: string
+  lunchTimeText?: string
+  offshoreWorkScheduleText?: string
+  summarizedPeriodMethod?: string
 }
 
 export interface PageResponse<T> {

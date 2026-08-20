@@ -8,14 +8,16 @@ import {
   Spin,
   Switch,
   Table,
+  Tag,
   Typography,
   App as AntdApp,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, LockOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { CATEGORIES } from '../nav/modules'
-import { refreshModuleSettings } from '../nav/moduleSettings'
+import { refreshModuleSettings, useEnabledModules } from '../nav/moduleSettings'
 
 /** Modules that can never be switched off (users would lose their workspace /
  *  admins would lose the settings screen that re-enables everything). */
@@ -52,6 +54,9 @@ export function TenantSettingsPage() {
   const [newKey, setNewKey] = useState('')
   const [newValue, setNewValue] = useState('')
   const [disabledMods, setDisabledMods] = useState<Set<string>>(new Set())
+  // Plan-level entitlement is read-only here — the plan is control-plane
+  // (SYSTEM_ADMIN, /api/admin/tenants), not something an HR admin sets.
+  const { plan, notInPlan, upgrades } = useEnabledModules()
 
   useEffect(() => {
     api
@@ -198,7 +203,12 @@ export function TenantSettingsPage() {
       </Card>
 
       <Card
-        title="Modules"
+        title={
+          <Space>
+            <span>Modules</span>
+            <Tag color="green">{plan}</Tag>
+          </Space>
+        }
         extra={
           <Typography.Text type="secondary">
             Switch off modules this tenant should not see
@@ -208,7 +218,11 @@ export function TenantSettingsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
           {CATEGORIES.map((c) => {
             const alwaysOn = ALWAYS_ON_MODULES.has(c.key)
-            const enabled = alwaysOn || !disabledMods.has(c.key)
+            // Out of plan: shown locked rather than hidden, so an admin can see
+            // what the product offers and what an upgrade would unlock. The
+            // toggle is inert — the server enforces the plan regardless.
+            const locked = notInPlan.has(c.key)
+            const enabled = alwaysOn || (!locked && !disabledMods.has(c.key))
             return (
               <div
                 key={c.key}
@@ -220,15 +234,22 @@ export function TenantSettingsPage() {
                   padding: '6px 10px',
                   borderRadius: 8,
                   background: 'rgba(0,0,0,0.02)',
+                  opacity: locked ? 0.6 : 1,
                 }}
               >
                 <span>
+                  {locked && <LockOutlined style={{ marginInlineEnd: 6 }} />}
                   {c.label}
                   {alwaysOn && <Typography.Text type="secondary"> · always on</Typography.Text>}
+                  {locked && (
+                    <Typography.Text type="secondary">
+                      {' '}· available in {upgrades.get(c.key) ?? 'a higher plan'}
+                    </Typography.Text>
+                  )}
                 </span>
                 <Switch
                   checked={enabled}
-                  disabled={alwaysOn}
+                  disabled={alwaysOn || locked}
                   onChange={(on) =>
                     setDisabledMods((prev) => {
                       const next = new Set(prev)
@@ -242,6 +263,12 @@ export function TenantSettingsPage() {
             )
           })}
         </div>
+        {notInPlan.size > 0 && (
+          <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
+            {notInPlan.size} module{notInPlan.size === 1 ? '' : 's'} are outside your{' '}
+            {plan} plan. <Link to="/upgrade">See what an upgrade adds</Link>.
+          </Typography.Paragraph>
+        )}
       </Card>
 
       <Card title="Custom Settings">

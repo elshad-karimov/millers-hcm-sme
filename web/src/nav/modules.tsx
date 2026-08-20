@@ -40,18 +40,50 @@ export const PAY = ['PAYROLL_SPECIALIST', 'COMPENSATION_MANAGER', 'HR_ADMIN', 'S
 export const INSIGHT = ['HR_ADMIN', 'HR_SPECIALIST', 'DEPARTMENT_MANAGER', 'AUDITOR', 'SYSTEM_ADMIN']
 export const ADMIN = ['SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR']
 
-export type Tile = { label: string; to: string; icon: string }
+export type Tile = {
+  label: string
+  to: string
+  icon: string
+  /**
+   * Module key this tile really belongs to, when that differs from the category
+   * it is listed under.  The Self-Service board surfaces employee views of other
+   * modules (pay, leave, learning …); `needs` keeps them gated by the module that
+   * actually owns the data, so a LITE tenant never sees a tile that 403s.
+   */
+  needs?: string
+}
 export type Category = { key: string; label: string; roles?: string[]; quick: Tile[]; apps: Tile[] }
-const t = (label: string, to: string, icon: string): Tile => ({ label, to, icon })
+const t = (label: string, to: string, icon: string, needs?: string): Tile => ({ label, to, icon, needs })
 
 /* One entry per developed module — mirrors MODULE_SCREEN_INVENTORY. */
 export const CATEGORIES: Category[] = [
+  /* Every employee lands here — this is the whole of what an employee can do
+     for themselves, so each tile points at a route a plain EMPLOYEE can reach
+     (the /my workspace tabs, the always-open request forms).  Tiles that read
+     another module's data carry `needs` so they hide when that module is off. */
   { key: 'self-service', label: 'Self-Service',
-    quick: [t('Career','/career','rocket'), t('My Workspace','/my','user'), t('Notification Preferences','/my/notifications','bell')],
-    apps: [t('Career','/career','rocket'), t('My Workspace','/my','user'), t('Notification Preferences','/my/notifications','bell'), t('My Surveys','/my/surveys','filetext'), t('Team','/my/team','team')] },
+    quick: [
+      t('Request Leave','/leave/requests/new','calendar','leave-absence'),
+      t('Request Permission','/permission/requests/new','clock','leave-absence'),
+      t('Request Business Trip','/business-trips/new','global','travel-expense'),
+      t('Request HR Letter','/letters/request','filetext','core-hr-hr-operations'),
+      t('Update Personal Info','/personal-info/request','user','core-hr-employee-management'),
+    ],
+    apps: [
+      t('My Workspace','/my','user'),
+      /* /me/<area> tiles carry no `needs` — an area holds cards from several
+         modules, so it hides only once EVERY card in it is gated (areaVisible). */
+      t('Time and Absences','/me/time-absences','clock'),
+      t('Pay','/me/pay','wallet'),
+      t('Personal Information','/me/personal','solution'),
+      t('Career and Performance','/me/career','trophy'),
+      t('Travel and Expense','/me/travel','global'),
+      t('Incidents','/ehs/incidents','safety','health-safety'),
+      t('Notification Preferences','/my/notifications','bell'),
+    ] },
   { key: 'manager-self-service', label: 'Manager Self-Service', roles: MGR,
-    quick: [t('Manager Analytics','/manager/analytics','chart'), t('Movement Requests','/manager/movements','appstore'), t('Presence Map','/presence','clock')],
-    apps: [t('Manager Analytics','/manager/analytics','chart'), t('Movement Requests','/manager/movements','appstore'), t('Presence Map','/presence','clock')] },
+    quick: [t('Timesheet Approvals','/manager/timesheets','apartment'), t('My Team','/my/team','team'), t('Manager Analytics','/manager/analytics','chart')],
+    apps: [t('Timesheet Approvals','/manager/timesheets','apartment','time-attendance'), t('My Team','/my/team','team'), t('Manager Analytics','/manager/analytics','chart'), t('Movement Requests','/manager/movements','appstore'), t('Presence Map','/presence','clock'), t('Career','/career','rocket','core-hr-employee-management')] },
   { key: 'core-hr-employee-management', label: 'Employee Management', roles: HR,
     quick: [t('New Employee','/employees/new','team'), t('New Personal Info Request','/personal-info/request','appstore')],
     apps: [t('Employees','/employees','team'), t('Personal Info Changes','/personal-info-changes','appstore')] },
@@ -72,7 +104,7 @@ export const CATEGORIES: Category[] = [
     apps: [t('ER Cases','/er/cases','appstore'), t('Corrective Actions','/er/corrective-actions','appstore'), t('Warnings','/er/warnings','appstore')] },
   { key: 'time-attendance', label: 'Time & Attendance', roles: MGR,
     quick: [t('New Schedule','/attendance/schedules/new','calendar')],
-    apps: [t('Attendance Corrections','/attendance/corrections','clock'), t('Device Master','/attendance/devices','clock'), t('Attendance Events','/attendance/events','clock'), t('Attendance Exceptions','/attendance/exceptions','clock'), t('Overtime Requests','/attendance/overtime-requests','clock'), t('Attendance Periods','/attendance/periods','calendar'), t('Attendance Policies','/attendance/policies','clock'), t('Attendance Reports','/attendance/reports','clock'), t('Roster','/attendance/roster','calendar'), t('Attendance Schedules','/attendance/schedules','calendar'), t('Shift Patterns','/attendance/shift-patterns','calendar'), t('Attendance Summary','/attendance/summary','clock'), t('Roster Variance','/attendance/variance','calendar'), t('Attendance Workspace','/attendance/workspace','clock'), t('Timesheets','/timesheets','file'), t('Timesheet Projects','/timesheets/projects','file')] },
+    apps: [t('Attendance Corrections','/attendance/corrections','clock'), t('Device Master','/attendance/devices','clock'), t('Attendance Events','/attendance/events','clock'), t('Attendance Exceptions','/attendance/exceptions','clock'), t('Overtime Requests','/attendance/overtime-requests','clock'), t('Attendance Periods','/attendance/periods','calendar'), t('Attendance Policies','/attendance/policies','clock'), t('Attendance Reports','/attendance/reports','clock'), t('Roster','/attendance/roster','calendar'), t('Attendance Schedules','/attendance/schedules','calendar'), t('Shift Patterns','/attendance/shift-patterns','calendar'), t('Attendance Summary','/attendance/summary','clock'), t('Roster Variance','/attendance/variance','calendar'), t('Attendance Workspace','/attendance/workspace','clock'), t('Timesheets','/timesheets','file'), t('Timesheet Projects','/timesheets/projects','file'), t('Timesheet Approvals','/manager/timesheets','apartment'), t('Timesheet Control','/timesheets/control','shield')] },
   { key: 'leave-absence', label: 'Leave & Absence', roles: MGR,
     quick: [t('New Leave Request','/leave/requests/new','calendar'), t('New Leave Type','/leave/types/new','calendar'), t('New Permission Request','/permission/requests/new','clock'), t('New Permission Type','/permission/types/new','clock')],
     apps: [t('Leave Balances','/leave/balances','calendar'), t('Leave Blackouts','/leave/blackouts','calendar'), t('Leave Categories','/leave/categories','calendar'), t('Leave Encashment','/leave/encashments','calendar'), t('Leave Period Locks','/leave/period-locks','calendar'), t('Leave Liability','/leave/reports/liability','calendar'), t('Leave Requests','/leave/requests','calendar'), t('Team Leave Calendar','/leave/team-calendar','team'), t('Leave Types','/leave/types','calendar'), t('Unauthorized Absence','/leave/unauthorized-absences','calendar'), t('Unpaid Deductions','/leave/unpaid-deductions','calendar'), t('Leave Workspace','/leave/workspace','calendar'), t('Permission Balances','/permission/balances','clock'), t('Permission Requests','/permission/requests','clock'), t('Permission Types','/permission/types','clock')] },
@@ -81,7 +113,7 @@ export const CATEGORIES: Category[] = [
     apps: [t('Business Trips','/business-trips','appstore'), t('Expense Claims','/business-trips/expense-claims','appstore'), t('Expense Policies','/business-trips/expense-policies','shield'), t('Mileage Claims','/business-trips/mileage-claims','appstore'), t('Per Diem Rules','/business-trips/per-diem-rules','appstore'), t('Reimbursement Batches','/business-trips/reimbursements','appstore')] },
   { key: 'payroll', label: 'Payroll', roles: PAY,
     quick: [t('Salary Advances','/payroll/advances','dollar'), t('Payroll Runs','/payroll/runs','dollar'), t('Control Board','/payroll/control-board','dollar')],
-    apps: [t('Payroll Control Board','/payroll/control-board','dollar'), t('Payroll Runs','/payroll/runs','dollar'), t('Payroll Compensation','/payroll/compensation','dollar'), t('Salary Components','/payroll/components','dollar'), t('Salary Advances','/payroll/advances','dollar'), t('Payroll Loans','/payroll/loans','dollar'), t('Loan Types','/payroll/loan-types','dollar'), t('Loan Requests','/payroll/loan-requests','dollar'), t('GL Account Mappings','/payroll/gl-mappings','dollar'), t('GL Reconciliation','/payroll/gl-reconciliation','dollar'), t('Variance Report','/payroll/reports/variance','dollar'), t('Labor Rates','/payroll/labor-rates','dollar'), t('Year End','/payroll/year-end','dollar')] },
+    apps: [t('Payroll Control Board','/payroll/control-board','dollar'), t('Payroll Runs','/payroll/runs','dollar'), t('Time \u0026 Attendance Inputs','/payroll/time-inputs','clock'), t('Payroll Compensation','/payroll/compensation','dollar'), t('Salary Components','/payroll/components','dollar'), t('Salary Advances','/payroll/advances','dollar'), t('Payroll Loans','/payroll/loans','dollar'), t('Loan Types','/payroll/loan-types','dollar'), t('Loan Requests','/payroll/loan-requests','dollar'), t('GL Account Mappings','/payroll/gl-mappings','dollar'), t('GL Reconciliation','/payroll/gl-reconciliation','dollar'), t('Variance Report','/payroll/reports/variance','dollar'), t('Labor Rates','/payroll/labor-rates','dollar'), t('Year End','/payroll/year-end','dollar')] },
   { key: 'compensation', label: 'Compensation', roles: PAY,
     quick: [t('Compensation Dashboard','/compensation/dashboard','dollar'), t('Salary Changes','/compensation/salary-changes','dollar'), t('Pay Bands','/compensation/pay-bands','dollar')],
     apps: [t('Compensation Dashboard','/compensation/dashboard','dollar'), t('Compensation Profile','/compensation/profile','dollar'), t('Pay Bands','/compensation/pay-bands','dollar'), t('Change Reasons','/compensation/change-reasons','dollar'), t('Salary Changes','/compensation/salary-changes','dollar'), t('Compensation Exceptions','/compensation/exceptions','dollar'), t('Merit Matrices','/compensation/merit-matrices','dollar'), t('Compensation Budgets','/compensation/budgets','dollar'), t('Incentive Plans','/compensation/incentive-plans','dollar'), t('Commission Plans','/compensation/commission-plans','dollar'), t('Market Data','/compensation/market','dollar'), t('Total Comp Statements','/compensation/total-comp-statements','dollar'), t('Comp Payroll Transfer','/compensation/payroll-transfer','dollar'), t('Compensation Config','/compensation/config','dollar')] },
@@ -126,7 +158,9 @@ export const CATEGORIES: Category[] = [
 /** A tile plus the module (category key) it belongs to. */
 export type IndexedTile = Tile & { module: string }
 
-/** Flat, de-duplicated index of every app tile — used by search + Recents. */
+/** Flat, de-duplicated index of every app tile — used by search + Recents.
+    A tile's module is the one that owns its data (`needs`), not necessarily the
+    category it is listed under, so plan/tenant gating stays with the real owner. */
 export const ALL_TILES: IndexedTile[] = (() => {
   const seen = new Set<string>()
   const out: IndexedTile[] = []
@@ -134,16 +168,20 @@ export const ALL_TILES: IndexedTile[] = (() => {
     for (const tile of c.apps) {
       if (seen.has(tile.to)) continue
       seen.add(tile.to)
-      out.push({ ...tile, module: c.key })
+      out.push({ ...tile, module: tile.needs ?? c.key })
     }
   }
   return out
 })()
 
-/** Resolve the tile that best matches a route (longest `to` prefix). */
+/** Resolve the tile that best matches a route (longest `to` prefix).
+    Tiles whose `to` carries a query string are shortcuts INTO a page that another
+    tile already owns (e.g. `/my?tab=payroll` → `/my`), so they are skipped here —
+    otherwise `/my` would resolve to whichever tab happened to be listed first. */
 export function findTile(pathname: string): IndexedTile | undefined {
   let best: IndexedTile | undefined
   for (const tile of ALL_TILES) {
+    if (tile.to.includes('?')) continue
     if (pathname === tile.to || pathname.startsWith(tile.to + '/')) {
       if (!best || tile.to.length > best.to.length) best = tile
     }

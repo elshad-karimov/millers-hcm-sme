@@ -23,8 +23,12 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import az.millers.hcm.apikey.security.ApiKeyAuthFilter;
 import az.millers.hcm.common.tenant.TenantRegistry;
+import az.millers.hcm.config.plan.ModuleAccessFilter;
+import az.millers.hcm.config.plan.ModuleAccessService;
 import az.millers.hcm.security.tenant.TenantAuthenticationResolver;
 import az.millers.hcm.security.tenant.TenantResolutionFilter;
 
@@ -53,7 +57,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                             ApiKeyAuthFilter apiKeyAuthFilter,
                                             TenantAuthenticationResolver tenantAuthResolver,
-                                            TenantRegistry tenantRegistry) throws Exception {
+                                            TenantRegistry tenantRegistry,
+                                            ModuleAccessService moduleAccessService,
+                                            ObjectMapper objectMapper) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -118,6 +124,14 @@ public class SecurityConfig {
                 // to the caller's tenant. Cleared in the filter's finally.
                 .addFilterAfter(new TenantResolutionFilter(tenantRegistry),
                         BearerTokenAuthenticationFilter.class)
+                // SME editions: enforce the tenant's plan / module entitlement on
+                // the API. Must sit AFTER tenant resolution — it needs the bound
+                // TenantContext to know which plan applies. Commercial packaging
+                // only; the role + tenant + hierarchy checks downstream are
+                // untouched. Constructed here rather than as a @Component so Boot
+                // does not also auto-register it ahead of the security chain.
+                .addFilterAfter(new ModuleAccessFilter(moduleAccessService, objectMapper),
+                        TenantResolutionFilter.class)
                 // Default HTTP security headers (PRD 14.4). HSTS is only meaningful
                 // when the app is served behind HTTPS — reverse proxies should
                 // pin max-age appropriately for production. CSP locks down API

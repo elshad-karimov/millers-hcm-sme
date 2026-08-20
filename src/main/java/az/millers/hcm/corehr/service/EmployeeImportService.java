@@ -30,6 +30,7 @@ import az.millers.hcm.corehr.api.dto.ImportJobResponse;
 import az.millers.hcm.corehr.domain.EmployeeImportJob;
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.domain.MaritalStatus;
+import az.millers.hcm.corehr.domain.EmployeeWorkType;
 import az.millers.hcm.corehr.repo.EmployeeImportJobRepository;
 import az.millers.hcm.security.CurrentRequest;
 
@@ -66,11 +67,33 @@ public class EmployeeImportService {
     private static final List<String> REQUIRED_HEADERS =
             List.of("firstName", "lastName", "hireDate");
 
+    /**
+     * Recognised column headers. {@code parseRow} reads every optional field
+     * through {@code idx.get(name)}, and {@code idx} is built by matching the
+     * sheet's header row against this list — so a field absent from here is
+     * silently never imported, however the column is spelled.
+     */
     private static final List<String> ALL_HEADERS = List.of(
             "firstName", "lastName", "middleName", "birthDate", "gender",
-            "maritalStatus", "nationality", "nationalId", "email", "phone",
+            "maritalStatus", "nationality", "nationalId", "taxId",
+            "socialInsuranceId", "email", "phone",
             "hireDate", "departmentName", "positionTitle", "costCentre",
-            "employmentType", "ftePercent");
+            "employmentType", "ftePercent",
+            // M132 / M133 / M134 — read by parseRow; previously undeclared here,
+            // so these columns were dropped even when present in the sheet.
+            "preferredName", "placeOfBirth", "bloodGroup", "religion",
+            "nativeLanguage", "altPhone", "workEmail", "workPhone",
+            "extension", "deskNumber", "employeeCategory", "seniorityDate",
+            // M150 — workforce-register master data. The three approver
+            // references are deliberately excluded: they are employee FKs and
+            // a spreadsheet carries names, which cannot be resolved safely
+            // during a row-at-a-time import (the approver may not exist yet).
+            // They are set on the employee screen after the import lands.
+            "externalHrId", "fullNameLocal", "sourceOfHire", "positionTitleLocal",
+            "occupationClassification", "positionClassification", "workType",
+            "projectName", "professionalExperienceYears", "jobDescriptionStatus",
+            "workScheduleText", "workTimeText", "lunchTimeText",
+            "offshoreWorkScheduleText", "summarizedPeriodMethod");
 
     private final EmployeeImportJobRepository jobs;
     private final EmployeeService employeeService;
@@ -296,7 +319,25 @@ public class EmployeeImportService {
                 trimmedString(row, idx.get("deskNumber")),
                 // M134 — Section 4 employment fields
                 trimmedString(row, idx.get("employeeCategory")),
-                dateValue(row, idx.get("seniorityDate")));
+                dateValue(row, idx.get("seniorityDate")),
+                // M150 — workforce-register master data
+                trimmedString(row, idx.get("externalHrId")),
+                trimmedString(row, idx.get("fullNameLocal")),
+                trimmedString(row, idx.get("sourceOfHire")),
+                trimmedString(row, idx.get("positionTitleLocal")),
+                trimmedString(row, idx.get("occupationClassification")),
+                trimmedString(row, idx.get("positionClassification")),
+                enumValue(row, idx.get("workType"), EmployeeWorkType.class),
+                trimmedString(row, idx.get("projectName")),
+                decimalValue(row, idx.get("professionalExperienceYears")),
+                trimmedString(row, idx.get("jobDescriptionStatus")),
+                // Approver references are not importable — see ALL_HEADERS.
+                null, null, null,
+                trimmedString(row, idx.get("workScheduleText")),
+                trimmedString(row, idx.get("workTimeText")),
+                trimmedString(row, idx.get("lunchTimeText")),
+                trimmedString(row, idx.get("offshoreWorkScheduleText")),
+                trimmedString(row, idx.get("summarizedPeriodMethod")));
     }
 
     // ── Cell reading helpers ──────────────────────────────────────────────────

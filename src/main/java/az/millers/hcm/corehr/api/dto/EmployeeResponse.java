@@ -9,6 +9,7 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.domain.MaritalStatus;
+import az.millers.hcm.corehr.domain.EmployeeWorkType;
 
 public record EmployeeResponse(
         UUID id,
@@ -72,6 +73,25 @@ public record EmployeeResponse(
         /** M134 — Section 4 employment fields. */
         String employeeCategory,
         LocalDate seniorityDate,
+        /** M150 — workforce-register master data. */
+        String externalHrId,
+        String fullNameLocal,
+        String sourceOfHire,
+        String positionTitleLocal,
+        String occupationClassification,
+        String positionClassification,
+        EmployeeWorkType workType,
+        String projectName,
+        BigDecimal professionalExperienceYears,
+        String jobDescriptionStatus,
+        UUID timesheetApproverId,
+        UUID expenseApproverId,
+        UUID hrTimesheetVerifierId,
+        String workScheduleText,
+        String workTimeText,
+        String lunchTimeText,
+        String offshoreWorkScheduleText,
+        String summarizedPeriodMethod,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -126,6 +146,24 @@ public record EmployeeResponse(
                 e.getDeskNumber(),
                 e.getEmployeeCategory(),
                 e.getSeniorityDate(),
+                e.getExternalHrId(),
+                e.getFullNameLocal(),
+                e.getSourceOfHire(),
+                e.getPositionTitleLocal(),
+                e.getOccupationClassification(),
+                e.getPositionClassification(),
+                e.getWorkType(),
+                e.getProjectName(),
+                e.getProfessionalExperienceYears(),
+                e.getJobDescriptionStatus(),
+                e.getTimesheetApproverId(),
+                e.getExpenseApproverId(),
+                e.getHrTimesheetVerifierId(),
+                e.getWorkScheduleText(),
+                e.getWorkTimeText(),
+                e.getLunchTimeText(),
+                e.getOffshoreWorkScheduleText(),
+                e.getSummarizedPeriodMethod(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getCreatedBy(),

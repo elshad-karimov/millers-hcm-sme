@@ -113,28 +113,34 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       # --- Persistence ---
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://hcm-keycloak-pg:5432/keycloak
+      # SME edition: this project's own Keycloak Postgres. The enterprise
+      # 'hcm-keycloak-pg' lives on a different compose network and must never
+      # be the target here — the two editions share no auth state.
+      KC_DB_URL: jdbc:postgresql://sme-keycloak-pg:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
       # --- Hostname / HTTP ---
       # Keycloak advertises itself at the SPA's origin so the login
       # form's action attribute, redirect URIs, and the token's `iss`
-      # claim all point at http://localhost:5180. Vite's dev-server
-      # proxy (web/vite.config.ts) forwards /realms, /resources, /js
-      # from there to https://localhost:8443 (nginx → Keycloak),
-      # bypassing the self-signed-cert handshake that Firefox refuses
-      # to do without manual user intervention.
+      # claim all point at http://localhost:5181 — the SME SPA port.
+      # This MUST match spring.security.oauth2…issuer-uri in
+      # application.yml, or the multi-issuer resolver rejects every
+      # token as an untrusted issuer. Vite's dev-server proxy
+      # (web/vite.config.ts) forwards /realms, /resources, /js from
+      # there to https://localhost:8543 (nginx → Keycloak), bypassing
+      # the self-signed-cert handshake that Firefox refuses to do
+      # without manual user intervention.
       #
-      # Browser-to-Keycloak path  : http://localhost:5180 → Vite → nginx (8443) → Keycloak
-      # Backend-to-Keycloak path  : http://localhost:5180 → Vite → nginx (8443) → Keycloak  (JWKS only)
-      # Internal nginx → Keycloak : http://hcm-keycloak:8090
+      # Browser-to-Keycloak path  : http://localhost:5181 → Vite → nginx (8543) → Keycloak
+      # Backend-to-Keycloak path  : http://localhost:5181 → Vite → nginx (8543) → Keycloak  (JWKS only)
+      # Internal nginx → Keycloak : http://sme-keycloak:8090
       #
       # Production swap: set KC_HOSTNAME_URL to the real public URL
       # (e.g. https://auth.example.com) with a CA-signed cert + drop
       # the Vite proxy entries — same architecture as M33 originally
       # intended, just with a real cert instead of self-signed.
-      KC_HOSTNAME_URL: http://localhost:5180
-      KC_HOSTNAME_ADMIN_URL: http://localhost:5180
+      KC_HOSTNAME_URL: http://localhost:5181
+      KC_HOSTNAME_ADMIN_URL: http://localhost:5181
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_PROXY_HEADERS: xforwarded

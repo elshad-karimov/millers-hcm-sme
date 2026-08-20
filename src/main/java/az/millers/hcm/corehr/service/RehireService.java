@@ -14,6 +14,7 @@ import az.millers.hcm.corehr.domain.Employee;
 import az.millers.hcm.corehr.domain.EmploymentStatus;
 import az.millers.hcm.corehr.domain.EmploymentType;
 import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.config.plan.PlanLimitGate;
 import az.millers.hcm.security.CurrentRequest;
 import az.millers.hcm.staffing.service.PositionHeadcountService;
 import az.millers.hcm.staffing.service.StaffingService;
@@ -39,19 +40,23 @@ public class RehireService {
     private final CurrentRequest currentRequest;
     private final PositionHeadcountService headcountGate;
     private final StaffingService staffingService;
+    /** SME editions: a rehire adds an active head, so the plan cap applies. */
+    private final PlanLimitGate planLimitGate;
 
     public RehireService(EmployeeRepository repository,
                           EmployeeHistoryService historyService,
                           AuditService audit,
                           CurrentRequest currentRequest,
                           PositionHeadcountService headcountGate,
-                          StaffingService staffingService) {
+                          StaffingService staffingService,
+                          PlanLimitGate planLimitGate) {
         this.repository = repository;
         this.historyService = historyService;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.headcountGate = headcountGate;
         this.staffingService = staffingService;
+        this.planLimitGate = planLimitGate;
     }
 
     @Transactional
@@ -74,6 +79,10 @@ public class RehireService {
             throw new BadRequestException(
                     "newHireDate must be on or after the prior hire date");
         }
+
+        // A rehire creates a NEW active employee row, so it consumes a plan seat
+        // just like a direct hire (the prior TERMINATED row never counted).
+        planLimitGate.assertCanAddEmployee();
 
         // M109 — same gate as a direct hire. Picks up either the override
         // positionId from the request or the prior employee's position.

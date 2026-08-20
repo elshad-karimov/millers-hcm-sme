@@ -42,6 +42,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
 
     java.util.Optional<Employee> findByEmployeeNo(String employeeNo);
 
+    /**
+     * M150 — backs the app-side uniqueness check on the customer's external
+     * HR number so a duplicate returns a clean 400 rather than surfacing the
+     * partial unique index as a 500. Tenant-scoped by the {@code @TenantId}
+     * filter, so two tenants may legitimately hold the same number.
+     */
+    java.util.Optional<Employee> findByExternalHrIdIgnoreCase(String externalHrId);
+
     java.util.Optional<Employee> findByUsername(String username);
 
     boolean existsByEmailIgnoreCase(String email);
@@ -52,6 +60,21 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     java.util.List<Employee> findAllByEmploymentStatus(EmploymentStatus status);
 
     long countByEmploymentStatus(EmploymentStatus status);
+
+    /**
+     * Headcount consuming a plan seat: everyone not TERMINATED / RETIRED.
+     *
+     * <p>Counting active-only (same rule as {@link #countActiveByPositionId})
+     * means a tenant's own leaver history never eats into its plan limit.
+     * Tenant-scoped automatically via the {@code @TenantId} discriminator.
+     */
+    @Query("""
+            select count(e) from Employee e
+            where e.employmentStatus not in (
+              az.millers.hcm.corehr.domain.EmploymentStatus.TERMINATED,
+              az.millers.hcm.corehr.domain.EmploymentStatus.RETIRED)
+            """)
+    long countActiveEmployees();
 
     Page<Employee> findByLastNameContainingIgnoreCaseOrFirstNameContainingIgnoreCase(
             String lastName, String firstName, Pageable pageable);

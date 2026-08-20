@@ -226,6 +226,16 @@ public class LeaveAccrualService {
                 // (brackets → monthlyAccrualDays → default/12) applies unchanged.
                 LeaveGroupEntitlement override = leaveGroupService
                         .resolveEntitlementSource(leaveGroupId, t.getId());
+                // M151: types on the component model own their entitlement
+                // outright — LeaveEntitlementComponentService writes the
+                // resolved annual sum into entitlement_days. Accruing on top
+                // of that would add a twelfth of the entitlement to the full
+                // entitlement every month, so skip them here. Every other type
+                // keeps the existing chain untouched.
+                if (t.isEntitlementComponentsEnabled()) {
+                    skipped++;
+                    continue;
+                }
                 // M339: entitlement rules (by employment_type + tenure months) are
                 // consulted at highest priority before all other sources.
                 BigDecimal bump = monthlyBumpFor(t, override, empType, hireDate, periodDate);

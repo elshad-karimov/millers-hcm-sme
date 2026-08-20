@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { App as AntdApp } from 'antd'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import 'antd/dist/reset.css'
 // M228 — must import the i18n bootstrap BEFORE any component that
 // calls useTranslation; the side-effect init configures the global
@@ -27,11 +28,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         so theme + locale stay in lockstep — one provider, not two. */}
     <LanguageProvider>
       <AntdApp>
-        <AuthProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </AuthProvider>
+        {/* Inside AntdApp so the fallback can use AntD components, and above
+            AuthProvider so a failure in auth bootstrap is reported too rather
+            than blanking the page. */}
+        <AppErrorBoundary>
+          <AuthProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </AuthProvider>
+        </AppErrorBoundary>
       </AntdApp>
     </LanguageProvider>
   </React.StrictMode>,

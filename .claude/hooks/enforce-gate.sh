@@ -24,8 +24,15 @@ cd "$ROOT" || exit 0
 # Scope the payroll-delete scan to SQL migrations and Java sources only — a
 # real hard delete lives there, and this avoids matching this script's own
 # text, docs, or the smoke suite that legitimately mention "payroll".
+#
+# Commented-out lines are stripped before the scan. A DELETE inside a `--`,
+# `//` or `*` comment cannot execute, and leaving them in produced a false
+# block on a test fixture whose teardown block was commented out — the kind
+# of noise that trains people to bypass the gate. Uncomment such a line and
+# it is scanned again, which is the behaviour we want.
 CODE_CHANGES="$( { git diff HEAD -- '*.sql' '*.java'; git diff 'HEAD~1' HEAD -- '*.sql' '*.java'; } 2>/dev/null \
-              | grep -E '^\+' | grep -vE '^\+\+\+' )"
+              | grep -E '^\+' | grep -vE '^\+\+\+' \
+              | grep -vE '^\+[[:space:]]*(--|//|\*|/\*)' )"
 
 # ── (1) BLOCK — hard delete of payroll data (GLOBAL RULE 12) ─────────────────
 # Matches real SQL `DELETE FROM payroll…` / `DELETE FROM `payroll`…` and the

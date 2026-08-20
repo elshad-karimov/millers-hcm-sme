@@ -2,8 +2,11 @@ package az.millers.hcm.common.tenant;
 
 import java.time.OffsetDateTime;
 
+import az.millers.hcm.config.plan.Plan;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -47,6 +50,15 @@ public class Tenant {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    /**
+     * Commercial edition — decides which modules the tenant may use and which
+     * plan limits apply. Stored as the {@code Plan} enum name; new tenants in
+     * this (SME) edition default to LITE.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan", nullable = false, length = 20)
+    private Plan plan = Plan.defaultPlan();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

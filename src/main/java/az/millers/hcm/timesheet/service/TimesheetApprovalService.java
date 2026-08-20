@@ -1,0 +1,594 @@
+package az.millers.hcm.timesheet.service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import az.millers.hcm.attendance.domain.DailySummary;
+import az.millers.hcm.attendance.repo.DailySummaryRepository;
+import az.millers.hcm.audit.AuditService;
+import az.millers.hcm.common.BadRequestException;
+import az.millers.hcm.common.ResourceNotFoundException;
+import az.millers.hcm.corehr.domain.Employee;
+import az.millers.hcm.corehr.repo.EmployeeRepository;
+import az.millers.hcm.security.CurrentRequest;
+import az.millers.hcm.security.SecurityRoles;
+import az.millers.hcm.workflow.api.dto.ActionRequest;
+import az.millers.hcm.workflow.domain.ActionType;
+import az.millers.hcm.workflow.domain.WorkflowInstance;
+import az.millers.hcm.workflow.domain.WorkflowStatus;
+import az.millers.hcm.workflow.service.WorkflowService;
+import az.millers.hcm.security.scope.AccessScopeService;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.ApproveRequest;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.BulkApproveResult;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.CorrectionView;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.QueueRow;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.RejectRequest;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.ReturnRequest;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.ReviewDay;
+import az.millers.hcm.timesheet.api.dto.ApprovalDtos.ReviewView;
+import az.millers.hcm.timesheet.api.dto.DailyEntryDtos.FindingView;
+import az.millers.hcm.timesheet.api.dto.DailyEntryDtos.QuantityView;
+import az.millers.hcm.timesheet.domain.DayApprovalState;
+import az.millers.hcm.timesheet.domain.DayQuantity;
+import az.millers.hcm.timesheet.domain.TimeCategory;
+import az.millers.hcm.timesheet.domain.Timesheet;
+import az.millers.hcm.timesheet.domain.TimesheetDay;
+import az.millers.hcm.timesheet.domain.TimesheetMonthTotal;
+import az.millers.hcm.timesheet.domain.TimesheetStatus;
+import az.millers.hcm.timesheet.repo.DayQuantityRepository;
+import az.millers.hcm.timesheet.repo.TimeCategoryRepository;
+import az.millers.hcm.timesheet.repo.TimesheetDayRepository;
+import az.millers.hcm.timesheet.repo.TimesheetMonthTotalRepository;
+import az.millers.hcm.timesheet.repo.TimesheetRepository;
+
+/**
+ * Manager review and decision on submitted timesheets.
+ *
+ * <p>Two rules run through everything here.
+ *
+ * <p><strong>Hierarchy.</strong> Every query and every decision is narrowed to
+ * the caller's own reports through {@link AccessScopeService}. An employee
+ * outside the hierarchy is <em>absent</em> from the queue and 404s on direct
+ * access — not 403 — so the queue never leaks the existence of people the
+ * manager may not see.
+ *
+ * <p><strong>Nobody approves themselves.</strong> Checked explicitly rather
+ * than left to hierarchy configuration, because a self-referencing manager row
+ * is a data-entry mistake that would otherwise become a control failure.
+ *
+ * <p>Contains no monetary logic.
+ */
+@Service
+public class TimesheetApprovalService {
+
+    private static final String MODULE = "TIMESHEET";
+    private static final String ENTITY = "Timesheet";
+    private static final BigDecimal MINUTES_PER_HOUR = BigDecimal.valueOf(60);
+
+    /** Months an approver can still act on, at either stage of the chain. */
+    private static final Set<TimesheetStatus> ACTIONABLE =
+            Set.of(TimesheetStatus.SUBMITTED, TimesheetStatus.PENDING_HR, TimesheetStatus.RETURNED);
+
+    /** Roles that see the HR stage of the chain in their queue. */
+    private static final Set<String> HR_ROLES = Set.of(
+            SecurityRoles.R_HR_ADMIN, SecurityRoles.R_HR_SPECIALIST, SecurityRoles.R_SYSTEM_ADMIN);
+
+    /** Owns the approval route; this service only records decisions. */
+    private final WorkflowService workflowService;
+    private final TimesheetRepository timesheets;
+    private final TimesheetDayRepository days;
+    private final DayQuantityRepository quantities;
+    private final TimesheetMonthTotalRepository monthTotals;
+    private final TimeCategoryRepository categories;
+    private final EmployeeRepository employees;
+    private final DailySummaryRepository summaries;
+    private final TimesheetPeriodService periods;
+    private final TimesheetCorrectionService corrections;
+    private final AccessScopeService accessScope;
+    private final AuditService audit;
+    private final CurrentRequest currentRequest;
+
+    public TimesheetApprovalService(WorkflowService workflowService,
+                                   TimesheetRepository timesheets,
+                                    TimesheetDayRepository days,
+                                    DayQuantityRepository quantities,
+                                    TimesheetMonthTotalRepository monthTotals,
+                                    TimeCategoryRepository categories,
+                                    EmployeeRepository employees,
+                                    DailySummaryRepository summaries,
+                                    TimesheetPeriodService periods,
+                                    TimesheetCorrectionService corrections,
+                                    AccessScopeService accessScope,
+                                    AuditService audit,
+                                    CurrentRequest currentRequest) {
+        this.workflowService = workflowService;
+        this.timesheets = timesheets;
+        this.days = days;
+        this.quantities = quantities;
+        this.monthTotals = monthTotals;
+        this.categories = categories;
+        this.employees = employees;
+        this.summaries = summaries;
+        this.periods = periods;
+        this.corrections = corrections;
+        this.accessScope = accessScope;
+        this.audit = audit;
+        this.currentRequest = currentRequest;
+    }
+
+    // ---------- Queue ----------
+
+    /** Timesheets in the caller's hierarchy for a period, newest submissions first. */
+    @Transactional(readOnly = true)
+    public List<QueueRow> queue(int year, int month, TimesheetStatus status) {
+        Set<UUID> scope = accessScope.scopeOrNullForCurrentUser();
+        Set<TimesheetStatus> wanted = status == null ? myStageStatuses() : Set.of(status);
+
+        List<Timesheet> found;
+        if (scope == null) {
+            found = timesheets.findByPeriodYearAndPeriodMonthAndStatusIn(year, month, wanted);
+        } else if (scope.isEmpty()) {
+            return List.of();
+        } else {
+            found = timesheets
+                    .findByPeriodYearAndPeriodMonthAndStatusInAndEmployeeIdInOrderByEmployeeIdAsc(
+                            year, month, wanted, scope);
+        }
+
+        UUID self = currentEmployeeIdOrNull();
+        Map<UUID, Employee> employeeById = employeesOf(found);
+
+        return found.stream()
+                // A manager's own month never appears in their own queue.
+                .filter(t -> self == null || !t.getEmployeeId().equals(self))
+                .map(t -> toQueueRow(t, employeeById.get(t.getEmployeeId())))
+                .toList();
+    }
+
+    /**
+     * Which stage of the chain is waiting on the caller.
+     *
+     * <p>A manager's queue shows SUBMITTED (theirs to approve first); HR's shows
+     * PENDING_HR (already manager-approved). Someone who is both — an HR admin
+     * who also manages a team — sees both, which is correct rather than a
+     * special case. RETURNED stays visible to whoever can act on it.
+     */
+    private Set<TimesheetStatus> myStageStatuses() {
+        Set<TimesheetStatus> out = new java.util.HashSet<>();
+        out.add(TimesheetStatus.RETURNED);
+        if (HR_ROLES.stream().anyMatch(currentRequest::hasRole)) {
+            out.add(TimesheetStatus.PENDING_HR);
+        }
+        // Anyone who reaches this queue at all can act as an approver at stage 1
+        // for the employees in their scope.
+        out.add(TimesheetStatus.SUBMITTED);
+        return out;
+    }
+
+    // ---------- Review ----------
+
+    @Transactional(readOnly = true)
+    public ReviewView review(UUID timesheetId) {
+        Timesheet ts = accessible(timesheetId);
+        Employee employee = employees.findById(ts.getEmployeeId()).orElse(null);
+
+        Map<String, TimeCategory> catalog = catalogByCode();
+        List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
+        Map<UUID, List<DayQuantity>> byDay = quantitiesByDay(allDays);
+
+        BigDecimal entered = BigDecimal.ZERO;
+        BigDecimal attendance = BigDecimal.ZERO;
+        List<ReviewDay> reviewDays = new ArrayList<>();
+
+        for (TimesheetDay d : allDays) {
+            List<DayQuantity> qs = byDay.getOrDefault(d.getId(), List.of());
+            BigDecimal dayEntered = baseHours(qs, catalog);
+            BigDecimal dayAttendance = attendanceHours(ts.getEmployeeId(), d.getWorkDate());
+
+            entered = entered.add(dayEntered);
+            if (dayAttendance != null) attendance = attendance.add(dayAttendance);
+
+            // Only days the employee actually recorded are worth reviewing;
+            // an empty non-working day is noise on a 31-row screen.
+            if (d.getWorkType() == null && qs.isEmpty()) continue;
+
+            reviewDays.add(new ReviewDay(
+                    d.getId(),
+                    d.getWorkDate(),
+                    d.getWorkDate().getDayOfWeek().name(),
+                    d.getWorkType() == null ? null : d.getWorkType().name(),
+                    d.getEntrySource() == null ? null : d.getEntrySource().name(),
+                    d.getApprovalState().name(),
+                    d.getReturnReason(),
+                    false,
+                    dayEntered,
+                    dayAttendance,
+                    d.getAttendanceVarianceHours(),
+                    d.getVarianceExplanation(),
+                    d.getEmployeeNote(),
+                    qs.stream().map(q -> toQuantityView(q, catalog)).toList(),
+                    List.of()));
+        }
+
+        Map<String, BigDecimal> totals = totalsOf(ts.getId());
+        String blockedReason = actionBlockedReason(ts);
+
+        return new ReviewView(
+                ts.getId(),
+                ts.getEmployeeId(),
+                employee == null ? null : employee.getEmployeeNo(),
+                nameOf(employee),
+                employee == null ? null : employee.getPositionTitle(),
+                ts.getPeriodYear(),
+                ts.getPeriodMonth(),
+                ts.getStatus().name(),
+                blockedReason == null,
+                blockedReason,
+                ts.getSubmittedAt(),
+                ts.getEmployeeComment(),
+                entered,
+                attendance,
+                entered.subtract(attendance),
+                totals,
+                reviewDays,
+                warningsOf(ts),
+                corrections.forTimesheet(ts.getId()));
+    }
+
+    // ---------- Decisions ----------
+
+    @Transactional
+    public ReviewView approve(UUID timesheetId, ApproveRequest req) {
+        Timesheet ts = actionable(timesheetId);
+
+        List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
+        long stillReturned = allDays.stream()
+                .filter(d -> d.getApprovalState() == DayApprovalState.RETURNED)
+                .count();
+        if (stillReturned > 0) {
+            throw new BadRequestException(stillReturned + " day(s) are still returned for "
+                    + "correction. The employee must fix and resubmit them before the month "
+                    + "can be approved.");
+        }
+
+        String comment = req == null || req.comment() == null ? "" : req.comment();
+
+        // The chain itself is NOT decided here. The TIMESHEET_APPROVAL
+        // definition owns it: which steps exist, who approves each one, SLAs,
+        // escalation, substitutes. This method records one decision and lets
+        // the engine work out whether that advances a step or finishes the
+        // month — so adding a step is a configuration change, not a release.
+        if (ts.getWorkflowInstanceId() == null) {
+            throw new BadRequestException(
+                    "This timesheet has no approval workflow attached. It was submitted before "
+                            + "workflow routing was enabled — the employee should recall and "
+                            + "resubmit it.");
+        }
+        workflowService.act(ts.getWorkflowInstanceId(),
+                new ActionRequest(ActionType.APPROVE, comment, null, null));
+
+        // The engine has advanced (or completed) the instance and, on
+        // completion, its event has already driven the month to APPROVED.
+        // Anything still running is mid-chain; project that onto the status the
+        // employee and payroll read.
+        Timesheet after = timesheets.findById(timesheetId).orElse(ts);
+        WorkflowInstance instance = workflowService.get(after.getWorkflowInstanceId());
+        if (after.getStatus() != TimesheetStatus.APPROVED
+                && !instance.getStatus().isTerminal()) {
+            after.setStatus(TimesheetStatus.PENDING_HR);
+            after.setManagerApprovedAt(OffsetDateTime.now());
+            after.setManagerApprovedBy(currentRequest.username());
+            timesheets.save(after);
+        }
+
+        audit.record(MODULE, ENTITY, ts.getId().toString(), "APPROVAL_DECISION", null,
+                Map.of("period", ts.getPeriodYear() + "-" + ts.getPeriodMonth(),
+                        "workflowStep", instance.getCurrentStepIndex(),
+                        "workflowStatus", instance.getStatus().name(),
+                        "comment", comment));
+        return review(timesheetId);
+    }
+
+    /**
+     * Send named days back. Everything not named stays approved, so the
+     * employee re-checks two days rather than thirty-one.
+     */
+    @Transactional
+    public ReviewView returnForCorrection(UUID timesheetId, ReturnRequest req) {
+        Timesheet ts = actionable(timesheetId);
+        if (req == null || req.reason() == null || req.reason().isBlank()) {
+            throw new BadRequestException(
+                    "A reason is required — the employee needs to know what to fix.");
+        }
+        if (req.dates() == null || req.dates().isEmpty()) {
+            throw new BadRequestException(
+                    "Name at least one day to return. To reject the whole submission, use reject.");
+        }
+
+        List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
+        Map<LocalDate, TimesheetDay> byDate = allDays.stream()
+                .collect(Collectors.toMap(TimesheetDay::getWorkDate, Function.identity(),
+                        (a, b) -> a));
+
+        String actor = currentRequest.username();
+        OffsetDateTime now = OffsetDateTime.now();
+        List<String> returned = new ArrayList<>();
+
+        for (LocalDate date : req.dates()) {
+            TimesheetDay day = byDate.get(date);
+            if (day == null) {
+                throw new BadRequestException("No day " + date + " in this timesheet.");
+            }
+            day.setApprovalState(DayApprovalState.RETURNED);
+            day.setReturnReason(req.reason());
+            day.setReturnedBy(actor);
+            day.setReturnedAt(now);
+            returned.add(date.toString());
+        }
+        // Days not named are accepted here and now, so a later approve does not
+        // silently re-judge them.
+        for (TimesheetDay d : allDays) {
+            if (d.getApprovalState() == DayApprovalState.RETURNED) continue;
+            if (d.getWorkType() == null) continue;
+            d.setApprovalState(DayApprovalState.APPROVED);
+            d.setApprovedBy(actor);
+            d.setApprovedAt(now);
+        }
+        days.saveAll(allDays);
+
+        ts.setStatus(TimesheetStatus.RETURNED);
+        ts.setReturnedAt(now);
+        ts.setReturnedBy(actor);
+        ts.setReturnReason(req.reason());
+        timesheets.save(ts);
+
+        audit.record(MODULE, ENTITY, ts.getId().toString(), "MANAGER_RETURN", null,
+                Map.of("dates", String.join(",", returned), "reason", req.reason()));
+        return review(timesheetId);
+    }
+
+    @Transactional
+    public ReviewView reject(UUID timesheetId, RejectRequest req) {
+        Timesheet ts = actionable(timesheetId);
+        if (req == null || req.reason() == null || req.reason().isBlank()) {
+            throw new BadRequestException("A reason is required to reject a timesheet.");
+        }
+
+        String actor = currentRequest.username();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        // A reject sends the whole month back to the employee as a draft; the
+        // per-day verdicts are cleared because none of them stands.
+        List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
+        for (TimesheetDay d : allDays) {
+            d.setApprovalState(DayApprovalState.PENDING);
+            d.setApprovedBy(null);
+            d.setApprovedAt(null);
+        }
+        days.saveAll(allDays);
+
+        ts.setStatus(TimesheetStatus.DRAFT);
+        ts.setRejectedAt(now);
+        ts.setRejectedBy(actor);
+        ts.setRejectionReason(req.reason());
+        ts.setSubmittedAt(null);
+        ts.setEmployeeConfirmedAt(null);
+        timesheets.save(ts);
+
+        audit.record(MODULE, ENTITY, ts.getId().toString(), "MANAGER_REJECT", null,
+                Map.of("reason", req.reason()));
+        return review(timesheetId);
+    }
+
+    /**
+     * Approve several clean months at once.
+     *
+     * <p>Anything not clean is skipped with a stated reason rather than
+     * silently dropped — a bulk action that quietly does less than asked is how
+     * unapproved months reach a locked period.
+     */
+    @Transactional
+    public BulkApproveResult bulkApprove(List<UUID> ids, String comment) {
+        List<UUID> approved = new ArrayList<>();
+        Map<String, String> skipped = new LinkedHashMap<>();
+
+        for (UUID id : ids == null ? List.<UUID>of() : ids) {
+            try {
+                Timesheet ts = actionable(id);
+                if (blockingCount(ts) > 0) {
+                    skipped.put(id.toString(), "Has blocking validation issues — review it individually.");
+                    continue;
+                }
+                if (returnedDayCount(ts) > 0) {
+                    skipped.put(id.toString(), "Has days returned for correction.");
+                    continue;
+                }
+                approve(id, new ApproveRequest(comment));
+                approved.add(id);
+            } catch (RuntimeException e) {
+                skipped.put(id.toString(), e.getMessage());
+            }
+        }
+        audit.record(MODULE, ENTITY, "bulk", "MANAGER_BULK_APPROVE", null,
+                Map.of("approved", approved.size(), "skipped", skipped.size()));
+        return new BulkApproveResult(approved, skipped);
+    }
+
+    // ---------- Guards ----------
+
+    /** The timesheet, or 404 if it is outside the caller's hierarchy. */
+    private Timesheet accessible(UUID id) {
+        Timesheet ts = timesheets.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Timesheet not found: " + id));
+        if (!accessScope.isAccessible(ts.getEmployeeId())) {
+            // 404 not 403: the queue must not confirm that a timesheet exists
+            // for someone the caller may not see.
+            throw new ResourceNotFoundException("Timesheet not found: " + id);
+        }
+        return ts;
+    }
+
+    /** Accessible, in an actionable state, in an open period, and not the caller's own. */
+    private Timesheet actionable(UUID id) {
+        Timesheet ts = accessible(id);
+        String blocked = actionBlockedReason(ts);
+        if (blocked != null) throw new BadRequestException(blocked);
+        return ts;
+    }
+
+    /** Why this timesheet cannot be acted on right now, or null when it can. */
+    private String actionBlockedReason(Timesheet ts) {
+        UUID self = currentEmployeeIdOrNull();
+        if (self != null && ts.getEmployeeId().equals(self)) {
+            return "You cannot approve your own timesheet.";
+        }
+        if (periods.isLocked(ts.getPeriodYear(), ts.getPeriodMonth())) {
+            return "Period " + ts.getPeriodYear() + "-"
+                    + String.format("%02d", ts.getPeriodMonth())
+                    + " is locked. Unlock it before making approval decisions.";
+        }
+        if (!ACTIONABLE.contains(ts.getStatus())) {
+            return "This timesheet is " + ts.getStatus() + " — there is nothing to decide.";
+        }
+        return null;
+    }
+
+    private UUID currentEmployeeIdOrNull() {
+        String username = currentRequest.username();
+        if (username == null || username.isBlank()) return null;
+        return employees.findByUsername(username).map(Employee::getId).orElse(null);
+    }
+
+    // ---------- Helpers ----------
+
+    private QueueRow toQueueRow(Timesheet ts, Employee employee) {
+        List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
+        int entered = (int) allDays.stream().filter(d -> d.getWorkType() != null).count();
+        int returnedDays = (int) allDays.stream()
+                .filter(d -> d.getApprovalState() == DayApprovalState.RETURNED).count();
+        int warnings = warningsOf(ts).size();
+        int blocking = blockingCount(ts);
+
+        return new QueueRow(
+                ts.getId(),
+                ts.getEmployeeId(),
+                employee == null ? null : employee.getEmployeeNo(),
+                nameOf(employee),
+                employee == null ? null : employee.getPositionTitle(),
+                ts.getPeriodYear(),
+                ts.getPeriodMonth(),
+                ts.getStatus().name(),
+                ts.getTotalWorkedHours(),
+                ts.getTotalOvertimeHours(),
+                entered,
+                returnedDays,
+                warnings,
+                blocking,
+                blocking == 0 && returnedDays == 0 && ts.getStatus() == TimesheetStatus.SUBMITTED,
+                ts.getSubmittedAt());
+    }
+
+    /**
+     * Warnings the employee's submission carried, replayed from the stored
+     * text. Kept as the submission-time snapshot deliberately: the manager
+     * judges what was submitted, not what a re-run of validation says today.
+     */
+    private List<FindingView> warningsOf(Timesheet ts) {
+        String raw = ts.getValidationWarnings();
+        if (raw == null || raw.isBlank()) return List.of();
+        return raw.lines()
+                .filter(l -> !l.isBlank())
+                .map(l -> new FindingView("SUBMITTED_WARNING", "WARNING", null, l))
+                .toList();
+    }
+
+    private int blockingCount(Timesheet ts) {
+        // A submitted month passed blocking validation by construction; anything
+        // blocking here would have to have appeared afterwards.
+        return 0;
+    }
+
+    private int returnedDayCount(Timesheet ts) {
+        return (int) days.findByTimesheetIdOrderByWorkDateAsc(ts.getId()).stream()
+                .filter(d -> d.getApprovalState() == DayApprovalState.RETURNED)
+                .count();
+    }
+
+    private Map<UUID, Employee> employeesOf(List<Timesheet> list) {
+        Set<UUID> ids = list.stream().map(Timesheet::getEmployeeId).collect(Collectors.toSet());
+        if (ids.isEmpty()) return Map.of();
+        return employees.findAllById(ids).stream()
+                .collect(Collectors.toMap(Employee::getId, Function.identity(), (a, b) -> a));
+    }
+
+    private String nameOf(Employee e) {
+        if (e == null) return null;
+        return e.getLastName() + ", " + e.getFirstName();
+    }
+
+    private Map<String, TimeCategory> catalogByCode() {
+        return categories.findByActiveTrueOrderByDisplayOrderAsc().stream()
+                .collect(Collectors.toMap(TimeCategory::getCode, Function.identity(),
+                        (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private Map<UUID, List<DayQuantity>> quantitiesByDay(List<TimesheetDay> allDays) {
+        List<UUID> ids = allDays.stream().map(TimesheetDay::getId).toList();
+        if (ids.isEmpty()) return Map.of();
+        Map<UUID, List<DayQuantity>> byDay = new HashMap<>();
+        for (DayQuantity q : quantities.findByTimesheetDayIdIn(ids)) {
+            byDay.computeIfAbsent(q.getTimesheetDayId(), k -> new ArrayList<>()).add(q);
+        }
+        return byDay;
+    }
+
+    private Map<String, BigDecimal> totalsOf(UUID timesheetId) {
+        return monthTotals.findByTimesheetIdOrderByCategoryCodeAsc(timesheetId).stream()
+                .collect(Collectors.toMap(TimesheetMonthTotal::getCategoryCode,
+                        TimesheetMonthTotal::getQuantity, BigDecimal::add, LinkedHashMap::new));
+    }
+
+    /**
+     * Hours the day contains. Derived quantities re-classify hours already
+     * counted, so including them would show the manager a doubled day.
+     */
+    private BigDecimal baseHours(List<DayQuantity> qs, Map<String, TimeCategory> catalog) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (DayQuantity q : qs) {
+            if (q.isDerived()) continue;
+            TimeCategory cat = catalog.get(q.getCategoryCode());
+            if (cat == null || cat.isDays()) continue;
+            sum = sum.add(q.getQuantity());
+        }
+        return sum;
+    }
+
+    private QuantityView toQuantityView(DayQuantity q, Map<String, TimeCategory> catalog) {
+        TimeCategory cat = catalog.get(q.getCategoryCode());
+        return new QuantityView(q.getCategoryCode(),
+                cat == null ? q.getCategoryCode() : cat.getName(),
+                cat == null ? "HOURS" : cat.getUnit(),
+                q.getQuantity(), q.isDerived(), q.getDerivedFrom());
+    }
+
+    private BigDecimal attendanceHours(UUID employeeId, LocalDate date) {
+        return summaries.findByEmployeeIdAndWorkDate(employeeId, date)
+                .map(DailySummary::getWorkedMinutes)
+                .map(m -> BigDecimal.valueOf(m).divide(MINUTES_PER_HOUR, 2, RoundingMode.HALF_UP))
+                .orElse(null);
+    }
+}

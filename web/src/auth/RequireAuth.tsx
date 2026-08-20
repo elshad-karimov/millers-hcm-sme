@@ -1,4 +1,4 @@
-import { Spin } from 'antd'
+import { Spin, Typography } from 'antd'
 import { useEffect, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 
@@ -15,9 +15,23 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }, [loading, user, login])
 
   if (loading || !user) {
+    // The label is a sibling, not Spin's `tip` prop: antd v5 only honours
+    // `tip` in the nest (Spin wrapping children) or fullscreen patterns, and
+    // silently renders NOTHING otherwise. That turned every auth wait — a
+    // slow token round-trip, a backend still starting — into a blank white
+    // page with no spinner and no message, which reads as a crashed app.
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
-        <Spin size="large" tip="Signing in…" />
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+          padding: 64,
+        }}
+      >
+        <Spin size="large" />
+        <Typography.Text type="secondary">Signing in…</Typography.Text>
       </div>
     )
   }

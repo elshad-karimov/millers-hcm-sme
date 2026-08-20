@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   Button,
@@ -27,7 +27,7 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   selfApi,
@@ -2046,7 +2046,19 @@ export function MyWorkspacePage() {
   const [summary, setSummary] = useState<SelfSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [active, setActive] = useState<string>('dashboard')
+  // ?tab=<key> is the deep-link the Self-Service tiles use ("Pay and Payslips"
+  // → /my?tab=payroll). Kept in the URL so the tab survives a refresh / back.
+  const [params, setParams] = useSearchParams()
+  const active = params.get('tab') ?? 'dashboard'
+  const setActive = useCallback(
+    (key: string) => {
+      const next = new URLSearchParams(params)
+      if (key === 'dashboard') next.delete('tab')
+      else next.set('tab', key)
+      setParams(next, { replace: true })
+    },
+    [params, setParams],
+  )
 
   useEffect(() => {
     Promise.all([selfApi.profile(), selfApi.summary()])

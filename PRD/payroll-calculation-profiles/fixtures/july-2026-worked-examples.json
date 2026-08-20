@@ -1,0 +1,187 @@
+{
+  "source": "WhatsApp discussion with Emil + 'Onshore contract with Random offshore trip.xlsx', 'Offshore contract with rotation.xlsx', 'Offshore contracts with random onshore hours.xlsx' (July 2026)",
+  "period": "2026-07",
+  "currency": "AZN",
+  "normWorkingHours": 184.0,
+  "rounding": "full precision throughout; 2dp HALF_UP on final figures only",
+  "note": "Component-level cases, not whole payslips: the July material pins individual formulas rather than complete rows. Every expected value below was recomputed independently and matches the spreadsheets to the cent.",
+  "rates": [
+    {
+      "case": "hourly-rate",
+      "baseSalary": 3500.0,
+      "normHours": 184.0,
+      "expected": { "hourlyRate": "19.0217391304", "hourlyRateRounded": 19.02, "overtimeRate": 38.04 },
+      "formula": "hourlyRate = baseSalary / normHours; overtimeRate = hourlyRate * 2"
+    },
+    {
+      "case": "hourly-rate-low",
+      "baseSalary": 1333.0,
+      "normHours": 184.0,
+      "expected": { "hourlyRate": "7.2445652174", "overtimeRate": 14.49 }
+    }
+  ],
+  "components": [
+    {
+      "case": "onshore-fixed-full-month",
+      "profile": "ONSHORE_FIXED",
+      "baseSalary": 3000.0,
+      "quantities": { "ONSHORE_HOURS": 184.0 },
+      "expected": { "onshoreAmount": 3000.00 },
+      "formula": "onshoreHours * hourlyRate; a full norm month reproduces base salary exactly"
+    },
+    {
+      "case": "onshore-portion-during-offshore-trip",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "baseSalary": 3500.0,
+      "quantities": { "ONSHORE_HOURS": 136.0 },
+      "expected": { "onshoreAmount": 2586.96 },
+      "formula": "136 * 19.0217391304"
+    },
+    {
+      "case": "offshore-hours-at-1.75",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "baseSalary": 3500.0,
+      "quantities": { "OFFSHORE_HOURS": 96.0, "OFFSHORE_NIGHT_HOURS": 0.0 },
+      "expected": { "offshoreAmount": 3195.65 },
+      "formula": "(offshoreHours + offshoreNightHours) * hourlyRate * 1.75"
+    },
+    {
+      "case": "offshore-premium-decomposition",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "hourlyRate": 10.0,
+      "quantities": { "OFFSHORE_HOURS": 12.0 },
+      "expected": { "offshoreAmount": 210.00, "normalComponent": 120.00, "premiumComponent": 90.00 },
+      "note": "1.75 is absolute, not a premium on top of a separately paid base line"
+    },
+    {
+      "case": "onshore-overtime",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "baseSalary": 1333.0,
+      "quantities": { "ONSHORE_OVERTIME_HOURS": 51.5 },
+      "expected": { "onshoreOvertimeAmount": 746.19 },
+      "formula": "51.5 * 7.2445652174 * 2"
+    },
+    {
+      "case": "offshore-night-premium",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "baseSalary": 3500.0,
+      "quantities": { "OFFSHORE_NIGHT_HOURS": 32.0 },
+      "expected": { "offshoreNightAmount": 121.74 },
+      "formula": "32 * 19.0217391304 * 0.20 — top-up on hours already paid through the offshore line"
+    },
+    {
+      "case": "quayside",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "baseSalary": 3500.0,
+      "quantities": { "QUAYSIDE_HOURS": 40.0, "QUAYSIDE_NIGHT_HOURS": 0.0 },
+      "expected": { "quaysideAmount": 1217.39 },
+      "formula": "(quaysideHours + quaysideNightHours) * hourlyRate * 1.60"
+    },
+    {
+      "case": "meal-and-transport",
+      "quantities": { "MEAL_ALLOWANCE_DAYS": 17.0, "TRANSPORT_ALLOWANCE_DAYS": 17.0 },
+      "expected": { "mealAllowanceAmount": 204.00, "transportAllowanceAmount": 170.00, "contributionExemptAmount": 85.00 },
+      "formula": "17 * 12 and 17 * 10; 5 AZN/day of meal is exempt from every contribution base"
+    },
+    {
+      "case": "rotation-monthly-salary-2210",
+      "profile": "OFFSHORE_ROTATION",
+      "baseSalary": 2210.0,
+      "quantities": { "OFFSHORE_HOURS": "any > 0" },
+      "expected": { "offshoreRotaSalary": 3867.50 },
+      "formula": "baseSalary * 1.75 — independent of hours worked"
+    },
+    {
+      "case": "rotation-monthly-salary-2984",
+      "profile": "OFFSHORE_ROTATION",
+      "baseSalary": 2984.0,
+      "quantities": { "OFFSHORE_HOURS": "any > 0" },
+      "expected": { "offshoreRotaSalary": 5222.00 },
+      "formula": "baseSalary * 1.75",
+      "note": "Same base salary and same 5222.00 as row 9 of the January 2026 workbook — this is the case that identifies row 9 as a rotation contract rather than a data-entry error."
+    },
+    {
+      "case": "offshore-contract-with-onshore-hours",
+      "profile": "OFFSHORE_RANDOM_ONSHORE",
+      "baseSalary": 2428.0,
+      "normHours": 184.0,
+      "quantities": { "ONSHORE_HOURS": 8.0, "SICK_LEAVE_HOURS": 0.0 },
+      "expected": { "hourlyRate": "13.1956521739", "offshoreAmount": 4064.26, "onshoreAmount": 105.57 },
+      "formula": "offshore = hourlyRate * (norm - onshoreHours - sickHours) * 1.75; onshore = onshoreHours * hourlyRate",
+      "openQuestion": "BLOCKERS Q6 — offshore hours here are derived from the norm, not read from the timesheet"
+    }
+  ],
+  "monthlyExcess": [
+    {
+      "case": "excess-hours-no-night",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "quantities": { "OFFSHORE_HOURS": 96.0, "ONSHORE_HOURS": 136.0, "OFFSHORE_NIGHT_HOURS": 0.0 },
+      "normHours": 184.0,
+      "expected": { "excessHours": 48.0 }
+    },
+    {
+      "case": "excess-hours-with-night",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "quantities": { "OFFSHORE_HOURS": 12.0, "ONSHORE_HOURS": 160.0, "OFFSHORE_NIGHT_HOURS": 24.0 },
+      "normHours": 184.0,
+      "expected": { "excessHours": 12.0 },
+      "openQuestion": "BLOCKERS Q1 — this case is only correct if night hours are a separate addend rather than already inside OFFSHORE_HOURS; the two readings differ by 24 hours here"
+    },
+    {
+      "case": "excess-below-norm",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "quantities": { "OFFSHORE_HOURS": 0.0, "ONSHORE_HOURS": 150.0 },
+      "normHours": 184.0,
+      "expected": { "excessHours": 0.0 },
+      "note": "floored at zero; never negative, never a debt"
+    },
+    {
+      "case": "excess-amount",
+      "profile": "ONSHORE_RANDOM_OFFSHORE",
+      "baseSalary": 3500.0,
+      "quantities": { "EXCESS_HOURS": 56.0 },
+      "expected": { "excessAmount": 1864.13 },
+      "formula": "56 * 19.0217391304 * 1.75 — priced as offshore work, not at the 2x overtime rate"
+    }
+  ],
+  "balancingAccumulator": [
+    {
+      "case": "jan-apr-2026",
+      "profile": "OFFSHORE_ROTATION",
+      "period": { "from": "2026-01-01", "to": "2026-04-30", "settledIn": "2026-04" },
+      "months": [
+        { "month": "2026-01", "actual": 210.0, "norm": 160.0, "delta": 50.0, "running": 50.0 },
+        { "month": "2026-02", "actual": 130.0, "norm": 160.0, "delta": -30.0, "running": 20.0 },
+        { "month": "2026-03", "actual": 180.0, "norm": 168.0, "delta": 12.0, "running": 32.0 },
+        { "month": "2026-04", "actual": 200.0, "norm": 168.0, "delta": 32.0, "running": 64.0 }
+      ],
+      "expected": { "settledExcessHours": 64.0, "excessPaidInMonths1to3": 0.0 }
+    },
+    {
+      "case": "may-aug-2026",
+      "profile": "OFFSHORE_ROTATION",
+      "period": { "from": "2026-05-01", "to": "2026-08-31", "settledIn": "2026-08" },
+      "months": [
+        { "month": "2026-05", "actual": 180.0, "norm": 160.0, "delta": 20.0, "running": 20.0 },
+        { "month": "2026-06", "actual": 140.0, "norm": 168.0, "delta": -28.0, "running": -8.0 },
+        { "month": "2026-07", "actual": 220.0, "norm": 184.0, "delta": 36.0, "running": 28.0 },
+        { "month": "2026-08", "actual": 200.0, "norm": 168.0, "delta": 32.0, "running": 60.0 }
+      ],
+      "expected": { "settledExcessHours": 60.0 },
+      "note": "the running balance goes negative mid-period; only the final figure is floored at zero"
+    }
+  ],
+  "unresolved": {
+    "rotationExcessMultiplier": {
+      "interpretationA": { "multiplier": 3.5, "derivation": "2 * 1.75", "amountFor60hAt19.0217391304": 3994.57 },
+      "interpretationB": { "multiplier": 2.75, "derivation": "2 + 0.75", "amountFor60hAt19.0217391304": 3138.59 },
+      "status": "BLOCKERS Q2 — no default; an unconfigured rotation settlement must refuse to calculate"
+    }
+  },
+  "employerCostAndMarkup": {
+    "note": "employer contributions belong to payroll; the 8% markup does not — it is contract/project costing and must not appear in any payslip, payroll result or GL posting",
+    "employerTotalCost": "gross + employerSpf(22%) + employerUnemployment(0.5%) + employerCompulsoryInsurance + employerLifeInsuranceCost(22%)",
+    "markup": "employerTotalCost * 0.08",
+    "grossCostCharged": "employerTotalCost * 1.08"
+  }
+}

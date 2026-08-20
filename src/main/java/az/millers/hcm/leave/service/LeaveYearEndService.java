@@ -150,7 +150,14 @@ public class LeaveYearEndService {
             next.setEmployeeId(closing.getEmployeeId());
             next.setLeaveTypeId(closing.getLeaveTypeId());
             next.setYear(nextYear);
-            if (!type.isAccruesMonthly() && type.getDefaultAnnualEntitlementDays() != null) {
+            // M151: component-driven types open the new year at zero and are
+            // filled by LeaveEntitlementComponentService.recalculate(). This is
+            // also where a seniority or child-age threshold crossed during the
+            // closing year finally takes effect — drivers are evaluated as at
+            // 1 January, so the uplift lands here rather than mid-year.
+            if (type.isEntitlementComponentsEnabled()) {
+                next.setEntitlementDays(BigDecimal.ZERO);
+            } else if (!type.isAccruesMonthly() && type.getDefaultAnnualEntitlementDays() != null) {
                 next.setEntitlementDays(type.getDefaultAnnualEntitlementDays());
             } else {
                 next.setEntitlementDays(BigDecimal.ZERO);

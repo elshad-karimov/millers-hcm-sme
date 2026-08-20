@@ -88,8 +88,46 @@ public class Timesheet {
     @Column(name = "approved_by")
     private String approvedBy;
 
+    /** V324 stage 1 — the employee's direct manager. Final HR sign-off is {@link #approvedBy}. */
+    @Column(name = "manager_approved_at")
+    private OffsetDateTime managerApprovedAt;
+
+    @Column(name = "manager_approved_by", length = 80)
+    private String managerApprovedBy;
+
     @Column(name = "locked_at")
     private OffsetDateTime lockedAt;
+
+    // ---- Daily capture (prd/timesheet-daily-capture) ----------------------
+    /** When the employee themselves confirmed the month is accurate. */
+    @Column(name = "employee_confirmed_at")
+    private OffsetDateTime employeeConfirmedAt;
+
+    @Column(name = "employee_comment", columnDefinition = "text")
+    private String employeeComment;
+
+    /** Non-blocking findings carried to the approver, one per line. */
+    @Column(name = "validation_warnings", columnDefinition = "text")
+    private String validationWarnings;
+
+    // ---- Approval trail (PRD/timesheet-approval-control) -------------------
+    @Column(name = "returned_at")
+    private OffsetDateTime returnedAt;
+
+    @Column(name = "returned_by")
+    private String returnedBy;
+
+    @Column(name = "return_reason", columnDefinition = "text")
+    private String returnReason;
+
+    @Column(name = "rejected_at")
+    private OffsetDateTime rejectedAt;
+
+    @Column(name = "rejected_by")
+    private String rejectedBy;
+
+    @Column(name = "rejection_reason", columnDefinition = "text")
+    private String rejectionReason;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
