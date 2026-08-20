@@ -18,6 +18,7 @@ import {
 import { PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '../api/client'
+import { orgApi } from '../api/org'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 
@@ -114,10 +115,14 @@ export function MovementRequestsPage() {
       .then((r) => setPositions(r.data))
       .catch(() => message.error('Failed to load positions'))
 
-    // Load org units
-    api
-      .get<OrgUnit[]>('/organization/units')
-      .then((r) => setOrgUnits(r.data))
+    // Org units are versioned — they hang off the active structure version,
+    // and there is no flat list endpoint. (`/organization/units` was called
+    // here for a while; nothing has ever served it.) No active version is a
+    // legitimate state on a fresh tenant, not an error: no units to offer yet.
+    orgApi
+      .active()
+      .then((v) => (v ? orgApi.units(v.id) : []))
+      .then(setOrgUnits)
       .catch(() => message.error('Failed to load org units'))
   }
 

@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import az.millers.hcm.engagement.service.SurveyAggregator;
 import az.millers.hcm.reporting.service.DashboardService;
 
 /**
@@ -160,18 +161,40 @@ public class KpiValueService {
                 .divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP);
     }
 
+    /**
+     * eNPS from the most recently closing campaign that has 0-10 ratings.
+     *
+     * <p>This used to select {@code sa.enps} from
+     * {@code engagement.survey_aggregator} — a table that appears nowhere else
+     * in this codebase and that no migration creates. The name belongs to
+     * {@link SurveyAggregator}, a Java class, not a relation; the query was
+     * SQL written against a class name, so it threw on every call and 500'd
+     * every caller, the executive summary included.
+     *
+     * <p>eNPS is a computation, not a stored column: pull the ratings and let
+     * the one implementation we already trust score them, rather than growing
+     * a second definition of promoters-minus-detractors here in SQL.
+     */
     private Integer enps() {
-        // Latest eNPS from most recent pulse survey campaign with RATING_1_10 questions
-        // Use SurveyAggregator to compute it
-        Integer score = jdbc.queryForObject(
-                "SELECT sa.enps FROM engagement.survey_campaign sc " +
-                "JOIN engagement.survey_aggregator sa ON sa.campaign_id = sc.id " +
-                "WHERE sc.tenant_id = :tenant AND sa.enps IS NOT NULL " +
-                "ORDER BY sc.closes_on DESC LIMIT 1",
+        List<Integer> ratings = jdbc.queryForList(
+                "SELECT a.rating_value " +
+                "FROM engagement.survey_answer a " +
+                "JOIN engagement.survey_response r ON r.id = a.response_id " +
+                "JOIN engagement.survey_question q ON q.id = a.question_id " +
+                "WHERE a.tenant_id = :tenant " +
+                "  AND q.question_type = 'RATING_1_10' " +
+                "  AND a.rating_value IS NOT NULL " +
+                "  AND r.campaign_id = (" +
+                "     SELECT sc.id FROM engagement.survey_campaign sc " +
+                "     WHERE sc.tenant_id = :tenant AND sc.closes_on IS NOT NULL " +
+                "     ORDER BY sc.closes_on DESC LIMIT 1" +
+                "  )",
                 new MapSqlParameterSource("tenant", TenantContext.current()),
                 Integer.class);
 
-        return score != null ? score : 0;
+        // nps() already returns 0 for an empty list — no surveys yet is a
+        // legitimate state on a new tenant, not a missing value.
+        return SurveyAggregator.nps(ratings);
     }
 
     private Long openPositions() {

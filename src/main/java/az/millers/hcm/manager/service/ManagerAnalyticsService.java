@@ -104,20 +104,29 @@ public class ManagerAnalyticsService {
         double completion = totalEnroll > 0 ? (double) passedEnroll / totalEnroll : 0.0;
         result.put("trainingCompletion", completion);
 
-        // Open skill gaps: count of position-required competencies unmet
-        // Use position competency requirements that employees don't have at the required level
+        // Open skill gaps: position-required competencies the report doesn't hold
+        // at the required level.
+        //
+        // This read staffing.position_competency with a pc.required_level and an
+        // ec.proficiency_level — none of those three exist. V307 consolidated the
+        // two rival requirement tables onto learning.position_competency_requirement
+        // (required_proficiency, mandatory) and dropped the staffing one; the
+        // employee's level column is `proficiency`. So the query threw on every
+        // call and took the whole manager analytics endpoint down with it.
+        // Matches the shape SkillInventoryService already uses.
         String gapsSql = """
             SELECT COUNT(*)
-            FROM staffing.position_competency pc
-            JOIN core_hr.employee e ON e.position_id = pc.position_id
+            FROM learning.position_competency_requirement pcr
+            JOIN core_hr.employee e ON e.position_id = pcr.position_id
             WHERE e.id = ANY(:reportIds)
-              AND pc.tenant_id = :tenantId
+              AND pcr.tenant_id = :tenantId
+              AND pcr.mandatory = true
               AND NOT EXISTS (
                   SELECT 1
                   FROM learning.employee_competency ec
                   WHERE ec.employee_id = e.id
-                    AND ec.competency_id = pc.competency_id
-                    AND ec.proficiency_level >= pc.required_level
+                    AND ec.competency_id = pcr.competency_id
+                    AND ec.proficiency >= pcr.required_proficiency
               )
             """;
         Long gaps = jdbc.queryForObject(gapsSql,

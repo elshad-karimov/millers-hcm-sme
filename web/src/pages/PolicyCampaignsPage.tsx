@@ -27,6 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { api } from '../api/client'
+import { orgApi } from '../api/org'
 import { policiesApi, type PolicyResponse } from '../api/policies'
 import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
@@ -120,9 +121,14 @@ export function PolicyCampaignsPage() {
   }
 
   const loadOrgUnits = () => {
-    api
-      .get<OrgUnit[]>('/organization/units')
-      .then((r) => setOrgUnits(r.data))
+    // Org units are versioned — they hang off the active structure version,
+    // and there is no flat list endpoint. (`/organization/units` was called
+    // here for a while; nothing has ever served it.) No active version is a
+    // legitimate state on a fresh tenant, not an error: no units to offer yet.
+    orgApi
+      .active()
+      .then((v) => (v ? orgApi.units(v.id) : []))
+      .then(setOrgUnits)
       .catch(() => message.error('Failed to load org units'))
   }
 

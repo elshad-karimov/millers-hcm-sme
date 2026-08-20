@@ -105,10 +105,27 @@ public class ExecutiveAnalyticsService {
                 Long.class);
     }
 
+    /**
+     * Net payroll cost for one month.
+     *
+     * <p>Named three columns that payroll.payroll_result does not have —
+     * net_pay, payroll_year and payroll_month — so it threw
+     * BadSqlGrammarException on every call and 500'd the whole executive
+     * summary. The amount is net_amount, and the period lives on the parent
+     * payroll_run as period_year/period_month, which is why this now joins.
+     * Mirrors the working query in
+     * {@link KpiValueService#payrollCostMonthly()}.
+     */
     private BigDecimal payrollCostForMonth(YearMonth month) {
         BigDecimal total = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(net_pay), 0) FROM payroll.payroll_result " +
-                "WHERE tenant_id = :tenant AND payroll_year = :year AND payroll_month = :month",
+                "SELECT COALESCE(SUM(pr.net_amount), 0) FROM payroll.payroll_result pr " +
+                "WHERE EXISTS (" +
+                "  SELECT 1 FROM payroll.payroll_run run " +
+                "  WHERE run.id = pr.run_id " +
+                "    AND run.tenant_id = :tenant " +
+                "    AND run.period_year = :year " +
+                "    AND run.period_month = :month" +
+                ")",
                 new MapSqlParameterSource()
                         .addValue("tenant", TenantContext.current())
                         .addValue("year", month.getYear())

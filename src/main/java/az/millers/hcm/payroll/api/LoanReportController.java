@@ -26,42 +26,50 @@ public class LoanReportController {
     @GetMapping("/dashboard")
     @PreAuthorize(SecurityRoles.READ_PAYROLL)
     public DashboardResponse getDashboard() {
+        // Every one of these four ran with no tenant predicate, over a table that
+        // has a tenant_id column — so on a shared box this dashboard reported
+        // every tenant's loan count and outstanding principal to whoever opened
+        // it. Payroll balances are the last thing that may cross that line.
+        Map<String, Object> tenantParam = Map.of("tenant", TenantContext.current());
+
         String activeCountSql = """
             SELECT COUNT(*) FROM payroll.payroll_loan
-            WHERE status = 'ACTIVE'
+            WHERE tenant_id = :tenant AND status = 'ACTIVE'
             """;
-        Long activeCount = jdbc.queryForObject(activeCountSql, Map.of(), Long.class);
+        Long activeCount = jdbc.queryForObject(activeCountSql, tenantParam, Long.class);
 
         String outstandingSql = """
             SELECT COALESCE(SUM(outstanding_balance), 0) FROM payroll.payroll_loan
-            WHERE status = 'ACTIVE'
+            WHERE tenant_id = :tenant AND status = 'ACTIVE'
             """;
-        BigDecimal totalOutstanding = jdbc.queryForObject(outstandingSql, Map.of(), BigDecimal.class);
+        BigDecimal totalOutstanding = jdbc.queryForObject(outstandingSql, tenantParam, BigDecimal.class);
 
         String completedSql = """
             SELECT COUNT(*) FROM payroll.payroll_loan
-            WHERE status = 'FULLY_REPAID'
+            WHERE tenant_id = :tenant AND status = 'FULLY_REPAID'
             """;
-        Long completedCount = jdbc.queryForObject(completedSql, Map.of(), Long.class);
+        Long completedCount = jdbc.queryForObject(completedSql, tenantParam, Long.class);
 
         String totalSql = """
             SELECT COUNT(*) FROM payroll.payroll_loan
-            WHERE status IN ('ACTIVE', 'FULLY_REPAID')
+            WHERE tenant_id = :tenant AND status IN ('ACTIVE', 'FULLY_REPAID')
             """;
-        Long totalCount = jdbc.queryForObject(totalSql, Map.of(), Long.class);
+        Long totalCount = jdbc.queryForObject(totalSql, tenantParam, Long.class);
 
         double completionPct = totalCount > 0 ? (completedCount * 100.0 / totalCount) : 0;
 
-        // Outstanding by department (via employee join)
+        // Outstanding by department. This joined organization.department on
+        // e.department_id — neither exists: there is no department table at all,
+        // and the employee row carries a denormalized department_name. The join
+        // threw, which is what made the whole dashboard 500.
         String deptSql = """
-            SELECT COALESCE(d.name, 'Unknown') as department_name,
+            SELECT COALESCE(e.department_name, 'Unknown') as department_name,
                    COUNT(DISTINCT pl.employee_id) as employee_count,
                    COALESCE(SUM(pl.outstanding_balance), 0) as total_outstanding
             FROM payroll.payroll_loan pl
             LEFT JOIN core_hr.employee e ON e.id = pl.employee_id AND e.tenant_id = :tenant
-            LEFT JOIN organization.department d ON d.id = e.department_id
-            WHERE pl.status = 'ACTIVE'
-            GROUP BY d.name
+            WHERE pl.tenant_id = :tenant AND pl.status = 'ACTIVE'
+            GROUP BY e.department_name
             ORDER BY total_outstanding DESC
             """;
         List<DepartmentOutstanding> byDepartment = jdbc.query(deptSql, Map.of("tenant", TenantContext.current()),
