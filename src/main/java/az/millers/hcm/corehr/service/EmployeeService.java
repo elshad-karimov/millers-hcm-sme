@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -31,6 +33,8 @@ import az.millers.hcm.common.BusinessNumbers;
 
 @Service
 public class EmployeeService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
 
     private static final String MODULE = "CORE_HR";
     private static final String ENTITY = "Employee";
@@ -482,9 +486,39 @@ public class EmployeeService {
         }
     }
 
+    /**
+     * Allocates the next free employee number, skipping any the counter has not
+     * caught up with.
+     *
+     * The counter is a row in {@code config.tenant_sequence} bumped by an
+     * ordinary UPDATE, so it is transactional: when the INSERT that follows
+     * fails, the bump rolls back with it. That turns a single pre-existing
+     * number into a permanent wedge — every subsequent create re-draws the same
+     * value and dies on the same unique constraint, forever. Rows loaded by a
+     * seed or a data migration (which set employee_no directly and leave the
+     * counter at zero) put the tenant in exactly that state.
+     *
+     * Skipping forward here fixes it inside the transaction that will commit,
+     * so the counter only advances on success and no number is ever reused.
+     */
     private String nextEmployeeNo() {
-        return BusinessNumbers.format("EMP", 5, repository.nextEmployeeNoSequence());
+        for (int attempt = 0; attempt < MAX_EMPLOYEE_NO_ATTEMPTS; attempt++) {
+            String candidate = BusinessNumbers.format(
+                    "EMP", 5, repository.nextEmployeeNoSequence());
+            if (!repository.existsByEmployeeNo(candidate)) {
+                return candidate;
+            }
+            log.warn("Employee number {} is already taken — skipping it. The tenant"
+                    + " counter is behind the data, most likely because employees"
+                    + " were seeded with explicit numbers.", candidate);
+        }
+        throw new IllegalStateException(
+                "Could not allocate a free employee number after "
+                        + MAX_EMPLOYEE_NO_ATTEMPTS + " attempts");
     }
+
+    /** Bounded so a misconfigured counter fails loudly instead of spinning. */
+    private static final int MAX_EMPLOYEE_NO_ATTEMPTS = 100;
 
     private record StatusSnapshot(EmploymentStatus status, String reason) {
     }
