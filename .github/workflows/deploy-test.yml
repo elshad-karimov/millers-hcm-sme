@@ -12,6 +12,12 @@
 #   TEST_SSH_KEY      — SSH private key for that user (paste into GitHub; never shared with me)
 #   TEST_COMPOSE_DIR  — path on the VPS to the docker-compose dir that defines hcm-backend
 #   GHCR_PAT          — read PAT so the VPS can pull from GHCR (same one prod uses)
+#
+# If ANY of these is unset the ssh action fails immediately with
+#   Error: missing server host
+# and renders the script with an empty `cd ""` — it never connects, so nothing
+# on the box is touched. That is the failure to expect if a deploy dies in
+# seconds having done nothing. Check with: gh secret list -R <owner>/<repo>
 
 name: Deploy to Test
 
@@ -50,6 +56,20 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.TEST_COMPOSE_DIR }}"
+
+            # Bring the compose file itself up to date FIRST.
+            #
+            # This job only ever pulled the image and restarted the container,
+            # so every change to deploy/docker-compose.yml since the checkout
+            # was made silently never applied — env vars, volumes, limits. The
+            # box sat six commits behind while deploys "succeeded", and the
+            # divergence is invisible until something depends on it.
+            #
+            # --ff-only so a deploy fails loudly rather than merging over
+            # whatever someone edited by hand on the box.
+            git -C .. fetch --quiet origin main
+            git -C .. pull --ff-only --quiet origin main
+            echo "Compose dir now at: $(git -C .. log --oneline -1)"
 
             # Authenticate to GHCR so the VPS can pull the image.
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io \

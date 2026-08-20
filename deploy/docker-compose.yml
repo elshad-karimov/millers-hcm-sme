@@ -98,6 +98,14 @@ services:
       # to nothing. See the FILE appender in logback-spring.xml.
       HCM_LOG_DIR: /var/log/hcm
 
+      # Analytics warehouse. Harmless when the clickhouse service is not up:
+      # WarehouseSchemaService logs "not reachable" and the warehouse endpoints
+      # answer available:false, which is what they do today.
+      HCM_CLICKHOUSE_URL: http://clickhouse:8123
+      HCM_CLICKHOUSE_DATABASE: hcm_analytics
+      HCM_CLICKHOUSE_USER: default
+      HCM_CLICKHOUSE_PASSWORD: ${HCM_CLICKHOUSE_PASSWORD:-hcm_analytics}
+
       HCM_REDIS_HOST: redis
       HCM_REDIS_PORT: "6379"
 
@@ -229,6 +237,53 @@ services:
       start_period: 120s
     networks: [sme]
 
+  # ── Analytics warehouse (opt-in) ──────────────────────────────────────────
+  # NOT started by `docker compose up -d`. It sits behind the "analytics"
+  # profile because this box runs the whole SME stack plus four other projects
+  # on 3.8G, with under 1G free — and the backend above carries a comment about
+  # having already been OOM-killed here once. ClickHouse sizes its caches off
+  # host RAM by default and would happily take what is left.
+  #
+  # To run it:      docker compose --profile analytics up -d clickhouse
+  # Then seed it:   POST /api/analytics/warehouse/sync   (HR_ADMIN)
+  # To stop it:     docker compose --profile analytics down clickhouse
+  #
+  # Check `free -m` first. If available memory is under ~700M, do not start it
+  # here — move the warehouse to its own host instead.
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: sme-clickhouse
+    profiles: [analytics]
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${HCM_CLICKHOUSE_PASSWORD:-hcm_analytics}
+      CLICKHOUSE_DB: hcm_analytics
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      # Without these ClickHouse sizes itself off HOST memory, not the cgroup.
+      CLICKHOUSE_SKIP_USER_SETUP: 0
+    # Hard ceiling, and the server's own budget set below it so it degrades a
+    # query rather than getting OOM-killed and taking its data files with it.
+    mem_limit: 512m
+    memswap_limit: 512m
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - sme-clickhousedata:/var/lib/clickhouse
+      - ./clickhouse-limits.xml:/etc/clickhouse-server/config.d/limits.xml:ro
+    ports:
+      # Loopback only, like everything else in this stack.
+      - "127.0.0.1:18123:8123"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks: [sme]
+
   redis:
     image: redis:7.2-alpine
     container_name: sme-redis
@@ -247,6 +302,7 @@ services:
 
 volumes:
   sme-pgdata:
+  sme-clickhousedata:
   sme-keycloak-pgdata:
   sme-redisdata:
 

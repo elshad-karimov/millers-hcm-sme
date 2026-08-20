@@ -31,6 +31,7 @@ import az.millers.hcm.recruitment.domain.CandidatePoolStatus;
 import az.millers.hcm.recruitment.domain.CandidateTag;
 import az.millers.hcm.recruitment.repo.CandidateNoteRepository;
 import az.millers.hcm.recruitment.repo.CandidateRepository;
+import az.millers.hcm.recruitment.repo.CandidateSpecifications;
 import az.millers.hcm.recruitment.repo.CandidateTagRepository;
 import az.millers.hcm.security.CurrentRequest;
 
@@ -93,7 +94,8 @@ public class TalentPoolService {
         }
         String qNorm = (q == null || q.isBlank()) ? null : q.trim();
         var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Candidate> p = candidates.searchPool(status, idsByTag, qNorm, pageable);
+        Page<Candidate> p = candidates.findAll(
+                CandidateSpecifications.poolSearch(status, idsByTag, qNorm), pageable);
 
         // Hydrate tags for each candidate in one batch — avoids N+1.
         Map<UUID, List<String>> tagsById = loadTagsFor(p.getContent());

@@ -1,0 +1,19 @@
+<clickhouse>
+    <!--
+      ClickHouse defaults its memory budget to a fraction of HOST RAM, which on
+      a shared box is the wrong number entirely: it would size itself against
+      3.8G while living inside a 512M container, then get OOM-killed mid-write.
+
+      These keep the server's own accounting below the cgroup limit so it fails
+      a query with "memory limit exceeded" — recoverable, and visible in the
+      response — instead of being killed by the kernel, which is neither.
+    -->
+    <max_server_memory_usage>402653184</max_server_memory_usage> <!-- 384 MiB -->
+    <mark_cache_size>134217728</mark_cache_size>                <!-- 128 MiB -->
+    <uncompressed_cache_size>0</uncompressed_cache_size>
+    <!-- This stack has one writer (WarehouseEtlService) and a handful of
+         dashboard readers; the default 100 connections is far more than the
+         memory here can back. -->
+    <max_concurrent_queries>16</max_concurrent_queries>
+    <background_pool_size>4</background_pool_size>
+</clickhouse>

@@ -103,7 +103,9 @@ export function DamageLossCasesPage() {
 
   useEffect(() => {
     // Load active assets for report modal
-    api.get<AssetOption[]>('/assets/search', { params: { status: 'ASSIGNED' } })
+    // The list endpoint is GET /assets with filter params — there is no
+    // /assets/search, so this dropdown silently came back empty.
+    api.get<AssetOption[]>('/assets', { params: { status: 'ASSIGNED' } })
       .then((r) => setAssets(r.data))
       .catch(() => {})
   }, [])

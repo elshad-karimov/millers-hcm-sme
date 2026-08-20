@@ -158,7 +158,7 @@ public class EmpMgmtReportsService {
         if (ids != null && ids.isEmpty()) {
             return new RehireReport(cap, List.of());
         }
-        var rehired = employees.findRehired(ids);
+        var rehired = ids == null ? employees.findRehired() : employees.findRehiredIn(ids);
         if (rehired.size() > cap) rehired = rehired.subList(0, cap);
         var rows = rehired.stream()
                 .map(e -> new RehireRow(
@@ -204,7 +204,9 @@ public class EmpMgmtReportsService {
         long certsExpiring = probeIds.isEmpty()
                 ? 0L
                 : certifications.findExpiringBy(ahead, ids).size();
-        long unverified = employees.countUnverifiedIdentifications(ids);
+        long unverified = ids == null
+                ? employees.countUnverifiedIdentifications()
+                : employees.countUnverifiedIdentificationsIn(ids);
 
         return new EmpMgmtSummary(
                 headcount, onProbation, onLeaveToday,

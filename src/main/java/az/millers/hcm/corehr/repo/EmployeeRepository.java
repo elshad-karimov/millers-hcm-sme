@@ -226,10 +226,25 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     @Query("""
             select e from Employee e
             where e.previousEmployeeId is not null
-              and (:ids is null or e.id in :ids)
             order by e.hireDate desc
             """)
-    java.util.List<Employee> findRehired(@Param("ids") java.util.Collection<UUID> ids);
+    java.util.List<Employee> findRehired();
+
+    /**
+     * As {@link #findRehired()}, restricted to an access-scoped id set.
+     *
+     * <p>Two methods rather than one with a nullable {@code ids}: the combined
+     * form was {@code (:ids is null or e.id in :ids)} and an unrestricted
+     * caller passes null, which Postgres will not type — 42P18, statement
+     * rejected. Unrestricted is the HR-admin case, i.e. the common one.
+     */
+    @Query("""
+            select e from Employee e
+            where e.previousEmployeeId is not null
+              and e.id in :ids
+            order by e.hireDate desc
+            """)
+    java.util.List<Employee> findRehiredIn(@Param("ids") java.util.Collection<UUID> ids);
 
     /**
      * Identification rows pending verification — used by the M80 "PII
@@ -239,9 +254,16 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     @Query("""
             select count(i) from EmployeeIdentification i
             where i.verificationStatus = az.millers.hcm.corehr.domain.VerificationStatus.UNVERIFIED
-              and (:ids is null or i.employeeId in :ids)
             """)
-    long countUnverifiedIdentifications(@Param("ids") java.util.Collection<UUID> ids);
+    long countUnverifiedIdentifications();
+
+    /** As {@link #countUnverifiedIdentifications()}, scoped to an id set. */
+    @Query("""
+            select count(i) from EmployeeIdentification i
+            where i.verificationStatus = az.millers.hcm.corehr.domain.VerificationStatus.UNVERIFIED
+              and i.employeeId in :ids
+            """)
+    long countUnverifiedIdentificationsIn(@Param("ids") java.util.Collection<UUID> ids);
 
     /**
      * Returns the transitive set of employee IDs that report (directly or
