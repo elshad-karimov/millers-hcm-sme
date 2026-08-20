@@ -112,6 +112,12 @@ public class EmployeeAssignmentService {
                     prior.closeOn(req.effectiveFrom());
                     repository.save(prior);
                 }
+                // Load-bearing: uq_ea_one_open_primary allows a single open
+                // PRIMARY row per employee, and Hibernate flushes inserts ahead
+                // of updates and deletes. Without this the new open row is
+                // INSERTed while the prior one is still open and Postgres
+                // rejects it.
+                repository.flush();
             });
         }
 

@@ -100,6 +100,12 @@ public class EmployeeStatusOverlayService {
                 prior.closeOn(req.effectiveFrom());
                 overlays.save(prior);
             }
+            // Load-bearing: the partial unique index this pairs with allows a
+            // single open row per (employee, status), and Hibernate flushes
+            // inserts ahead of updates and deletes. Without this the new open
+            // row is INSERTed while the prior one is still open and Postgres
+            // rejects it.
+            overlays.flush();
         });
 
         EmployeeStatusOverlay o = new EmployeeStatusOverlay();

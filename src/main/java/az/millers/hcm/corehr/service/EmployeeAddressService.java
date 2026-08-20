@@ -90,6 +90,11 @@ public class EmployeeAddressService {
                 prior.closeOn(req.effectiveFrom());
                 repository.save(prior);
             }
+            // Load-bearing: uq_emp_addr_one_open_per_type allows a single open
+            // row per (employee, address type), and Hibernate flushes inserts
+            // ahead of updates and deletes. Without this the new open row is
+            // INSERTed while the prior one is still open and Postgres rejects it.
+            repository.flush();
         });
 
         EmployeeAddress a = new EmployeeAddress();

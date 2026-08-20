@@ -91,7 +91,8 @@ public class EmployeeHistoryService {
         closePriorOpenSlice(
                 employmentHistory.findOpenForEmployee(employee.getId()),
                 effectiveFrom,
-                employmentHistory::save);
+                employmentHistory::save,
+                employmentHistory::flush);
 
         EmployeeEmploymentHistory slice = new EmployeeEmploymentHistory();
         slice.setEmployeeId(employee.getId());
@@ -134,7 +135,8 @@ public class EmployeeHistoryService {
         closePriorOpenSlice(
                 statusHistory.findOpenForEmployee(employeeId),
                 effectiveFrom,
-                statusHistory::save);
+                statusHistory::save,
+                statusHistory::flush);
 
         EmployeeStatusHistory slice = new EmployeeStatusHistory();
         slice.setEmployeeId(employeeId);
@@ -162,11 +164,26 @@ public class EmployeeHistoryService {
      * {@link EffectiveDatedRecord#closeOn(LocalDate)} would otherwise throw
      * "not strictly after". This matches HR behaviour where two changes on the
      * same day should fold into a single slice.
+     *
+     * <p>Both branches end in a flush, and that flush is load-bearing rather
+     * than defensive. These tables carry a partial unique index — one row per
+     * employee with {@code effective_to IS NULL} — and Hibernate orders a flush
+     * as inserts first, then updates, then deletes. Left to the commit-time
+     * flush, the new open row is therefore INSERTed while the prior row is
+     * still open in the database, and Postgres rejects it:
+     *
+     * <pre>duplicate key value violates unique constraint
+     * "uq_emp_status_hist_one_open_per_employee"</pre>
+     *
+     * Flushing here makes the close (or delete) hit the database first, which is
+     * the order the constraint expects. This affects every caller — status
+     * change, contract change, termination — so it is fixed once, here.
      */
     private <T extends EffectiveDatedRecord> void closePriorOpenSlice(
             java.util.Optional<T> openSlice,
             LocalDate newEffectiveFrom,
-            java.util.function.Consumer<T> persist) {
+            java.util.function.Consumer<T> persist,
+            Runnable flush) {
         openSlice.ifPresent(row -> {
             if (row.getEffectiveFrom() != null
                     && row.getEffectiveFrom().equals(newEffectiveFrom)) {
@@ -181,10 +198,12 @@ public class EmployeeHistoryService {
                 } else if (row instanceof EmployeeStatusHistory sh) {
                     statusHistory.delete(sh);
                 }
+                flush.run();
                 return;
             }
             row.closeOn(newEffectiveFrom);
             persist.accept(row);
+            flush.run();
         });
     }
 }
