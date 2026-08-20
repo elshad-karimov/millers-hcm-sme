@@ -299,7 +299,10 @@ function MembersDrawer({ group, open, onClose }: MembersDrawerProps) {
 
   const handleRemove = async (memberId: string) => {
     try {
-      await api.delete(`/workflow/members/${memberId}`)
+      // The remove-member route hangs off the approval-groups controller —
+      // DELETE /workflow/approval-groups/members/{id}. Called without that
+      // segment it 404s, so members could be added but never taken off.
+      await api.delete(`/workflow/approval-groups/members/${memberId}`)
       message.success('Member removed')
       fetchMembers()
     } catch (err: any) {

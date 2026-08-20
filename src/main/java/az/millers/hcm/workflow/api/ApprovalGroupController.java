@@ -9,6 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import az.millers.hcm.admin.KeycloakAdminService;
+import az.millers.hcm.common.BadRequestException;
 import az.millers.hcm.common.ResourceNotFoundException;
 import az.millers.hcm.security.SecurityRoles;
 import az.millers.hcm.workflow.domain.ApprovalGroup;
@@ -26,11 +28,14 @@ public class ApprovalGroupController {
 
     private final ApprovalGroupRepository groupRepo;
     private final ApprovalGroupMemberRepository memberRepo;
+    private final KeycloakAdminService keycloak;
 
     public ApprovalGroupController(ApprovalGroupRepository groupRepo,
-                                  ApprovalGroupMemberRepository memberRepo) {
+                                  ApprovalGroupMemberRepository memberRepo,
+                                  KeycloakAdminService keycloak) {
         this.groupRepo = groupRepo;
         this.memberRepo = memberRepo;
+        this.keycloak = keycloak;
     }
 
     public record CreateGroupRequest(String code, String name) {}
@@ -103,6 +108,18 @@ public class ApprovalGroupController {
         return memberRepo.findByGroupIdOrderByUsername(id);
     }
 
+    /**
+     * Adds one approver to the group.
+     *
+     * <p>The username is checked against Keycloak before it is stored. It used
+     * to be persisted verbatim — any string at all was accepted — and the
+     * consequence is quiet rather than loud: a member row that matches no real
+     * login is a seat in the approval chain that nobody can ever fill. The
+     * request sits PENDING, waiting for an approver who cannot exist, and
+     * nothing in the UI says so. Keycloak is the right authority here because
+     * it is the same identity the approval path matches on — WorkflowService
+     * compares these usernames against the authenticated principal's name.
+     */
     @PostMapping("/{id}/members")
     @PreAuthorize(SecurityRoles.WRITE_HR_ADMIN_ONLY)
     public ApprovalGroupMember addMember(@PathVariable UUID id, @RequestBody AddMemberRequest req) {
@@ -111,11 +128,27 @@ public class ApprovalGroupController {
         // Verify group exists
         get(id);
 
+        String username = req.username() == null ? "" : req.username().trim();
+        if (username.isEmpty()) {
+            throw new BadRequestException("A username is required.");
+        }
+        if (keycloak.findUserIdByUsername(username).isEmpty()) {
+            throw new BadRequestException(
+                    "No user account named '" + username + "' exists. An approval group "
+                            + "member must be someone who can sign in, or the approvals "
+                            + "routed to this group can never be actioned.");
+        }
+        boolean already = memberRepo.findByGroupIdOrderByUsername(id).stream()
+                .anyMatch(m -> username.equalsIgnoreCase(m.getUsername()));
+        if (already) {
+            throw new BadRequestException("'" + username + "' is already a member of this group.");
+        }
+
         ApprovalGroupMember member = new ApprovalGroupMember();
         member.setId(UUID.randomUUID());
         member.setTenantId(TenantContext.current());
         member.setGroupId(id);
-        member.setUsername(req.username());
+        member.setUsername(username);
         member.setCreatedAt(OffsetDateTime.now());
         member.setCreatedBy(currentUser);
 
