@@ -10,6 +10,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import az.millers.hcm.config.plan.PlanLimitGate;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -26,6 +28,22 @@ public class ApiExceptionHandler {
     // Login lockout moved to Keycloak's built-in brute-force protection
     // when the OIDC swap landed (milestone 19). The exception handler
     // that previously translated AccountLockedException → 429 is gone.
+
+    /**
+     * A plan ceiling was hit. 403 (not 400): the request is well-formed, the
+     * tenant's edition simply doesn't permit it. {@code code} lets the SPA show
+     * an upgrade prompt instead of a validation error.
+     */
+    @ExceptionHandler(PlanLimitGate.PlanLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handlePlanLimit(
+            PlanLimitGate.PlanLimitExceededException ex) {
+        Map<String, Object> payload = baseBody(HttpStatus.FORBIDDEN, ex.getMessage());
+        payload.put("code", "PLAN_LIMIT_EXCEEDED");
+        payload.put("plan", ex.plan().name());
+        payload.put("limit", ex.limit());
+        payload.put("current", ex.current());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(payload);
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {

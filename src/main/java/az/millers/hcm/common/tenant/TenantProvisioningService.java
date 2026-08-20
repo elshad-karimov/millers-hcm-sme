@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import az.millers.hcm.config.plan.Plan;
+
 /**
  * Provisions a new tenant (multi-tenancy Phase 4).
  *
@@ -40,7 +42,7 @@ public class TenantProvisioningService {
         this.registry = registry;
     }
 
-    public record ProvisionResult(String tenantId, Map<String, Integer> referenceCounts) {}
+    public record ProvisionResult(String tenantId, String plan, Map<String, Integer> referenceCounts) {}
 
     /**
      * Create a tenant, clone reference data from {@code seedFromTenant}, and
@@ -49,7 +51,7 @@ public class TenantProvisioningService {
      */
     @Transactional
     public ProvisionResult provision(String tenantId, String name, String issuerUri,
-                                     String realm, String seedFromTenant, String actor) {
+                                     String realm, String seedFromTenant, Plan plan, String actor) {
         if (tenants.existsById(tenantId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tenant already exists: " + tenantId);
         }
@@ -58,6 +60,10 @@ public class TenantProvisioningService {
         }
 
         Tenant tenant = new Tenant(tenantId, name, issuerUri, realm);
+        // The plan IS the enabled-module seed: no disabled_modules row is
+        // written at provisioning time, so the tenant starts with everything its
+        // edition entitles it to and switches modules off only if it wants to.
+        tenant.setPlan(plan != null ? plan : Plan.defaultPlan());
         tenant.setCreatedBy(actor);
         tenant.setUpdatedBy(actor);
         tenants.save(tenant);
@@ -69,8 +75,9 @@ public class TenantProvisioningService {
         // Make the new issuer trusted + resolvable right away.
         registry.refresh();
 
-        log.info("Provisioned tenant '{}' (realm={}, issuer={}) by {}; reference rows {}",
-                tenantId, realm, issuerUri, actor, counts.values().stream().mapToInt(Integer::intValue).sum());
-        return new ProvisionResult(tenantId, counts);
+        log.info("Provisioned tenant '{}' (realm={}, issuer={}, plan={}) by {}; reference rows {}",
+                tenantId, realm, issuerUri, tenant.getPlan(), actor,
+                counts.values().stream().mapToInt(Integer::intValue).sum());
+        return new ProvisionResult(tenantId, tenant.getPlan().name(), counts);
     }
 }
