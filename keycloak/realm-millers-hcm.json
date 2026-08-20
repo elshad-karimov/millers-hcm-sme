@@ -10,15 +10,12 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-
   "passwordPolicy": "length(12) and digits(1) and upperCase(1) and lowerCase(1) and specialChars(1) and notUsername(undefined) and passwordHistory(3)",
-
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyDigits": 6,
   "otpPolicyPeriod": 30,
   "otpPolicyLookAheadWindow": 1,
-
   "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 900,
@@ -27,27 +24,42 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 900,
   "failureFactor": 5,
-
   "accessTokenLifespan": 3600,
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 36000,
-
   "roles": {
     "realm": [
-      { "name": "SYSTEM_ADMIN",       "description": "Full administrative access" },
-      { "name": "HR_ADMIN",           "description": "HR administrator — approve/manage all HR" },
-      { "name": "HR_SPECIALIST",      "description": "HR specialist — submit / first-line approve" },
-      { "name": "AUDITOR",            "description": "Read-only auditor access" },
-      { "name": "DEPARTMENT_MANAGER", "description": "Line manager — approve team requests" },
-      { "name": "EMPLOYEE",           "description": "Self-service only" }
+      {
+        "name": "SYSTEM_ADMIN",
+        "description": "Full administrative access"
+      },
+      {
+        "name": "HR_ADMIN",
+        "description": "HR administrator — approve/manage all HR"
+      },
+      {
+        "name": "HR_SPECIALIST",
+        "description": "HR specialist — submit / first-line approve"
+      },
+      {
+        "name": "AUDITOR",
+        "description": "Read-only auditor access"
+      },
+      {
+        "name": "DEPARTMENT_MANAGER",
+        "description": "Line manager — approve team requests"
+      },
+      {
+        "name": "EMPLOYEE",
+        "description": "Self-service only"
+      }
     ]
   },
-
   "clients": [
     {
       "clientId": "hcm-web",
       "name": "Millers HCM Web (SPA)",
-      "baseUrl": "http://localhost:5181/",
+      "baseUrl": "https://hcm-sme.millers-software.com/",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -60,10 +72,12 @@
         "post.logout.redirect.uris": "http://localhost:5181/*##http://127.0.0.1:5181/*"
       },
       "redirectUris": [
+        "https://hcm-sme.millers-software.com/*",
         "http://localhost:5181/*",
         "http://127.0.0.1:5181/*"
       ],
       "webOrigins": [
+        "https://hcm-sme.millers-software.com",
         "http://localhost:5181",
         "http://127.0.0.1:5181"
       ],
@@ -78,7 +92,6 @@
       ]
     }
   ],
-
   "users": [
     {
       "username": "admin",
@@ -88,9 +101,16 @@
       "lastName": "Admin",
       "email": "admin@millers.example",
       "credentials": [
-        { "type": "password", "value": "Admin#Pass123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Admin#Pass123!",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["SYSTEM_ADMIN", "HR_ADMIN"]
+      "realmRoles": [
+        "SYSTEM_ADMIN",
+        "HR_ADMIN"
+      ]
     },
     {
       "username": "hrspec",
@@ -100,9 +120,15 @@
       "lastName": "Mammadov",
       "email": "hrspec@millers.example",
       "credentials": [
-        { "type": "password", "value": "HRspec#2026!", "temporary": false }
+        {
+          "type": "password",
+          "value": "HRspec#2026!",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["HR_SPECIALIST"]
+      "realmRoles": [
+        "HR_SPECIALIST"
+      ]
     },
     {
       "username": "employee",
@@ -112,9 +138,15 @@
       "lastName": "Aliyeva",
       "email": "employee@millers.example",
       "credentials": [
-        { "type": "password", "value": "Employee#123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Employee#123!",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["EMPLOYEE"]
+      "realmRoles": [
+        "EMPLOYEE"
+      ]
     },
     {
       "username": "manager",
@@ -124,9 +156,16 @@
       "lastName": "Aliyev",
       "email": "manager@millers.example",
       "credentials": [
-        { "type": "password", "value": "Manager#123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Manager#123!",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["DEPARTMENT_MANAGER", "EMPLOYEE"]
+      "realmRoles": [
+        "DEPARTMENT_MANAGER",
+        "EMPLOYEE"
+      ]
     },
     {
       "username": "mfauser",
@@ -136,10 +175,18 @@
       "lastName": "Demo",
       "email": "mfa-demo@millers.example",
       "credentials": [
-        { "type": "password", "value": "Mfa#Demo123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Mfa#Demo123!",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["EMPLOYEE"],
-      "requiredActions": ["CONFIGURE_TOTP"]
+      "realmRoles": [
+        "EMPLOYEE"
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ]
     }
   ]
 }
