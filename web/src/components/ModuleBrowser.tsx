@@ -29,7 +29,16 @@ export function ModuleBrowser({
   const { disabled: disabledModules } = useEnabledModules()
 
   const cats = useMemo(
-    () => CATEGORIES.filter((c) => (!c.roles || hasRole(...c.roles)) && !disabledModules.has(c.key)),
+    () =>
+      CATEGORIES.filter(
+        (c) =>
+          (!c.roles || hasRole(...c.roles)) &&
+          !disabledModules.has(c.key) &&
+          // A category whose every screen is hidden would otherwise render as a
+          // tab with two empty columns under it. Benefits is exactly that once
+          // Allowances goes, and any module could become it after a plan change.
+          [...c.apps, ...c.quick].some((t) => !isHiddenScreen(t.to)),
+      ),
     [hasRole, disabledModules],
   )
   // Hide any tile whose owning module is off for this tenant — `needs` when the

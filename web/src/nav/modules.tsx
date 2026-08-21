@@ -195,8 +195,13 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   '/leave/blackouts',
   // Staff loans and advances — not part of this payroll.
   '/payroll/advances', '/payroll/loans', '/payroll/loan-types', '/payroll/loan-requests',
-  // Benefits administration. Only Allowances is kept: it is where the lunch,
-  // transport, hardship and MEWA amounts live.
+  // Benefits administration, including Allowances — which is not merely unused
+  // but a hazard here. An EmployeeAllowance is a FLAT MONTHLY amount that
+  // PayrollEngine adds straight to gross, while this customer's meal and
+  // transport are per-day rates driven by the timesheet and already priced by
+  // payroll.time_pay_rule (12.00 and 10.00 AZN per day). Assigning the seeded
+  // MEAL or TRANSPORT type would pay both, silently, on the payslip.
+  '/compbenefits/allowances',
   '/compbenefits/benefits', '/compbenefits/bonus-runs', '/compbenefits/matrix',
   '/compbenefits/salary-planning', '/compbenefits/comp-planning',
   // BI layer. The standard reports and the custom report builder cover what is
