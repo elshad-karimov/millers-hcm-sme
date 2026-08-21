@@ -21,6 +21,18 @@
         <java.version>21</java.version>
         <minio.version>8.5.13</minio.version>
         <lombok.version>1.18.38</lombok.version>
+        <!--
+          Spring Boot 3.4.1 pins byte-buddy 1.15.11, which cannot instrument
+          classes on JDK 25 — every Mockito mock of a CONCRETE class dies with
+          "Could not modify all classes". The project targets Java 21, but
+          developers here run a JDK 25 toolchain, so the suite went red on
+          tests that mock concrete collaborators (KeycloakAdminService,
+          EmployeeHistoryService, AccessScopeService, …).
+
+          Bumping byte-buddy is the fix; rewriting those tests to hand-written
+          stubs would be working around the toolchain instead of repairing it.
+        -->
+        <byte-buddy.version>1.17.6</byte-buddy.version>
     </properties>
 
     <dependencies>
