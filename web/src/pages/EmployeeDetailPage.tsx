@@ -74,6 +74,8 @@ import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
 import { countryName } from '../config/countries'
 import { HIDDEN_PROFILE_TABS } from '../config/hiddenProfileTabs'
 import { leaveApi, type LeaveBalance, type LeaveType } from '../api/leave'
+import { leaveGroupsApi, type LeaveGroup } from '../api/leaveGroups'
+import { payrollGroupsApi, type PayrollGroup } from '../api/payrollGroups'
 // M169 — employee document management
 import {
   employeeDocumentsApi,
@@ -198,6 +200,14 @@ export function EmployeeDetailPage() {
   const [statusModal, setStatusModal] = useState(false)
   const [newStatus, setNewStatus] = useState<EmploymentStatus | undefined>()
   const [reason, setReason] = useState('')
+  // The profile printed a raw UUID for every reference it held: the line
+  // manager, the prior employee row, three approvers and two groups. Nobody can
+  // read a UUID. Both maps resolve id → display name; anything unresolved falls
+  // back to the id, so a reference the caller is not scoped to see (ABAC hides
+  // it as a 404) still renders rather than vanishing.
+  const [refNames, setRefNames] = useState<Record<string, string>>({})
+  const [groupNames, setGroupNames] = useState<Record<string, string>>({})
+
   const [rehireModal, setRehireModal] = useState(false)
   const [rehireDate, setRehireDate] = useState<string>('')
   const [rehireReason, setRehireReason] = useState('')
@@ -248,9 +258,20 @@ export function EmployeeDetailPage() {
       // the whole profile.
       leaveApi.balances({ employeeId: id }).catch(() => []),
       leaveApi.types(true).catch(() => []),
+      // Both lists are small and are read only to turn the group ids on the
+      // employment tab into the names people actually use. Appended at the end
+      // so the positional destructure below keeps its existing slots.
+      leaveGroupsApi.list().catch(() => [] as LeaveGroup[]),
+      // activeOnly=false: an employee can still sit on a group that was since
+      // deactivated, and that assignment should read as a name, not a UUID.
+      payrollGroupsApi.list(false).catch(() => [] as PayrollGroup[]),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps, bals, ltypes]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps, bals, ltypes, lgroups, pgroups]) => {
         setEmployee(emp)
+        setGroupNames({
+          ...Object.fromEntries(lgroups.map((g) => [g.id, g.name])),
+          ...Object.fromEntries(pgroups.map((g) => [g.id, g.name])),
+        })
         setLeaveBalances(bals)
         setLeaveTypes(ltypes)
         setAudit(log)
@@ -288,6 +309,36 @@ export function EmployeeDetailPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  /**
+   * Resolve the handful of employee references on the profile to names.
+   *
+   * There is no bulk name-lookup endpoint, so this fetches each referenced id
+   * once — at most five, usually one or two, and only the ones not already
+   * cached. A failed lookup caches the id as its own "name" so a reference the
+   * caller cannot see is not retried on every render.
+   */
+  useEffect(() => {
+    if (!employee) return
+    const referenced = [
+      employee.managerId,
+      employee.previousEmployeeId,
+      employee.timesheetApproverId,
+      employee.expenseApproverId,
+      employee.hrTimesheetVerifierId,
+    ].filter((v): v is string => !!v)
+    const missing = [...new Set(referenced)].filter((r) => !(r in refNames))
+    if (missing.length === 0) return
+    Promise.all(
+      missing.map((r) =>
+        employeesApi
+          .get(r)
+          .then(({ firstName, lastName, employeeNo }) =>
+            [r, `${firstName} ${lastName} (${employeeNo})`] as const)
+          .catch(() => [r, r] as const),
+      ),
+    ).then((pairs) => setRefNames((prev) => ({ ...prev, ...Object.fromEntries(pairs) })))
+  }, [employee, refNames])
 
   // ── Column definitions per tab ────────────────────────────────────────────
 
@@ -724,6 +775,16 @@ export function EmployeeDetailPage() {
     </Descriptions>
   )
 
+  /** Employee reference → a clickable name, falling back to the raw id. */
+  const personRef = (refId?: string | null) =>
+    refId ? <Link to={`/employees/${refId}`}>{refNames[refId] ?? refId}</Link> : null
+
+  /** Group reference → its name; null means the tenant default applies. */
+  const groupRef = (groupId?: string | null) =>
+    groupId
+      ? (groupNames[groupId] ?? groupId)
+      : <span style={{ opacity: 0.5 }}>default</span>
+
   const employmentFacts = (
     <Descriptions column={2} bordered size="small">
       <Descriptions.Item label="Hire date">{employee.hireDate}</Descriptions.Item>
@@ -739,26 +800,25 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Department">{employee.departmentName ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Position">{employee.positionTitle ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Cost centre">{employee.costCentre ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Manager ID">{employee.managerId ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Leave group">{employee.leaveGroupId ?? 'default'}</Descriptions.Item>
+      <Descriptions.Item label="Manager">{personRef(employee.managerId) ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Leave group">{groupRef(employee.leaveGroupId)}</Descriptions.Item>
       <Descriptions.Item label="Payroll group">
-        {employee.payrollGroupId ?? 'default'}
+        {groupRef(employee.payrollGroupId)}
       </Descriptions.Item>
-      <Descriptions.Item label="Matrix manager">
-        {employee.matrixManagerId ?? '—'}
-      </Descriptions.Item>
-      <Descriptions.Item label="Functional manager">
-        {employee.functionalManagerId ?? '—'}
-      </Descriptions.Item>
+      {/*
+        Matrix manager and functional manager removed. Both are documented in
+        EmployeeRequest as informational and "not consumed by workflow engine",
+        neither is on the create form, and neither has a column in the customer's
+        workbook — so they printed a UUID nothing routes on. The fields stay on
+        the API and the record; only the profile stops showing them.
+      */}
       <Descriptions.Item label="Rehire eligible">
         {employee.rehireEligible === false
           ? <Tag color="red">NO</Tag>
           : <Tag color="green">YES</Tag>}
       </Descriptions.Item>
       <Descriptions.Item label="Previous employee">
-        {employee.previousEmployeeId
-          ? <Link to={`/employees/${employee.previousEmployeeId}`}>{employee.previousEmployeeId}</Link>
-          : '—'}
+        {personRef(employee.previousEmployeeId) ?? '—'}
       </Descriptions.Item>
       <Descriptions.Item label="Position (local)">
         {employee.positionTitleLocal ?? '—'}
@@ -804,19 +864,15 @@ export function EmployeeDetailPage() {
     <Descriptions column={2} bordered size="small">
       {/* Null approver = routes to the line manager; say so rather than showing a dash. */}
       <Descriptions.Item label="Timesheet approver">
-        {employee.timesheetApproverId
-          ? <Link to={`/employees/${employee.timesheetApproverId}`}>{employee.timesheetApproverId}</Link>
-          : <span style={{ opacity: 0.5 }}>= line manager</span>}
+        {personRef(employee.timesheetApproverId)
+          ?? <span style={{ opacity: 0.5 }}>= line manager</span>}
       </Descriptions.Item>
       <Descriptions.Item label="Expense approver">
-        {employee.expenseApproverId
-          ? <Link to={`/employees/${employee.expenseApproverId}`}>{employee.expenseApproverId}</Link>
-          : <span style={{ opacity: 0.5 }}>= line manager</span>}
+        {personRef(employee.expenseApproverId)
+          ?? <span style={{ opacity: 0.5 }}>= line manager</span>}
       </Descriptions.Item>
       <Descriptions.Item label="HR timesheet verifier">
-        {employee.hrTimesheetVerifierId
-          ? <Link to={`/employees/${employee.hrTimesheetVerifierId}`}>{employee.hrTimesheetVerifierId}</Link>
-          : '—'}
+        {personRef(employee.hrTimesheetVerifierId) ?? '—'}
       </Descriptions.Item>
     </Descriptions>
   )
