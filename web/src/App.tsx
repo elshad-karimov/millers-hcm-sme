@@ -178,6 +178,7 @@ import { PoliciesAdminPage } from './pages/PoliciesAdminPage'
 import { LegalEntitiesPage } from './pages/LegalEntitiesPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { HrPartnersPage } from './pages/HrPartnersPage'
+import { DepartmentsPage } from './pages/DepartmentsPage'
 import { OrgUnitTypesPage } from './pages/OrgUnitTypesPage'
 import HrServiceQueuePage from './pages/HrServiceQueuePage'
 import AnnouncementsPage from './pages/AnnouncementsPage'
@@ -331,6 +332,7 @@ export default function App() {
         <Route path="organization/hr-partners" element={<HrPartnersPage />} />
         {/* M143 — configurable org unit types */}
         <Route path="organization/unit-types" element={<OrgUnitTypesPage />} />
+        <Route path="organization/departments" element={<DepartmentsPage />} />
         {/* M147 — org unit documents + expiry */}
         <Route path="organization/documents" element={<OrgUnitDocumentsPage />} />
 

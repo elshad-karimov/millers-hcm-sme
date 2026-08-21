@@ -93,7 +93,7 @@ export const CATEGORIES: Category[] = [
     apps: [t('Employees','/employees','team'), t('Personal Info Changes','/personal-info-changes','appstore')] },
   { key: 'core-hr-organization', label: 'Organization', roles: HR,
     quick: [t('New Org Unit','/organization/units/new','org')],
-    apps: [t('Org Structure','/organization','org'), t('Bulk Reorg','/organization/bulk-reorg','org'), t('Org Unit Documents','/organization/documents','org'), t('HR Partners','/organization/hr-partners','org'), t('Legal Entities','/organization/legal-entities','org'), t('Locations','/organization/locations','org'), t('Org Unit Types','/organization/unit-types','org')] },
+    apps: [t('Departments','/organization/departments','org'), t('Org Structure','/organization','org'), t('Bulk Reorg','/organization/bulk-reorg','org'), t('Org Unit Documents','/organization/documents','org'), t('HR Partners','/organization/hr-partners','org'), t('Legal Entities','/organization/legal-entities','org'), t('Locations','/organization/locations','org'), t('Org Unit Types','/organization/unit-types','org')] },
   { key: 'core-hr-staffing-positions', label: 'Staffing & Positions', roles: HR,
     quick: [t('New Position','/positions/new','solution')],
     apps: [t('Positions','/positions','solution'), t('Position Control','/positions/control','solution'), t('Position Variance','/positions/variance','solution'), t('Staffing Tables','/staffing-tables','solution'), t('Workforce Plans','/workforce-plans','solution')] },
@@ -173,6 +173,7 @@ export const CATEGORIES: Category[] = [
       t('New Position','/positions/new','solution','core-hr-staffing-positions'),
     ],
     apps: [
+      t('Departments','/organization/departments','org','core-hr-organization'),
       t('Org Structure','/organization','org','core-hr-organization'),
       t('Org Unit Types','/organization/unit-types','org','core-hr-organization'),
       t('Legal Entities','/organization/legal-entities','bank','core-hr-organization'),

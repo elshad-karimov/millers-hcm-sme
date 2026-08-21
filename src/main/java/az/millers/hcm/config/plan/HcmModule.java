@@ -48,6 +48,8 @@ public enum HcmModule {
 
     CORE_HR_ORGANIZATION("core-hr-organization", "Organization", false,
             "/api/org", "/api/org-unit-types", "/api/locations", "/api/legal-entities",
+            // The department list is the org structure, read and edited flat.
+            "/api/departments",
             "/api/hr-partners", "/api/reports/org", "/api/reports/span-of-control"),
 
     CORE_HR_STAFFING_POSITIONS("core-hr-staffing-positions", "Staffing & Positions", false,

@@ -41,6 +41,7 @@ export const SCREEN_DESCRIPTIONS: Readonly<Record<string, string>> = {
 
   // ── Organization ──────────────────────────────────────────────────────────
   '/organization/units/new': 'Create a department or team',
+  '/organization/departments': 'The department list the employee screen picks from',
   '/organization': 'The department structure and who sits where',
   '/organization/legal-entities': 'The companies employees are contracted to',
   '/organization/locations': 'Offices, yards and vessels people work at',

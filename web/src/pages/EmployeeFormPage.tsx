@@ -33,7 +33,7 @@ import {
 import { COUNTRY_OPTIONS } from '../config/countries'
 import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
-import { orgApi } from '../api/org'
+import { departmentsApi } from '../api/departments'
 import { positionsApi } from '../api/positions'
 import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
@@ -183,12 +183,11 @@ export function EmployeeFormPage() {
         setLocationOptions(locs.map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` }))))
       .catch(() => {/* non-critical */})
 
-    // Departments come from the ACTIVE structure version — a draft
-    // reorganisation must not offer units that do not exist yet.
-    orgApi.active()
-      .then((v) => (v ? orgApi.units(v.id) : []))
-      .then((units) =>
-        setOrgUnits(units.map((u) => ({ value: u.id, label: `${u.code} — ${u.name}` }))))
+    // Departments come from the department master, which is the active
+    // structure read flat. Maintained under Master Data > Departments.
+    departmentsApi.list()
+      .then((deps) =>
+        setOrgUnits(deps.map((d) => ({ value: d.id, label: `${d.code} — ${d.name}` }))))
       .catch(() => {/* master unavailable — the picker just stays empty */})
 
     positionsApi.list({ size: 500 })
@@ -492,7 +491,7 @@ export function EmployeeFormPage() {
           <Form.Item
             name="orgUnitId"
             label="Department"
-            tooltip="From the org structure. Add a missing one under Master Data > Org Structure."
+            tooltip="From the department master. Add a missing one under Master Data > Departments."
           >
             <Select
               allowClear
