@@ -15,7 +15,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import az.millers.hcm.attendance.domain.DailySummary;
 import az.millers.hcm.attendance.repo.DailySummaryRepository;
@@ -102,6 +105,19 @@ public class TimesheetApprovalService {
     private final AuditService audit;
     private final CurrentRequest currentRequest;
 
+    /**
+     * Runs one unit of work in its own transaction.
+     *
+     * <p>A TransactionTemplate rather than {@code @Transactional} on a second
+     * method: that annotation only takes effect through the bean's proxy, and
+     * {@code this.method()} does not go through it — the propagation would be
+     * silently inert, which is exactly the bug being fixed. Routing around that
+     * needs a self-reference, and a self-reference risks the application
+     * failing to start; this project has no context test that would catch it
+     * before a deploy. The template has no such failure mode.
+     */
+    private final TransactionTemplate inOwnTransaction;
+
     public TimesheetApprovalService(WorkflowService workflowService,
                                    TimesheetRepository timesheets,
                                     TimesheetDayRepository days,
@@ -114,7 +130,11 @@ public class TimesheetApprovalService {
                                     TimesheetCorrectionService corrections,
                                     AccessScopeService accessScope,
                                     AuditService audit,
-                                    CurrentRequest currentRequest) {
+                                    CurrentRequest currentRequest,
+                                    PlatformTransactionManager transactionManager) {
+        this.inOwnTransaction = new TransactionTemplate(transactionManager);
+        this.inOwnTransaction.setPropagationBehavior(
+                TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.workflowService = workflowService;
         this.timesheets = timesheets;
         this.days = days;
@@ -401,31 +421,63 @@ public class TimesheetApprovalService {
      * silently dropped — a bulk action that quietly does less than asked is how
      * unapproved months reach a locked period.
      */
-    @Transactional
+    /**
+     * Deliberately NOT {@code @Transactional}. Each month is approved in its
+     * own transaction — see {@link #approveOneForBulk(UUID, String)}.
+     *
+     * <p>This method used to be transactional, and the per-item catch below
+     * could not do its job because of it: a failure anywhere marks the
+     * surrounding transaction rollback-only, and catching the exception does
+     * not clear that mark. The loop would carry on, record its skip reasons,
+     * and then the commit would fail with UnexpectedRollbackException — a 500
+     * in which nothing at all was approved and the manager was told nothing
+     * about which month was at fault or why. One bad timesheet silently voided
+     * the whole batch.
+     */
     public BulkApproveResult bulkApprove(List<UUID> ids, String comment) {
         List<UUID> approved = new ArrayList<>();
         Map<String, String> skipped = new LinkedHashMap<>();
 
         for (UUID id : ids == null ? List.<UUID>of() : ids) {
             try {
-                Timesheet ts = actionable(id);
-                if (blockingCount(ts) > 0) {
-                    skipped.put(id.toString(), "Has blocking validation issues — review it individually.");
-                    continue;
+                String skipReason = inOwnTransaction.execute(
+                        status -> approveOneForBulk(id, comment));
+                if (skipReason == null) {
+                    approved.add(id);
+                } else {
+                    skipped.put(id.toString(), skipReason);
                 }
-                if (returnedDayCount(ts) > 0) {
-                    skipped.put(id.toString(), "Has days returned for correction.");
-                    continue;
-                }
-                approve(id, new ApproveRequest(comment));
-                approved.add(id);
             } catch (RuntimeException e) {
+                // Now genuinely per-item: that month's transaction rolled back
+                // on its own and the ones already approved are untouched.
                 skipped.put(id.toString(), e.getMessage());
             }
         }
         audit.record(MODULE, ENTITY, "bulk", "MANAGER_BULK_APPROVE", null,
                 Map.of("approved", approved.size(), "skipped", skipped.size()));
         return new BulkApproveResult(approved, skipped);
+    }
+
+    /**
+     * Approves one month inside its own transaction.
+     *
+     * <p>Its own transaction is the whole point: a month that fails must roll
+     * back alone, leaving the months already approved committed and the batch
+     * free to continue. The caller wraps this in
+     * {@link #inOwnTransaction}.
+     *
+     * @return null when approved, or the reason it was skipped
+     */
+    private String approveOneForBulk(UUID id, String comment) {
+        Timesheet ts = actionable(id);
+        if (blockingCount(ts) > 0) {
+            return "Has blocking validation issues — review it individually.";
+        }
+        if (returnedDayCount(ts) > 0) {
+            return "Has days returned for correction.";
+        }
+        approve(id, new ApproveRequest(comment));
+        return null;
     }
 
     // ---------- Guards ----------
