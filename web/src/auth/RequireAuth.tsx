@@ -1,6 +1,6 @@
 import { Spin, Typography } from 'antd'
 import { useEffect, type ReactNode } from 'react'
-import { useAuth } from './AuthContext'
+import { isSigningOut, useAuth } from './AuthContext'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading, login } = useAuth()
@@ -8,8 +8,12 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   // Once Keycloak init has finished and the user is still unauthenticated,
   // hand off to Keycloak's hosted login page. The redirect-back lands on
   // the same SPA route and finishes the OIDC handshake.
+  //
+  // Except while signing out: "no user" is the expected state then, and
+  // redirecting to login would supersede the logout navigation and silently
+  // sign the user straight back in.
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !isSigningOut()) {
       login()
     }
   }, [loading, user, login])
