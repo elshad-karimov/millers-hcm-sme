@@ -81,9 +81,13 @@ export const CATEGORIES: Category[] = [
       t('Incidents','/ehs/incidents','safety','health-safety'),
       t('Notification Preferences','/my/notifications','bell'),
     ] },
+  /* Approvals Inbox lives here, not under a workflow category: the person who
+     acts on an approval is a manager, and this edition has no workflow admin
+     surface for it to sit beside.  `needs` keeps it gated by the module that
+     owns /api/workflow, so tenant module settings still apply. */
   { key: 'manager-self-service', label: 'Manager Self-Service', roles: MGR,
-    quick: [t('Timesheet Approvals','/manager/timesheets','apartment'), t('My Team','/my/team','team'), t('Manager Analytics','/manager/analytics','chart')],
-    apps: [t('Timesheet Approvals','/manager/timesheets','apartment','time-attendance'), t('My Team','/my/team','team'), t('Manager Analytics','/manager/analytics','chart'), t('Movement Requests','/manager/movements','appstore'), t('Presence Map','/presence','clock'), t('Career','/career','rocket','core-hr-employee-management')] },
+    quick: [t('Approvals Inbox','/inbox','apartment','workflow-approvals'), t('Timesheet Approvals','/manager/timesheets','apartment'), t('My Team','/my/team','team'), t('Manager Analytics','/manager/analytics','chart')],
+    apps: [t('Approvals Inbox','/inbox','apartment','workflow-approvals'), t('Timesheet Approvals','/manager/timesheets','apartment','time-attendance'), t('My Team','/my/team','team'), t('Manager Analytics','/manager/analytics','chart'), t('Movement Requests','/manager/movements','appstore'), t('Presence Map','/presence','clock'), t('Career','/career','rocket','core-hr-employee-management')] },
   { key: 'core-hr-employee-management', label: 'Employee Management', roles: HR,
     quick: [t('New Employee','/employees/new','team'), t('New Personal Info Request','/personal-info/request','appstore')],
     apps: [t('Employees','/employees','team'), t('Personal Info Changes','/personal-info-changes','appstore')] },
@@ -147,9 +151,14 @@ export const CATEGORIES: Category[] = [
   { key: 'reports-analytics', label: 'Reports & Analytics', roles: INSIGHT,
     quick: [t('Reports','/reports','chart'), t('Custom Report Builder','/reports/custom','chart'), t('Executive Summary','/analytics/executive','chart')],
     apps: [t('HR Overview','/home/overview','chart'), t('Reports','/reports','chart'), t('Report Schedules','/reports/schedules','calendar'), t('Custom Report Builder','/reports/custom','chart'), t('Labor Cost Report','/reports/labor-cost','dollar'), t('Employee Management Reports','/reports/emp-mgmt','team'), t('Span Of Control','/reports/span-of-control','org'), t('Org Native Reports','/reports/org','org'), t('Activity Feed','/activity','chart'), t('KPI Definitions','/analytics/kpis','trophy'), t('My Dashboards','/analytics/dashboards','chart'), t('Executive Summary','/analytics/executive','chart'), t('Attrition Risk','/analytics/attrition-risk','chart')] },
+  /* Both remaining tiles are in HIDDEN_SCREENS, so this category renders nowhere
+     in THIS edition — the entry stays so the two routes keep their module
+     attribution (the deep-link guard and search read it from here) and so the
+     enterprise board is one exclusion-list line away.  The Approvals Inbox moved
+     to Manager Self-Service. */
   { key: 'workflow-approvals', label: 'Workflow & Approvals', roles: MGR,
-    quick: [t('Approvals Inbox','/inbox','apartment'), t('Workflow Definitions','/workflow/definitions','apartment'), t('Approval Groups','/workflow/approval-groups','apartment')],
-    apps: [t('Approvals Inbox','/inbox','apartment'), t('Workflow Definitions','/workflow/definitions','apartment'), t('Approval Groups','/workflow/approval-groups','apartment')] },
+    quick: [t('Workflow Definitions','/workflow/definitions','apartment'), t('Approval Groups','/workflow/approval-groups','apartment')],
+    apps: [t('Workflow Definitions','/workflow/definitions','apartment'), t('Approval Groups','/workflow/approval-groups','apartment')] },
   { key: 'platform-admin', label: 'Platform & Admin', roles: ADMIN,
     quick: [t('User Management','/admin/users','user'), t('Tenant Settings','/admin/settings','setting'), t('Integrations','/admin/integrations','api')],
     apps: [t('User Management','/admin/users','user'), t('Tenant Settings','/admin/settings','setting'), t('Permission Matrix','/admin/permission-matrix','key'), t('Notification Templates','/admin/notification-templates','bell'), t('Integrations','/admin/integrations','api'), t('API Keys','/admin/api-keys','key'), t('Ldap Sync','/admin/ldap','database'), t('Audit Log','/admin/audit-log','filetext'), t('Backups','/admin/backups','database'), t('Bi Export','/admin/bi-export','chart'), t('Warehouse Analytics','/admin/warehouse','database')] },
@@ -183,12 +192,23 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   '/attendance/reports', '/attendance/roster', '/attendance/schedules',
   '/attendance/schedules/new', '/attendance/shift-patterns', '/attendance/summary',
   '/attendance/variance', '/attendance/workspace',
-  // Onboarding / offboarding workflows and contingent labour. Joining and
-  // leaving are recorded through Contract Changes and Terminations instead.
+  // Employee Lifecycle — the whole category is off in this edition. Onboarding,
+  // offboarding and contingent labour were never used here, and the four
+  // screens that were still showing (Contract Changes, Notice Period Rules,
+  // Resignation Request, Terminations) are switched off too, so the category
+  // renders nowhere and its quick actions go with it. NOTE: nothing else took
+  // over recording a join or a leave — that is now done outside this UI. The
+  // routes and the lifecycle backend are untouched; a direct link still opens
+  // the screen, so putting the category back is a matter of deleting these
+  // entries.
   '/contingent/contractors', '/lifecycle/checklists', '/lifecycle/offboarding',
   '/lifecycle/offboarding/analytics', '/lifecycle/onboarding',
   '/lifecycle/onboarding/analytics', '/lifecycle/onboarding/my-team',
   '/lifecycle/onboarding/requests', '/mobility/assignments',
+  '/lifecycle/contract-changes', '/lifecycle/contract-changes/new',
+  '/lifecycle/offboarding/notice-period-rules',
+  '/lifecycle/offboarding/resignations', '/lifecycle/offboarding/resignations/new',
+  '/lifecycle/terminations', '/lifecycle/terminations/new',
   // Hourly "permission" absence. Vacation is the only absence type tracked.
   '/permission/requests', '/permission/requests/new', '/permission/types',
   '/permission/types/new', '/permission/balances',
@@ -216,6 +236,14 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   '/presence', // presence map is driven by clocking events
   // Admin integrations that have nothing behind them on this deployment.
   '/admin/ldap', '/admin/bi-export', '/admin/warehouse',
+  // Workflow configuration. Approvals here are fixed and short — a timesheet
+  // goes to the employee's manager, then to their named timesheet approver — so
+  // there is nothing for an HR user to author. Definitions stay seeded in
+  // migrations (the screen was read-only anyway) and approval GROUPS are for the
+  // pooled, many-approver routing this edition does not use. The Approvals Inbox
+  // itself is kept, listed under Manager Self-Service. This hides only the two
+  // config screens; the workflow ENGINE still runs every approval underneath.
+  '/workflow/definitions', '/workflow/approval-groups',
 ])
 
 /** Whether a screen is switched off for this edition. See {@link HIDDEN_SCREENS}. */

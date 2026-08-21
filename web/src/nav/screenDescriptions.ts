@@ -45,6 +45,8 @@ export const SCREEN_DESCRIPTIONS: Readonly<Record<string, string>> = {
   '/organization/legal-entities': 'The companies employees are contracted to',
   '/organization/locations': 'Offices, yards and vessels people work at',
   '/organization/unit-types': 'The kinds of unit your structure is built from',
+  '/positions': 'The list of jobs employees can be assigned to',
+  '/positions/new': 'Add a job title employees can be assigned to',
 
   // ── Employee lifecycle ────────────────────────────────────────────────────
   '/lifecycle/contract-changes/new': 'Move someone to a new manager, position or salary',

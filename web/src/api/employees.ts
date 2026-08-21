@@ -64,6 +64,10 @@ export interface Employee {
   /** M61 / P1-09 — FTE percentage (0..100); only applied for non-salaried types */
   ftePercent: number
   departmentName?: string | null
+  // Master-data ids behind the department/position names. The API has
+  // always returned them; the employee form now picks by id.
+  orgUnitId?: string | null
+  positionId?: string | null
   positionTitle?: string | null
   costCentre?: string | null
   managerId?: string | null

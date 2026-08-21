@@ -111,6 +111,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     @Query("select e.id from Employee e where e.employmentStatus = :status")
     java.util.List<UUID> findIdsByEmploymentStatus(EmploymentStatus status);
 
+    /**
+     * M330 — employees who name {@code approverId} as their timesheet approver.
+     * The timesheet queue reads this: a nominated approver is authority over
+     * these people's MONTHS without being anywhere in their reporting line.
+     */
+    @Query("select e.id from Employee e where e.timesheetApproverId = :approverId")
+    java.util.List<UUID> findIdsByTimesheetApproverId(UUID approverId);
+
     @Query("select e.id from Employee e where e.employmentStatus in :statuses")
     java.util.List<UUID> findIdsByEmploymentStatusIn(
             java.util.Collection<EmploymentStatus> statuses);

@@ -10,4 +10,7 @@ import az.millers.hcm.workflow.domain.WorkflowStep;
 public interface WorkflowStepRepository extends JpaRepository<WorkflowStep, UUID> {
 
     List<WorkflowStep> findByDefinitionIdOrderByStepOrderAsc(UUID definitionId);
+
+    /** M330 — definitions carrying a named-timesheet-approver step, for the inbox lookup. */
+    List<WorkflowStep> findByResolvesToTimesheetApproverTrue();
 }

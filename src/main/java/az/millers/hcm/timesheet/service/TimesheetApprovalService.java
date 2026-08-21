@@ -156,17 +156,24 @@ public class TimesheetApprovalService {
     @Transactional(readOnly = true)
     public List<QueueRow> queue(int year, int month, TimesheetStatus status) {
         Set<UUID> scope = accessScope.scopeOrNullForCurrentUser();
+        Set<UUID> nominated = nominatedEmployeeIds();
         Set<TimesheetStatus> wanted = status == null ? myStageStatuses() : Set.of(status);
 
         List<Timesheet> found;
         if (scope == null) {
             found = timesheets.findByPeriodYearAndPeriodMonthAndStatusIn(year, month, wanted);
-        } else if (scope.isEmpty()) {
-            return List.of();
         } else {
+            // M330 — a nominated timesheet approver is usually NOT in the
+            // subject's reporting line, so the hierarchy scope alone would hand
+            // them an empty queue and a 404 on the month they are appointed to
+            // check. Union the two; the filter below keeps the nomination
+            // narrow (their stage only, and timesheets only).
+            Set<UUID> visible = new java.util.HashSet<>(scope);
+            visible.addAll(nominated);
+            if (visible.isEmpty()) return List.of();
             found = timesheets
                     .findByPeriodYearAndPeriodMonthAndStatusInAndEmployeeIdInOrderByEmployeeIdAsc(
-                            year, month, wanted, scope);
+                            year, month, wanted, visible);
         }
 
         UUID self = currentEmployeeIdOrNull();
@@ -175,6 +182,11 @@ public class TimesheetApprovalService {
         return found.stream()
                 // A manager's own month never appears in their own queue.
                 .filter(t -> self == null || !t.getEmployeeId().equals(self))
+                // Someone visible ONLY by nomination sees that month once it
+                // reaches them — not while it is still with the manager.
+                .filter(t -> scope == null
+                        || scope.contains(t.getEmployeeId())
+                        || t.getStatus() == TimesheetStatus.PENDING_HR)
                 .map(t -> toQueueRow(t, employeeById.get(t.getEmployeeId())))
                 .toList();
     }
@@ -190,7 +202,10 @@ public class TimesheetApprovalService {
     private Set<TimesheetStatus> myStageStatuses() {
         Set<TimesheetStatus> out = new java.util.HashSet<>();
         out.add(TimesheetStatus.RETURNED);
-        if (HR_ROLES.stream().anyMatch(currentRequest::hasRole)) {
+        if (HR_ROLES.stream().anyMatch(currentRequest::hasRole)
+                // M330 — the second signature is the employee's NAMED timesheet
+                // approver, who may hold no HR role at all.
+                || !nominatedEmployeeIds().isEmpty()) {
             out.add(TimesheetStatus.PENDING_HR);
         }
         // Anyone who reaches this queue at all can act as an approver at stage 1
@@ -486,7 +501,13 @@ public class TimesheetApprovalService {
     private Timesheet accessible(UUID id) {
         Timesheet ts = timesheets.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Timesheet not found: " + id));
-        if (!accessScope.isAccessible(ts.getEmployeeId())) {
+        // M330 — nomination is access, but only to this employee's TIMESHEETS.
+        // It is not a scope widening: nothing else in the system reads it, so a
+        // named approver still cannot see the person's salary, documents or
+        // record. Without it the approver 404s on the very month the workflow
+        // is waiting for them to sign.
+        if (!accessScope.isAccessible(ts.getEmployeeId())
+                && !nominatedEmployeeIds().contains(ts.getEmployeeId())) {
             // 404 not 403: the queue must not confirm that a timesheet exists
             // for someone the caller may not see.
             throw new ResourceNotFoundException("Timesheet not found: " + id);
@@ -517,6 +538,16 @@ public class TimesheetApprovalService {
             return "This timesheet is " + ts.getStatus() + " — there is nothing to decide.";
         }
         return null;
+    }
+
+    /**
+     * M330 — the employees who name the caller as their timesheet approver.
+     * Empty for almost everyone, so the query is cheap and short-circuits.
+     */
+    private Set<UUID> nominatedEmployeeIds() {
+        UUID me = currentEmployeeIdOrNull();
+        if (me == null) return Set.of();
+        return Set.copyOf(employees.findIdsByTimesheetApproverId(me));
     }
 
     private UUID currentEmployeeIdOrNull() {

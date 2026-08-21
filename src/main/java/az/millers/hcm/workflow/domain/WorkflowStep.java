@@ -61,6 +61,19 @@ public class WorkflowStep {
     @Column(name = "resolves_to_hrbp", nullable = false)
     private boolean resolvesToHrbp;
 
+    /**
+     * M330 — when {@code true}, the approver is the subject employee's named
+     * timesheet approver ({@code core_hr.employee.timesheet_approver_id}).
+     *
+     * <p>Unlike {@link #resolvesToManager}, {@link #approverRole} is <em>not</em>
+     * additionally required: the nominated approver is a named individual who
+     * may hold no manager or HR role, and being that exact person is the
+     * stricter gate of the two. The step is skipped when nobody is named, or
+     * when the resolved approver already approved the previous step.
+     */
+    @Column(name = "resolves_to_timesheet_approver", nullable = false)
+    private boolean resolvesToTimesheetApprover;
+
     @Column(name = "sla_hours")
     private Integer slaHours;
 

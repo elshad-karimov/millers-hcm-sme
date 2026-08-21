@@ -72,6 +72,7 @@ import { Roles, RoleSets } from '../auth/roleSets'
 // M117 — per-employee field-change history (employment slices + status slices + audit diff)
 import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
 import { countryName } from '../config/countries'
+import { HIDDEN_PROFILE_TABS } from '../config/hiddenProfileTabs'
 import { leaveApi, type LeaveBalance, type LeaveType } from '../api/leave'
 // M169 — employee document management
 import {
@@ -204,6 +205,11 @@ export function EmployeeDetailPage() {
   // Single bulk loader — fires all reads in parallel, collects results into
   // state slots. Failures on optional tabs (e.g. health for non-OH viewers)
   // are swallowed so a 404 / 403 doesn't block the rest of the page.
+  //
+  // A tab hidden by HIDDEN_PROFILE_TABS skips its read rather than fetching
+  // rows nothing will render — the profile already makes ~30 calls per open.
+  // The slot stays in place because the results are destructured by position.
+  const shown = (tab: string) => !HIDDEN_PROFILE_TABS.has(tab)
   const load = () => {
     setLoading(true)
     Promise.all([
@@ -214,13 +220,15 @@ export function EmployeeDetailPage() {
       personalDetailsApi.listEmergencyContacts(id).catch(() => []),
       contractsApi.listForEmployee(id).catch(() => []),
       credentialsApi.listCertifications(id).catch(() => []),
-      canSeeHealth ? credentialsApi.getHealth(id).catch(() => null) : Promise.resolve(null),
+      canSeeHealth && shown('health')
+        ? credentialsApi.getHealth(id).catch(() => null) : Promise.resolve(null),
       // M137 — vaccinations: same role gate as health
-      canSeeHealth ? credentialsApi.listVaccinations(id).catch(() => []) : Promise.resolve([] as Vaccination[]),
+      canSeeHealth && shown('vaccinations')
+        ? credentialsApi.listVaccinations(id).catch(() => []) : Promise.resolve([] as Vaccination[]),
       canSeeDisciplinary ? disciplinaryApi.listForEmployee(id).catch(() => []) : Promise.resolve([]),
-      profileTabsApi.listDependents(id).catch(() => []),
-      profileTabsApi.listEducation(id).catch(() => []),
-      profileTabsApi.listExperience(id).catch(() => []),
+      shown('dependents') ? profileTabsApi.listDependents(id).catch(() => []) : Promise.resolve([]),
+      shown('education') ? profileTabsApi.listEducation(id).catch(() => []) : Promise.resolve([]),
+      shown('experience') ? profileTabsApi.listExperience(id).catch(() => []) : Promise.resolve([]),
       assetsNotesRewardsApi.listAssets(id).catch(() => []),
       assetsNotesRewardsApi.listNotes(id).catch(() => []),
       assetsNotesRewardsApi.listRewards(id).catch(() => []),
@@ -680,7 +688,6 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Marital status">
         {employee.maritalStatus ? tag(employee.maritalStatus) : '—'}
       </Descriptions.Item>
-      <Descriptions.Item label="Nationality">{employee.nationality ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Date of birth">{employee.birthDate ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="National ID">{employee.nationalId ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Personal email">{employee.email ?? '—'}</Descriptions.Item>
@@ -698,15 +705,16 @@ export function EmployeeDetailPage() {
       {/* M150 — workforce-register master data */}
       <Descriptions.Item label="External HR ID">{employee.externalHrId ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Full name (local)">{employee.fullNameLocal ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Badge QR">
-        <img
-          src={`/api/employees/${employee.id}/qr?size=120`}
-          alt={`QR code for ${employee.employeeNo}`}
-          width={120}
-          height={120}
-          style={{ display: 'block', border: '1px solid #f0f0f0' }}
-        />
-      </Descriptions.Item>
+      {/*
+        Badge QR removed. It rendered as a broken image for every user since it
+        went in: the <img> requests /api/employees/{id}/qr directly, and the
+        Bearer token is added by the axios interceptor in api/client.ts, which
+        a browser-issued image request never passes through — so the endpoint's
+        isAuthenticated() check 401s every time. This edition also hides
+        /attendance/devices, so there is no terminal to scan a badge with. The
+        endpoint and EmployeeQrCodeService are untouched; rendering it needs the
+        PNG fetched through the api client and shown as an object URL.
+      */}
       <Descriptions.Item label="Created">
         {new Date(employee.createdAt).toLocaleString()} by {employee.createdBy ?? '—'}
       </Descriptions.Item>
@@ -1331,7 +1339,10 @@ export function EmployeeDetailPage() {
    * — a group whose members are all withheld simply does not appear.
    */
   const pick = (...keys: string[]) =>
-    keys.map((k) => tabItems.find((t) => t.key === k)).filter(Boolean) as typeof tabItems
+    keys
+      .filter((k) => !HIDDEN_PROFILE_TABS.has(k))
+      .map((k) => tabItems.find((t) => t.key === k))
+      .filter(Boolean) as typeof tabItems
 
   const group = (facts: React.ReactNode, keys: string[]) => {
     const members = pick(...keys)

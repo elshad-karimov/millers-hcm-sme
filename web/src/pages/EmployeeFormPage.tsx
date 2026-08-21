@@ -33,6 +33,8 @@ import {
 import { COUNTRY_OPTIONS } from '../config/countries'
 import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
+import { orgApi } from '../api/org'
+import { positionsApi } from '../api/positions'
 import { EmployeePicker } from '../components/EmployeePicker'
 import { FormPageShell } from '../components/FormPageShell'
 
@@ -47,6 +49,8 @@ interface FormValues {
   birthDate?: dayjs.Dayjs
   hireDate: dayjs.Dayjs
   departmentName?: string
+  orgUnitId?: string
+  positionId?: string
   positionTitle?: string
   costCentre?: string
   // M141 — work location
@@ -125,6 +129,8 @@ const FIELD_TAB: Record<string, string> = {
   seniorityDate: 'job',
   employeeCategory: 'job',
   departmentName: 'job',
+  orgUnitId: 'job',
+  positionId: 'job',
   positionTitle: 'job',
   positionTitleLocal: 'job',
   positionClassification: 'job',
@@ -165,12 +171,30 @@ export function EmployeeFormPage() {
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('personal')
   const [locationOptions, setLocationOptions] = useState<{ value: string; label: string }[]>([])
+  // Master data behind the Department and Position pickers. PRD §6: both are
+  // lookups against a master, never free text — the workbook held 13 spellings
+  // of the department list and 89 position labels because they were typed.
+  const [orgUnits, setOrgUnits] = useState<{ value: string; label: string }[]>([])
+  const [positions, setPositions] = useState<{ value: string; label: string }[]>([])
 
   useEffect(() => {
     locationApi.list(true)
       .then((locs: LocationResponse[]) =>
         setLocationOptions(locs.map((l) => ({ value: l.id, label: `${l.code} — ${l.name}` }))))
       .catch(() => {/* non-critical */})
+
+    // Departments come from the ACTIVE structure version — a draft
+    // reorganisation must not offer units that do not exist yet.
+    orgApi.active()
+      .then((v) => (v ? orgApi.units(v.id) : []))
+      .then((units) =>
+        setOrgUnits(units.map((u) => ({ value: u.id, label: `${u.code} — ${u.name}` }))))
+      .catch(() => {/* master unavailable — the picker just stays empty */})
+
+    positionsApi.list({ size: 500 })
+      .then((page) =>
+        setPositions(page.content.map((x) => ({ value: x.id, label: `${x.code} — ${x.title}` }))))
+      .catch(() => {/* master unavailable — the picker just stays empty */})
   }, [])
 
   useEffect(() => {
@@ -190,6 +214,8 @@ export function EmployeeFormPage() {
           birthDate: e.birthDate ? dayjs(e.birthDate) : undefined,
           hireDate: dayjs(e.hireDate),
           departmentName: e.departmentName ?? undefined,
+          orgUnitId: e.orgUnitId ?? undefined,
+          positionId: e.positionId ?? undefined,
           positionTitle: e.positionTitle ?? undefined,
           costCentre: e.costCentre ?? undefined,
           workLocationId: e.workLocationId ?? undefined,
@@ -463,13 +489,46 @@ export function EmployeeFormPage() {
       </Row>
       <Row gutter={16}>
         <Col span={8}>
-          <Form.Item name="departmentName" label="Department" rules={[{ max: 160 }]}>
-            <Input />
+          <Form.Item
+            name="orgUnitId"
+            label="Department"
+            tooltip="From the org structure. Add a missing one under Master Data > Org Structure."
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="—"
+              optionFilterProp="label"
+              options={orgUnits}
+              onChange={(v: string) =>
+                // The name is stored alongside the id: reports, exports and the
+                // payroll files read departmentName, and it must not drift from
+                // the unit that was actually chosen.
+                form.setFieldsValue({
+                  departmentName: orgUnits.find((o) => o.value === v)?.label.split(' — ')[1],
+                })
+              }
+            />
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item name="positionTitle" label="Position" rules={[{ max: 160 }]}>
-            <Input />
+          <Form.Item
+            name="positionId"
+            label="Position"
+            tooltip="From the position master. Add a missing one under Master Data > Positions."
+          >
+            <Select
+              allowClear
+              showSearch
+              placeholder="—"
+              optionFilterProp="label"
+              options={positions}
+              onChange={(v: string) =>
+                form.setFieldsValue({
+                  positionTitle: positions.find((o) => o.value === v)?.label.split(' — ')[1],
+                })
+              }
+            />
           </Form.Item>
         </Col>
         <Col span={8}>

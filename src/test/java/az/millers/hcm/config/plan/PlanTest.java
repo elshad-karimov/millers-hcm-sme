@@ -17,6 +17,11 @@ class PlanTest {
                 HcmModule.MANAGER_SELF_SERVICE,
                 HcmModule.CORE_HR_EMPLOYEE_MANAGEMENT,
                 HcmModule.CORE_HR_ORGANIZATION,
+                // Added for the Position master alone: the employee screen picks
+                // Position from it instead of accepting free text, so
+                // /api/positions must answer rather than 403. The staffing
+                // screens that ride along are hidden in the nav.
+                HcmModule.CORE_HR_STAFFING_POSITIONS,
                 HcmModule.EMPLOYEE_LIFECYCLE,
                 HcmModule.TIME_ATTENDANCE,
                 HcmModule.LEAVE_ABSENCE,

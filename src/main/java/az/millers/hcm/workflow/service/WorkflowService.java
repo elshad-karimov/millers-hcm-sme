@@ -153,7 +153,13 @@ public class WorkflowService {
         // existence. Acts as the single guard for both
         // GET /api/workflow/instances/{id} and the action POST, which
         // calls this method as its first step (PRD 14.9).
-        if (!accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId())) {
+        //
+        // M330 — one narrow exemption: a named timesheet approver is authority
+        // over THIS instance without being in the subject's reporting line.
+        // Scoped to the instance whose current step resolves to the caller, so
+        // it grants no visibility of the employee's other workflows or records.
+        if (!accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId())
+                && !isNamedTimesheetApprover(i, currentEmployeeIdOrNull())) {
             throw new ResourceNotFoundException("Workflow instance not found: " + id);
         }
         return i;
@@ -219,6 +225,28 @@ public class WorkflowService {
                     .stream()
                     .filter(i -> accessScope.isUnrestricted() || isSystemAdmin
                             || accessScope.isWorkflowSubjectAccessible(i.getSubjectEntity(), i.getSubjectId()))
+                    .forEach(i -> merged.putIfAbsent(i.getId(), i));
+        }
+
+        // M330 — the named timesheet approver may hold none of the roles the
+        // query above filters on, so pull their queue by identity instead:
+        // pending instances of every definition that HAS a named-approver step,
+        // narrowed to the ones whose CURRENT step names me.
+        List<UUID> namedApproverDefs = steps.findByResolvesToTimesheetApproverTrue().stream()
+                .map(WorkflowStep::getDefinitionId)
+                .distinct()
+                .toList();
+        if (myEmpId != null && !namedApproverDefs.isEmpty()) {
+            instances.findByStatusAndDefinitionIdInOrderByInitiatedAtDesc(
+                            WorkflowStatus.PENDING, namedApproverDefs)
+                    .stream()
+                    // No accessScope gate here, deliberately: being named on the
+                    // employee's record IS the authority for this one row, and a
+                    // nominated approver often sits outside the subject's
+                    // reporting line (see get()). It widens nothing else — the
+                    // filter matches only instances whose current step resolves
+                    // to this caller.
+                    .filter(i -> isNamedTimesheetApprover(i, myEmpId))
                     .forEach(i -> merged.putIfAbsent(i.getId(), i));
         }
 
@@ -381,7 +409,7 @@ public class WorkflowService {
                 return i;
             }
             case APPROVE -> {
-                requireRole(myRoles, currentStep.getApproverRole(),
+                requireStepRole(myRoles, currentStep,
                         "You don't have the role required to approve this step ("
                                 + currentStep.getApproverRole() + ")");
                 requireResolvedApprover(i, currentStep, isAdmin,
@@ -413,7 +441,7 @@ public class WorkflowService {
                 return instances.save(i);
             }
             case REJECT -> {
-                requireRole(myRoles, currentStep.getApproverRole(),
+                requireStepRole(myRoles, currentStep,
                         "You don't have the role required to reject this step");
                 requireResolvedApprover(i, currentStep, isAdmin,
                         "Only the subject's direct manager can reject this step");
@@ -430,7 +458,7 @@ public class WorkflowService {
                 return saved;
             }
             case RETURN -> {
-                requireRole(myRoles, currentStep.getApproverRole(),
+                requireStepRole(myRoles, currentStep,
                         "You don't have the role required to return this step");
                 requireResolvedApprover(i, currentStep, isAdmin,
                         "Only the subject's direct manager can return this step");
@@ -448,7 +476,7 @@ public class WorkflowService {
             }
             case DELEGATE -> {
                 // M162: explicit hand-off to a named user (PRD §9.3).
-                requireRole(myRoles, currentStep.getApproverRole(),
+                requireStepRole(myRoles, currentStep,
                         "You don't have the role required to delegate this step");
                 requireResolvedApprover(i, currentStep, isAdmin,
                         "Only the current approver can delegate this step");
@@ -677,6 +705,7 @@ public class WorkflowService {
         java.util.Set<Integer> seen = new java.util.LinkedHashSet<>();
         for (WorkflowStep c : candidates) {
             if (seen.add(c.getStepOrder())) {
+                if (isRedundantNamedApproverStep(c, i)) continue;
                 if (c.getConditionSpel() == null || evaluateCondition(c.getConditionSpel(), i.getPayload())) {
                     return c;
                 }
@@ -684,6 +713,34 @@ public class WorkflowService {
             }
         }
         return null;
+    }
+
+    /**
+     * M330 — should a named-timesheet-approver step be passed over?
+     *
+     * <p>Two cases, both of which would otherwise strand or annoy the customer:
+     * <ul>
+     *   <li>Nobody named. Most employees here are signed off by their manager
+     *       alone; a step no one can act on would freeze the month.</li>
+     *   <li>The named approver is the person who just approved the previous
+     *       step — typically because the manager IS the timesheet approver.
+     *       Asking the same hand to sign twice is not a second approval, and
+     *       segregation of duties gains nothing from it.</li>
+     * </ul>
+     */
+    private boolean isRedundantNamedApproverStep(WorkflowStep candidate, WorkflowInstance i) {
+        if (!candidate.isResolvesToTimesheetApprover()) return false;
+        UUID approver = resolveSubjectTimesheetApproverId(i);
+        if (approver == null) {
+            log.debug("Skipping step {} — no timesheet approver named for the subject", candidate.getName());
+            return true;
+        }
+        if (approver.equals(currentEmployeeIdOrNull())) {
+            log.debug("Skipping step {} — the named approver just approved the previous step",
+                    candidate.getName());
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -741,6 +798,23 @@ public class WorkflowService {
         } catch (JsonProcessingException ex) {
             return "{\"_serializationError\":\"" + ex.getOriginalMessage() + "\"}";
         }
+    }
+
+    /**
+     * M330 — role gate for one step of an instance.
+     *
+     * <p>Identical to {@link #requireRole} except for a step that resolves to a
+     * NAMED timesheet approver, where the role check is skipped and
+     * {@link #requireResolvedApprover} carries the whole gate. That is a
+     * narrowing, not a loosening: the pooled role check admits everyone holding
+     * the role, while the identity check admits exactly the one person this
+     * employee's record nominates. A nominated approver is a named individual
+     * and may hold no manager or HR role at all, so requiring both would leave
+     * their queue permanently empty.
+     */
+    private void requireStepRole(List<String> myRoles, WorkflowStep step, String message) {
+        if (step.isResolvesToTimesheetApprover()) return;
+        requireRole(myRoles, step.getApproverRole(), message);
     }
 
     private void requireRole(List<String> myRoles, String required, String message) {
@@ -863,6 +937,41 @@ public class WorkflowService {
     }
 
     /**
+     * M330 — resolves the employee who should act on a step flagged
+     * {@code resolvesToTimesheetApprover}: the subject's named
+     * {@code timesheet_approver_id}, with the same single-hop delegation walk
+     * the manager path uses.
+     *
+     * <p>Returns {@code null} when the subject isn't employee-scoped or nobody
+     * is named. That is not an error — {@link #nextStepSkippingConditional}
+     * skips the step, so an employee with no separate approver is simply
+     * approved by their manager alone.
+     */
+    private UUID resolveSubjectTimesheetApproverId(WorkflowInstance i) {
+        return subjectResolver
+                .resolveEmployeeId(i.getSubjectEntity(), i.getSubjectId())
+                .flatMap(employees::findById)
+                .map(Employee::getTimesheetApproverId)
+                .flatMap(employees::findById)
+                .map(this::effectiveApprover)
+                .orElse(null);
+    }
+
+    /**
+     * M330 — true when the current step of {@code i} names {@code callerEmpId}
+     * as the subject's timesheet approver. Used both as an inbox filter and as
+     * the narrow ABAC exemption that lets a nominated approver who sits outside
+     * the caller's reporting line open the one instance addressed to them (and
+     * nothing else about that employee).
+     */
+    private boolean isNamedTimesheetApprover(WorkflowInstance i, UUID callerEmpId) {
+        if (callerEmpId == null) return false;
+        WorkflowStep step = currentStepFor(i);
+        if (step == null || !step.isResolvesToTimesheetApprover()) return false;
+        return callerEmpId.equals(resolveSubjectTimesheetApproverId(i));
+    }
+
+    /**
      * Inbox filter for manager- or HRBP-resolved steps. Returns true iff
      * the row should show up for the caller. Behaviour:
      * <ul>
@@ -885,6 +994,11 @@ public class WorkflowService {
             if (callerEmpId == null) return false;
             UUID expectedHrbp = resolveSubjectHrbpId(i);
             return expectedHrbp != null && expectedHrbp.equals(callerEmpId);
+        }
+        if (step.isResolvesToTimesheetApprover()) {
+            if (callerEmpId == null) return false;
+            UUID expected = resolveSubjectTimesheetApproverId(i);
+            return expected != null && expected.equals(callerEmpId);
         }
         return true;
     }
@@ -925,6 +1039,19 @@ public class WorkflowService {
             }
             if (!expectedHrbp.equals(currentEmployeeIdOrNull())) {
                 throw new BadRequestException(message);
+            }
+        } else if (step.isResolvesToTimesheetApprover()) {
+            // M330 — identity IS the gate here (see requireStepRole): a step
+            // that reaches this point with nobody named would otherwise be
+            // actionable by anyone, so an unresolved approver must throw.
+            UUID expected = resolveSubjectTimesheetApproverId(i);
+            if (expected == null) {
+                throw new BadRequestException(
+                        "This step requires a named timesheet approver but the employee has none assigned");
+            }
+            if (!expected.equals(currentEmployeeIdOrNull())) {
+                throw new BadRequestException(
+                        "Only the employee's named timesheet approver can act on this step");
             }
         }
     }

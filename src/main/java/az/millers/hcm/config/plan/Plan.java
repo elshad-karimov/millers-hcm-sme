@@ -29,6 +29,13 @@ public enum Plan {
             HcmModule.MANAGER_SELF_SERVICE,
             HcmModule.CORE_HR_EMPLOYEE_MANAGEMENT,
             HcmModule.CORE_HR_ORGANIZATION,
+            // Master data, not the staffing suite. The employee screen picks
+            // Position from this master instead of accepting free text, so
+            // /api/positions has to answer; without it the dropdown 403s. The
+            // heavyweight screens that come with the module (position control,
+            // variance, staffing tables, workforce plans) stay hidden in the
+            // nav — see HIDDEN_SCREENS.
+            HcmModule.CORE_HR_STAFFING_POSITIONS,
             HcmModule.EMPLOYEE_LIFECYCLE,
             HcmModule.TIME_ATTENDANCE,
             HcmModule.LEAVE_ABSENCE,

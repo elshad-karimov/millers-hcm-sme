@@ -26,6 +26,10 @@ public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstan
     /** M160 — Prometheus gauge: pending approval count. */
     long countByStatus(String status);
 
+    /** M330 — pending instances of the definitions that carry a named-approver step. */
+    List<WorkflowInstance> findByStatusAndDefinitionIdInOrderByInitiatedAtDesc(
+            WorkflowStatus status, java.util.Collection<UUID> definitionIds);
+
     /** M162 — instances explicitly delegated to a named user. */
     List<WorkflowInstance> findByStatusAndDelegatedToOrderByInitiatedAtDesc(
             WorkflowStatus status, String delegatedTo);
