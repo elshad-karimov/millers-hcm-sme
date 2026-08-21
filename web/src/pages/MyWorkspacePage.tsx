@@ -240,7 +240,7 @@ function Dashboard({
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card hoverable onClick={() => onJump('payslips')}>
+          <Card hoverable onClick={() => onJump('payroll')}>
             <Statistic
               title={t('kpi.latestPayslipNet')}
               value={summary.lastPayslipNet ?? 0}
@@ -258,6 +258,7 @@ function Dashboard({
       </Row>
 
       <Row gutter={16}>
+        {available('/learning/my') && (
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('learning')}>
             <Statistic title={t('kpi.certificates')} value={summary.certificatesHeld} />
@@ -270,6 +271,8 @@ function Dashboard({
             )}
           </Card>
         </Col>
+        )}
+        {available('/performance/reviews') && (
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('performance')}>
             <Statistic
@@ -279,6 +282,7 @@ function Dashboard({
             />
           </Card>
         </Col>
+        )}
         <Col xs={24} sm={12} md={12}>
           <Card title={t('profile.heading')} size="small">
             <Descriptions size="small" column={2}>
@@ -587,7 +591,18 @@ function TimesheetsTab() {
       title: '',
       width: 90,
       render: (_, r) => (
-        <Button size="small" onClick={() => navigate(`/timesheets/${r.id}`)}>
+        // /timesheets/:id is the attendance-generated summary, which this
+        // edition does not use — it shows clock-derived half-hours rather than
+        // the month the employee actually filled in. Their own grid is
+        // /my/timesheet, opened on the period of the row they clicked.
+        <Button
+          size="small"
+          onClick={() =>
+            navigate(
+              `/my/timesheet?period=${r.periodYear}-${String(r.periodMonth).padStart(2, '0')}`,
+            )
+          }
+        >
           Open
         </Button>
       ),
@@ -2156,7 +2171,7 @@ export function MyWorkspacePage() {
             .map(({ route: _route, ...tab }) => tab),
         ]}
       />
-      {summary.mandatoryCoursesPending > 0 && (
+      {available('/learning/my') && summary.mandatoryCoursesPending > 0 && (
         <Alert
           type="warning"
           style={{ marginTop: 16 }}
