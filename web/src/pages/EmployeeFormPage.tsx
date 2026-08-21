@@ -5,6 +5,7 @@ import {
   Button,
   Col,
   DatePicker,
+  Divider,
   Form,
   Input,
   InputNumber,
@@ -105,11 +106,11 @@ const FIELD_TAB: Record<string, string> = {
   birthCity: 'personal',
   birthAddress: 'personal',
   nationalId: 'personal',
-  email: 'contact',
-  phone: 'contact',
-  altPhone: 'contact',
-  workEmail: 'contact',
-  workPhone: 'contact',
+  email: 'personal',
+  phone: 'personal',
+  altPhone: 'personal',
+  workEmail: 'personal',
+  workPhone: 'personal',
   externalHrId: 'job',
   hireDate: 'job',
   seniorityDate: 'job',
@@ -136,7 +137,7 @@ const FIELD_TAB: Record<string, string> = {
   summarizedPeriodMethod: 'schedule',
 }
 
-const TAB_ORDER = ['personal', 'contact', 'job', 'approvals', 'schedule']
+const TAB_ORDER = ['personal', 'job', 'approvals', 'schedule']
 
 const LIST_PATH = '/employees'
 
@@ -339,11 +340,9 @@ export function EmployeeFormPage() {
           </Form.Item>
         </Col>
       </Row>
-    </>
-  )
-
-  const contactTab = (
-    <>
+      <Divider orientation="left" plain style={{ marginTop: 8 }}>
+        Contact
+      </Divider>
       <Row gutter={16}>
         <Col span={8}>
           <Form.Item
@@ -662,8 +661,7 @@ export function EmployeeFormPage() {
   // unmounts hidden tabs, which drops their values from the submitted payload
   // and skips their validation entirely.
   const tabItems = [
-    { key: 'personal', label: 'Personal', children: personalTab, forceRender: true },
-    { key: 'contact', label: 'Contact', children: contactTab, forceRender: true },
+    { key: 'personal', label: 'Personal & contact', children: personalTab, forceRender: true },
     { key: 'job', label: 'Job & organisation', children: jobTab, forceRender: true },
     { key: 'approvals', label: 'Approvals', children: approvalsTab, forceRender: true },
     { key: 'schedule', label: 'Work schedule', children: scheduleTab, forceRender: true },

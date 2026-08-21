@@ -5,6 +5,7 @@ import {
   Descriptions,
   Empty,
   Input,
+  InputNumber,
   Modal,
   Select,
   Space,
@@ -67,10 +68,11 @@ import {
 import { timelineApi, type TimelineEvent } from '../api/team'
 import { statusOverlayApi, type StatusOverlay } from '../api/statusOverlay'
 import { useAuth } from '../auth/AuthContext'
-import { RoleSets } from '../auth/roleSets'
+import { Roles, RoleSets } from '../auth/roleSets'
 // M117 — per-employee field-change history (employment slices + status slices + audit diff)
 import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
 import { countryName } from '../config/countries'
+import { leaveApi, type LeaveBalance, type LeaveType } from '../api/leave'
 // M169 — employee document management
 import {
   employeeDocumentsApi,
@@ -135,6 +137,14 @@ export function EmployeeDetailPage() {
   const { message } = AntdApp.useApp()
   const navigate = useNavigate()
   const canEdit = hasRole(...RoleSets.HR_TEAM_WRITE)
+  /**
+   * Setting salary is narrower than editing the employee: the server allows
+   * only SYSTEM_ADMIN and HR_ADMIN (SecurityRoles.WRITE_HR_ADMIN_ONLY on
+   * POST /payroll/compensation). An HR_SPECIALIST may edit the person but not
+   * their pay, so this must not reuse canEdit — that would show a button that
+   * 403s, and imply an authority they do not have.
+   */
+  const canSetSalary = hasRole(Roles.SYSTEM_ADMIN, Roles.HR_ADMIN)
   const canAudit = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR')
   const canSeeDisciplinary = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN', 'AUDITOR')
   const canSeeHealth = hasRole('HR_ADMIN', 'SYSTEM_ADMIN', 'OCCUPATIONAL_HEALTH')
@@ -170,6 +180,12 @@ export function EmployeeDetailPage() {
   const [costAllocations, setCostAllocations] = useState<CostAllocation[]>([])
   const [loans, setLoans] = useState<PayrollLoan[]>([])
   const [components, setComponents] = useState<SalaryComponent[]>([])
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
+  const [salaryModalOpen, setSalaryModalOpen] = useState(false)
+  const [salaryAmount, setSalaryAmount] = useState<number | undefined>(undefined)
+  const [salaryFrom, setSalaryFrom] = useState('')
+  const [salaryReason, setSalaryReason] = useState('')
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [selectedComponentId, setSelectedComponentId] = useState<string>()
   const [amountOverride, setAmountOverride] = useState<number>()
@@ -219,9 +235,16 @@ export function EmployeeDetailPage() {
       payrollApi.costAllocations(id).catch(() => []),
       payrollApi.loans({ employeeId: id }).catch(() => []),
       payrollApi.components().catch(() => []),
+      // Absence balance and salary belong on the person, not on a screen the
+      // user has to go and find — both fail soft so one outage cannot blank
+      // the whole profile.
+      leaveApi.balances({ employeeId: id }).catch(() => []),
+      leaveApi.types(true).catch(() => []),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps, bals, ltypes]) => {
         setEmployee(emp)
+        setLeaveBalances(bals)
+        setLeaveTypes(ltypes)
         setAudit(log)
         setIdentifications(ids)
         setAddresses(adrs)
@@ -1018,6 +1041,13 @@ export function EmployeeDetailPage() {
           <Card
             title="Compensation history"
             size="small"
+            extra={
+              canSetSalary && (
+                <Button size="small" type="primary" onClick={() => setSalaryModalOpen(true)}>
+                  Set monthly salary
+                </Button>
+              )
+            }
           >
             <Table
               rowKey="id"
@@ -1168,6 +1198,42 @@ export function EmployeeDetailPage() {
       ),
     })
   }
+
+  // The absence balance belongs with the person. Reading it used to mean
+  // leaving the profile for Leave & Absence > Leave Balances and finding the
+  // same employee again.
+  tabItems.push({
+    key: 'absenceBalance',
+    label: `Absence balance (${leaveBalances.length})`,
+    children: (
+      <Table
+        rowKey="id"
+        size="small"
+        dataSource={leaveBalances}
+        pagination={false}
+        locale={{ emptyText: <Empty description="No leave balance on file for this year" /> }}
+        columns={[
+          {
+            title: 'Leave type',
+            dataIndex: 'leaveTypeId',
+            render: (v: string) => leaveTypes.find((t) => t.id === v)?.name ?? v,
+          },
+          { title: 'Year', dataIndex: 'year', width: 80 },
+          { title: 'Entitled', dataIndex: 'entitlementDays', width: 100 },
+          { title: 'Carried fwd', dataIndex: 'carriedForwardDays', width: 120 },
+          { title: 'Adjustments', dataIndex: 'adjustmentDays', width: 115 },
+          { title: 'Used', dataIndex: 'usedDays', width: 80 },
+          { title: 'Reserved', dataIndex: 'reservedDays', width: 100 },
+          {
+            title: 'Remaining',
+            dataIndex: 'remainingDays',
+            width: 110,
+            render: (v: number) => <strong>{v}</strong>,
+          },
+        ]}
+      />
+    ),
+  })
 
   // M151 — itemised annual leave entitlement. Sits next to Compensation
   // because it answers the same kind of question: what is this number made of.
@@ -1357,6 +1423,72 @@ export function EmployeeDetailPage() {
             onChange={(e) => setRehireReason(e.target.value)}
             rows={3}
           />
+        </Space>
+      </Modal>
+
+      {/* Set monthly salary, without leaving the person for Payroll. */}
+      <Modal
+        title="Set monthly salary"
+        open={salaryModalOpen}
+        okText="Save"
+        onCancel={() => {
+          setSalaryModalOpen(false)
+          setSalaryAmount(undefined)
+          setSalaryFrom('')
+          setSalaryReason('')
+        }}
+        onOk={async () => {
+          if (salaryAmount == null || !salaryFrom) {
+            message.error('Amount and effective date are required')
+            return
+          }
+          try {
+            // Effective-dated: this appends to the salary history rather than
+            // overwriting the current figure, so a raise keeps its trail.
+            await payrollApi.setCompensation({
+              employeeId: employee.id,
+              monthlyBaseSalary: salaryAmount,
+              currency: 'AZN',
+              effectiveFrom: salaryFrom,
+              reason: salaryReason || undefined,
+            })
+            message.success('Salary saved')
+            setSalaryModalOpen(false)
+            setSalaryAmount(undefined)
+            setSalaryFrom('')
+            setSalaryReason('')
+            load()
+          } catch (err) {
+            message.error(
+              (err as { response?: { data?: { message?: string } } }).response?.data?.message
+                ?? 'Could not save the salary',
+            )
+          }
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <div style={{ marginBottom: 4 }}>Monthly base salary (AZN)</div>
+            <InputNumber
+              style={{ width: '100%' }}
+              min={0}
+              step={100}
+              value={salaryAmount}
+              onChange={(v: number | null) => setSalaryAmount(v ?? undefined)}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Effective from</div>
+            <Input type="date" value={salaryFrom} onChange={(e) => setSalaryFrom(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Reason (optional)</div>
+            <Input
+              value={salaryReason}
+              onChange={(e) => setSalaryReason(e.target.value)}
+              placeholder="e.g. annual review, promotion"
+            />
+          </div>
         </Space>
       </Modal>
 
