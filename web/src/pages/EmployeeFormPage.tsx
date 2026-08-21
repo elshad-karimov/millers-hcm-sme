@@ -313,7 +313,7 @@ export function EmployeeFormPage() {
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={24}>
+        <Col span={8}>
           {/* M150 — local-script legal name. Contracts and state filings need
               the patronymic form, which first/middle/last cannot rebuild. */}
           <Form.Item
@@ -325,8 +325,6 @@ export function EmployeeFormPage() {
             <Input placeholder="SURNAME Name Patronymic oğlu / qızı" />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
         <Col span={8}>
           <Form.Item name="gender" label="Gender">
             <Select allowClear placeholder="—" options={GENDERS} />
@@ -337,14 +335,14 @@ export function EmployeeFormPage() {
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
         </Col>
+      </Row>
+      <Row gutter={16}>
         <Col span={8}>
           <Form.Item name="nationalId" label="National ID" rules={[{ max: 64 }]}>
             <Input />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
-        <Col span={7}>
+        <Col span={8}>
           {/* V329 — birth place split into country / city / address. Country is
               a closed list (ISO 3166-1); city suggests Azerbaijani places but
               accepts anything typed, because people are born anywhere. */}
@@ -358,7 +356,7 @@ export function EmployeeFormPage() {
             />
           </Form.Item>
         </Col>
-        <Col span={7}>
+        <Col span={8}>
           <Form.Item name="birthCity" label="City of birth" rules={[{ max: 120 }]}>
             <AutoComplete
               allowClear
@@ -370,7 +368,9 @@ export function EmployeeFormPage() {
             />
           </Form.Item>
         </Col>
-        <Col span={10}>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
           <Form.Item name="birthAddress" label="Address of birth" rules={[{ max: 255 }]}>
             <Input placeholder="Village, district or street" />
           </Form.Item>
@@ -402,7 +402,7 @@ export function EmployeeFormPage() {
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={9}>
+        <Col span={8}>
           <Form.Item
             name="workEmail"
             label="Work email"
@@ -412,7 +412,7 @@ export function EmployeeFormPage() {
             <Input />
           </Form.Item>
         </Col>
-        <Col span={5}>
+        <Col span={8}>
           <Form.Item name="workPhone" label="Work phone" rules={[{ max: 32 }]}>
             <Input />
           </Form.Item>
@@ -572,9 +572,7 @@ export function EmployeeFormPage() {
             <InputNumber min={0} max={70} step={0.5} style={{ width: '100%' }} placeholder="e.g. 8.5" />
           </Form.Item>
         </Col>
-      </Row>
-      <Row gutter={16}>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="jobDescriptionStatus"
             label="Job description status"
@@ -745,7 +743,7 @@ export function EmployeeFormPage() {
         description="These are reproduced verbatim on contracts and orders. Actual worked time, overtime and absence are computed by Attendance from clock records — nothing here changes those calculations."
       />
       <Row gutter={16}>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="workScheduleText"
             label="Work schedule"
@@ -756,19 +754,19 @@ export function EmployeeFormPage() {
               onChange={(v: string) => applySchedule(v)} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={8}>
           <Form.Item name="workTimeText" label="Work time" rules={[{ max: 60 }]}>
             <Input readOnly title="Derived from the work schedule (PRD §6)." />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={8}>
           <Form.Item name="lunchTimeText" label="Lunch time" rules={[{ max: 60 }]}>
             <Input readOnly title="Derived from the work schedule (PRD §6)." />
           </Form.Item>
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="offshoreWorkScheduleText"
             label="Offshore work schedule"
@@ -779,7 +777,7 @@ export function EmployeeFormPage() {
               options={OFFSHORE_DAILY_SCHEDULES} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="summarizedPeriodMethod"
             label="Summarized working-time period"
