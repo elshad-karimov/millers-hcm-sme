@@ -159,6 +159,30 @@ export const CATEGORIES: Category[] = [
   { key: 'workflow-approvals', label: 'Workflow & Approvals', roles: MGR,
     quick: [t('Workflow Definitions','/workflow/definitions','apartment'), t('Approval Groups','/workflow/approval-groups','apartment')],
     apps: [t('Workflow Definitions','/workflow/definitions','apartment'), t('Approval Groups','/workflow/approval-groups','apartment')] },
+  /* Master data — the lists the rest of the system picks from. These screens
+     already exist inside Organization, Leave, Payroll and Time & Attendance,
+     where the people doing that job expect them; this collects them in one
+     place for whoever maintains them, the same way Timesheet Approvals is
+     listed under both Manager Self-Service and Time & Attendance.
+
+     Tiles keep the `needs` of the module that owns their data, so a master
+     still disappears if that module is switched off for the tenant. */
+  { key: 'master-data', label: 'Master Data', roles: ADMIN,
+    quick: [
+      t('New Org Unit','/organization/units/new','org','core-hr-organization'),
+      t('New Position','/positions/new','solution','core-hr-staffing-positions'),
+    ],
+    apps: [
+      t('Org Structure','/organization','org','core-hr-organization'),
+      t('Org Unit Types','/organization/unit-types','org','core-hr-organization'),
+      t('Legal Entities','/organization/legal-entities','bank','core-hr-organization'),
+      t('Locations','/organization/locations','global','core-hr-organization'),
+      t('Positions','/positions','solution','core-hr-staffing-positions'),
+      t('Timesheet Projects','/timesheets/projects','file','time-attendance'),
+      t('Leave Types','/leave/types','calendar','leave-absence'),
+      t('Leave Categories','/leave/categories','calendar','leave-absence'),
+      t('Salary Components','/payroll/components','dollar','payroll'),
+    ] },
   { key: 'platform-admin', label: 'Platform & Admin', roles: ADMIN,
     quick: [t('User Management','/admin/users','user'), t('Tenant Settings','/admin/settings','setting'), t('Integrations','/admin/integrations','api')],
     apps: [t('User Management','/admin/users','user'), t('Tenant Settings','/admin/settings','setting'), t('Permission Matrix','/admin/permission-matrix','key'), t('Notification Templates','/admin/notification-templates','bell'), t('Integrations','/admin/integrations','api'), t('API Keys','/admin/api-keys','key'), t('Ldap Sync','/admin/ldap','database'), t('Audit Log','/admin/audit-log','filetext'), t('Backups','/admin/backups','database'), t('Bi Export','/admin/bi-export','chart'), t('Warehouse Analytics','/admin/warehouse','database')] },
@@ -228,6 +252,11 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   // actually asked for; these are dashboards nobody has configured.
   '/analytics/executive', '/analytics/kpis', '/analytics/dashboards',
   '/analytics/attrition-risk', '/reports/span-of-control', '/reports/org', '/activity',
+  // The staffing suite arrives with the position module, which LITE now
+  // includes for the Position master alone. Position control, variance,
+  // staffing tables and workforce plans are a different job from keeping a
+  // list of positions, and nothing in the workbook needs them.
+  '/positions/control', '/positions/variance', '/staffing-tables', '/workforce-plans',
   // Org tooling beyond the structure itself.
   '/organization/bulk-reorg', '/organization/documents', '/organization/hr-partners',
   // Talent and position-movement surfaces whose owning modules are not in LITE,
