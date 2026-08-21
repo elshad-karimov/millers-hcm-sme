@@ -67,16 +67,22 @@ public class BudgetVarianceService {
         LocalDate start = cycle.getPeriodStart();
         LocalDate end = cycle.getPeriodEnd();
 
-        // Fetch actual payroll cost per org-unit within the cycle period
-        // payroll_result.gross_pay summed where payroll_run.period_start/end overlaps cycle period
+        // Actual payroll cost per org-unit within the cycle period.
+        //
+        // The amount is gross_amount, not gross_pay, and a payroll run has no
+        // period_start/period_end — its period is (period_year, period_month).
+        // So the overlap test becomes: the run's month falls inside the cycle's
+        // months. Both wrong names were in the same statement, and Postgres
+        // only reports the first, so fixing the column revealed the dates.
         String actualSql = """
-            SELECT e.org_unit_id, COALESCE(SUM(pr.gross_pay), 0) AS actual_cost
+            SELECT e.org_unit_id, COALESCE(SUM(pr.gross_amount), 0) AS actual_cost
             FROM payroll.payroll_result pr
             JOIN payroll.payroll_run prun ON prun.id = pr.run_id
             JOIN core_hr.employee e ON e.id = pr.employee_id
             WHERE e.tenant_id = :tenant
-              AND prun.period_end >= :start
-              AND prun.period_start <= :end
+              AND make_date(prun.period_year, prun.period_month, 1)
+                  BETWEEN date_trunc('month', CAST(:start AS date))
+                      AND date_trunc('month', CAST(:end AS date))
               AND e.org_unit_id IS NOT NULL
             GROUP BY e.org_unit_id
         """;

@@ -105,9 +105,13 @@ public class AttritionRiskService {
         // Factor 2: No salary change in last 24 months (+25)
         OffsetDateTime twoYearsAgo = OffsetDateTime.now().minusMonths(24);
         Long salaryChanges = jdbc.queryForObject(
-                "SELECT count(*) FROM compensation.salary_change " +
+                // Table is salary_change_request, and the decision timestamp is
+                // decided_at — there is no compensation.salary_change and no
+                // approved_at, so this threw and took the whole risk
+                // recompute down with it.
+                "SELECT count(*) FROM compensation.salary_change_request " +
                 "WHERE tenant_id = :tenant AND employee_id = :employeeId " +
-                "AND approved_at > :since AND status = 'APPROVED'",
+                "AND decided_at > :since AND status = 'APPROVED'",
                 new MapSqlParameterSource()
                         .addValue("tenant", TenantContext.current())
                         .addValue("employeeId", employeeId)
@@ -119,7 +123,27 @@ public class AttritionRiskService {
             factors.add("no_salary_change(24mo)");
         }
 
-        // Factor 3: Low engagement - latest non-anonymous survey response (+25)
+        // Factor 3: Low engagement (+25) — CURRENTLY INERT, ON PURPOSE.
+        //
+        // Both queries below are wrong in every column they name: the rating
+        // lives on survey_answer.rating_value, not survey_response.value;
+        // question_id is on the answer, not the response; the campaign and
+        // question join on template_id, not survey_template_id; and the
+        // timestamp is submitted_at, not created_at. They have therefore never
+        // returned anything — the catch swallows the exception at debug level,
+        // so this factor has silently contributed zero to every risk score
+        // since it was written.
+        //
+        // Not repaired here, because the last predicate cannot be repaired
+        // mechanically: `c.anonymous = false` filters to responses the employee
+        // knew were linkable, and there is no anonymity column on
+        // survey_campaign — the schema does not model the distinction at all.
+        // Dropping the filter would start scoring individuals on survey answers
+        // they may have given believing them anonymous, which is a decision
+        // about employee privacy, not a typo. Left inert until someone decides
+        // whether campaigns carry an anonymity flag; inert is the safe state,
+        // and is exactly what it already does today.
+        //
         // Only use linkable (non-anonymous) responses
         try {
             Integer latestRating = jdbc.queryForObject(
@@ -166,9 +190,21 @@ public class AttritionRiskService {
         // Factor 4: Org unit changed in last 6 months (+20)
         OffsetDateTime sixMonthsAgo = OffsetDateTime.now().minusMonths(6);
         Long orgChanges = jdbc.queryForObject(
-                "SELECT count(*) FROM core_hr.employee_history " +
-                "WHERE tenant_id = :tenant AND employee_id = :employeeId " +
-                "AND field_name = 'org_unit_id' AND changed_at > :since",
+                // There is no core_hr.employee_history, and no field_name/
+                // changed_at column anywhere: employment change is recorded as
+                // effective-dated SLICES in employee_employment_history, one row
+                // per state rather than one row per edited field. So an org-unit
+                // change is a slice whose org_unit_id differs from the slice
+                // before it, which is what the window function finds.
+                "SELECT count(*) FROM (" +
+                "  SELECT effective_from, org_unit_id, " +
+                "         lag(org_unit_id) OVER (ORDER BY effective_from) AS prev_org_unit_id " +
+                "  FROM core_hr.employee_employment_history " +
+                "  WHERE tenant_id = :tenant AND employee_id = :employeeId" +
+                ") s " +
+                "WHERE s.effective_from > :since " +
+                "  AND s.prev_org_unit_id IS NOT NULL " +
+                "  AND s.org_unit_id IS DISTINCT FROM s.prev_org_unit_id",
                 new MapSqlParameterSource()
                         .addValue("tenant", TenantContext.current())
                         .addValue("employeeId", employeeId)

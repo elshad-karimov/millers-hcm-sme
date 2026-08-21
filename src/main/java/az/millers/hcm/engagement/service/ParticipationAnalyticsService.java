@@ -65,7 +65,7 @@ public class ParticipationAnalyticsService {
 
         // Overall participation
         Long totalInvited = jdbc.queryForObject(
-                "SELECT count(DISTINCT employee_id) FROM core_hr.employee " +
+                "SELECT count(DISTINCT id) FROM core_hr.employee " +
                 "WHERE tenant_id = :tenant AND employment_status = 'ACTIVE'",
                 new MapSqlParameterSource("tenant", TenantContext.current()),
                 Long.class);
@@ -143,12 +143,12 @@ public class ParticipationAnalyticsService {
 
         // Get all open-text responses for this campaign
         List<String> openTextAnswers = jdbc.query(
-                "SELECT a.answer_text FROM engagement.survey_answer a " +
+                "SELECT a.text_value AS answer_text FROM engagement.survey_answer a " +
                 "JOIN engagement.survey_response r ON a.response_id = r.id " +
                 "JOIN engagement.survey_question q ON a.question_id = q.id " +
                 "WHERE r.campaign_id = :campaignId " +
                 "AND q.question_type IN ('TEXT_LONG', 'TEXT_SHORT') " +
-                "AND a.answer_text IS NOT NULL AND a.answer_text <> ''",
+                "AND a.text_value IS NOT NULL AND a.text_value <> ''",
                 new MapSqlParameterSource("campaignId", campaignId),
                 (rs, i) -> rs.getString("answer_text"));
 

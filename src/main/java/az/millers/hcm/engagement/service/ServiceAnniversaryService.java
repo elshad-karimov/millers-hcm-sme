@@ -62,7 +62,7 @@ public class ServiceAnniversaryService {
                    EXTRACT(YEAR FROM AGE(:today, e.hire_date)) AS years
             FROM core_hr.employee e
             WHERE e.tenant_id = :tenantId
-              AND e.status = 'ACTIVE'
+              AND e.employment_status = 'ACTIVE'
               AND EXTRACT(MONTH FROM e.hire_date) = EXTRACT(MONTH FROM :today::date)
               AND EXTRACT(DAY FROM e.hire_date) = EXTRACT(DAY FROM :today::date)
               AND EXTRACT(YEAR FROM AGE(:today, e.hire_date)) >= 1

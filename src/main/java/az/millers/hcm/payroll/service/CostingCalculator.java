@@ -145,9 +145,10 @@ public class CostingCalculator {
 
     private Map<String, Object> getEmployeeDetails(UUID employeeId) {
         String sql = """
-            SELECT position_id, grade_id
-            FROM core_hr.employee
-            WHERE id = :id AND tenant_id = :tenantId
+            SELECT e.position_id, p.grade_id
+            FROM core_hr.employee e
+            LEFT JOIN staffing.position p ON p.id = e.position_id
+            WHERE e.id = :id AND e.tenant_id = :tenantId
             """;
         return jdbc.queryForMap(sql,
             new MapSqlParameterSource()
@@ -157,7 +158,15 @@ public class CostingCalculator {
 
     private UUID getCostCenter(UUID employeeId) {
         try {
-            // Try to find cost center allocation (if table exists)
+            // NOT REPAIRED — deliberately. This asks for cost_center_id ordered
+            // by percentage; the table has cost_center_code (text) and
+            // allocation_pct. The column names are a trivial fix, the TYPE is
+            // not: getCostCenter returns a UUID and feeds
+            // allocation.setCostCenterId(UUID), so pointing it at a text code
+            // means changing what a costing allocation stores. That is a
+            // payroll data-model decision, not a typo, and payroll changes need
+            // sign-off here. The catch below already degrades this to null, so
+            // costing behaves today exactly as it has all along.
             String sql = """
                 SELECT cost_center_id FROM payroll.cost_center_allocation
                 WHERE employee_id = :employeeId AND tenant_id = :tenantId

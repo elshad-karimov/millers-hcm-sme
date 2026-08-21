@@ -51,7 +51,7 @@ public class AttritionForecastService {
             SELECT
                 e.org_unit_id AS org_unit_id,
                 COUNT(*) AS termination_count
-            FROM lifecycle.termination t
+            FROM lifecycle.termination_request t
             JOIN core_hr.employee e ON e.id = t.employee_id
             WHERE t.effective_date >= :start
               AND t.effective_date < :end

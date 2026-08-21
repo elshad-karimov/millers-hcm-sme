@@ -106,7 +106,9 @@ public class KpiValueService {
         // Use attendance.leave_request with status APPROVED, type not PLANNED (if type exists)
         // For simplicity, count leave days / (employees × working days)
         Long leaveDays = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(approved_days), 0) FROM attendance.leave_request " +
+                // leave_request is in leave_mgmt, not attendance, and the day count
+                // column is total_days — there is no approved_days.
+                "SELECT COALESCE(SUM(total_days), 0) FROM leave_mgmt.leave_request " +
                 "WHERE tenant_id = :tenant AND status = 'APPROVED' " +
                 "AND start_date >= current_date - interval '3 months'",
                 new MapSqlParameterSource("tenant", TenantContext.current()),
@@ -207,13 +209,24 @@ public class KpiValueService {
     }
 
     private BigDecimal timeToHireDays() {
-        // Median days from posting created to offer accepted in last 6 months
+        // Median days from posting created to hire, over the last 6 months.
+        //
+        // Named four things recruitment.application does not have: hired_at,
+        // stage, job_posting_id, and by extension any notion of a hire
+        // timestamp at all. The real columns are posting_id and
+        // created_employee_id — an application becomes a hire when it produces
+        // an employee row — so the end of the clock is that employee's
+        // hire_date. That is the standard reading of time-to-hire and the only
+        // one this schema can actually answer; there is no "offer accepted"
+        // timestamp to use instead.
         List<Long> days = jdbc.query(
-                "SELECT EXTRACT(EPOCH FROM (a.hired_at - jp.created_at))/(24*3600) AS days " +
+                "SELECT EXTRACT(EPOCH FROM (emp.hire_date::timestamp - jp.created_at))/(24*3600) AS days " +
                 "FROM recruitment.application a " +
-                "JOIN recruitment.job_posting jp ON a.job_posting_id = jp.id " +
-                "WHERE a.tenant_id = :tenant AND a.stage = 'HIRED' " +
-                "AND a.hired_at >= current_date - interval '6 months'",
+                "JOIN recruitment.job_posting jp ON a.posting_id = jp.id " +
+                "JOIN core_hr.employee emp ON emp.id = a.created_employee_id " +
+                "WHERE a.tenant_id = :tenant " +
+                "AND a.created_employee_id IS NOT NULL " +
+                "AND emp.hire_date >= current_date - interval '6 months'",
                 new MapSqlParameterSource("tenant", TenantContext.current()),
                 (rs, i) -> rs.getLong("days"));
 
