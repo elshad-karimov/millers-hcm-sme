@@ -6,6 +6,9 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import az.millers.hcm.common.JsonColumns;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +60,7 @@ public class LetterRequestService {
     private final AuditService audit;
     private final AccessScopeService scope;
     private final CurrentRequest currentRequest;
+    private final ObjectMapper objectMapper;
 
     public LetterRequestService(LetterRequestRepository requestRepo,
                                  LetterTemplateRepository templateRepo,
@@ -66,7 +70,8 @@ public class LetterRequestService {
                                  WorkflowService workflows,
                                  AuditService audit,
                                  AccessScopeService scope,
-                                 CurrentRequest currentRequest) {
+                                 CurrentRequest currentRequest,
+                                 ObjectMapper objectMapper) {
         this.requestRepo = requestRepo;
         this.templateRepo = templateRepo;
         this.employees = employees;
@@ -76,6 +81,7 @@ public class LetterRequestService {
         this.audit = audit;
         this.scope = scope;
         this.currentRequest = currentRequest;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -144,7 +150,7 @@ public class LetterRequestService {
         r.setEmployeeId(employee.getId());
         r.setTemplateId(template.getId());
         r.setPurpose(req.purpose());
-        r.setCustomFieldsJson(req.customFields());
+        r.setCustomFieldsJson(JsonColumns.toNode(objectMapper, req.customFields()));
         r.setStatus(template.isRequiresApproval() ? LetterStatus.PENDING : LetterStatus.ISSUED);
         r.setCreatedBy(currentRequest.username());
         r.setUpdatedBy(currentRequest.username());

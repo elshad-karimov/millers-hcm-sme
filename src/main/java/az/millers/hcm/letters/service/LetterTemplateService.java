@@ -3,6 +3,9 @@ package az.millers.hcm.letters.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import az.millers.hcm.common.JsonColumns;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,13 +32,16 @@ public class LetterTemplateService {
     private final LetterTemplateRepository repo;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
+    private final ObjectMapper objectMapper;
 
     public LetterTemplateService(LetterTemplateRepository repo,
                                   AuditService audit,
-                                  CurrentRequest currentRequest) {
+                                  CurrentRequest currentRequest,
+                                  ObjectMapper objectMapper) {
         this.repo = repo;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +110,7 @@ public class LetterTemplateService {
         t.setName(req.name());
         t.setDescription(req.description());
         t.setBody(req.body());
-        t.setPlaceholdersJson(req.placeholdersJson());
+        t.setPlaceholdersJson(JsonColumns.toNode(objectMapper, req.placeholdersJson()));
         t.setOutputFormat(req.outputFormat() == null
                 ? LetterOutputFormat.TEXT : req.outputFormat());
         if (req.requiresApproval() != null) t.setRequiresApproval(req.requiresApproval());

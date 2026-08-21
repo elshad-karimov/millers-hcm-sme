@@ -3,6 +3,7 @@ package az.millers.hcm.letters.domain;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -66,7 +67,7 @@ public class LetterTemplate {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "placeholders_json", columnDefinition = "jsonb")
-    private Object placeholdersJson;
+    private JsonNode placeholdersJson;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "output_format", nullable = false, length = 20)

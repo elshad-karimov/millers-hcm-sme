@@ -3,6 +3,7 @@ package az.millers.hcm.payroll.domain;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -66,7 +67,7 @@ public class PayrollGroup {
     /** Future rule overrides (e.g. jurisdiction-specific DSMF rates). */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "rules_json", columnDefinition = "jsonb")
-    private Object rulesJson;
+    private JsonNode rulesJson;
 
     @Column(nullable = false)
     private boolean active = true;

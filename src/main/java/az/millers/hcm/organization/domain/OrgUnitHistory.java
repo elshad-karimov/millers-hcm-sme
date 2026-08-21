@@ -3,6 +3,7 @@ package az.millers.hcm.organization.domain;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -49,11 +50,11 @@ public class OrgUnitHistory {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "before_value", columnDefinition = "jsonb")
-    private Object beforeValue;
+    private JsonNode beforeValue;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "after_value", columnDefinition = "jsonb")
-    private Object afterValue;
+    private JsonNode afterValue;
 
     @Column(name = "change_reason", columnDefinition = "text")
     private String changeReason;

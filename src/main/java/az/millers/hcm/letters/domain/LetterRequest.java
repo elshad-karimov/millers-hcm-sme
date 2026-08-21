@@ -3,6 +3,7 @@ package az.millers.hcm.letters.domain;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -52,7 +53,7 @@ public class LetterRequest {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "custom_fields_json", columnDefinition = "jsonb")
-    private Object customFieldsJson;
+    private JsonNode customFieldsJson;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

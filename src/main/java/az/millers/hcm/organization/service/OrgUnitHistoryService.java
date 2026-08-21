@@ -3,6 +3,9 @@ package az.millers.hcm.organization.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import az.millers.hcm.common.JsonColumns;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,11 +28,14 @@ public class OrgUnitHistoryService {
 
     private final OrgUnitHistoryRepository repo;
     private final CurrentRequest currentRequest;
+    private final ObjectMapper objectMapper;
 
     public OrgUnitHistoryService(OrgUnitHistoryRepository repo,
-                                  CurrentRequest currentRequest) {
+                                  CurrentRequest currentRequest,
+                                  ObjectMapper objectMapper) {
         this.repo = repo;
         this.currentRequest = currentRequest;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -39,8 +45,8 @@ public class OrgUnitHistoryService {
         h.setOrgUnitId(orgUnitId);
         h.setVersionId(versionId);
         h.setChangeKind(kind);
-        h.setBeforeValue(before);
-        h.setAfterValue(after);
+        h.setBeforeValue(JsonColumns.toNode(objectMapper, before));
+        h.setAfterValue(JsonColumns.toNode(objectMapper, after));
         h.setChangeReason(reason);
         h.setChangedBy(currentRequest.username());
         return repo.save(h);

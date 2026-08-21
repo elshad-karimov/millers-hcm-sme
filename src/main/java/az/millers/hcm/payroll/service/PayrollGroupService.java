@@ -3,6 +3,9 @@ package az.millers.hcm.payroll.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import az.millers.hcm.common.JsonColumns;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,17 +40,20 @@ public class PayrollGroupService {
     private final CurrentRequest currentRequest;
     private final OrgUnitPolicyService orgPolicies;
     private final StructureVersionRepository orgVersions;
+    private final ObjectMapper objectMapper;
 
     public PayrollGroupService(PayrollGroupRepository repo,
                                 AuditService audit,
                                 CurrentRequest currentRequest,
                                 OrgUnitPolicyService orgPolicies,
-                                StructureVersionRepository orgVersions) {
+                                StructureVersionRepository orgVersions,
+                                ObjectMapper objectMapper) {
         this.repo = repo;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.orgPolicies = orgPolicies;
         this.orgVersions = orgVersions;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -180,7 +186,7 @@ public class PayrollGroupService {
         g.setBankFileFormat(req.bankFileFormat() == null ? BankFileFormat.CSV : req.bankFileFormat());
         g.setDefaultCurrency(StringUtils.hasText(req.defaultCurrency())
                 ? req.defaultCurrency().toUpperCase() : "AZN");
-        g.setRulesJson(req.rulesJson());
+        g.setRulesJson(JsonColumns.toNode(objectMapper, req.rulesJson()));
         if (req.active() != null) g.setActive(req.active());
     }
 
