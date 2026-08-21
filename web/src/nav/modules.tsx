@@ -155,6 +155,67 @@ export const CATEGORIES: Category[] = [
     apps: [t('User Management','/admin/users','user'), t('Tenant Settings','/admin/settings','setting'), t('Permission Matrix','/admin/permission-matrix','key'), t('Notification Templates','/admin/notification-templates','bell'), t('Integrations','/admin/integrations','api'), t('API Keys','/admin/api-keys','key'), t('Ldap Sync','/admin/ldap','database'), t('Audit Log','/admin/audit-log','filetext'), t('Backups','/admin/backups','database'), t('Bi Export','/admin/bi-export','chart'), t('Warehouse Analytics','/admin/warehouse','database')] },
 ]
 
+/**
+ * Screens this edition does not show.
+ *
+ * The SME edition serves an oil-and-gas workforce whose HR data is a single
+ * spreadsheet: employee master data, monthly timesheets, leave entitlement and
+ * payroll. Whole modules outside that are already excluded by the LITE plan
+ * (Recruitment, Performance, Learning, …) and 403 server-side. What is left over
+ * are screens sitting INSIDE a module we keep, belonging to a way of working
+ * this customer does not have — clocking terminals, staff loans, onboarding
+ * workflows. Listing them was pure noise on the springboard.
+ *
+ * Kept as an exclusion list rather than deleting the tiles, for two reasons:
+ * this repo tracks the enterprise product on `upstream`, and deleted lines
+ * conflict on every sync; and a customer who later buys biometric terminals
+ * needs one line removed here, not a set of tiles reconstructed from memory.
+ *
+ * This hides screens from the springboard, search and favourites. It is NOT a
+ * security control — the routes still resolve if somebody types the URL. Role
+ * checks and the server-side module gate remain the real protection.
+ */
+export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
+  // Clocking. Attendance here is captured on monthly timesheets; there are no
+  // badge terminals, rosters or shift patterns anywhere in the source data.
+  '/attendance/corrections', '/attendance/devices', '/attendance/events',
+  '/attendance/exceptions', '/attendance/periods', '/attendance/policies',
+  '/attendance/reports', '/attendance/roster', '/attendance/schedules',
+  '/attendance/schedules/new', '/attendance/shift-patterns', '/attendance/summary',
+  '/attendance/variance', '/attendance/workspace',
+  // Onboarding / offboarding workflows and contingent labour. Joining and
+  // leaving are recorded through Contract Changes and Terminations instead.
+  '/contingent/contractors', '/lifecycle/checklists', '/lifecycle/offboarding',
+  '/lifecycle/offboarding/analytics', '/lifecycle/onboarding',
+  '/lifecycle/onboarding/analytics', '/lifecycle/onboarding/my-team',
+  '/lifecycle/onboarding/requests', '/mobility/assignments',
+  // Hourly "permission" absence. Vacation is the only absence type tracked.
+  '/permission/requests', '/permission/requests/new', '/permission/types',
+  '/permission/types/new', '/permission/balances',
+  '/leave/blackouts',
+  // Staff loans and advances — not part of this payroll.
+  '/payroll/advances', '/payroll/loans', '/payroll/loan-types', '/payroll/loan-requests',
+  // Benefits administration. Only Allowances is kept: it is where the lunch,
+  // transport, hardship and MEWA amounts live.
+  '/compbenefits/benefits', '/compbenefits/bonus-runs', '/compbenefits/matrix',
+  '/compbenefits/salary-planning', '/compbenefits/comp-planning',
+  // BI layer. The standard reports and the custom report builder cover what is
+  // actually asked for; these are dashboards nobody has configured.
+  '/analytics/executive', '/analytics/kpis', '/analytics/dashboards',
+  '/analytics/attrition-risk', '/reports/span-of-control', '/reports/org', '/activity',
+  // Org tooling beyond the structure itself.
+  '/organization/bulk-reorg', '/organization/documents', '/organization/hr-partners',
+  // Talent and position-movement surfaces whose owning modules are not in LITE,
+  // but which are listed under a module that is — so plan gating alone misses them.
+  '/career', '/me/career', '/manager/movements',
+  '/presence', // presence map is driven by clocking events
+  // Admin integrations that have nothing behind them on this deployment.
+  '/admin/ldap', '/admin/bi-export', '/admin/warehouse',
+])
+
+/** Whether a screen is switched off for this edition. See {@link HIDDEN_SCREENS}. */
+export const isHiddenScreen = (to: string): boolean => HIDDEN_SCREENS.has(to)
+
 /** A tile plus the module (category key) it belongs to. */
 export type IndexedTile = Tile & { module: string }
 

@@ -17,7 +17,7 @@ import { NotificationBell } from './NotificationBell'
 import { Navigator } from './Navigator'
 import { brand } from '../theme'
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher'
-import { ALL_TILES, icon, moduleOfRoute } from '../nav/modules'
+import { ALL_TILES, icon, isHiddenScreen, moduleOfRoute } from '../nav/modules'
 import { areaVisible } from '../nav/selfServiceAreas'
 import { useFavorites, useRecents } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
@@ -77,17 +77,23 @@ export function AppLayout() {
 
   const username = user?.username ?? ''
 
-  // Search + favorites exclude tiles from disabled modules.
+  // Search + favorites exclude tiles from disabled modules, and screens this
+  // edition does not show — otherwise a hidden screen is still one search away.
   const searchOptions = useMemo(
     () =>
-      ALL_TILES.filter((t) => !disabledModules.has(t.module) && areaVisible(t.to, disabledModules)).map(
-        (t) => ({ value: t.to, label: t.label }),
-      ),
+      ALL_TILES.filter(
+        (t) =>
+          !isHiddenScreen(t.to) &&
+          !disabledModules.has(t.module) &&
+          areaVisible(t.to, disabledModules),
+      ).map((t) => ({ value: t.to, label: t.label })),
     [disabledModules],
   )
 
   const favMenu: MenuProps = useMemo(() => {
-    const shown = favorites.filter((f) => !disabledModules.has(f.needs ?? moduleOfRoute(f.to) ?? ''))
+    const shown = favorites.filter(
+      (f) => !isHiddenScreen(f.to) && !disabledModules.has(f.needs ?? moduleOfRoute(f.to) ?? ''),
+    )
     return {
       items: shown.length
         ? shown.map((f) => ({ key: f.to, icon: icon(f.icon), label: f.label }))

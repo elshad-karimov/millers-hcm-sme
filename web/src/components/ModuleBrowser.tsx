@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { useNavigate } from 'react-router-dom'
 import { LeftOutlined, RightOutlined, StarFilled, StarOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
-import { CATEGORIES, icon, moduleOfRoute, type Tile } from '../nav/modules'
+import { CATEGORIES, icon, isHiddenScreen, moduleOfRoute, type Tile } from '../nav/modules'
 import { areaVisible } from '../nav/selfServiceAreas'
 import { useFavorites, useRecents } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
@@ -35,9 +35,12 @@ export function ModuleBrowser({
   // Hide any tile whose owning module is off for this tenant — `needs` when the
   // tile is borrowed from another module (Self-Service's "Pay and Payslips",
   // "Learning", …), otherwise the module its route belongs to.
+  // `isHiddenScreen` also covers Favourites and Recents below, so a screen
+  // somebody starred before it was switched off stops appearing too.
   const visible = (tiles: Tile[]) =>
     tiles.filter(
       (t) =>
+        !isHiddenScreen(t.to) &&
         areaVisible(t.to, disabledModules) &&
         !disabledModules.has(t.needs ?? moduleOfRoute(t.to) ?? ''),
     )
