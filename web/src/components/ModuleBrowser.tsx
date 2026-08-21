@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LeftOutlined, RightOutlined, StarFilled, StarOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
 import { CATEGORIES, icon, isHiddenScreen, moduleOfRoute, type Tile } from '../nav/modules'
+import { describeScreen } from '../nav/screenDescriptions'
 import { areaVisible } from '../nav/selfServiceAreas'
 import { useFavorites, useRecents } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
@@ -204,9 +205,18 @@ function AppTile({
       >
         {starred ? <StarFilled style={{ color: '#9DEE3A' }} /> : <StarOutlined style={{ color: 'rgba(255,255,255,0.5)' }} />}
       </button>
-      <span style={{ fontSize: 30, color: '#fff', lineHeight: 1 }}>{icon(tile.icon)}</span>
-      <span style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: 500, textAlign: 'center', lineHeight: 1.25 }}>
-        {tile.label}
+      <span style={{ fontSize: 24, color: '#fff', lineHeight: 1, flex: '0 0 auto', marginTop: 2 }}>
+        {icon(tile.icon)}
+      </span>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <span style={{ color: 'rgba(255,255,255,0.94)', fontSize: 15, fontWeight: 600, lineHeight: 1.25 }}>
+          {tile.label}
+        </span>
+        {describeScreen(tile.to) && (
+          <span style={{ color: 'rgba(255,255,255,0.62)', fontSize: 13, lineHeight: 1.35 }}>
+            {describeScreen(tile.to)}
+          </span>
+        )}
       </span>
     </div>
   )
@@ -276,7 +286,7 @@ const grid: CSSProperties = {
 }
 const appGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
   gap: 16,
 }
 const sectionLabel: CSSProperties = {
@@ -303,11 +313,14 @@ const quickRow: CSSProperties = {
 const appTile: CSSProperties = {
   position: 'relative',
   display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
+  // Icon beside the words, matching the self-service area boards — the same
+  // shape of card everywhere, so a screen reads the same wherever it is met.
+  flexDirection: 'row',
+  alignItems: 'flex-start',
   gap: 14,
-  aspectRatio: '1 / 0.92',
+  minHeight: 96,
+  // Right padding clears the absolutely-positioned favourite star.
+  padding: '16px 34px 16px 18px',
   background: 'rgba(255,255,255,0.10)',
   border: '1px solid rgba(255,255,255,0.14)',
   borderRadius: 14,
