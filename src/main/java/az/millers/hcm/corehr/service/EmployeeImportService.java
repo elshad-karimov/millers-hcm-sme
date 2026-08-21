@@ -333,7 +333,10 @@ public class EmployeeImportService {
                 trimmedString(row, idx.get("workTimeText")),
                 trimmedString(row, idx.get("lunchTimeText")),
                 trimmedString(row, idx.get("offshoreWorkScheduleText")),
-                trimmedString(row, idx.get("summarizedPeriodMethod")));
+                trimmedString(row, idx.get("summarizedPeriodMethod")),
+                // PRD §4 steps 4-5 — contract and pay are not captured on this
+                // path; it creates the person only.
+                null, null, null, null, null);
     }
 
     // ── Cell reading helpers ──────────────────────────────────────────────────

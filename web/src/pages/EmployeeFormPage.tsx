@@ -20,6 +20,16 @@ import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiErrorDuration, apiErrorMessage } from '../api/errors'
 import { CITY_OPTIONS } from '../config/cities'
+import {
+  CANDIDATE_SOURCES,
+  GENDERS,
+  JOB_DESCRIPTION_STATUSES,
+  OFFSHORE_DAILY_SCHEDULES,
+  POSITION_CLASSIFICATIONS,
+  TIME_ACCOUNTING_METHODS,
+  WORK_SCHEDULES,
+  WORK_SCHEDULE_DERIVED,
+} from '../config/employeeLovs'
 import { COUNTRY_OPTIONS } from '../config/countries'
 import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
@@ -71,18 +81,17 @@ interface FormValues {
   lunchTimeText?: string
   offshoreWorkScheduleText?: string
   summarizedPeriodMethod?: string
+  // PRD §4 steps 4-5 — captured during the hire
+  contractStartDate?: dayjs.Dayjs
+  contractEndDate?: dayjs.Dayjs
+  contractType?: string
+  monthlyBaseSalary?: number
+  salaryEffectiveFrom?: dayjs.Dayjs
 }
 
 
 // M150 — mirrors the EmployeeWorkType enum. Labels spell out what each one selects,
 // because the choice drives which compensation rate applies downstream.
-/** Gender is a fixed list — free text made it unusable for reporting. */
-const GENDERS = [
-  { value: 'Male', label: 'Male' },
-  { value: 'Female', label: 'Female' },
-  { value: 'Other', label: 'Other' },
-]
-
 const WORK_TYPES: { value: EmployeeWorkType; label: string }[] = [
   { value: 'ONSHORE', label: 'Onshore — base / city office' },
   { value: 'OFFSHORE', label: 'Offshore — offshore rate + rotation schedule' },
@@ -125,7 +134,7 @@ const FIELD_TAB: Record<string, string> = {
   workType: 'job',
   projectName: 'job',
   professionalExperienceYears: 'job',
-  sourceOfHire: 'job',
+  sourceOfHire: 'recruitment',
   jobDescriptionStatus: 'job',
   timesheetApproverId: 'approvals',
   expenseApproverId: 'approvals',
@@ -135,9 +144,14 @@ const FIELD_TAB: Record<string, string> = {
   lunchTimeText: 'schedule',
   offshoreWorkScheduleText: 'schedule',
   summarizedPeriodMethod: 'schedule',
+  contractStartDate: 'contract',
+  contractEndDate: 'contract',
+  contractType: 'contract',
+  monthlyBaseSalary: 'compensation',
+  salaryEffectiveFrom: 'compensation',
 }
 
-const TAB_ORDER = ['personal', 'job', 'approvals', 'schedule']
+const TAB_ORDER = ['personal', 'job', 'contract', 'compensation', 'schedule', 'approvals', 'recruitment']
 
 const LIST_PATH = '/employees'
 
@@ -225,6 +239,10 @@ export function EmployeeFormPage() {
       hireDate: v.hireDate.format('YYYY-MM-DD'),
       // M134 — seniority date, optional
       seniorityDate: v.seniorityDate?.format('YYYY-MM-DD'),
+      // PRD §4 — the contract and the opening salary travel with the hire.
+      contractStartDate: v.contractStartDate?.format('YYYY-MM-DD'),
+      contractEndDate: v.contractEndDate?.format('YYYY-MM-DD'),
+      salaryEffectiveFrom: v.salaryEffectiveFrom?.format('YYYY-MM-DD'),
     }
     try {
       if (editing) {
@@ -255,6 +273,24 @@ export function EmployeeFormPage() {
     const first = TAB_ORDER.find((t) => tabs.has(t))
     if (first) setActiveTab(first)
     message.error('Some required fields need attention — check the highlighted tab.')
+  }
+
+  /**
+   * PRD §9 — "Work Schedule → Work/Lunch/Offshore times: derive timing values
+   * from schedule master. Do not require user to type them independently."
+   *
+   * Only fills; never clears. A schedule with no mapping (legacy wording from
+   * the workbook) leaves whatever is already there rather than blanking a
+   * value someone entered deliberately.
+   */
+  const applySchedule = (schedule: string) => {
+    const derived = WORK_SCHEDULE_DERIVED[schedule]
+    if (!derived) return
+    form.setFieldsValue({
+      workTimeText: derived.workTime,
+      lunchTimeText: derived.lunchTime,
+      offshoreWorkScheduleText: derived.offshore,
+    })
   }
 
   const personalTab = (
@@ -467,7 +503,8 @@ export function EmployeeFormPage() {
             tooltip="Internal grade bucket — e.g. Specialist, Manager, Worker, Director. Free text: use your own taxonomy."
             rules={[{ max: 60 }]}
           >
-            <Input placeholder="e.g. Specialist" />
+            <Select allowClear showSearch placeholder="—" optionFilterProp="label"
+              options={POSITION_CLASSIFICATIONS} />
           </Form.Item>
         </Col>
         <Col span={8}>
@@ -535,16 +572,6 @@ export function EmployeeFormPage() {
             <InputNumber min={0} max={70} step={0.5} style={{ width: '100%' }} placeholder="e.g. 8.5" />
           </Form.Item>
         </Col>
-        <Col span={8}>
-          <Form.Item
-            name="sourceOfHire"
-            label="Source of hire"
-            tooltip="Recruitment channel this person came through. Populated automatically for hires made through Recruitment."
-            rules={[{ max: 80 }]}
-          >
-            <Input placeholder="e.g. Agency, Referral, Direct" />
-          </Form.Item>
-        </Col>
       </Row>
       <Row gutter={16}>
         <Col span={12}>
@@ -554,7 +581,8 @@ export function EmployeeFormPage() {
             tooltip="Whether a signed job description is on file. Compliance checklists read this."
             rules={[{ max: 120 }]}
           >
-            <Input placeholder="e.g. Provided / Waiting from line manager" />
+            <Select allowClear showSearch placeholder="—" optionFilterProp="label"
+              options={JOB_DESCRIPTION_STATUSES} />
           </Form.Item>
         </Col>
       </Row>
@@ -602,6 +630,111 @@ export function EmployeeFormPage() {
     </>
   )
 
+  /** PRD Appendix A tab 3 — the employment contract, captured during the hire. */
+  const contractTab = (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Filling this opens the contract with the employee"
+        description="Leave it blank to create the person only and add the contract later from the profile. An end date is optional — leave it empty for an indefinite contract."
+      />
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item name="contractStartDate" label="Contract start date">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="contractEndDate"
+            label="Contract end date"
+            tooltip="Leave empty for an indefinite contract."
+            dependencies={['contractStartDate']}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const start = getFieldValue('contractStartDate')
+                  if (!value || !start || !value.isBefore(start)) return Promise.resolve()
+                  return Promise.reject(
+                    new Error('Contract end date cannot be earlier than the start date'),
+                  )
+                },
+              }),
+            ]}
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="contractType" label="Contract type">
+            <Select
+              allowClear
+              placeholder="— same as employment type —"
+              options={[
+                { value: 'PERMANENT', label: 'Permanent' },
+                { value: 'FIXED_TERM', label: 'Fixed term' },
+              ]}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
+
+  /** PRD Appendix A tab 4 — opening salary. Server-enforced HR-admin only. */
+  const compensationTab = (
+    <>
+      <Alert
+        type="warning"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Salary is restricted"
+        description="Only an HR administrator may set pay. If you do not have that permission, leave this blank — the employee is still created, and pay can be added afterwards from their profile."
+      />
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item
+            name="monthlyBaseSalary"
+            label="Monthly base salary (AZN), gross"
+            rules={[{ type: 'number', min: 0.01, message: 'Salary must be greater than zero' }]}
+          >
+            <InputNumber style={{ width: '100%' }} min={0} step={100} />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="salaryEffectiveFrom"
+            label="Effective from"
+            tooltip="Defaults to the contract start date, or the hire date."
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
+
+  /** PRD Appendix A tab 7 — where this hire came from. */
+  const recruitmentTab = (
+    <>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item
+            name="sourceOfHire"
+            label="Source of hire"
+            tooltip="Recruitment channel this person came through. Populated automatically for hires made through Recruitment."
+            rules={[{ max: 80 }]}
+          >
+            <Select allowClear showSearch placeholder="—" optionFilterProp="label"
+              options={CANDIDATE_SOURCES} />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )
+
   const scheduleTab = (
     <>
       <Alert
@@ -618,17 +751,19 @@ export function EmployeeFormPage() {
             label="Work schedule"
             rules={[{ max: 200 }]}
           >
-            <Input placeholder="e.g. 5 days/40 hrs per week/Random Offshore trip" />
+            <Select allowClear showSearch placeholder="—" optionFilterProp="label"
+              options={WORK_SCHEDULES}
+              onChange={(v: string) => applySchedule(v)} />
           </Form.Item>
         </Col>
         <Col span={6}>
           <Form.Item name="workTimeText" label="Work time" rules={[{ max: 60 }]}>
-            <Input placeholder="e.g. 8:00 - 17:00" />
+            <Input readOnly title="Derived from the work schedule (PRD §6)." />
           </Form.Item>
         </Col>
         <Col span={6}>
           <Form.Item name="lunchTimeText" label="Lunch time" rules={[{ max: 60 }]}>
-            <Input placeholder="e.g. 13:00 - 14:00" />
+            <Input readOnly title="Derived from the work schedule (PRD §6)." />
           </Form.Item>
         </Col>
       </Row>
@@ -640,7 +775,8 @@ export function EmployeeFormPage() {
             tooltip="Rotation pattern when offshore differs from the onshore schedule."
             rules={[{ max: 120 }]}
           >
-            <Input placeholder="e.g. 12 hrs p/d" />
+            <Select allowClear showSearch placeholder="—" optionFilterProp="label"
+              options={OFFSHORE_DAILY_SCHEDULES} />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -650,7 +786,8 @@ export function EmployeeFormPage() {
             tooltip="Accounting period for summarized working time (Art. 62) — e.g. “1 mnth”, or a fixed-date scheme."
             rules={[{ max: 80 }]}
           >
-            <Input placeholder="e.g. 1 mnth" />
+            <Select allowClear showSearch placeholder="—" optionFilterProp="label"
+              options={TIME_ACCOUNTING_METHODS} />
           </Form.Item>
         </Col>
       </Row>
@@ -662,9 +799,12 @@ export function EmployeeFormPage() {
   // and skips their validation entirely.
   const tabItems = [
     { key: 'personal', label: 'Personal & contact', children: personalTab, forceRender: true },
-    { key: 'job', label: 'Job & organisation', children: jobTab, forceRender: true },
-    { key: 'approvals', label: 'Approvals', children: approvalsTab, forceRender: true },
+    { key: 'job', label: 'Employment & job', children: jobTab, forceRender: true },
+    { key: 'contract', label: 'Contract', children: contractTab, forceRender: true },
+    { key: 'compensation', label: 'Compensation', children: compensationTab, forceRender: true },
     { key: 'schedule', label: 'Work schedule', children: scheduleTab, forceRender: true },
+    { key: 'approvals', label: 'Approvals', children: approvalsTab, forceRender: true },
+    { key: 'recruitment', label: 'Recruitment', children: recruitmentTab, forceRender: true },
   ]
 
   return (

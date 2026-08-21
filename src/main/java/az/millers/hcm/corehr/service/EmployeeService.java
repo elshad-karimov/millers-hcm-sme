@@ -52,6 +52,9 @@ public class EmployeeService {
     private final az.millers.hcm.staffing.service.PositionOccupancyService occupancyService;
     /** SME editions: the tenant's plan may cap active headcount. */
     private final PlanLimitGate planLimitGate;
+    /** PRD §4: the hire opens the contract and the first salary row too. */
+    private final az.millers.hcm.lifecycle.service.EmploymentContractService contractService;
+    private final az.millers.hcm.payroll.service.CompensationService compensationService;
 
     public EmployeeService(EmployeeRepository repository,
                            AuditService auditService,
@@ -62,7 +65,9 @@ public class EmployeeService {
                            PositionHeadcountService headcountGate,
                            StaffingService staffingService,
                            az.millers.hcm.staffing.service.PositionOccupancyService occupancyService,
-                           PlanLimitGate planLimitGate) {
+                           PlanLimitGate planLimitGate,
+                           az.millers.hcm.lifecycle.service.EmploymentContractService contractService,
+                           az.millers.hcm.payroll.service.CompensationService compensationService) {
         this.repository = repository;
         this.auditService = auditService;
         this.onboardingWorkflow = onboardingWorkflow;
@@ -73,6 +78,8 @@ public class EmployeeService {
         this.staffingService = staffingService;
         this.occupancyService = occupancyService;
         this.planLimitGate = planLimitGate;
+        this.contractService = contractService;
+        this.compensationService = compensationService;
     }
 
     /**
@@ -140,6 +147,7 @@ public class EmployeeService {
         }
         validateNationalIdUnique(request.nationalId(), null);
         validateExternalHrIdUnique(request.externalHrId(), null);
+        validateHireExtras(request);
         // SME editions — the tenant's plan may cap active headcount.
         planLimitGate.assertCanAddEmployee();
         // M109 — direct hire path must respect position budget.
@@ -166,6 +174,8 @@ public class EmployeeService {
             occupancyService.openPrimary(saved.getId(), saved.getPositionId(),
                     saved.getHireDate(), "Direct hire " + saved.getEmployeeNo());
         }
+
+        openContractAndPay(saved, request);
 
         // M62 / P1-10 + P1-11: open the initial history slices at hire date.
         // This guarantees every employee has a non-empty history from day one
@@ -515,6 +525,62 @@ public class EmployeeService {
 
     /** Bounded so a misconfigured counter fails loudly instead of spinning. */
     private static final int MAX_EMPLOYEE_NO_ATTEMPTS = 100;
+
+    /**
+     * PRD §10 — the checks that must hold before anything is written, so a
+     * rejected hire leaves nothing behind.
+     */
+    private void validateHireExtras(EmployeeRequest request) {
+        if (request.contractStartDate() != null && request.contractEndDate() != null
+                && request.contractEndDate().isBefore(request.contractStartDate())) {
+            throw new BadRequestException(
+                    "Contract end date cannot be earlier than the contract start date");
+        }
+        // PRD §11 — pay is a separate authority from personnel data. An
+        // HR_SPECIALIST may create the employee but must not set their salary,
+        // which mirrors WRITE_HR_ADMIN_ONLY on POST /payroll/compensation.
+        if (request.monthlyBaseSalary() != null
+                && !(currentRequest.hasRole("HR_ADMIN") || currentRequest.hasRole("SYSTEM_ADMIN"))) {
+            throw new BadRequestException(
+                    "You do not have permission to set salary. Create the employee, "
+                            + "then ask an HR administrator to add the salary.");
+        }
+    }
+
+    /**
+     * PRD §4 steps 4-5 — finishes the hire in one transaction: the contract and
+     * the opening salary row are created alongside the employee, rather than
+     * leaving HR to visit two more screens and risk forgetting one.
+     *
+     * Both are optional. Nothing is invented: no contract without a start date,
+     * no pay row without an amount.
+     */
+    private void openContractAndPay(Employee saved, EmployeeRequest request) {
+        if (request.contractStartDate() != null) {
+            contractService.create(saved.getId(), new az.millers.hcm.lifecycle.api.dto.ContractRequest(
+                    request.contractType() != null ? request.contractType() : saved.getEmploymentType(),
+                    request.contractStartDate(),
+                    request.contractEndDate(),
+                    null,   // probation end — set from the probation review flow
+                    null, null, null, null));
+        }
+        if (request.monthlyBaseSalary() != null) {
+            az.millers.hcm.payroll.domain.EmployeeCompensation pay =
+                    new az.millers.hcm.payroll.domain.EmployeeCompensation();
+            pay.setEmployeeId(saved.getId());
+            pay.setMonthlyBaseSalary(request.monthlyBaseSalary());
+            pay.setCurrency("AZN");
+            // Effective-dated from day one, so the first raise appends to a
+            // history that already has a starting point (PRD §12).
+            pay.setEffectiveFrom(request.salaryEffectiveFrom() != null
+                    ? request.salaryEffectiveFrom()
+                    : (request.contractStartDate() != null
+                        ? request.contractStartDate()
+                        : saved.getHireDate()));
+            pay.setReason("Initial salary on hire");
+            compensationService.upsert(pay);
+        }
+    }
 
     private record StatusSnapshot(EmploymentStatus status, String reason) {
     }

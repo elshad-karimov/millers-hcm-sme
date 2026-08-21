@@ -133,5 +133,27 @@ public record EmployeeRequest(
         /** Offshore rotation pattern when it differs — e.g. "12 hrs p/d". */
         @Size(max = 120) String offshoreWorkScheduleText,
         /** Summarized working-time accounting period (Art. 62). */
-        @Size(max = 80) String summarizedPeriodMethod) {
+        @Size(max = 80) String summarizedPeriodMethod,
+
+        // ── PRD §4 steps 4-5: contract and pay are captured during the hire ──
+        // Optional so every existing caller (recruitment hire, bulk import)
+        // keeps working; when present, EmployeeService opens the contract and
+        // the first salary row in the same transaction as the employee, which
+        // is what stops HR having to visit three screens to finish one hire.
+
+        /** Contract start. Defaults to the hire date when a contract is opened. */
+        LocalDate contractStartDate,
+
+        /** Contract end. Null means indefinite (PRD §6). */
+        LocalDate contractEndDate,
+
+        /** Fixed-term / permanent. Defaults to the employee's employment type. */
+        EmploymentType contractType,
+
+        /** First monthly base salary. Writing it needs HR-admin rights (PRD §11). */
+        @DecimalMin(value = "0.0", inclusive = false, message = "monthlyBaseSalary must be greater than zero")
+        BigDecimal monthlyBaseSalary,
+
+        /** When that salary takes effect. Defaults to the contract start. */
+        LocalDate salaryEffectiveFrom) {
 }

@@ -191,6 +191,13 @@ export interface EmployeeRequest {
   lunchTimeText?: string
   offshoreWorkScheduleText?: string
   summarizedPeriodMethod?: string
+  // PRD §4 steps 4-5 — optional; when present the hire also opens the
+  // contract and the first effective-dated salary row.
+  contractStartDate?: string
+  contractEndDate?: string
+  contractType?: string
+  monthlyBaseSalary?: number
+  salaryEffectiveFrom?: string
 }
 
 export interface PageResponse<T> {

@@ -314,7 +314,10 @@ public class ApplicationService {
                 null,                 // workTimeText
                 null,                 // lunchTimeText
                 null,                 // offshoreWorkScheduleText
-                null);                // summarizedPeriodMethod
+                null,
+                // PRD §4 steps 4-5 — contract and pay are not captured on this
+                // path; it creates the person only.
+                null, null, null, null, null);                // summarizedPeriodMethod
         Employee created = employeeService.create(empReq);
 
         a.setCurrentStage(ApplicationStage.HIRED);

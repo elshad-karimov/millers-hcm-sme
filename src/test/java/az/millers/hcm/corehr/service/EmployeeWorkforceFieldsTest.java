@@ -52,7 +52,10 @@ class EmployeeWorkforceFieldsTest {
         repository = mock(EmployeeRepository.class);
         // Only the repository is consulted by the validators under test; the
         // remaining constructor arguments are pure field assignments.
-        service = new EmployeeService(repository, null, null, null, null, null, null, null, null, null);
+        service = new EmployeeService(
+                repository, null, null, null, null, null, null, null, null, null,
+                // PRD §4: contract + compensation services, unused by these validators
+                null, null);
 
         subjectId = UUID.randomUUID();
         subject = employee(subjectId, "EMP-0001");
