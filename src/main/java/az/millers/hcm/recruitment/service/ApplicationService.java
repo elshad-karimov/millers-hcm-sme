@@ -286,10 +286,10 @@ public class ApplicationService {
                 null,                 // matrixManagerId (M75)
                 null,                 // functionalManagerId (M146)
                 null,                 // rehireEligible (M78) — null defaults to true
-                // M132 — Section 1 cosmetic fields, not captured at hire.
-                null, null, null, null, null,
+                // V329 — birth country / city / address, not captured at hire.
+                null, null, null,
                 // M133 — Section 3 contact fields, not captured at hire.
-                null, null, null, null, null,
+                null, null, null,
                 // M134 — Section 4 employment fields. Seniority date defaults
                 // to hire_date downstream; category not captured at hire.
                 null, null,

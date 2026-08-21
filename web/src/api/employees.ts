@@ -84,19 +84,15 @@ export interface Employee {
   /** M78 / P2-15 — captured at rehire time, audited */
   rehireReason?: string | null
   // M132 — Section 1 cosmetic fields
-  preferredName?: string | null
-  placeOfBirth?: string | null
+  birthCountry?: string | null
+  birthCity?: string | null
+  birthAddress?: string | null
   /** O+/O-/A+/A-/B+/B-/AB+/AB- */
-  bloodGroup?: string | null
-  religion?: string | null
   /** ISO 639-1 alpha-2 lowercase (en/az/ru/tr/…) */
-  nativeLanguage?: string | null
   // M133 — Section 3 contact fields
   altPhone?: string | null
   workEmail?: string | null
   workPhone?: string | null
-  extension?: string | null
-  deskNumber?: string | null
   // M134 — Section 4 employment fields
   employeeCategory?: string | null
   /** Tenure anchor when set; otherwise hireDate is used downstream. */
@@ -166,17 +162,13 @@ export interface EmployeeRequest {
   /** M78 / P2-15 — null = leave the existing flag untouched */
   rehireEligible?: boolean
   // M132 — Section 1 cosmetic fields
-  preferredName?: string
-  placeOfBirth?: string
-  bloodGroup?: string
-  religion?: string
-  nativeLanguage?: string
+  birthCountry?: string
+  birthCity?: string
+  birthAddress?: string
   // M133 — Section 3 contact fields
   altPhone?: string
   workEmail?: string
   workPhone?: string
-  extension?: string
-  deskNumber?: string
   // M134 — Section 4 employment fields
   employeeCategory?: string
   seniorityDate?: string

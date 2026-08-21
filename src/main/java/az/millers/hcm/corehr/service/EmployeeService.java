@@ -311,17 +311,13 @@ public class EmployeeService {
         // M132 — Section 1 cosmetic fields. All five are nullable;
         // passing null clears the field (consistent with how
         // middleName / nationality / etc. behave).
-        employee.setPreferredName(request.preferredName());
-        employee.setPlaceOfBirth(request.placeOfBirth());
-        employee.setBloodGroup(request.bloodGroup());
-        employee.setReligion(request.religion());
-        employee.setNativeLanguage(request.nativeLanguage());
+        employee.setBirthCountry(request.birthCountry());
+        employee.setBirthCity(request.birthCity());
+        employee.setBirthAddress(request.birthAddress());
         // M133 — Section 3 contact fields. Same null-means-clear pattern.
         employee.setAltPhone(request.altPhone());
         employee.setWorkEmail(request.workEmail());
         employee.setWorkPhone(request.workPhone());
-        employee.setExtension(request.extension());
-        employee.setDeskNumber(request.deskNumber());
         // M134 — Section 4 employment fields. Seniority date is bounded
         // by the DB CHECK (cannot be in the future); reject early so
         // the caller gets a clean BadRequestException rather than a

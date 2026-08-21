@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Alert,
+  AutoComplete,
   Button,
   Col,
   DatePicker,
@@ -17,7 +18,8 @@ import {
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiErrorDuration, apiErrorMessage } from '../api/errors'
-import { isHiddenField } from '../config/hiddenFields'
+import { CITY_OPTIONS } from '../config/cities'
+import { COUNTRY_OPTIONS } from '../config/countries'
 import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
 import { EmployeePicker } from '../components/EmployeePicker'
@@ -38,18 +40,14 @@ interface FormValues {
   costCentre?: string
   // M141 — work location
   workLocationId?: string
-  // M132 — Section 1 cosmetic fields
-  preferredName?: string
-  placeOfBirth?: string
-  bloodGroup?: string
-  religion?: string
-  nativeLanguage?: string
+  // V329 — birth place, split
+  birthCountry?: string
+  birthCity?: string
+  birthAddress?: string
   // M133 — Section 3 contact fields
   altPhone?: string
   workEmail?: string
   workPhone?: string
-  extension?: string
-  deskNumber?: string
   // M134 — Section 4 employment fields
   employeeCategory?: string
   seniorityDate?: dayjs.Dayjs
@@ -74,18 +72,16 @@ interface FormValues {
   summarizedPeriodMethod?: string
 }
 
-const BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
-const COMMON_LANGUAGES = [
-  { value: 'az', label: 'Azerbaijani (az)' },
-  { value: 'en', label: 'English (en)' },
-  { value: 'ru', label: 'Russian (ru)' },
-  { value: 'tr', label: 'Turkish (tr)' },
-  { value: 'fa', label: 'Persian (fa)' },
-  { value: 'ar', label: 'Arabic (ar)' },
-]
 
 // M150 — mirrors the EmployeeWorkType enum. Labels spell out what each one selects,
 // because the choice drives which compensation rate applies downstream.
+/** Gender is a fixed list — free text made it unusable for reporting. */
+const GENDERS = [
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+  { value: 'Other', label: 'Other' },
+]
+
 const WORK_TYPES: { value: EmployeeWorkType; label: string }[] = [
   { value: 'ONSHORE', label: 'Onshore — base / city office' },
   { value: 'OFFSHORE', label: 'Offshore — offshore rate + rotation schedule' },
@@ -102,22 +98,18 @@ const FIELD_TAB: Record<string, string> = {
   firstName: 'personal',
   lastName: 'personal',
   middleName: 'personal',
-  preferredName: 'personal',
   fullNameLocal: 'personal',
   gender: 'personal',
   birthDate: 'personal',
-  placeOfBirth: 'personal',
+  birthCountry: 'personal',
+  birthCity: 'personal',
+  birthAddress: 'personal',
   nationalId: 'personal',
-  bloodGroup: 'personal',
-  nativeLanguage: 'personal',
-  religion: 'personal',
   email: 'contact',
   phone: 'contact',
   altPhone: 'contact',
   workEmail: 'contact',
   workPhone: 'contact',
-  extension: 'contact',
-  deskNumber: 'contact',
   externalHrId: 'job',
   hireDate: 'job',
   seniorityDate: 'job',
@@ -186,18 +178,14 @@ export function EmployeeFormPage() {
           positionTitle: e.positionTitle ?? undefined,
           costCentre: e.costCentre ?? undefined,
           workLocationId: e.workLocationId ?? undefined,
-          // M132 — Section 1 cosmetic fields
-          preferredName: e.preferredName ?? undefined,
-          placeOfBirth: e.placeOfBirth ?? undefined,
-          bloodGroup: e.bloodGroup ?? undefined,
-          religion: e.religion ?? undefined,
-          nativeLanguage: e.nativeLanguage ?? undefined,
+          // V329 — birth place, split
+          birthCountry: e.birthCountry ?? undefined,
+          birthCity: e.birthCity ?? undefined,
+          birthAddress: e.birthAddress ?? undefined,
           // M133 — Section 3 contact fields
           altPhone: e.altPhone ?? undefined,
           workEmail: e.workEmail ?? undefined,
           workPhone: e.workPhone ?? undefined,
-          extension: e.extension ?? undefined,
-          deskNumber: e.deskNumber ?? undefined,
           // M134 — Section 4 employment fields
           employeeCategory: e.employeeCategory ?? undefined,
           seniorityDate: e.seniorityDate ? dayjs(e.seniorityDate) : undefined,
@@ -268,14 +256,6 @@ export function EmployeeFormPage() {
     message.error('Some required fields need attention — check the highlighted tab.')
   }
 
-  /**
-   * Fields switched off for this edition. `span={0}` renders as display:none
-   * while leaving the control mounted, so a value already on the record still
-   * round-trips through a save instead of being blanked by the edit form.
-   */
-  const span = (field: string, normal: number) =>
-    isHiddenField('employee-form', field) ? 0 : normal
-
   const personalTab = (
     <>
       <Row gutter={16}>
@@ -296,7 +276,7 @@ export function EmployeeFormPage() {
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={span('preferredName', 12)}>
+        <Col span={24}>
           {/* M150 — local-script legal name. Contracts and state filings need
               the patronymic form, which first/middle/last cannot rebuild. */}
           <Form.Item
@@ -308,17 +288,11 @@ export function EmployeeFormPage() {
             <Input placeholder="SURNAME Name Patronymic oğlu / qızı" />
           </Form.Item>
         </Col>
-        <Col span={12}>
-          {/* M132 — Section 1 spec field */}
-          <Form.Item name="preferredName" label="Preferred name (nickname)" rules={[{ max: 120 }]}>
-            <Input placeholder="Used on the directory + printable badge" />
-          </Form.Item>
-        </Col>
       </Row>
       <Row gutter={16}>
         <Col span={8}>
-          <Form.Item name="gender" label="Gender" rules={[{ max: 16 }]}>
-            <Input />
+          <Form.Item name="gender" label="Gender">
+            <Select allowClear placeholder="—" options={GENDERS} />
           </Form.Item>
         </Col>
         <Col span={8}>
@@ -333,29 +307,35 @@ export function EmployeeFormPage() {
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={8}>
-          <Form.Item name="placeOfBirth" label="Place of birth" rules={[{ max: 160 }]}>
-            <Input placeholder="City, Country" />
+        <Col span={7}>
+          {/* V329 — birth place split into country / city / address. Country is
+              a closed list (ISO 3166-1); city suggests Azerbaijani places but
+              accepts anything typed, because people are born anywhere. */}
+          <Form.Item name="birthCountry" label="Country of birth">
+            <Select
+              allowClear
+              showSearch
+              placeholder="—"
+              optionFilterProp="label"
+              options={COUNTRY_OPTIONS}
+            />
           </Form.Item>
         </Col>
-        <Col span={4}>
-          <Form.Item name="bloodGroup" label="Blood group">
-            <Select allowClear placeholder="—"
-              options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
+        <Col span={7}>
+          <Form.Item name="birthCity" label="City of birth" rules={[{ max: 120 }]}>
+            <AutoComplete
+              allowClear
+              options={CITY_OPTIONS}
+              placeholder="Start typing"
+              filterOption={(input, option) =>
+                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
         </Col>
-        <Col span={span('nativeLanguage', 6)}>
-          <Form.Item name="nativeLanguage" label="Native language"
-            tooltip="ISO 639-1 alpha-2 (lowercase). Drives letter-engine locale.">
-            <Select allowClear showSearch placeholder="—"
-              optionFilterProp="label" options={COMMON_LANGUAGES} />
-          </Form.Item>
-        </Col>
-        <Col span={span('religion', 6)}>
-          <Form.Item name="religion" label="Religion (optional)"
-            tooltip="Collection legally restricted in some jurisdictions."
-            rules={[{ max: 60 }]}>
-            <Input />
+        <Col span={10}>
+          <Form.Item name="birthAddress" label="Address of birth" rules={[{ max: 255 }]}>
+            <Input placeholder="Village, district or street" />
           </Form.Item>
         </Col>
       </Row>
@@ -400,18 +380,6 @@ export function EmployeeFormPage() {
         <Col span={5}>
           <Form.Item name="workPhone" label="Work phone" rules={[{ max: 32 }]}>
             <Input />
-          </Form.Item>
-        </Col>
-        <Col span={span('extension', 4)}>
-          <Form.Item name="extension" label="Extension" rules={[{ max: 10 }]}>
-            <Input placeholder="e.g. 4012" />
-          </Form.Item>
-        </Col>
-        <Col span={span('deskNumber', 6)}>
-          <Form.Item name="deskNumber" label="Desk / seat"
-            tooltip="Facility + IT teams use this for asset assignment."
-            rules={[{ max: 32 }]}>
-            <Input placeholder="e.g. 4-A-12" />
           </Form.Item>
         </Col>
       </Row>

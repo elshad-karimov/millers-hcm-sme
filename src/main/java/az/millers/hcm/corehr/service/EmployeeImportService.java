@@ -81,9 +81,9 @@ public class EmployeeImportService {
             "employmentType", "ftePercent",
             // M132 / M133 / M134 — read by parseRow; previously undeclared here,
             // so these columns were dropped even when present in the sheet.
-            "preferredName", "placeOfBirth", "bloodGroup", "religion",
-            "nativeLanguage", "altPhone", "workEmail", "workPhone",
-            "extension", "deskNumber", "employeeCategory", "seniorityDate",
+            "birthCountry", "birthCity", "birthAddress",
+            "altPhone", "workEmail", "workPhone",
+            "employeeCategory", "seniorityDate",
             // M150 — workforce-register master data. The three approver
             // references are deliberately excluded: they are employee FKs and
             // a spreadsheet carries names, which cannot be resolved safely
@@ -305,18 +305,14 @@ public class EmployeeImportService {
                 null, null,       // M75: payrollGroupId, matrixManagerId — not in bulk import scope
                 null,             // M146: functionalManagerId — not in bulk import scope
                 null,             // M78: rehireEligible — null defaults to true
-                // M132 — Section 1 cosmetic fields (not in bulk import scope yet)
-                trimmedString(row, idx.get("preferredName")),
-                trimmedString(row, idx.get("placeOfBirth")),
-                trimmedString(row, idx.get("bloodGroup")),
-                trimmedString(row, idx.get("religion")),
-                trimmedString(row, idx.get("nativeLanguage")),
+                // V329 — birth place, split into country / city / address
+                trimmedString(row, idx.get("birthCountry")),
+                trimmedString(row, idx.get("birthCity")),
+                trimmedString(row, idx.get("birthAddress")),
                 // M133 — Section 3 contact fields (importable when columns are present)
                 trimmedString(row, idx.get("altPhone")),
                 trimmedString(row, idx.get("workEmail")),
                 trimmedString(row, idx.get("workPhone")),
-                trimmedString(row, idx.get("extension")),
-                trimmedString(row, idx.get("deskNumber")),
                 // M134 — Section 4 employment fields
                 trimmedString(row, idx.get("employeeCategory")),
                 dateValue(row, idx.get("seniorityDate")),

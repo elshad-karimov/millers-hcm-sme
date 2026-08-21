@@ -81,36 +81,34 @@ public class Employee {
     // PII but not "special category" GDPR data (religion possibly is,
     // depending on jurisdiction; collection should be gated by config).
 
-    /** Nickname used in directory + printable badges. */
-    @Column(name = "preferred_name", length = 120)
-    private String preferredName;
-
-    /** City + country pair on HR cards; free text. */
-    @Column(name = "place_of_birth", length = 160)
-    private String placeOfBirth;
 
     /**
-     * One of {@code O+/O-/A+/A-/B+/B-/AB+/AB-} or null. CHECK constraint
-     * in V90 keeps it from drifting into "A pos" / "A+ve" variants that
-     * would break emergency-card lookup.
+     * Birth place, split into country / city / address by V329. The single
+     * free-text field it replaced could not be filtered or grouped; the old
+     * value was copied into {@code birthAddress} by that migration.
      */
-    @Column(name = "blood_group", length = 8)
-    private String bloodGroup;
+    @Column(name = "birth_country", length = 2)
+    private String birthCountry;
+
+    /** Suggested from a list, but free text is accepted — people are born anywhere. */
+    @Column(name = "birth_city", length = 120)
+    private String birthCity;
+
+    /** The remainder: village, district, street. */
+    @Column(name = "birth_address", length = 255)
+    private String birthAddress;
 
     /**
-     * Optional. Stored only when the deployment configuration says so;
-     * legally restricted in some jurisdictions.
-     */
-    @Column(name = "religion", length = 60)
-    private String religion;
-
-    /**
-     * ISO 639-1 alpha-2 (en / az / ru / tr / …). Same convention as the
-     * M77 letter-engine locale resolver — when present, letter renders
-     * pick the matching template variant first.
+     * ISO 639-1 alpha-2. No longer on the employee form — it was removed as a
+     * field HR does not maintain — but kept on the record because
+     * LetterRequestService still resolves the letter template language from it,
+     * and dropping it would silently change which template a letter uses.
      */
     @Column(name = "native_language", length = 2)
     private String nativeLanguage;
+
+
+
 
     // ── M133 — Section 3 contact completion ────────────────────────────
     //
@@ -130,13 +128,7 @@ public class Employee {
     @Column(name = "work_phone", length = 32)
     private String workPhone;
 
-    /** Internal PBX extension, 1–10 chars. */
-    @Column(name = "extension", length = 10)
-    private String extension;
 
-    /** Seat / desk identifier — surfaced to facility + IT teams. */
-    @Column(name = "desk_number", length = 32)
-    private String deskNumber;
 
     // ── M134 — Section 4 employment completion ─────────────────────────
 

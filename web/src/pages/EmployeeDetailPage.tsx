@@ -70,6 +70,7 @@ import { useAuth } from '../auth/AuthContext'
 import { RoleSets } from '../auth/roleSets'
 // M117 — per-employee field-change history (employment slices + status slices + audit diff)
 import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
+import { countryName } from '../config/countries'
 // M169 — employee document management
 import {
   employeeDocumentsApi,
@@ -665,8 +666,6 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Alt. phone">{employee.altPhone ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Work email">{employee.workEmail ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Work phone">{employee.workPhone ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Extension">{employee.extension ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Desk / seat">{employee.deskNumber ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Hire date">{employee.hireDate}</Descriptions.Item>
       {/* M134 — Section 4 employment fields */}
       <Descriptions.Item label="Seniority date">
@@ -701,14 +700,12 @@ export function EmployeeDetailPage() {
           ? <Link to={`/employees/${employee.previousEmployeeId}`}>{employee.previousEmployeeId}</Link>
           : '—'}
       </Descriptions.Item>
-      {/* M132 — Section 1 cosmetic fields */}
-      <Descriptions.Item label="Preferred name">{employee.preferredName ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Place of birth">{employee.placeOfBirth ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Blood group">
-        {employee.bloodGroup ? <Tag color="red">{employee.bloodGroup}</Tag> : '—'}
+      {/* V329 — birth place, split into country / city / address */}
+      <Descriptions.Item label="Country of birth">
+        {countryName(employee.birthCountry) || '—'}
       </Descriptions.Item>
-      <Descriptions.Item label="Native language">{employee.nativeLanguage ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Religion">{employee.religion ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="City of birth">{employee.birthCity ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Address of birth">{employee.birthAddress ?? '—'}</Descriptions.Item>
       {/* M150 — workforce-register master data */}
       <Descriptions.Item label="External HR ID">{employee.externalHrId ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Full name (local)">{employee.fullNameLocal ?? '—'}</Descriptions.Item>
