@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { useNavigate } from 'react-router-dom'
 import { LeftOutlined, RightOutlined, StarFilled, StarOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
-import { CATEGORIES, icon, isHiddenScreen, moduleOfRoute, type Tile } from '../nav/modules'
+import {
+  CATEGORIES, icon, isHiddenCategory, isHiddenScreen, moduleOfRoute, type Tile,
+} from '../nav/modules'
 import { describeScreen } from '../nav/screenDescriptions'
 import { areaVisible } from '../nav/selfServiceAreas'
 import { useFavorites, useRecents } from '../nav/navPrefs'
@@ -34,6 +36,7 @@ export function ModuleBrowser({
       CATEGORIES.filter(
         (c) =>
           (!c.roles || hasRole(...c.roles)) &&
+          !isHiddenCategory(c.key) &&
           !disabledModules.has(c.key) &&
           // A category whose every screen is hidden would otherwise render as a
           // tab with two empty columns under it. Benefits is exactly that once

@@ -276,6 +276,30 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   '/workflow/definitions', '/workflow/approval-groups',
 ])
 
+/**
+ * Whole boards kept off the springboard.
+ *
+ * Distinct from HIDDEN_SCREENS, and it has to be: these categories' screens are
+ * all reachable from Master Data, so hiding them BY ROUTE would hide them there
+ * too. What is unwanted is the second front door, not the screens.
+ *
+ * Everything Organization and Staffing & Positions still offered — org
+ * structure, departments, unit types, legal entities, locations, positions — is
+ * listed under Master Data, and the rest of both boards is already in
+ * HIDDEN_SCREENS. Nothing becomes unreachable.
+ *
+ * Springboard and Navigator only. The modules stay real: they remain in the
+ * plan, keep gating their own API, and are still listed in Tenant Settings so
+ * an admin can switch them off for the tenant.
+ */
+export const HIDDEN_CATEGORIES: ReadonlySet<string> = new Set([
+  'core-hr-organization',
+  'core-hr-staffing-positions',
+])
+
+/** Whether a whole board is kept off the springboard. See {@link HIDDEN_CATEGORIES}. */
+export const isHiddenCategory = (key: string): boolean => HIDDEN_CATEGORIES.has(key)
+
 /** Whether a screen is switched off for this edition. See {@link HIDDEN_SCREENS}. */
 export const isHiddenScreen = (to: string): boolean => HIDDEN_SCREENS.has(to)
 
