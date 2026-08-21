@@ -29,6 +29,8 @@ import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { isHiddenScreen, moduleOfRoute } from '../nav/modules'
+import { useEnabledModules } from '../nav/moduleSettings'
 import {
   selfApi,
   type SelfProfile,
@@ -111,6 +113,7 @@ function Dashboard({
   onJump: (key: string) => void
 }) {
   const navigate = useNavigate()
+  const available = useAvailable()
   // M230 — Dashboard tab strings come from the selfService namespace;
   // tab content (data tables) stays in English for follow-up.
   const { t } = useTranslation('selfService')
@@ -165,12 +168,24 @@ function Dashboard({
           </Col>
           <Col>
             <Space wrap>
-              <Button onClick={() => navigate('/leave/requests/new')}>{t('quickActions.requestLeave')}</Button>
-              <Button onClick={() => navigate('/permission/requests/new')}>{t('quickActions.requestPermission')}</Button>
-              <Button onClick={() => navigate('/business-trips/new')}>{t('quickActions.newBusinessTrip')}</Button>
-              <Button onClick={() => navigate('/letters/request')}>{t('quickActions.requestLetter')}</Button>
-              <Button onClick={() => navigate('/personal-info/request')}>{t('quickActions.updatePersonalInfo')}</Button>
-              <Button onClick={() => navigate('/ehs/incidents')}>Report safety incident</Button>
+              {available('/leave/requests/new') && (
+                <Button onClick={() => navigate('/leave/requests/new')}>{t('quickActions.requestLeave')}</Button>
+              )}
+              {available('/permission/requests/new') && (
+                <Button onClick={() => navigate('/permission/requests/new')}>{t('quickActions.requestPermission')}</Button>
+              )}
+              {available('/business-trips/new') && (
+                <Button onClick={() => navigate('/business-trips/new')}>{t('quickActions.newBusinessTrip')}</Button>
+              )}
+              {available('/letters/request') && (
+                <Button onClick={() => navigate('/letters/request')}>{t('quickActions.requestLetter')}</Button>
+              )}
+              {available('/personal-info/request') && (
+                <Button onClick={() => navigate('/personal-info/request')}>{t('quickActions.updatePersonalInfo')}</Button>
+              )}
+              {available('/ehs/incidents') && (
+                <Button onClick={() => navigate('/ehs/incidents')}>Report safety incident</Button>
+              )}
             </Space>
           </Col>
         </Row>
@@ -196,6 +211,7 @@ function Dashboard({
             )}
           </Card>
         </Col>
+        {available('/permission/requests') && (
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('permission')}>
             <Statistic
@@ -211,6 +227,7 @@ function Dashboard({
             )}
           </Card>
         </Col>
+        )}
         <Col xs={24} sm={12} md={6}>
           <Card hoverable onClick={() => onJump('timesheets')}>
             <Statistic
@@ -2035,11 +2052,32 @@ function PendingSignaturesWidget() {
   )
 }
 
+/**
+ * Whether this edition offers a thing at all.
+ *
+ * My Workspace listed every tab the enterprise product has — permission,
+ * business trips, benefits, loans, learning, performance — regardless of which
+ * modules the tenant actually has. An employee on LITE saw eleven tabs, most of
+ * them leading to an empty page for a module that is switched off, and KPI
+ * cards reading "0.0 h" for a feature nobody can use.
+ *
+ * One rule decides all of it: if the destination is not reachable in this
+ * edition, do not offer it. `route` is what the tab or button leads to, so this
+ * stays honest automatically as HIDDEN_SCREENS and the plan change.
+ */
+function useAvailable() {
+  const { disabled } = useEnabledModules()
+  return (route: string, needs?: string) =>
+    !isHiddenScreen(route) && !disabled.has(needs ?? moduleOfRoute(route) ?? '')
+}
+
+
 // ============================================================================
 //  MyWorkspacePage shell
 // ============================================================================
 export function MyWorkspacePage() {
   const { message } = AntdApp.useApp()
+  const available = useAvailable()
   // M230 — wrapper-level strings come from selfService namespace.
   const { t } = useTranslation('selfService')
   const [profile, setProfile] = useState<SelfProfile | null>(null)
@@ -2099,17 +2137,23 @@ export function MyWorkspacePage() {
             label: t('tabs.dashboard'),
             children: <Dashboard profile={profile} summary={summary} onJump={setActive} />,
           },
-          { key: 'leave',         label: t('tabs.leave'),          children: <LeaveTab /> },
-          { key: 'permission',    label: t('tabs.permission'),     children: <PermissionTab /> },
-          { key: 'businessTrips', label: t('tabs.businessTrips'),  children: <BusinessTripsTab /> },
-          { key: 'timesheets',    label: t('tabs.timesheets'),     children: <TimesheetsTab /> },
-          { key: 'payroll',       label: 'Payroll',                children: <PayrollTab /> },
-          { key: 'benefits',      label: 'Benefits',               children: <BenefitsTab /> },
-          { key: 'assets',        label: 'My Assets',              children: <AssetsTab /> },
-          { key: 'loans',         label: 'My Loans',               children: <LoansTab /> },
-          { key: 'learning',      label: t('tabs.learning'),       children: <LearningTab /> },
-          { key: 'performance',   label: t('tabs.performance'),    children: <PerformanceTab /> },
-          { key: 'teamCalendar',  label: 'Team Calendar',          children: <TeamCalendarTab /> },
+          // Each tab names the screen it stands for, so a tab disappears with
+          // the module or the screen rather than leading to an empty page.
+          ...[
+            { key: 'leave',         label: t('tabs.leave'),         route: '/leave/requests',        children: <LeaveTab /> },
+            { key: 'permission',    label: t('tabs.permission'),    route: '/permission/requests',   children: <PermissionTab /> },
+            { key: 'businessTrips', label: t('tabs.businessTrips'), route: '/business-trips',        children: <BusinessTripsTab /> },
+            { key: 'timesheets',    label: t('tabs.timesheets'),    route: '/timesheets',            children: <TimesheetsTab /> },
+            { key: 'payroll',       label: 'Payroll',               route: '/payroll/runs',          children: <PayrollTab /> },
+            { key: 'benefits',      label: 'Benefits',              route: '/compbenefits/benefits', children: <BenefitsTab /> },
+            { key: 'assets',        label: 'My Assets',             route: '/hr/assets',             children: <AssetsTab /> },
+            { key: 'loans',         label: 'My Loans',              route: '/payroll/loans',         children: <LoansTab /> },
+            { key: 'learning',      label: t('tabs.learning'),      route: '/learning/my',           children: <LearningTab /> },
+            { key: 'performance',   label: t('tabs.performance'),   route: '/performance/reviews',   children: <PerformanceTab /> },
+            { key: 'teamCalendar',  label: 'Team Calendar',         route: '/leave/team-calendar',   children: <TeamCalendarTab /> },
+          ]
+            .filter((tab) => available(tab.route))
+            .map(({ route: _route, ...tab }) => tab),
         ]}
       />
       {summary.mandatoryCoursesPending > 0 && (
