@@ -669,7 +669,7 @@ export function EmployeeDetailPage() {
 
   // ── Tab definitions ───────────────────────────────────────────────────────
 
-  const overviewTab = (
+  const personalFacts = (
     <Descriptions column={2} bordered size="small">
       <Descriptions.Item label="Employee no">{employee.employeeNo}</Descriptions.Item>
       <Descriptions.Item label="Status">{tag(employee.employmentStatus)}</Descriptions.Item>
@@ -689,6 +689,35 @@ export function EmployeeDetailPage() {
       <Descriptions.Item label="Alt. phone">{employee.altPhone ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Work email">{employee.workEmail ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Work phone">{employee.workPhone ?? '—'}</Descriptions.Item>
+      {/* V329 — birth place, split into country / city / address */}
+      <Descriptions.Item label="Country of birth">
+        {countryName(employee.birthCountry) || '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="City of birth">{employee.birthCity ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Address of birth">{employee.birthAddress ?? '—'}</Descriptions.Item>
+      {/* M150 — workforce-register master data */}
+      <Descriptions.Item label="External HR ID">{employee.externalHrId ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Full name (local)">{employee.fullNameLocal ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Badge QR">
+        <img
+          src={`/api/employees/${employee.id}/qr?size=120`}
+          alt={`QR code for ${employee.employeeNo}`}
+          width={120}
+          height={120}
+          style={{ display: 'block', border: '1px solid #f0f0f0' }}
+        />
+      </Descriptions.Item>
+      <Descriptions.Item label="Created">
+        {new Date(employee.createdAt).toLocaleString()} by {employee.createdBy ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Updated">
+        {new Date(employee.updatedAt).toLocaleString()} by {employee.updatedBy ?? '—'}
+      </Descriptions.Item>
+    </Descriptions>
+  )
+
+  const employmentFacts = (
+    <Descriptions column={2} bordered size="small">
       <Descriptions.Item label="Hire date">{employee.hireDate}</Descriptions.Item>
       {/* M134 — Section 4 employment fields */}
       <Descriptions.Item label="Seniority date">
@@ -723,15 +752,6 @@ export function EmployeeDetailPage() {
           ? <Link to={`/employees/${employee.previousEmployeeId}`}>{employee.previousEmployeeId}</Link>
           : '—'}
       </Descriptions.Item>
-      {/* V329 — birth place, split into country / city / address */}
-      <Descriptions.Item label="Country of birth">
-        {countryName(employee.birthCountry) || '—'}
-      </Descriptions.Item>
-      <Descriptions.Item label="City of birth">{employee.birthCity ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Address of birth">{employee.birthAddress ?? '—'}</Descriptions.Item>
-      {/* M150 — workforce-register master data */}
-      <Descriptions.Item label="External HR ID">{employee.externalHrId ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Full name (local)">{employee.fullNameLocal ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Position (local)">
         {employee.positionTitleLocal ?? '—'}
       </Descriptions.Item>
@@ -750,10 +770,30 @@ export function EmployeeDetailPage() {
           ? `${employee.professionalExperienceYears} yrs`
           : '—'}
       </Descriptions.Item>
-      <Descriptions.Item label="Source of hire">{employee.sourceOfHire ?? '—'}</Descriptions.Item>
       <Descriptions.Item label="Job description">
         {employee.jobDescriptionStatus ?? '—'}
       </Descriptions.Item>
+    </Descriptions>
+  )
+
+  const scheduleFacts = (
+    <Descriptions column={2} bordered size="small">
+      <Descriptions.Item label="Work schedule">
+        {employee.workScheduleText ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Work time">{employee.workTimeText ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Lunch time">{employee.lunchTimeText ?? '—'}</Descriptions.Item>
+      <Descriptions.Item label="Offshore schedule">
+        {employee.offshoreWorkScheduleText ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Summarized period">
+        {employee.summarizedPeriodMethod ?? '—'}
+      </Descriptions.Item>
+    </Descriptions>
+  )
+
+  const approvalsFacts = (
+    <Descriptions column={2} bordered size="small">
       {/* Null approver = routes to the line manager; say so rather than showing a dash. */}
       <Descriptions.Item label="Timesheet approver">
         {employee.timesheetApproverId
@@ -770,34 +810,15 @@ export function EmployeeDetailPage() {
           ? <Link to={`/employees/${employee.hrTimesheetVerifierId}`}>{employee.hrTimesheetVerifierId}</Link>
           : '—'}
       </Descriptions.Item>
-      <Descriptions.Item label="Work schedule">
-        {employee.workScheduleText ?? '—'}
-      </Descriptions.Item>
-      <Descriptions.Item label="Work time">{employee.workTimeText ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Lunch time">{employee.lunchTimeText ?? '—'}</Descriptions.Item>
-      <Descriptions.Item label="Offshore schedule">
-        {employee.offshoreWorkScheduleText ?? '—'}
-      </Descriptions.Item>
-      <Descriptions.Item label="Summarized period">
-        {employee.summarizedPeriodMethod ?? '—'}
-      </Descriptions.Item>
-      <Descriptions.Item label="Badge QR">
-        <img
-          src={`/api/employees/${employee.id}/qr?size=120`}
-          alt={`QR code for ${employee.employeeNo}`}
-          width={120}
-          height={120}
-          style={{ display: 'block', border: '1px solid #f0f0f0' }}
-        />
-      </Descriptions.Item>
-      <Descriptions.Item label="Created">
-        {new Date(employee.createdAt).toLocaleString()} by {employee.createdBy ?? '—'}
-      </Descriptions.Item>
-      <Descriptions.Item label="Updated">
-        {new Date(employee.updatedAt).toLocaleString()} by {employee.updatedBy ?? '—'}
-      </Descriptions.Item>
     </Descriptions>
   )
+
+  const recruitmentFacts = (
+    <Descriptions column={2} bordered size="small">
+      <Descriptions.Item label="Source of hire">{employee.sourceOfHire ?? '—'}</Descriptions.Item>
+    </Descriptions>
+  )
+
 
   // ── M169: documents columns ──────────────────────────────────────────────
   const docColumns: ColumnsType<EmployeeDocument> = [
@@ -823,7 +844,6 @@ export function EmployeeDetailPage() {
   ]
 
   const tabItems = [
-    { key: 'overview', label: 'Overview', children: overviewTab },
     {
       key: 'overlays',
       label: `Status overlays (${overlays.length})`,
@@ -1300,6 +1320,52 @@ export function EmployeeDetailPage() {
     })
   }
 
+  /**
+   * PRD Appendix A — the profile shows the same groups the create form uses,
+   * instead of the 26 flat tabs it had grown into. Nothing is removed: each
+   * group holds the facts for that part of the record plus the detail tables
+   * that belong to it, as a second row of tabs.
+   *
+   * Built from `tabItems` by key rather than by rewriting each tab, so the
+   * permission conditions that decide whether a tab exists at all still apply
+   * — a group whose members are all withheld simply does not appear.
+   */
+  const pick = (...keys: string[]) =>
+    keys.map((k) => tabItems.find((t) => t.key === k)).filter(Boolean) as typeof tabItems
+
+  const group = (facts: React.ReactNode, keys: string[]) => {
+    const members = pick(...keys)
+    if (!facts && members.length === 0) return null
+    if (!facts && members.length === 1) return members[0].children
+    return (
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {facts}
+        {members.length > 0 && <Tabs size="small" items={members} />}
+      </Space>
+    )
+  }
+
+  const groupedTabs = [
+    { key: 'personal', label: 'Personal & contact',
+      children: group(personalFacts, ['identifications', 'addresses', 'emergency', 'dependents',
+        'education', 'experience', 'certifications', 'health', 'vaccinations']) },
+    { key: 'employment', label: 'Employment & job',
+      children: group(employmentFacts, ['assignments', 'overlays', 'probationReviews',
+        'assets', 'notes', 'rewards', 'disciplinary']) },
+    { key: 'contract', label: 'Contract', children: group(null, ['contracts']) },
+    { key: 'compensation', label: 'Compensation', children: group(null, ['compensation', 'banking']) },
+    // Not one of the PRD's ten, but asked for separately: the balance belongs
+    // with the person rather than on a screen they have to go and find.
+    { key: 'timeAbsence', label: 'Time & absence',
+      children: group(null, ['absenceBalance', 'leaveEntitlement']) },
+    { key: 'schedule', label: 'Work schedule', children: group(scheduleFacts, []) },
+    { key: 'approvals', label: 'Approvals', children: group(approvalsFacts, []) },
+    { key: 'recruitment', label: 'Recruitment', children: group(recruitmentFacts, []) },
+    { key: 'documents', label: 'Documents', children: group(null, ['documents']) },
+    { key: 'history', label: 'History & audit',
+      children: group(null, ['timeline', 'changeHistory', 'audit']) },
+  ].filter((t) => t.children != null)
+
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <Card
@@ -1330,7 +1396,7 @@ export function EmployeeDetailPage() {
           )
         }
       >
-        <Tabs items={tabItems} defaultActiveKey="overview" />
+        <Tabs items={groupedTabs} defaultActiveKey="personal" />
       </Card>
 
       <Modal
