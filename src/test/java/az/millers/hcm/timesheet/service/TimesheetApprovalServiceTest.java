@@ -16,6 +16,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.junit.jupiter.api.Test;
 
 import az.millers.hcm.attendance.repo.DailySummaryRepository;
@@ -219,7 +223,31 @@ class TimesheetApprovalServiceTest {
 
         service = new TimesheetApprovalService(workflow, timesheets, days, quantities, totals,
                 categories, employees, summaries, periodService(), corrections, accessScope,
-                noopAudit(), asManager());
+                noopAudit(), asManager(), directTransactionManager());
+    }
+
+    /**
+     * A transaction manager that does nothing.
+     *
+     * <p>These are unit tests with mocked repositories — there is no database
+     * and nothing to commit. The service wraps each bulk-approve item in a
+     * TransactionTemplate so one failure cannot poison the rest; with this
+     * manager the template simply runs the callback, which is what the tests
+     * want to exercise.
+     */
+    private static PlatformTransactionManager directTransactionManager() {
+        return new PlatformTransactionManager() {
+            @Override
+            public TransactionStatus getTransaction(TransactionDefinition definition) {
+                return new SimpleTransactionStatus();
+            }
+
+            @Override
+            public void commit(TransactionStatus status) { /* nothing to commit */ }
+
+            @Override
+            public void rollback(TransactionStatus status) { /* nothing to roll back */ }
+        };
     }
 
     private TimesheetDay day(LocalDate date) {
