@@ -50,12 +50,15 @@ public class KeycloakJwtDecoderFactory {
 
     private final String trustStorePath;
     private final String trustStorePassword;
+    private final String internalBaseUrl;
 
     public KeycloakJwtDecoderFactory(
             @Value("${hcm.security.keycloak.trust-store-path:}") String trustStorePath,
-            @Value("${hcm.security.keycloak.trust-store-password:changeit}") String trustStorePassword) {
+            @Value("${hcm.security.keycloak.trust-store-password:changeit}") String trustStorePassword,
+            @Value("${hcm.security.keycloak.internal-base-url:}") String internalBaseUrl) {
         this.trustStorePath = trustStorePath;
         this.trustStorePassword = trustStorePassword;
+        this.internalBaseUrl = internalBaseUrl;
     }
 
     /** Build a validating decoder for the given realm issuer URI. */
@@ -63,20 +66,27 @@ public class KeycloakJwtDecoderFactory {
         try {
             RestTemplate rt = buildRestTemplate();
 
+            // Where we CONNECT, which is not necessarily the issuer. Reaching
+            // Keycloak over the public URL means every key fetch hairpins out
+            // through the reverse proxy and back, so a proxy hiccup or a
+            // Keycloak restart turns into 502s here and failed token validation
+            // — observed in production. The internal address is on the same
+            // container network and does not depend on the public edge at all.
+            String connectUri = internalConnectUri(issuerUri);
+
             // Fetch discovery to get the real jwks_uri. withJwkSetUri (not
             // withIssuerLocation) so decoder construction tolerates a proxy that
             // changes the visible issuer host while we connect on another port.
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> oidcConfig = rt.getForObject(
-                    issuerUri + "/.well-known/openid-configuration", java.util.Map.class);
-            if (oidcConfig == null || !oidcConfig.containsKey("jwks_uri")) {
-                throw new IllegalStateException(
-                        "Could not fetch OIDC discovery document from " + issuerUri);
-            }
+            java.util.Map<String, Object> oidcConfig = fetchDiscovery(rt, connectUri, issuerUri);
             String discoveredJwksUri = (String) oidcConfig.get("jwks_uri");
+
+            // Validation still uses the issuer the REALM advertises, which
+            // Keycloak derives from KC_HOSTNAME_URL and therefore reports as the
+            // public URL no matter which address we fetched from. Connecting
+            // internally changes the route, never the `iss` we accept.
             String realmIssuer = (String) oidcConfig.get("issuer");
 
-            String jwksUri = rewriteHostPort(discoveredJwksUri, issuerUri);
+            String jwksUri = rewriteHostPort(discoveredJwksUri, connectUri);
             log.info("Keycloak decoder for issuer {}: jwks_uri={} advertised-iss={}",
                     issuerUri, jwksUri, realmIssuer);
 
@@ -93,6 +103,65 @@ public class KeycloakJwtDecoderFactory {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to build JwtDecoder for issuer " + issuerUri, e);
         }
+    }
+
+    /**
+     * The address to fetch discovery and keys from: the issuer's path grafted
+     * onto {@code hcm.security.keycloak.internal-base-url} when one is set,
+     * otherwise the issuer itself.
+     *
+     * <p>Per-issuer rather than a single fixed URL, because this is multi-tenant
+     * — every realm keeps its own {@code /realms/<realm>} path, only the
+     * scheme/host/port change.
+     */
+    private String internalConnectUri(String issuerUri) {
+        if (internalBaseUrl == null || internalBaseUrl.isBlank()) {
+            return issuerUri;
+        }
+        try {
+            java.net.URI iss = java.net.URI.create(issuerUri);
+            String path = iss.getRawPath() == null ? "" : iss.getRawPath();
+            return internalBaseUrl.replaceAll("/+$", "") + path;
+        } catch (Exception ex) {
+            log.warn("Could not apply internal-base-url {} to issuer {} — using the issuer directly",
+                    internalBaseUrl, issuerUri);
+            return issuerUri;
+        }
+    }
+
+    /**
+     * Reads the discovery document, falling back to the public issuer if the
+     * internal address does not answer.
+     *
+     * <p>The fallback is the point. This change exists to make token validation
+     * survive the public edge being down; it must not introduce the mirror-image
+     * failure where a wrong internal hostname locks every user out of a system
+     * whose public URL was working fine all along.
+     */
+    @SuppressWarnings("unchecked")
+    private java.util.Map<String, Object> fetchDiscovery(
+            RestTemplate rt, String connectUri, String issuerUri) {
+        java.util.Map<String, Object> config = null;
+        try {
+            config = rt.getForObject(
+                    connectUri + "/.well-known/openid-configuration", java.util.Map.class);
+        } catch (RuntimeException ex) {
+            if (connectUri.equals(issuerUri)) {
+                throw ex;
+            }
+            log.warn("Internal Keycloak address {} did not answer ({}) — falling back to {}",
+                    connectUri, ex.getMessage(), issuerUri);
+        }
+        if (config == null || !config.containsKey("jwks_uri")) {
+            config = rt.getForObject(
+                    issuerUri + "/.well-known/openid-configuration", java.util.Map.class);
+        }
+        if (config == null || !config.containsKey("jwks_uri")) {
+            throw new IllegalStateException(
+                    "Could not fetch OIDC discovery document from " + connectUri
+                            + " or " + issuerUri);
+        }
+        return config;
     }
 
     private RestTemplate buildRestTemplate() throws Exception {

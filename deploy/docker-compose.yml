@@ -80,6 +80,10 @@ services:
       # resolver matches against config.tenant.issuer_uri.
       HCM_OIDC_ISSUER: ${PUBLIC_URL:?set PUBLIC_URL}/realms/millers-hcm
       HCM_KEYCLOAK_ADMIN_URL: http://keycloak:8090
+      # Token validation talks to Keycloak on the compose network instead of
+      # hairpinning through Caddy. The issuer above stays public — only the
+      # route changes. Three 502s during a Keycloak restart is what this is for.
+      HCM_KEYCLOAK_INTERNAL_URL: http://keycloak:8090
       HCM_KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:?set KEYCLOAK_ADMIN}
       HCM_KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
       HCM_PREBOARDING_BASE_URL: ${PUBLIC_URL}/preboarding

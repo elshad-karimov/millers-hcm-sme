@@ -127,6 +127,18 @@ hcm:
       # remove data-key-v2, redeploy.
       data-key-v2: ${HCM_SECURITY_DATA_KEY_V2:}
     keycloak:
+      # Where the JWT decoder CONNECTS to Keycloak, when that should differ
+      # from the issuer. The issuer must stay the public URL — it is the `iss`
+      # claim in every token — but fetching discovery and JWKS over the public
+      # URL routes key lookups out through the reverse proxy and back, so a
+      # proxy blip or a Keycloak restart breaks token validation for a backend
+      # sitting on the same network as Keycloak. Point this at the internal
+      # address and validation stops depending on the public edge.
+      #
+      # Blank = connect to the issuer, the previous behaviour. If the internal
+      # address does not answer, the decoder falls back to the issuer rather
+      # than failing closed.
+      internal-base-url: ${HCM_KEYCLOAK_INTERNAL_URL:}
       # PKCS12 truststore containing the cert that signs Keycloak's TLS
       # endpoint. Used by KeycloakJwtConfig to build a custom JwtDecoder
       # whose JWKS fetches trust our self-signed dev cert without
