@@ -17,6 +17,7 @@ import {
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiErrorDuration, apiErrorMessage } from '../api/errors'
+import { isHiddenField } from '../config/hiddenFields'
 import { employeesApi, type Employee, type EmployeeWorkType } from '../api/employees'
 import { locationApi, type LocationResponse } from '../api/location'
 import { EmployeePicker } from '../components/EmployeePicker'
@@ -267,6 +268,14 @@ export function EmployeeFormPage() {
     message.error('Some required fields need attention — check the highlighted tab.')
   }
 
+  /**
+   * Fields switched off for this edition. `span={0}` renders as display:none
+   * while leaving the control mounted, so a value already on the record still
+   * round-trips through a save instead of being blanked by the edit form.
+   */
+  const span = (field: string, normal: number) =>
+    isHiddenField('employee-form', field) ? 0 : normal
+
   const personalTab = (
     <>
       <Row gutter={16}>
@@ -287,7 +296,7 @@ export function EmployeeFormPage() {
         </Col>
       </Row>
       <Row gutter={16}>
-        <Col span={12}>
+        <Col span={span('preferredName', 12)}>
           {/* M150 — local-script legal name. Contracts and state filings need
               the patronymic form, which first/middle/last cannot rebuild. */}
           <Form.Item
@@ -335,14 +344,14 @@ export function EmployeeFormPage() {
               options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={span('nativeLanguage', 6)}>
           <Form.Item name="nativeLanguage" label="Native language"
             tooltip="ISO 639-1 alpha-2 (lowercase). Drives letter-engine locale.">
             <Select allowClear showSearch placeholder="—"
               optionFilterProp="label" options={COMMON_LANGUAGES} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={span('religion', 6)}>
           <Form.Item name="religion" label="Religion (optional)"
             tooltip="Collection legally restricted in some jurisdictions."
             rules={[{ max: 60 }]}>
@@ -393,12 +402,12 @@ export function EmployeeFormPage() {
             <Input />
           </Form.Item>
         </Col>
-        <Col span={4}>
+        <Col span={span('extension', 4)}>
           <Form.Item name="extension" label="Extension" rules={[{ max: 10 }]}>
             <Input placeholder="e.g. 4012" />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={span('deskNumber', 6)}>
           <Form.Item name="deskNumber" label="Desk / seat"
             tooltip="Facility + IT teams use this for asset assignment."
             rules={[{ max: 32 }]}>
