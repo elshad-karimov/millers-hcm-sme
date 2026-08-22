@@ -23,9 +23,9 @@
   "delegateModal": {
     "title": "Delegate: {{title}}",
     "ok": "Delegate",
-    "to": "Delegate to (username)",
-    "toPlaceholder": "e.g. john.smith",
-    "toRequired": "Enter the username to delegate to",
+    "to": "Delegate to",
+    "toPlaceholder": "Search by name or employee number",
+    "toRequired": "Pick who this goes to",
     "note": "Note (optional)",
     "notePlaceholder": "Reason for delegation",
     "successDelegated": "Step delegated to {{username}}"

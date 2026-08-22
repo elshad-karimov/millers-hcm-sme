@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { workflowApi, type WorkflowInstance, type WorkflowStatus } from '../api/workflow'
 import { useAuth } from '../auth/AuthContext'
+import { LoginPicker } from '../components/LoginPicker'
 
 const STATUS_COLOR: Record<WorkflowStatus, string> = {
   PENDING: 'gold',
@@ -420,7 +421,7 @@ export function InboxPage() {
             label={t('delegateModal.to')}
             rules={[{ required: true, message: t('delegateModal.toRequired') }]}
           >
-            <Input placeholder={t('delegateModal.toPlaceholder')} autoFocus />
+            <LoginPicker placeholder={t('delegateModal.toPlaceholder')} autoFocus />
           </Form.Item>
           <Form.Item name="comment" label={t('delegateModal.note')}>
             <Input.TextArea rows={3} maxLength={500} showCount placeholder={t('delegateModal.notePlaceholder')} />

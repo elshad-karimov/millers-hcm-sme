@@ -23,9 +23,9 @@
   "delegateModal": {
     "title": "Həvalə: {{title}}",
     "ok": "Həvalə et",
-    "to": "Kimə həvalə (istifadəçi adı)",
-    "toPlaceholder": "məs. john.smith",
-    "toRequired": "Həvalə etmək üçün istifadəçi adı daxil edin",
+    "to": "Kimə həvalə",
+    "toPlaceholder": "Ad və ya işçi nömrəsi ilə axtarın",
+    "toRequired": "Kimə həvalə ediləcəyini seçin",
     "note": "Qeyd (məcburi deyil)",
     "notePlaceholder": "Həvalənin səbəbi",
     "successDelegated": "Addım {{username}} istifadəçisinə həvalə edildi"
