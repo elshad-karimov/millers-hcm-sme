@@ -5,9 +5,11 @@ import {
   Card,
   Checkbox,
   Col,
+  Input,
   message,
   Modal,
   Row,
+  Select,
   Space,
   Table,
   Tag,
@@ -58,6 +60,11 @@ export function UserManagementPage() {
   // nothing to list — so they get their own table rather than being invisible.
   const [noLogin, setNoLogin] = useState<UnlinkedEmployee[]>([])
   const [creating, setCreating] = useState<string | null>(null)
+  // Filters are client-side on purpose: the whole realm is already in memory
+  // (listUsers fetches every user), so a round trip per keystroke would buy
+  // nothing and lose the instant feel.
+  const [query, setQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<string[]>([])
 
   useEffect(() => {
     void fetchUsers()
@@ -117,6 +124,25 @@ export function UserManagementPage() {
       setSaving(false)
     }
   }
+
+  const needle = query.trim().toLowerCase()
+  /** Matches on the three things anyone would actually type: name, login, email. */
+  const matches = (...fields: (string | null | undefined)[]) =>
+    !needle || fields.some((f) => (f ?? '').toLowerCase().includes(needle))
+
+  const shownUsers = users.filter(
+    (u) =>
+      matches(u.username, u.email, `${u.firstName} ${u.lastName}`) &&
+      // Every selected role must be present — narrowing, not widening, which is
+      // what people expect when they add a second filter.
+      roleFilter.every((r) => u.roles.includes(r)),
+  )
+  // The search box covers both tables; a role filter cannot, because these
+  // people have no account and therefore no roles — so any role filter hides
+  // them, which is truthful rather than confusing.
+  const shownNoLogin = noLogin.filter(
+    (e) => matches(e.employeeNo, e.fullName, e.email, e.proposedUsername) && roleFilter.length === 0,
+  )
 
   /**
    * Accounts created for an employee have no password, so they cannot sign in
@@ -234,10 +260,33 @@ export function UserManagementPage() {
       </Row>
 
       <Card>
+        <Space style={{ marginBottom: 12 }} wrap>
+          <Input.Search
+            allowClear
+            placeholder="Search name, login or email"
+            style={{ width: 280 }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="Filter by role"
+            style={{ minWidth: 240 }}
+            value={roleFilter}
+            onChange={setRoleFilter}
+            options={Object.keys(ROLE_DESCRIPTIONS).map((r) => ({ label: r, value: r }))}
+          />
+          {(query || roleFilter.length > 0) && (
+            <Text type="secondary">
+              {shownUsers.length} of {users.length}
+            </Text>
+          )}
+        </Space>
         <Table<AdminUser>
           rowKey="id"
           columns={columns}
-          dataSource={users}
+          dataSource={shownUsers}
           loading={loading}
           pagination={{ pageSize: 20, showSizeChanger: false }}
           size="small"
@@ -250,13 +299,13 @@ export function UserManagementPage() {
         when in fact these people cannot sign in, cannot file a timesheet, and
         therefore cannot be paid.
       */}
-      {noLogin.length > 0 && (
+      {shownNoLogin.length > 0 && (
         <Card
           style={{ marginTop: 20 }}
           title={
             <Space>
               <KeyOutlined style={{ color: brand.purple }} />
-              <span>Employees without a login ({noLogin.length})</span>
+              <span>Employees without a login ({shownNoLogin.length})</span>
             </Space>
           }
         >
@@ -269,7 +318,7 @@ export function UserManagementPage() {
             rowKey="employeeId"
             size="small"
             pagination={false}
-            dataSource={noLogin}
+            dataSource={shownNoLogin}
             columns={[
               { title: 'Employee #', dataIndex: 'employeeNo', width: 130 },
               { title: 'Name', dataIndex: 'fullName' },
