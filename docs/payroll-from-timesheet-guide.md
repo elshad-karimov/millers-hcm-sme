@@ -19,6 +19,22 @@ priced.
 | Salary components | Master Data → Salary Components | earnings and deductions catalogue |
 | **Norm working hours for the month** | **no screen — SQL only** | **see the warning below** |
 
+### Every employee needs a login
+
+Creating an employee now creates their sign-in account too, so this looks after
+itself for new hires. For anyone hired before that, open the employee →
+**Employment & job** → **Sign-in account**; it either shows the sign-in name or
+says *"No login — cannot file a timesheet"* with a **Create login** button.
+
+The account never has a password. The employee sets their own the first time
+they sign in, so send them a password reset from Keycloak to start them off.
+Until they do, they cannot sign in, cannot file a timesheet, and payroll will
+not include them — a payroll run only picks up employees whose timesheet for
+the period was approved.
+
+The username is the work email, or the personal email, or failing both the
+employee number (`emp-00003`), always lower-cased.
+
 > **Norm hours block everything.** Every hourly rate is `base salary ÷ norm hours`
 > for that month. If the row is missing, pricing refuses outright:
 >
