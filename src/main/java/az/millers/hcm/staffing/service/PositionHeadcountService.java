@@ -59,17 +59,36 @@ public class PositionHeadcountService {
     // circular constructor cycle if PositionFundingService ever depends
     // back on this service.
     private final PositionFundingService fundingService;
+    /**
+     * Whether a position's approved headcount is a hard cap on hiring.
+     *
+     * <p>Off in this edition. Position control — approving a headcount per
+     * position and refusing hires beyond it — is an enterprise practice that
+     * assumes somebody maintains those numbers. Here nobody does, so every
+     * position was left at the default of 1 and the second hire into any
+     * position was refused with "at capacity", which reads as a system fault
+     * rather than a policy decision.
+     *
+     * <p>The numbers are still recorded and still shown on the position
+     * screens; they simply do not block a hire. Turn this on to get the cap
+     * back, once the headcounts are real.
+     */
+    private final boolean enforceHeadcount;
 
     public PositionHeadcountService(PositionRepository positions,
                                     EmployeeRepository employees,
                                     VacancyRepository vacancies,
                                     AuditService audit,
-                                    PositionFundingService fundingService) {
+                                    PositionFundingService fundingService,
+                                    @org.springframework.beans.factory.annotation.Value(
+                                            "${hcm.staffing.enforce-position-headcount:false}")
+                                    boolean enforceHeadcount) {
         this.positions = positions;
         this.employees = employees;
         this.vacancies = vacancies;
         this.audit = audit;
         this.fundingService = fundingService;
+        this.enforceHeadcount = enforceHeadcount;
     }
 
     // ─── Gating ─────────────────────────────────────────────────────────────
@@ -100,12 +119,14 @@ public class PositionHeadcountService {
         // M244 — funding gate. UNFUNDED / PENDING / EXPIRED positions are
         // ACTIVE but cannot accept new hires until funding is allocated.
         fundingService.assertCanRecruit(positionId);
-        long actualOccupied = employees.countActiveByPositionId(positionId);
-        if (!hasRoom(p.getApprovedHeadcount(), actualOccupied)) {
-            throw new BadRequestException(
-                    "Position " + p.getCode() + " is at capacity (occupied "
-                    + actualOccupied + " / approved " + p.getApprovedHeadcount()
-                    + "). Raise approvedHeadcount or pick a different position.");
+        if (enforceHeadcount) {
+            long actualOccupied = employees.countActiveByPositionId(positionId);
+            if (!hasRoom(p.getApprovedHeadcount(), actualOccupied)) {
+                throw new BadRequestException(
+                        "Position " + p.getCode() + " is at capacity (occupied "
+                        + actualOccupied + " / approved " + p.getApprovedHeadcount()
+                        + "). Raise approvedHeadcount or pick a different position.");
+            }
         }
     }
 
