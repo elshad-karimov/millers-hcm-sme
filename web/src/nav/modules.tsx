@@ -296,6 +296,11 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   // Talent and position-movement surfaces whose owning modules are not in LITE,
   // but which are listed under a module that is — so plan gating alone misses them.
   '/career', '/me/career', '/manager/movements',
+  // Personal Information duplicated the board it sat on. Of its six cards,
+  // three need HR Operations (not in this plan, so already gone) and the other
+  // three — My Profile, Update Personal Info, Notification Preferences — are
+  // already tiles or quick actions on Self-Service itself.
+  '/me/personal',
   '/presence', // presence map is driven by clocking events
   // Admin integrations that have nothing behind them on this deployment.
   '/admin/ldap', '/admin/bi-export', '/admin/warehouse',
