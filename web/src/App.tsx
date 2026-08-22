@@ -60,8 +60,6 @@ import { PermissionTypeFormPage } from './pages/PermissionTypeFormPage'
 import { PermissionBalancesPage } from './pages/PermissionBalancesPage'
 import { PermissionRequestsPage } from './pages/PermissionRequestsPage'
 import { PermissionRequestFormPage } from './pages/PermissionRequestFormPage'
-import { TimesheetsPage } from './pages/TimesheetsPage'
-import { TimesheetDetailPage } from './pages/TimesheetDetailPage'
 import { PayrollRunsPage } from './pages/PayrollRunsPage'
 import { PayrollRunDetailPage } from './pages/PayrollRunDetailPage'
 import { PayrollCompensationPage } from './pages/PayrollCompensationPage'
@@ -396,8 +394,6 @@ export default function App() {
           <Route path="attendance/devices" element={<DeviceMasterPage />} />
           <Route path="attendance/workspace" element={<AttendanceWorkspacePage />} />
           <Route path="attendance/reports" element={<AttendanceReportsPage />} />
-          <Route path="timesheets" element={<TimesheetsPage />} />
-          <Route path="timesheets/:id" element={<TimesheetDetailPage />} />
           {/* M484 — timesheet projects */}
           <Route path="timesheets/projects" element={<TimesheetProjectsPage />} />
 
