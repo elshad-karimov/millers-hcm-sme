@@ -1,9 +1,9 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { ALL_TILES, findTile, type Tile } from './modules'
+import { ALL_TILES, type Tile } from './modules'
 
 /**
- * Favorites + Recents for the Navigator / Home springboard.
+ * Favorites for the Navigator / Home springboard.
  *
  * Stored in localStorage, namespaced per user so two accounts on the same
  * browser don't share pins.  Only the route string is persisted; labels and
@@ -79,19 +79,10 @@ export function useFavorites() {
   return { favorites: tilesFor(routes), isFav, toggle }
 }
 
-/** Most-recently-visited apps, newest first. */
-export function useRecents() {
-  const { user } = useAuth()
-  const { routes, store } = useRoutes(`hcm.nav.recent.${user?.username ?? 'anon'}`, 8)
-  const record = useCallback(
-    (pathname: string) => {
-      const tile = findTile(pathname)
-      if (!tile) return
-      const cur = store.get()
-      if (cur[0] === tile.to) return
-      store.set([tile.to, ...cur.filter((x) => x !== tile.to)])
-    },
-    [store],
-  )
-  return { recents: tilesFor(routes), record }
-}
+/*
+ * The Recents rail lived here. It was removed from the springboard: this
+ * edition has few enough screens that a "recently visited" row mostly repeated
+ * what the tabs below it already showed, and it pushed the actual apps down the
+ * page. The recorder went with it rather than being left writing a list nothing
+ * reads. Favourites stay — those are chosen deliberately.
+ */

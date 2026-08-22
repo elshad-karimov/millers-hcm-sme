@@ -7,7 +7,7 @@ import {
 } from '../nav/modules'
 import { describeScreen } from '../nav/screenDescriptions'
 import { areaVisible } from '../nav/selfServiceAreas'
-import { useFavorites, useRecents } from '../nav/navPrefs'
+import { useFavorites } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
 
 /**
@@ -22,13 +22,12 @@ export function ModuleBrowser({
 }: {
   /** Fired after a tile is opened — the Navigator uses it to close the drawer. */
   onNavigate?: () => void
-  /** Show the Favorites + Recents rows above the tabs. */
+  /** Show the Favorites row above the tabs. */
   showShortcuts?: boolean
 }) {
   const { hasRole } = useAuth()
   const navigate = useNavigate()
   const { favorites, isFav, toggle } = useFavorites()
-  const { recents } = useRecents()
   const { disabled: disabledModules } = useEnabledModules()
 
   const cats = useMemo(
@@ -48,8 +47,8 @@ export function ModuleBrowser({
   // Hide any tile whose owning module is off for this tenant — `needs` when the
   // tile is borrowed from another module (Self-Service's "Pay and Payslips",
   // "Learning", …), otherwise the module its route belongs to.
-  // `isHiddenScreen` also covers Favourites and Recents below, so a screen
-  // somebody starred before it was switched off stops appearing too.
+  // `isHiddenScreen` also covers Favourites below, so a screen somebody
+  // starred before it was switched off stops appearing too.
   const visible = (tiles: Tile[]) =>
     tiles.filter(
       (t) =>
@@ -58,7 +57,6 @@ export function ModuleBrowser({
         !disabledModules.has(t.needs ?? moduleOfRoute(t.to) ?? ''),
     )
   const favVisible = visible(favorites)
-  const recentVisible = visible(recents)
   const [active, setActive] = useState(cats[0]?.key ?? '')
   const cat = cats.find((c) => c.key === active) ?? cats[0]
 
@@ -97,9 +95,6 @@ export function ModuleBrowser({
     <div>
       {showShortcuts && favVisible.length > 0 && (
         <ShortcutRow label="FAVORITES" tiles={favVisible} onOpen={open} />
-      )}
-      {showShortcuts && recentVisible.length > 0 && (
-        <ShortcutRow label="RECENT" tiles={recentVisible} onOpen={open} />
       )}
 
       {/* Category tabs — one scrolling row (Redwood style); active one underlined green. */}

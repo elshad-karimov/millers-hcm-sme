@@ -21,7 +21,7 @@ import { brand } from '../theme'
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher'
 import { ALL_TILES, icon, isHiddenScreen, moduleOfRoute } from '../nav/modules'
 import { areaVisible } from '../nav/selfServiceAreas'
-import { useFavorites, useRecents } from '../nav/navPrefs'
+import { useFavorites } from '../nav/navPrefs'
 import { useEnabledModules } from '../nav/moduleSettings'
 
 const { Header, Content } = Layout
@@ -57,13 +57,7 @@ export function AppLayout() {
   const [search, setSearch] = useState('')
 
   const { favorites } = useFavorites()
-  const { record } = useRecents()
   const { loaded, disabled: disabledModules, notInPlan, plan } = useEnabledModules()
-
-  // Track visited apps for the Recents rail.
-  useEffect(() => {
-    record(location.pathname)
-  }, [location.pathname, record])
 
   // Guard: a deep-link into an unavailable module bounces (open until loaded).
   // Out-of-plan lands on the upgrade page — a silent redirect to Home reads as
