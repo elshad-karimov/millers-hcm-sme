@@ -99,6 +99,8 @@ public class TimesheetApprovalService {
     private final TimeCategoryRepository categories;
     private final EmployeeRepository employees;
     private final DailySummaryRepository summaries;
+    /** Resolves the project a day is booked to, for the review screen. */
+    private final az.millers.hcm.timesheet.repo.TimesheetProjectRepository projects;
     private final TimesheetPeriodService periods;
     private final TimesheetCorrectionService corrections;
     private final AccessScopeService accessScope;
@@ -126,6 +128,7 @@ public class TimesheetApprovalService {
                                     TimeCategoryRepository categories,
                                     EmployeeRepository employees,
                                     DailySummaryRepository summaries,
+                                    az.millers.hcm.timesheet.repo.TimesheetProjectRepository projects,
                                     TimesheetPeriodService periods,
                                     TimesheetCorrectionService corrections,
                                     AccessScopeService accessScope,
@@ -143,6 +146,7 @@ public class TimesheetApprovalService {
         this.categories = categories;
         this.employees = employees;
         this.summaries = summaries;
+        this.projects = projects;
         this.periods = periods;
         this.corrections = corrections;
         this.accessScope = accessScope;
@@ -222,6 +226,13 @@ public class TimesheetApprovalService {
         Employee employee = employees.findById(ts.getEmployeeId()).orElse(null);
 
         Map<String, TimeCategory> catalog = catalogByCode();
+        // Resolved once for the month rather than per day — a 31-row review
+        // should not issue 31 project lookups.
+        Map<java.util.UUID, String> projectNames = projects.findAll().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        az.millers.hcm.timesheet.domain.TimesheetProject::getId,
+                        pr -> pr.getCode() + " — " + pr.getName(),
+                        (a, b) -> a));
         List<TimesheetDay> allDays = days.findByTimesheetIdOrderByWorkDateAsc(ts.getId());
         Map<UUID, List<DayQuantity>> byDay = quantitiesByDay(allDays);
 
@@ -255,6 +266,8 @@ public class TimesheetApprovalService {
                     d.getAttendanceVarianceHours(),
                     d.getVarianceExplanation(),
                     d.getEmployeeNote(),
+                    d.getWorkLocation(),
+                    d.getProjectId() == null ? null : projectNames.get(d.getProjectId()),
                     qs.stream().map(q -> toQuantityView(q, catalog)).toList(),
                     List.of()));
         }

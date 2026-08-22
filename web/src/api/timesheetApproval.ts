@@ -49,6 +49,10 @@ export interface ReviewDay {
   varianceHours?: number | null
   varianceExplanation?: string | null
   employeeNote?: string | null
+  /** Where the day was worked — drives the offshore/quayside rate. */
+  workLocation?: string | null
+  /** Project the day is booked to, already resolved to "CODE — Name". */
+  project?: string | null
   quantities: QuantityView[]
   findings: FindingView[]
 }

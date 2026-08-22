@@ -222,7 +222,11 @@ class TimesheetApprovalServiceTest {
         lenient().when(employees.findByUsername("manager1")).thenReturn(Optional.of(managerEmployee()));
 
         service = new TimesheetApprovalService(workflow, timesheets, days, quantities, totals,
-                categories, employees, summaries, periodService(), corrections, accessScope,
+                categories, employees, summaries,
+                // Projects only resolve a display name on the review screen; an
+                // empty master is fine for these tests.
+                mock(az.millers.hcm.timesheet.repo.TimesheetProjectRepository.class),
+                periodService(), corrections, accessScope,
                 noopAudit(), asManager(), directTransactionManager());
     }
 

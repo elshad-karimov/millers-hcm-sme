@@ -53,6 +53,10 @@ public final class ApprovalDtos {
             BigDecimal varianceHours,
             String varianceExplanation,
             String employeeNote,
+            /** Where the day was worked — drives the offshore/quayside rate. */
+            String workLocation,
+            /** Project the day is booked to, resolved to its name. */
+            String project,
             List<DailyEntryDtos.QuantityView> quantities,
             List<DailyEntryDtos.FindingView> findings) {
     }

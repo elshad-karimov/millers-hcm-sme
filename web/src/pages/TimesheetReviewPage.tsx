@@ -90,6 +90,35 @@ export function TimesheetReviewPage() {
       },
     },
     {
+      // What the employee actually keyed. The screen previously showed only the
+      // CALCULATED values, so an approver signed off a month without seeing the
+      // night hours, overtime, meal and transport behind it — and those are
+      // what the day is paid on.
+      title: 'Entered', width: 260,
+      render: (_, r) => {
+        const keyed = r.quantities.filter((q) => !q.derived)
+        if (keyed.length === 0) return <Typography.Text type="secondary">—</Typography.Text>
+        return (
+          <Space size={4} wrap>
+            {keyed.map((q) => (
+              <Tag key={q.categoryCode} color="blue">{q.categoryName}: {q.quantity}</Tag>
+            ))}
+          </Space>
+        )
+      },
+    },
+    {
+      title: 'Where', width: 190,
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <span>{r.workLocation ?? <Typography.Text type="secondary">—</Typography.Text>}</span>
+          {r.project && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.project}</Typography.Text>
+          )}
+        </Space>
+      ),
+    },
+    {
       title: 'Calculated', width: 240,
       render: (_, r) => {
         const derived = r.quantities.filter((q) => q.derived)
