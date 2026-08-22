@@ -10,10 +10,26 @@ export interface AdminUser {
   roles: string[]
 }
 
+/** An employee with no sign-in account — see UnlinkedEmployeeDto. */
+export interface UnlinkedEmployee {
+  employeeId: string
+  employeeNo: string
+  fullName: string
+  email: string | null
+  proposedUsername: string | null
+}
+
 export const adminApi = {
   /** List all Keycloak realm users with their current HCM roles. */
   listUsers: (): Promise<AdminUser[]> =>
     api.get<AdminUser[]>('/admin/users').then((r) => r.data),
+
+  /**
+   * Employees who have no login yet. They are absent from listUsers by
+   * definition — this is how they become visible.
+   */
+  employeesWithoutLogin: (): Promise<UnlinkedEmployee[]> =>
+    api.get<UnlinkedEmployee[]>('/admin/users/without-login').then((r) => r.data),
 
   /** Returns the ordered list of assignable HCM role names. */
   getAvailableRoles: (): Promise<string[]> =>

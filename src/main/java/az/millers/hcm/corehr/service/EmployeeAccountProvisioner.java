@@ -101,7 +101,7 @@ public class EmployeeAccountProvisioner {
      * that always exists, so a hire with no email address still gets an
      * account rather than being silently skipped.
      */
-    static String usernameFor(Employee employee) {
+    public static String usernameFor(Employee employee) {
         String email = firstNonBlank(employee.getWorkEmail(), employee.getEmail());
         if (email != null) return email.trim().toLowerCase(Locale.ROOT);
         if (employee.getEmployeeNo() != null && !employee.getEmployeeNo().isBlank()) {

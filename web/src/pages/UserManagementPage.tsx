@@ -15,7 +15,8 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EditOutlined, KeyOutlined, TeamOutlined } from '@ant-design/icons'
-import { adminApi, type AdminUser } from '../api/admin'
+import { adminApi, type AdminUser, type UnlinkedEmployee } from '../api/admin'
+import { employeesApi } from '../api/employees'
 import { brand } from '../theme'
 
 const { Title, Text } = Typography
@@ -53,6 +54,10 @@ export function UserManagementPage() {
   const [pwValue, setPwValue] = useState<string | null>(null)
   const [pwLoading, setPwLoading] = useState<string | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  // Employees with no account. They cannot appear in the user list — there is
+  // nothing to list — so they get their own table rather than being invisible.
+  const [noLogin, setNoLogin] = useState<UnlinkedEmployee[]>([])
+  const [creating, setCreating] = useState<string | null>(null)
 
   useEffect(() => {
     void fetchUsers()
@@ -61,13 +66,36 @@ export function UserManagementPage() {
   async function fetchUsers() {
     setLoading(true)
     try {
-      const data = await adminApi.listUsers()
+      // Both lists together: creating one login moves a row from the second
+      // table to the first, so they must never be refreshed independently.
+      const [data, unlinked] = await Promise.all([
+        adminApi.listUsers(),
+        adminApi.employeesWithoutLogin().catch(() => [] as UnlinkedEmployee[]),
+      ])
       setUsers(data)
+      setNoLogin(unlinked)
     } catch {
       void message.error('Failed to load users')
     } finally {
       setLoading(false)
     }
+  }
+
+  /** Creates the account, then reloads so the person appears above instead. */
+  function createLogin(row: UnlinkedEmployee) {
+    setCreating(row.employeeId)
+    employeesApi
+      .createLogin(row.employeeId)
+      .then((updated) => {
+        void message.success(`Login ${updated.username} created for ${row.fullName}`)
+        return fetchUsers()
+      })
+      .catch((e) =>
+        void message.error(
+          e?.response?.data?.message ?? `Could not create a login for ${row.fullName}`,
+        ),
+      )
+      .finally(() => setCreating(null))
   }
 
   function openEdit(user: AdminUser) {
@@ -200,7 +228,7 @@ export function UserManagementPage() {
             </Title>
           </Space>
           <Text type="secondary" style={{ display: 'block', marginTop: 2 }}>
-            Assign or revoke Keycloak realm roles for each user
+            Who can sign in, what they can do, and who still has no account
           </Text>
         </Col>
       </Row>
@@ -215,6 +243,67 @@ export function UserManagementPage() {
           size="small"
         />
       </Card>
+
+      {/*
+        Employees with no account. Absent from the table above by definition —
+        there is no Keycloak user to list — which read as "everyone is set up"
+        when in fact these people cannot sign in, cannot file a timesheet, and
+        therefore cannot be paid.
+      */}
+      {noLogin.length > 0 && (
+        <Card
+          style={{ marginTop: 20 }}
+          title={
+            <Space>
+              <KeyOutlined style={{ color: brand.purple }} />
+              <span>Employees without a login ({noLogin.length})</span>
+            </Space>
+          }
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            These people have an employee record but no way to sign in, so they
+            cannot fill in a timesheet — and payroll only pays a month whose
+            timesheet was approved.
+          </Text>
+          <Table<UnlinkedEmployee>
+            rowKey="employeeId"
+            size="small"
+            pagination={false}
+            dataSource={noLogin}
+            columns={[
+              { title: 'Employee #', dataIndex: 'employeeNo', width: 130 },
+              { title: 'Name', dataIndex: 'fullName' },
+              {
+                title: 'Email',
+                dataIndex: 'email',
+                render: (v: string | null) => v ?? <Text type="secondary">—</Text>,
+              },
+              {
+                title: 'Login will be',
+                dataIndex: 'proposedUsername',
+                render: (v: string | null) =>
+                  v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>,
+              },
+              {
+                title: '',
+                key: 'actions',
+                width: 140,
+                render: (_: unknown, r: UnlinkedEmployee) => (
+                  <Button
+                    size="small"
+                    type="primary"
+                    ghost
+                    loading={creating === r.employeeId}
+                    onClick={() => createLogin(r)}
+                  >
+                    Create login
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      )}
 
       {/* Role-edit modal */}
       <Modal

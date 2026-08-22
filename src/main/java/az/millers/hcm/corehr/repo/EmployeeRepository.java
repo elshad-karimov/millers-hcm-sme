@@ -52,6 +52,13 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
 
     java.util.Optional<Employee> findByUsername(String username);
 
+    /**
+     * Employees with no sign-in account. They cannot file a timesheet, so they
+     * cannot be paid — the admin screen lists them so they are visible rather
+     * than merely absent from the user list.
+     */
+    java.util.List<Employee> findByUsernameIsNullOrderByEmployeeNoAsc();
+
     boolean existsByEmailIgnoreCase(String email);
 
     Page<Employee> findByEmploymentStatus(EmploymentStatus status, Pageable pageable);

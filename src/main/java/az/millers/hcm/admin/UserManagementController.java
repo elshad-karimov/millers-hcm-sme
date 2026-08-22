@@ -20,6 +20,7 @@ import java.util.List;
  *   GET  /api/admin/users/roles      — list assignable role names
  *   PUT  /api/admin/users/{id}/roles — replace a user's role set
  *   POST /api/admin/users/{id}/temporary-password — issue a one-time password
+ *   GET  /api/admin/users/without-login — employees who have no account yet
  * </pre>
  */
 @RestController
@@ -29,11 +30,29 @@ public class UserManagementController {
 
     private final KeycloakAdminService keycloakAdminService;
     private final az.millers.hcm.audit.AuditService auditService;
+    private final az.millers.hcm.corehr.repo.EmployeeRepository employees;
 
     public UserManagementController(KeycloakAdminService keycloakAdminService,
-                                    az.millers.hcm.audit.AuditService auditService) {
+                                    az.millers.hcm.audit.AuditService auditService,
+                                    az.millers.hcm.corehr.repo.EmployeeRepository employees) {
         this.keycloakAdminService = keycloakAdminService;
         this.auditService = auditService;
+        this.employees = employees;
+    }
+
+    /**
+     * Employees who have no sign-in account.
+     *
+     * <p>This screen lists Keycloak users, so anyone without a login never
+     * appeared on it at all — and an employee missing from the list is
+     * indistinguishable from one who was already dealt with. Returning them
+     * separately keeps the two ideas distinct: these are people, not accounts.
+     */
+    @GetMapping("/without-login")
+    public List<UnlinkedEmployeeDto> employeesWithoutLogin() {
+        return employees.findByUsernameIsNullOrderByEmployeeNoAsc().stream()
+                .map(UnlinkedEmployeeDto::from)
+                .toList();
     }
 
     /** Returns all realm users with their currently assigned HCM roles. */
