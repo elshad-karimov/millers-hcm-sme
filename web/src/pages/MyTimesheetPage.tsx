@@ -171,6 +171,15 @@ export function MyTimesheetPage() {
                 }}
               />
               <StatusTag status={data?.status} />
+              {/* "With your manager" told the employee a month was waiting on
+                  someone, but not who — so chasing it meant asking around.
+                  The name comes from the workflow itself, so it is whoever the
+                  month actually went to, delegation included. */}
+              {data?.pendingWithName && (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  with {data.pendingWithName}
+                </Typography.Text>
+              )}
               {data?.submittedAt && (
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Submitted {dayjs(data.submittedAt).format('D MMM YYYY HH:mm')}

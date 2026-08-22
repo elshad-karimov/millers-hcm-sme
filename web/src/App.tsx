@@ -314,6 +314,15 @@ export default function App() {
         <Route path="me/:area" element={<SelfServiceAreaPage />} />
         {/* Employee daily timesheet capture — own month only, scoped server-side. */}
         <Route path="my/timesheet" element={<MyTimesheetPage />} />
+        {/*
+          Timesheet approval is open to any signed-in user because being the
+          named approver of somebody's month is itself the authority, and that
+          person often holds no manager or HR role. The service decides what
+          they may see and act on: someone with nothing to approve gets an
+          empty queue, not a locked door.
+        */}
+        <Route path="manager/timesheets" element={<TimesheetApprovalsPage />} />
+        <Route path="manager/timesheets/:id" element={<TimesheetReviewPage />} />
         <Route path="my/team" element={<TeamPage />} />
         {/* M115 — per-user notification preferences */}
         <Route path="my/notifications" element={<NotificationPreferencesPage />} />
@@ -350,9 +359,6 @@ export default function App() {
         <Route element={<RequireRole roles={['SYSTEM_ADMIN', 'HR_ADMIN', 'HR_SPECIALIST', 'AUDITOR', 'DEPARTMENT_MANAGER']} />}>
           {/* M125 — real-time presence map (manager + HR scope) */}
           <Route path="presence" element={<PresenceMapPage />} />
-          {/* Timesheet approval — hierarchy-scoped inside the service. */}
-          <Route path="manager/timesheets" element={<TimesheetApprovalsPage />} />
-          <Route path="manager/timesheets/:id" element={<TimesheetReviewPage />} />
           {/* HR period control + payroll readiness. */}
           <Route path="timesheets/control" element={<TimesheetControlPage />} />
           {/* HR letters — request queue (scope-restricted in service) */}

@@ -1062,6 +1062,41 @@ public class WorkflowService {
      * live PENDING instance, but the inbox filter shouldn't crash on
      * mis-seeded definitions).
      */
+    /**
+     * Who this instance is currently waiting on, as an employee id.
+     *
+     * <p>Exists so the person who submitted something can be told where it
+     * went. They could see a status ("With your manager") but not a name, and
+     * "waiting on someone" with no way to find out who is how a month sits
+     * untouched for a fortnight with nobody sure whose move it is.
+     *
+     * <p>Deliberately reuses the resolvers the engine itself routes by, rather
+     * than re-deriving the answer from the employee record: a second
+     * implementation would drift, and would then tell the employee to chase
+     * the wrong person.
+     *
+     * <p>Empty when the instance is finished, or when the step resolves to a
+     * role rather than an individual — HR verification is a whole pool, and
+     * naming one of them would be a guess.
+     */
+    @Transactional(readOnly = true)
+    public Optional<UUID> currentAssigneeEmployeeId(UUID instanceId) {
+        WorkflowInstance i = instances.findById(instanceId).orElse(null);
+        if (i == null || i.getStatus().isTerminal()) return Optional.empty();
+        WorkflowStep step = currentStepFor(i);
+        if (step == null) return Optional.empty();
+        if (step.isResolvesToManager()) {
+            return Optional.ofNullable(resolveSubjectManagerId(i));
+        }
+        if (step.isResolvesToTimesheetApprover()) {
+            return Optional.ofNullable(resolveSubjectTimesheetApproverId(i));
+        }
+        if (step.isResolvesToHrbp()) {
+            return Optional.ofNullable(resolveSubjectHrbpId(i));
+        }
+        return Optional.empty();
+    }
+
     private WorkflowStep currentStepFor(WorkflowInstance i) {
         return stepsFor(i.getDefinitionId()).stream()
                 .filter(s -> s.getStepOrder() == i.getCurrentStepIndex())

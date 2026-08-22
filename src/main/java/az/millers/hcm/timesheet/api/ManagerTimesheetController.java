@@ -28,16 +28,24 @@ import az.millers.hcm.timesheet.service.TimesheetCorrectionService;
 /**
  * Manager review and decision on their team's timesheets.
  *
- * <p>The role check here is the outer fence; the real boundary is
- * hierarchy scoping inside the service, which narrows every query and every
- * decision to the caller's own reports. A department manager holding the role
- * still cannot reach an employee outside their line.
+ * <p>Authorisation lives in the service, not here. Every query is narrowed by
+ * hierarchy scope, every timesheet is checked by {@code accessible()}, and
+ * every decision goes through the workflow engine, which refuses anyone who is
+ * not the assignee of the current step. A caller with nothing to approve gets
+ * an empty queue.
+ *
+ * <p>It used to also demand a manager or HR role at the door, and that was
+ * wrong: an employee's named timesheet approver is frequently a colleague who
+ * holds no such role. The workflow routed the month to them, and then this
+ * annotation refused them the screen — the month simply stopped, with nobody
+ * able to see why. Being the named approver IS the authority; the role list
+ * was a second, contradictory answer to the same question.
  *
  * <p>Returns hours and quantities. No endpoint here exposes pay.
  */
 @RestController
 @RequestMapping("/api/manager/timesheets")
-@PreAuthorize("hasAnyRole('DEPARTMENT_MANAGER','HR_ADMIN','HR_SPECIALIST','SYSTEM_ADMIN')")
+@PreAuthorize("isAuthenticated()")
 public class ManagerTimesheetController {
 
     private final TimesheetApprovalService approvals;

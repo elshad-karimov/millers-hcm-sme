@@ -136,7 +136,15 @@ public final class DailyEntryDtos {
             /** V322: selectable projects for the Cost Code column. */
             List<ProjectOption> projects,
             /** V322: minutes the payable overtime figure is rounded to; 0 = none. */
-            int overtimeRoundingMinutes) {
+            int overtimeRoundingMinutes,
+            /**
+             * Who the month is waiting on right now, by name. Null when it is
+             * still the employee's to edit, when the step belongs to a role
+             * pool rather than a person (HR verification), or when nobody is
+             * resolvable — a status alone told the employee their month was
+             * "with your manager" without saying who that was.
+             */
+            String pendingWithName) {
     }
 
     /** A project the employee may charge a day to. */

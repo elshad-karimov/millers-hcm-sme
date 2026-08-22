@@ -110,6 +110,9 @@ export interface MonthView {
   projects: ProjectOption[]
   /** V322 — minutes the payable overtime figure is rounded to; 0 = none. */
   overtimeRoundingMinutes: number
+  /** Who the month is waiting on, by name. Null while it is still yours, or
+      when it is with HR as a group rather than one person. */
+  pendingWithName?: string | null
 }
 
 export interface QuantityInput {

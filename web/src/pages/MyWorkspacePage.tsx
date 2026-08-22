@@ -60,6 +60,7 @@ import type { PerformanceReview } from '../api/performance'
 import { RequiredDocumentsWidget } from '../components/RequiredDocumentsWidget'
 import { ApprovalLimitsWidget } from '../components/ApprovalLimitsWidget'
 import { ChecklistTasksWidget } from '../components/ChecklistTasksWidget'
+import { TimesheetsAwaitingMeWidget } from '../components/TimesheetsAwaitingMeWidget'
 import { InternalJobsWidget } from '../components/InternalJobsWidget'
 import { HrRequestsWidget } from '../components/HrRequestsWidget'
 import { AnnouncementsCard } from '../components/AnnouncementsCard'
@@ -122,6 +123,12 @@ function Dashboard({
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {/* M430 — Announcements card (top, dismissible). */}
       <AnnouncementsCard />
+      {/* Somebody else's month is waiting on this person. Above everything
+          else because it blocks another employee's pay, not their own, and
+          because the approval screen sits on a board most approvers — named
+          colleagues rather than managers — never see. Renders nothing when
+          there is nothing to approve. */}
+      <TimesheetsAwaitingMeWidget />
       {/* M266 — "✅ Onboarding checklist" widget. Renders nothing once
           all checklist tasks are done; appears first so the new hire
           sees their to-dos at the top. */}

@@ -120,6 +120,8 @@ public class TimesheetEntryService {
     private final SettingService settings;
     /** The approval route lives in the engine, not in this class. */
     private final WorkflowService workflowService;
+    /** Only to turn the workflow's assignee id into a name the employee knows. */
+    private final az.millers.hcm.corehr.repo.EmployeeRepository employees;
     private final TimesheetPeriodService periods;
     private final AuditService audit;
     private final CurrentRequest currentRequest;
@@ -142,7 +144,8 @@ public class TimesheetEntryService {
                                  WorkflowService workflowService,
                                  TimesheetPeriodService periods,
                                  AuditService audit,
-                                 CurrentRequest currentRequest) {
+                                 CurrentRequest currentRequest,
+                                 az.millers.hcm.corehr.repo.EmployeeRepository employees) {
         this.timesheets = timesheets;
         this.days = days;
         this.quantities = quantities;
@@ -162,6 +165,7 @@ public class TimesheetEntryService {
         this.periods = periods;
         this.audit = audit;
         this.currentRequest = currentRequest;
+        this.employees = employees;
     }
 
     // ---------- Read ----------
@@ -833,7 +837,25 @@ public class TimesheetEntryService {
                 ts.getStatus().name(), editable, ts.getSubmittedAt(), ts.getSubmittedBy(),
                 ts.getEmployeeComment(), dayViews, totals, options,
                 monthFindings.stream().distinct().toList(), submittable,
-                workLocations(), projectOptions(), intSetting(OVERTIME_ROUNDING_KEY, 30));
+                workLocations(), projectOptions(), intSetting(OVERTIME_ROUNDING_KEY, 30),
+                pendingWithName(ts));
+    }
+
+    /**
+     * The name of whoever the month is sitting with, or null.
+     *
+     * <p>Asked of the workflow engine rather than worked out from the employee
+     * record, so this cannot disagree with where the month actually went. Null
+     * is a normal answer: the month may still be the employee's to edit, or
+     * waiting on HR as a group rather than a named person.
+     */
+    private String pendingWithName(Timesheet ts) {
+        if (ts.getWorkflowInstanceId() == null) return null;
+        return workflowService.currentAssigneeEmployeeId(ts.getWorkflowInstanceId())
+                .flatMap(employees::findById)
+                .map(e -> (e.getFirstName() + " " + e.getLastName()).trim())
+                .filter(n -> !n.isBlank())
+                .orElse(null);
     }
 
     private Map<LocalDate, LeaveRequest> leaveByDate(UUID employeeId, YearMonth ym) {
