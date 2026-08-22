@@ -312,8 +312,55 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   '/me/time-absences',
   '/me/pay',
   '/presence', // presence map is driven by clocking events
-  // Admin integrations that have nothing behind them on this deployment.
+  // ── Scoped to what this edition is for ──────────────────────────────────
+  // Add an employee, record their time and absence, run payroll, send the
+  // payslips. Everything below serves none of those four, so it is off.
+  //
+  // Kept where a screen the four jobs DEPEND on is not obvious:
+  //   Unpaid Deductions   unpaid leave has to reach payroll
+  //   Leave Period Locks  stops leave moving after a run
+  //   Timesheet Control   opens and closes the month payroll reads
+  //   Variance Report     catches a wrong run before anybody is paid
+  //   Labor Rates         the offshore/quayside multipliers
+  //   Permission Matrix   who may see salary
+
+  // Absence beyond requesting and approving it.
+  '/attendance/overtime-requests',   // overtime is already keyed on the timesheet
+  '/leave/team-calendar',
+  '/leave/workspace',                // Leave Requests is the same list
+  '/leave/encashments',
+  '/leave/unauthorized-absences',
+  '/leave/reports/liability',
+
+  // Payroll beyond calculating it and sending the payslips.
+  '/payroll/gl-mappings',            // posting to finance is not in scope
+  '/payroll/gl-reconciliation',
+  '/payroll/year-end',
+
+  // Manager extras. Approvals Inbox and Timesheet Approvals stay — approving a
+  // month is part of recording it.
+  '/my/team',
+  '/manager/analytics',
+
+  // The personal-info request round trip. HR maintains the employee record
+  // directly in this edition.
+  '/personal-info/request',
+  '/personal-info-changes',
+
+  // Org tooling behind the department list. Departments is the master; the
+  // versioned tree and its unit types are the enterprise way of maintaining it.
+  '/organization',
+  '/organization/unit-types',
+  '/organization/units/new',
+
+  // Self-service leftovers.
+  '/me/travel',
+
+  // Admin surfaces with nothing behind them here. Integrations and API keys
+  // configure connections this deployment does not have; if a bank-file export
+  // is added for paying salaries, Integrations comes back with it.
   '/admin/ldap', '/admin/bi-export', '/admin/warehouse',
+  '/admin/integrations', '/admin/api-keys',
   // Workflow configuration. Approvals here are fixed and short — a timesheet
   // goes to the employee's manager, then to their named timesheet approver — so
   // there is nothing for an HR user to author. Definitions stay seeded in
@@ -346,6 +393,10 @@ export const HIDDEN_CATEGORIES: ReadonlySet<string> = new Set([
   // Both are folded into the single Time & Absence board above.
   'time-attendance',
   'leave-absence',
+  // Reporting serves none of the four jobs this edition exists for. The one
+  // report that does — payroll variance, which catches a wrong run before
+  // anybody is paid — lives under Payroll.
+  'reports-analytics',
 ])
 
 /** Whether a whole board is kept off the springboard. See {@link HIDDEN_CATEGORIES}. */
