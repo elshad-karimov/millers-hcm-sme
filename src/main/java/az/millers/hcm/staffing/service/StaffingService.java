@@ -33,14 +33,21 @@ public class StaffingService {
     private final CurrentRequest currentRequest;
     private final PositionLifecycleService lifecycle;
 
+    /** @see PositionHeadcountService — the same switch, applied to the counter. */
+    private final boolean enforceHeadcount;
+
     public StaffingService(PositionRepository repository,
                            AuditService audit,
                            CurrentRequest currentRequest,
-                           PositionLifecycleService lifecycle) {
+                           PositionLifecycleService lifecycle,
+                           @org.springframework.beans.factory.annotation.Value(
+                                   "${hcm.staffing.enforce-position-headcount:false}")
+                           boolean enforceHeadcount) {
         this.repository = repository;
         this.audit = audit;
         this.currentRequest = currentRequest;
         this.lifecycle = lifecycle;
+        this.enforceHeadcount = enforceHeadcount;
     }
 
     // ---------- Queries ----------
@@ -139,7 +146,12 @@ public class StaffingService {
         if (next < 0) {
             throw new BadRequestException("Occupied headcount cannot go below zero");
         }
-        if (next > p.getApprovedHeadcount()) {
+        // The second half of the headcount cap. The gate in
+        // PositionHeadcountService decides whether a hire is allowed; this
+        // decides whether the resulting count may be written down. Leaving
+        // this one on meant the hire passed the gate and then failed here,
+        // with a different message, which is worse than either alone.
+        if (enforceHeadcount && next > p.getApprovedHeadcount()) {
             throw new BadRequestException(
                     "Occupied (" + next + ") would exceed approved headcount ("
                             + p.getApprovedHeadcount() + ")");
