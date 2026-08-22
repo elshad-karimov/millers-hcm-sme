@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Layout, AutoComplete, Input, Dropdown, Avatar, Button, Tag, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import {
+  ArrowLeftOutlined,
   MenuOutlined,
   HomeOutlined,
   StarOutlined,
@@ -74,6 +75,27 @@ export function AppLayout() {
       navigate('/home', { replace: true })
     }
   }, [location.pathname, loaded, disabledModules, notInPlan, navigate])
+
+  /**
+   * One Back control for every screen, rather than each page inventing its own
+   * (several never did, which is what prompted this).
+   *
+   * Not shown on the springboard, where there is nothing behind, nor on the
+   * /me/... boards, which already carry "All apps" in the same corner.
+   */
+  const showBack =
+    location.pathname !== '/home' &&
+    location.pathname !== '/' &&
+    !location.pathname.startsWith('/me/')
+
+  const goBack = () => {
+    // React Router stamps an index onto history state. 0 means this entry is
+    // the first of the session — a deep link, a bookmark, a fresh tab — so
+    // there is nothing of ours behind it and going back would leave the app.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) navigate(-1)
+    else navigate('/home')
+  }
 
   const username = user?.username ?? ''
 
@@ -245,6 +267,16 @@ export function AppLayout() {
       </Header>
 
       <Content style={{ padding: 24, background: brand.cream }}>
+        {showBack && (
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={goBack}
+            style={{ marginBottom: 12, paddingInlineStart: 0 }}
+          >
+            Back
+          </Button>
+        )}
         <Outlet />
       </Content>
 
