@@ -88,6 +88,13 @@ services:
       HCM_KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
       HCM_PREBOARDING_BASE_URL: ${PUBLIC_URL}/preboarding
 
+      # Creating an employee also creates their Keycloak login (no password —
+      # they set one at first sign-in). On here because without a login a new
+      # hire cannot file a timesheet, and a month with no approved timesheet is
+      # a month payroll will not pay. Ships off in application.yml; this turns
+      # it on for the SME deployment, and .env can still override.
+      HCM_EMPLOYEE_AUTO_CREATE_LOGIN: ${HCM_EMPLOYEE_AUTO_CREATE_LOGIN:-true}
+
       # This stack ships no LDAP directory (see the service list below), so the
       # startup runner must not register an LDAP federation provider with
       # Keycloak. It did, pointing at a host that does not exist here, and
