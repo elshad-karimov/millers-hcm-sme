@@ -77,6 +77,7 @@ interface FormValues {
   projectName?: string
   professionalExperienceYears?: number
   jobDescriptionStatus?: string
+  managerId?: string
   timesheetApproverId?: string
   expenseApproverId?: string
   hrTimesheetVerifierId?: string
@@ -142,6 +143,7 @@ const FIELD_TAB: Record<string, string> = {
   professionalExperienceYears: 'job',
   sourceOfHire: 'recruitment',
   jobDescriptionStatus: 'job',
+  managerId: 'job',
   timesheetApproverId: 'approvals',
   expenseApproverId: 'approvals',
   hrTimesheetVerifierId: 'approvals',
@@ -240,6 +242,7 @@ export function EmployeeFormPage() {
           projectName: e.projectName ?? undefined,
           professionalExperienceYears: e.professionalExperienceYears ?? undefined,
           jobDescriptionStatus: e.jobDescriptionStatus ?? undefined,
+          managerId: e.managerId ?? undefined,
           timesheetApproverId: e.timesheetApproverId ?? undefined,
           expenseApproverId: e.expenseApproverId ?? undefined,
           hrTimesheetVerifierId: e.hrTimesheetVerifierId ?? undefined,
@@ -605,6 +608,23 @@ export function EmployeeFormPage() {
         <Col span={8}>
           <Form.Item name="costCentre" label="Cost centre" rules={[{ max: 64 }]}>
             <Input />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          {/*
+            The line manager. Missing from this form until now, which is why
+            every employee had none — and an employee with no manager cannot
+            have their timesheet approved: the first step of the approval chain
+            resolves to this person, and with nobody there the month stops.
+          */}
+          <Form.Item
+            name="managerId"
+            label="Line manager"
+            tooltip="Approves this employee's timesheet and leave. Leave empty only for the top of the organisation."
+          >
+            <EmployeePicker placeholder="— none —" style={{ width: '100%' }} />
           </Form.Item>
         </Col>
       </Row>

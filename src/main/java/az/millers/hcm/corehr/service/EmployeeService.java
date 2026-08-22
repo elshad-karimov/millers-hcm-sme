@@ -213,6 +213,7 @@ public class EmployeeService {
         if (request.managerId() != null && request.managerId().equals(id)) {
             throw new BadRequestException("An employee cannot be their own manager");
         }
+        validateNoManagerCycle(id, request.managerId());
         validateDelegation(id, request);
         validateNationalIdUnique(request.nationalId(), id);
         validateExternalHrIdUnique(request.externalHrId(), id);
@@ -472,6 +473,30 @@ public class EmployeeService {
     private void validateManager(UUID managerId) {
         if (managerId != null && !repository.existsById(managerId)) {
             throw new BadRequestException("Manager not found: " + managerId);
+        }
+    }
+
+    /**
+     * Refuses a reporting line that loops back on itself.
+     *
+     * <p>Self-management was already blocked, but A→B→A was not — it only
+     * became reachable when the line manager became settable from the employee
+     * form. A loop is not merely untidy: anything that walks the reporting
+     * line to decide who may see whom never terminates, and the walk runs on
+     * ordinary reads.
+     *
+     * <p>Bounded at 100 hops so a loop that predates this check cannot hang
+     * the request that is trying to correct it.
+     */
+    private void validateNoManagerCycle(UUID employeeId, UUID proposedManagerId) {
+        UUID cursor = proposedManagerId;
+        for (int hops = 0; cursor != null && hops < 100; hops++) {
+            if (cursor.equals(employeeId)) {
+                throw new BadRequestException(
+                        "That would make the reporting line circular — this employee already "
+                                + "manages the person you picked, directly or indirectly.");
+            }
+            cursor = repository.findById(cursor).map(Employee::getManagerId).orElse(null);
         }
     }
 
