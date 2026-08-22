@@ -167,7 +167,7 @@ const SHORTCUTS = [
   { key: 'employees',    to: '/employees',             icon: <IdcardOutlined />,    tint: 'rgba(91,63,229,0.10)',  iconColor: brand.purpleDeep },
   { key: 'organization', to: '/organization',          icon: <ApartmentOutlined />, tint: 'rgba(63,191,191,0.15)', iconColor: brand.cyanDeep   },
   { key: 'positions',    to: '/positions',             icon: <SolutionOutlined />,  tint: 'rgba(157,238,58,0.18)', iconColor: brand.greenDeep  },
-  { key: 'timesheets',   to: '/timesheets',            icon: <FileDoneOutlined />,  tint: 'rgba(91,63,229,0.08)',  iconColor: brand.purple     },
+  { key: 'timesheets',   to: '/manager/timesheets',            icon: <FileDoneOutlined />,  tint: 'rgba(91,63,229,0.08)',  iconColor: brand.purple     },
   { key: 'leave',        to: '/leave/requests',        icon: <CoffeeOutlined />,    tint: 'rgba(255,159,64,0.15)', iconColor: '#D46B08'        },
   { key: 'payroll',      to: '/payroll/runs',          icon: <BankOutlined />,      tint: 'rgba(157,238,58,0.18)', iconColor: brand.greenDeep  },
   { key: 'recruitment',  to: '/recruitment/vacancies', icon: <UserAddOutlined />,   tint: 'rgba(91,63,229,0.10)',  iconColor: brand.purpleDeep },
@@ -547,9 +547,11 @@ export function DashboardPage() {
                   iconBg="rgba(91,63,229,0.10)"
                   label={t('pendingActions.timesheets.label')}
                   count={loading ? '…' : (stats.pendingTimesheets ?? '—')}
+                  /* Approvals, not the attendance-generated list: this
+                     edition does not produce those. */
                   subLabel={t('pendingActions.timesheets.sub')}
                   actionLabel={t('pendingActions.timesheets.action')}
-                  to="/timesheets"
+                  to="/manager/timesheets"
                 />
               </Col>
               <Col xs={24} sm={12}>

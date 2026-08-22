@@ -59,7 +59,7 @@ export const SCREEN_DESCRIPTIONS: Readonly<Record<string, string>> = {
   '/lifecycle/offboarding/notice-period-rules': 'How much notice each kind of leaver must give',
 
   // ── Time & attendance ─────────────────────────────────────────────────────
-  '/timesheets': 'Fill in the monthly timesheet and submit it',
+  '/my/timesheet': 'Fill in the monthly timesheet and submit it',
   '/timesheets/projects': 'The projects and cost codes timesheets book time to',
   '/timesheets/control': 'Open and close months, and chase what is missing',
   '/attendance/overtime-requests': 'Overtime asked for in advance, and its approval',

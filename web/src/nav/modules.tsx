@@ -125,7 +125,7 @@ export const CATEGORIES: Category[] = [
       t('New Leave Request','/leave/requests/new','calendar','leave-absence'),
     ],
     apps: [
-      t('Timesheets','/timesheets','file','time-attendance'),
+      t('Timesheets','/my/timesheet','file','time-attendance'),
       t('Timesheet Approvals','/manager/timesheets','apartment','time-attendance'),
       t('Timesheet Control','/timesheets/control','shield','time-attendance'),
       t('Overtime Requests','/attendance/overtime-requests','clock','time-attendance'),
@@ -243,6 +243,7 @@ export const CATEGORIES: Category[] = [
  * checks and the server-side module gate remain the real protection.
  */
 export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
+  '/timesheets',
   // Clocking. Attendance here is captured on monthly timesheets; there are no
   // badge terminals, rosters or shift patterns anywhere in the source data.
   '/attendance/corrections', '/attendance/devices', '/attendance/events',

@@ -2158,7 +2158,7 @@ export function MyWorkspacePage() {
             { key: 'leave',         label: t('tabs.leave'),         route: '/leave/requests',        children: <LeaveTab /> },
             { key: 'permission',    label: t('tabs.permission'),    route: '/permission/requests',   children: <PermissionTab /> },
             { key: 'businessTrips', label: t('tabs.businessTrips'), route: '/business-trips',        children: <BusinessTripsTab /> },
-            { key: 'timesheets',    label: t('tabs.timesheets'),    route: '/timesheets',            children: <TimesheetsTab /> },
+            { key: 'timesheets',    label: t('tabs.timesheets'),    route: '/my/timesheet',            children: <TimesheetsTab /> },
             { key: 'payroll',       label: 'Payroll',               route: '/payroll/runs',          children: <PayrollTab /> },
             { key: 'benefits',      label: 'Benefits',              route: '/compbenefits/benefits', children: <BenefitsTab /> },
             { key: 'assets',        label: 'My Assets',             route: '/hr/assets',             children: <AssetsTab /> },

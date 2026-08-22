@@ -53,7 +53,7 @@ function moduleRoute(module: string | null): string | null {
     payroll: '/payroll/runs',
     performance: '/performance/reviews',
     recruitment: '/recruitment/vacancies',
-    timesheet: '/timesheets',
+    timesheet: '/my/timesheet',
     lifecycle: '/lifecycle/terminations',
     business_trip: '/business-trips',
     permission: '/permission/requests',
