@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Layout, AutoComplete, Input, Dropdown, Avatar, Button, Tag, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -10,7 +10,7 @@ import {
   SettingOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthContext'
 import { Logo } from './Logo'
@@ -48,6 +48,7 @@ export function AppLayout() {
   const { t: tCommon } = useTranslation('common')
   const navigate = useNavigate()
   const location = useLocation()
+  const navigationType = useNavigationType()
 
   const [navOpen, setNavOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -88,12 +89,27 @@ export function AppLayout() {
     location.pathname !== '/' &&
     !location.pathname.startsWith('/me/')
 
+  /**
+   * How many pages deep into the app we are.
+   *
+   * Counted here rather than read from history.state.idx, which was the first
+   * attempt and sent everything to Home: keycloak-js rewrites history state
+   * when it strips the auth code from the URL after login, and the index does
+   * not reliably survive that. Counting PUSH and POP ourselves depends on
+   * nothing outside React Router.
+   */
+  const depth = useRef(0)
+  useEffect(() => {
+    if (navigationType === 'PUSH') depth.current += 1
+    else if (navigationType === 'POP') depth.current = Math.max(0, depth.current - 1)
+    // REPLACE keeps the depth: it swaps the current entry rather than adding one.
+  }, [location.key, navigationType])
+
   const goBack = () => {
-    // React Router stamps an index onto history state. 0 means this entry is
-    // the first of the session — a deep link, a bookmark, a fresh tab — so
-    // there is nothing of ours behind it and going back would leave the app.
-    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
-    if (idx > 0) navigate(-1)
+    // Only fall back to Home when there is genuinely nothing of ours behind —
+    // a deep link, a bookmark, a fresh tab — where going back would leave the
+    // application altogether.
+    if (depth.current > 0) navigate(-1)
     else navigate('/home')
   }
 
