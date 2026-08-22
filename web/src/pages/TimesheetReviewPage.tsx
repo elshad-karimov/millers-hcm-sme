@@ -5,6 +5,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ArrowLeftOutlined } from '@ant-design/icons'
+import { useOwnBackControl } from '../components/PageBack'
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
 import { timesheetApprovalApi, type ReviewDay, type ReviewView } from '../api/timesheetApproval'
@@ -19,6 +20,7 @@ import { errorOf, statusColor } from './TimesheetApprovalsPage'
  * reads like a discrepancy.
  */
 export function TimesheetReviewPage() {
+  useOwnBackControl()
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()

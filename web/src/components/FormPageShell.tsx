@@ -1,5 +1,6 @@
 import { Button, Card, Space, Typography } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
+import { useOwnBackControl } from './PageBack'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 
@@ -17,6 +18,10 @@ interface Props {
  */
 export function FormPageShell({ title, backTo, extra, children }: Props) {
   const navigate = useNavigate()
+  // This shell already offers "Back to list", which is more use than a generic
+  // Back — it returns to the register rather than to wherever the user came
+  // from. Tell the layout to leave its own control off this page.
+  useOwnBackControl()
   return (
     <Card
       title={

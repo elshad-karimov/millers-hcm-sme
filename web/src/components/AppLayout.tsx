@@ -16,6 +16,7 @@ import { useAuth } from '../auth/AuthContext'
 import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
 import { Navigator } from './Navigator'
+import { OwnBackProvider } from './PageBack'
 import { brand } from '../theme'
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher'
 import { ALL_TILES, icon, isHiddenScreen, moduleOfRoute } from '../nav/modules'
@@ -51,6 +52,8 @@ export function AppLayout() {
   const navigationType = useNavigationType()
 
   const [navOpen, setNavOpen] = useState(false)
+  /** Set by a page that renders its own back control (see PageBack). */
+  const [pageHasOwnBack, setPageHasOwnBack] = useState(false)
   const [search, setSearch] = useState('')
 
   const { favorites } = useFavorites()
@@ -87,7 +90,10 @@ export function AppLayout() {
   const showBack =
     location.pathname !== '/home' &&
     location.pathname !== '/' &&
-    !location.pathname.startsWith('/me/')
+    !location.pathname.startsWith('/me/') &&
+    // A page with its own control — "Back to list" on the forms — says so, and
+    // gets to keep it alone.
+    !pageHasOwnBack
 
   /**
    * How many pages deep into the app we are.
@@ -293,7 +299,9 @@ export function AppLayout() {
             Back
           </Button>
         )}
-        <Outlet />
+        <OwnBackProvider value={setPageHasOwnBack}>
+          <Outlet />
+        </OwnBackProvider>
       </Content>
 
       <Navigator open={navOpen} onClose={() => setNavOpen(false)} />

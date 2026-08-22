@@ -42,6 +42,7 @@ import { attendanceApi, type AttendancePayrollSummary } from '../api/attendance'
 import { useAuth } from '../auth/AuthContext'
 import { WorkflowPanel } from '../components/WorkflowPanel'
 import { RoleSets } from '../auth/roleSets'
+import { useOwnBackControl } from '../components/PageBack'
 
 const STATUS_COLOR: Record<PayrollRunStatus, string> = {
   DRAFT: 'default',
@@ -54,6 +55,8 @@ const STATUS_COLOR: Record<PayrollRunStatus, string> = {
 }
 
 export function PayrollRunDetailPage() {
+  // This page has its own "Back to list"; the layout leaves its Back off.
+  useOwnBackControl()
   const { id = '' } = useParams()
   const { hasRole } = useAuth()
   const { message } = AntdApp.useApp()
