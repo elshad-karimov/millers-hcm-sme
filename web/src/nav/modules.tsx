@@ -71,6 +71,7 @@ export const CATEGORIES: Category[] = [
     ],
     apps: [
       t('My Workspace','/my','user'),
+      t('My Timesheet','/my/timesheet','clock','time-attendance'),
       /* /me/<area> tiles carry no `needs` — an area holds cards from several
          modules, so it hides only once EVERY card in it is gated (areaVisible). */
       t('Time and Absences','/me/time-absences','clock'),
@@ -302,6 +303,14 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   // three — My Profile, Update Personal Info, Notification Preferences — are
   // already tiles or quick actions on Self-Service itself.
   '/me/personal',
+  // Time and Absences, and Pay, were boards of links into My Workspace: three
+  // of the five time cards and all three pay cards were /my?tab=... deep links.
+  // Two boards called Time and Absence — one for the employee, one for HR —
+  // read as the same screen twice however they are gated. The employee's one
+  // place is My Workspace, with My Timesheet beside it for the thing they
+  // actually come to do.
+  '/me/time-absences',
+  '/me/pay',
   '/presence', // presence map is driven by clocking events
   // Admin integrations that have nothing behind them on this deployment.
   '/admin/ldap', '/admin/bi-export', '/admin/warehouse',

@@ -21,7 +21,7 @@ export const SCREEN_DESCRIPTIONS: Readonly<Record<string, string>> = {
   '/business-trips/new': 'Request a business trip before you travel',
   '/letters/request': 'Ask HR for an employment or salary letter',
   '/personal-info/request': 'Ask HR to change your own details',
-  '/my': 'Everything about you in one place',
+  '/my': 'Your leave, timesheets, pay and team calendar in one place',
   '/me/time-absences': 'Your timesheet, absences and what leave you have left',
   '/me/pay': 'Your payslips and pay details',
   '/me/personal': 'Your personal and contact information',
