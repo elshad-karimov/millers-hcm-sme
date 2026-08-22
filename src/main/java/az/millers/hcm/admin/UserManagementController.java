@@ -19,6 +19,7 @@ import java.util.List;
  *   GET  /api/admin/users            — list all realm users with their roles
  *   GET  /api/admin/users/roles      — list assignable role names
  *   PUT  /api/admin/users/{id}/roles — replace a user's role set
+ *   POST /api/admin/users/{id}/temporary-password — issue a one-time password
  * </pre>
  */
 @RestController
@@ -27,9 +28,12 @@ import java.util.List;
 public class UserManagementController {
 
     private final KeycloakAdminService keycloakAdminService;
+    private final az.millers.hcm.audit.AuditService auditService;
 
-    public UserManagementController(KeycloakAdminService keycloakAdminService) {
+    public UserManagementController(KeycloakAdminService keycloakAdminService,
+                                    az.millers.hcm.audit.AuditService auditService) {
         this.keycloakAdminService = keycloakAdminService;
+        this.auditService = auditService;
     }
 
     /** Returns all realm users with their currently assigned HCM roles. */
@@ -58,4 +62,30 @@ public class UserManagementController {
         keycloakAdminService.setUserRoles(userId, roles);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Issues a one-time password for a user who cannot sign in yet.
+     *
+     * <p>Accounts created for employees have no password at all — the employee
+     * is meant to set their own from a Keycloak password-setup email. Where
+     * that email cannot be sent (no SMTP on the realm), this is the way in:
+     * the administrator reads the generated password once and passes it to the
+     * employee, who is forced to replace it at first sign-in.
+     *
+     * <p>The value is returned exactly once and is not recoverable afterwards.
+     * The audit entry records who did this to whom, never the password.
+     */
+    @PostMapping("/{userId}/temporary-password")
+    public TemporaryPasswordResponse issueTemporaryPassword(@PathVariable String userId) {
+        String password = keycloakAdminService.resetToTemporaryPassword(userId);
+        auditService.record("ADMIN", "KeycloakUser", userId,
+                "ISSUE_TEMPORARY_PASSWORD", null, "temporary password issued");
+        return new TemporaryPasswordResponse(password);
+    }
+
+    /**
+     * Shown once and never again. Kept as its own type so nothing accidentally
+     * folds a password into a broader user payload that gets logged or cached.
+     */
+    public record TemporaryPasswordResponse(String temporaryPassword) {}
 }

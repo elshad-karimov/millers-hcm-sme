@@ -388,6 +388,78 @@ public class KeycloakAdminService {
      * Grants a single realm role to a user (idempotent — Keycloak silently
      * no-ops if the role is already assigned).
      */
+    /**
+     * Gives a user a one-time password and returns it.
+     *
+     * <p>Every account this system creates starts with no password at all, so
+     * somebody has to establish the first one. The proper way is a
+     * password-setup email from Keycloak, but that needs SMTP on the realm and
+     * this deployment has none configured — without this, the only way to start
+     * an employee off is the Keycloak admin console, which is a different
+     * application that HR should not need an account in.
+     *
+     * <p>The password is generated here, set with {@code temporary: true}, and
+     * returned to the caller exactly once. Keycloak forces the holder to
+     * replace it at first sign-in, so the value the administrator reads is
+     * never the password the employee ends up with. It is deliberately never
+     * logged, never stored, and never returned again — a second call generates
+     * a different one.
+     */
+    public String resetToTemporaryPassword(String userId) {
+        String password = generateTemporaryPassword();
+
+        Map<String, Object> credential = new java.util.LinkedHashMap<>();
+        credential.put("type", "password");
+        credential.put("value", password);
+        credential.put("temporary", true);
+
+        try {
+            restClient.method(HttpMethod.PUT)
+                    .uri(realmUrl("/users/{userId}/reset-password"), userId)
+                    .header("Authorization", "Bearer " + adminToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(credential)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            throw new UpstreamServiceException(
+                    "Keycloak refused to set a temporary password (HTTP "
+                            + ex.getStatusCode().value() + ").", ex);
+        }
+        // The user id, never the password.
+        log.info("Set a temporary password for Keycloak user {}", userId);
+        return password;
+    }
+
+    /**
+     * A password that survives being read off a screen and typed by hand:
+     * no characters that look like each other (0/O, 1/l/I), and one from each
+     * class so it satisfies any realm password policy.
+     */
+    private static String generateTemporaryPassword() {
+        final String upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        final String lower = "abcdefghijkmnopqrstuvwxyz";
+        final String digits = "23456789";
+        final String symbols = "!@#$%&*";
+        final String all = upper + lower + digits + symbols;
+
+        SecureRandom rnd = new SecureRandom();
+        List<Character> chars = new java.util.ArrayList<>();
+        chars.add(upper.charAt(rnd.nextInt(upper.length())));
+        chars.add(lower.charAt(rnd.nextInt(lower.length())));
+        chars.add(digits.charAt(rnd.nextInt(digits.length())));
+        chars.add(symbols.charAt(rnd.nextInt(symbols.length())));
+        while (chars.size() < 14) {
+            chars.add(all.charAt(rnd.nextInt(all.length())));
+        }
+        // Shuffle, so the guaranteed classes are not always in the same slots.
+        java.util.Collections.shuffle(chars, rnd);
+
+        StringBuilder sb = new StringBuilder(chars.size());
+        chars.forEach(sb::append);
+        return sb.toString();
+    }
+
     public void addRealmRoleToUser(String userId, String roleName) {
         Map<String, String> role = lookupRealmRole(roleName);
         if (role == null) {

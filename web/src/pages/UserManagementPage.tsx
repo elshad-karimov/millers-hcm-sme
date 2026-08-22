@@ -14,7 +14,7 @@ import {
   Typography,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, TeamOutlined } from '@ant-design/icons'
+import { EditOutlined, KeyOutlined, TeamOutlined } from '@ant-design/icons'
 import { adminApi, type AdminUser } from '../api/admin'
 import { brand } from '../theme'
 
@@ -46,6 +46,12 @@ export function UserManagementPage() {
 
   // Edit modal
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
+  // Password state, deliberately narrow: who it is for, the value we were
+  // handed once, and whether the call is in flight. Nothing is cached — close
+  // the dialog and the value is gone, because Keycloak will not return it again.
+  const [pwUser, setPwUser] = useState<AdminUser | null>(null)
+  const [pwValue, setPwValue] = useState<string | null>(null)
+  const [pwLoading, setPwLoading] = useState<string | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
 
   useEffect(() => {
@@ -82,6 +88,24 @@ export function UserManagementPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  /**
+   * Accounts created for an employee have no password, so they cannot sign in
+   * until someone gives them a first one. The proper route is a password-setup
+   * email from Keycloak; where the realm has no mail server this is the only
+   * way in that does not require a Keycloak admin console account.
+   */
+  const issuePassword = (u: AdminUser) => {
+    setPwLoading(u.id)
+    adminApi
+      .issueTemporaryPassword(u.id)
+      .then((password) => {
+        setPwUser(u)
+        setPwValue(password)
+      })
+      .catch(() => void message.error(`Could not set a password for ${u.username}`))
+      .finally(() => setPwLoading(null))
   }
 
   const columns: ColumnsType<AdminUser> = [
@@ -141,15 +165,25 @@ export function UserManagementPage() {
     {
       title: '',
       key: 'actions',
-      width: 80,
+      width: 200,
       render: (_: unknown, r: AdminUser) => (
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => openEdit(r)}
-        >
-          Edit
-        </Button>
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEdit(r)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="small"
+            icon={<KeyOutlined />}
+            loading={pwLoading === r.id}
+            onClick={() => issuePassword(r)}
+          >
+            Set password
+          </Button>
+        </Space>
       ),
     },
   ]
@@ -238,6 +272,64 @@ export function UserManagementPage() {
             ))}
           </Checkbox.Group>
         </div>
+      </Modal>
+
+      {/*
+        Shown once. Keycloak will not return this value again, so the dialog
+        says so plainly rather than letting an administrator close it and come
+        looking for the password later.
+      */}
+      <Modal
+        title={
+          <Space>
+            <KeyOutlined style={{ color: brand.purple }} />
+            <span>Temporary password — {pwUser?.username}</span>
+          </Space>
+        }
+        open={pwValue !== null}
+        onCancel={() => {
+          setPwValue(null)
+          setPwUser(null)
+        }}
+        footer={[
+          <Button
+            key="copy"
+            onClick={() => {
+              if (pwValue) {
+                void navigator.clipboard.writeText(pwValue)
+                void message.success('Copied')
+              }
+            }}
+          >
+            Copy
+          </Button>,
+          <Button
+            key="done"
+            type="primary"
+            onClick={() => {
+              setPwValue(null)
+              setPwUser(null)
+            }}
+          >
+            Done
+          </Button>,
+        ]}
+      >
+        <Typography.Paragraph>
+          Give this to {pwUser?.firstName} {pwUser?.lastName}. They must change it
+          the first time they sign in, so it is not the password they end up with.
+        </Typography.Paragraph>
+        <Typography.Paragraph
+          code
+          copyable={{ text: pwValue ?? '' }}
+          style={{ fontSize: 18, textAlign: 'center', padding: '12px 0' }}
+        >
+          {pwValue}
+        </Typography.Paragraph>
+        <Text type="secondary">
+          This is shown once — closing this dialog discards it. If it is lost,
+          set another one; the old password stops working.
+        </Text>
       </Modal>
     </div>
   )
