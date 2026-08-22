@@ -899,16 +899,6 @@ export function EmployeeFormPage() {
         >
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
-          {editing && (
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Salary, allowances, leave entitlement, contracts and termination are edited elsewhere"
-              description="They are owned by the payroll, benefits, leave and lifecycle modules — open this employee's profile to view or change them on the Compensation, Contracts and Documents tabs. Keeping them there is what preserves payroll traceability and the approval audit trail."
-            />
-          )}
-
           <Form.Item style={{ marginBottom: 0 }}>
             <Space>
               <Button onClick={() => navigate(LIST_PATH)}>Cancel</Button>
