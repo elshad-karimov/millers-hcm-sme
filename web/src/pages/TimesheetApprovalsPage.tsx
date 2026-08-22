@@ -31,6 +31,10 @@ export function TimesheetApprovalsPage() {
 
   const [rows, setRows] = useState<QueueRow[]>([])
   const [corrections, setCorrections] = useState<CorrectionView[]>([])
+  // Months this person has already signed. Approving used to make a row
+  // vanish with nowhere to look it up again — so "did I approve Abbas?" had no
+  // answer short of asking Abbas.
+  const [done, setDone] = useState<QueueRow[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -38,12 +42,14 @@ export function TimesheetApprovalsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [queue, pending] = await Promise.all([
+      const [queue, pending, approved] = await Promise.all([
         timesheetApprovalApi.queue(year, month),
         timesheetApprovalApi.pendingCorrections().catch(() => [] as CorrectionView[]),
+        timesheetApprovalApi.queue(year, month, 'APPROVED').catch(() => [] as QueueRow[]),
       ])
       setRows(queue)
       setCorrections(pending)
+      setDone(approved)
       setSelected([])
     } catch (err) {
       message.error(errorOf(err, 'Could not load the approval queue'))
@@ -212,6 +218,32 @@ export function TimesheetApprovalsPage() {
                       onChange: (keys) => setSelected(keys as string[]),
                       getCheckboxProps: (r) => ({ disabled: !r.cleanForBulkApproval }),
                     }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'approved',
+              label: `Approved (${done.length})`,
+              children: done.length === 0 ? (
+                <Typography.Text type="secondary">
+                  Nothing approved for {period.format('MMMM YYYY')} yet.
+                </Typography.Text>
+              ) : (
+                <>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Months you have signed off for {period.format('MMMM YYYY')}. Open one to
+                    see what was approved and by whom.
+                  </Typography.Text>
+                  <Table
+                    rowKey="timesheetId"
+                    size="small"
+                    style={{ marginTop: 12 }}
+                    loading={loading}
+                    dataSource={done}
+                    columns={columns}
+                    pagination={false}
+                    scroll={{ x: 1000 }}
                   />
                 </>
               ),

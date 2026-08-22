@@ -189,13 +189,16 @@ public class TimesheetApprovalService {
                 // A manager's own month never appears in their own queue.
                 .filter(t -> self == null || !t.getEmployeeId().equals(self))
                 // Someone visible ONLY by nomination sees that month once it
-                // reaches them — not while it is still with the manager.
+                // reaches them — not while it is still with the manager. Once
+                // it has moved past SUBMITTED it stays visible, including after
+                // approval: a person who signed a month can look back at what
+                // they signed.
                 .filter(t -> scope == null
                         || scope.contains(t.getEmployeeId())
                         // A direct report's month is this caller's to approve
                         // from the moment it is submitted — that IS their step.
                         || reports.contains(t.getEmployeeId())
-                        || t.getStatus() == TimesheetStatus.PENDING_HR)
+                        || t.getStatus() != TimesheetStatus.SUBMITTED)
                 .map(t -> toQueueRow(t, employeeById.get(t.getEmployeeId())))
                 .toList();
     }
