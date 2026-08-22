@@ -156,6 +156,9 @@ export function EmployeeDetailPage() {
 
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [creatingLogin, setCreatingLogin] = useState(false)
+  // Which inner tab each group shows. Only set when something needs to steer
+  // it — an empty panel pointing at the tab that fills it.
+  const [subTab, setSubTab] = useState<Record<string, string>>({})
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [identifications, setIdentifications] = useState<Identification[]>([])
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -1332,7 +1335,25 @@ export function EmployeeDetailPage() {
         size="small"
         dataSource={leaveBalances}
         pagination={false}
-        locale={{ emptyText: <Empty description="No leave balance on file for this year" /> }}
+        locale={{
+          // A dead end before. The balance is produced by entitlement, which
+          // is set on the next tab along — and Edit does not carry a Time &
+          // absence tab, so people went looking for it there and found
+          // nothing. Say where it comes from, and take them.
+          emptyText: (
+            <Empty description="No leave balance for this year yet">
+              {canEdit && (
+                <Button
+                  type="primary"
+                  ghost
+                  onClick={() => setSubTab((cur) => ({ ...cur, timeAbsence: 'leaveEntitlement' }))}
+                >
+                  Set up entitlement
+                </Button>
+              )}
+            </Empty>
+          ),
+        }}
         columns={[
           {
             title: 'Leave type',
@@ -1437,14 +1458,25 @@ export function EmployeeDetailPage() {
       .map((k) => tabItems.find((t) => t.key === k))
       .filter(Boolean) as typeof tabItems
 
-  const group = (facts: React.ReactNode, keys: string[]) => {
+  const group = (facts: React.ReactNode, keys: string[], groupKey?: string) => {
     const members = pick(...keys)
     if (!facts && members.length === 0) return null
     if (!facts && members.length === 1) return members[0].children
     return (
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         {facts}
-        {members.length > 0 && <Tabs size="small" items={members} />}
+        {members.length > 0 && (
+          <Tabs
+            size="small"
+            items={members}
+            // Uncontrolled unless a group is named — only the one that needs
+            // steering pays for the state.
+            activeKey={groupKey ? (subTab[groupKey] ?? members[0].key) : undefined}
+            onChange={groupKey
+              ? (k) => setSubTab((cur) => ({ ...cur, [groupKey]: k }))
+              : undefined}
+          />
+        )}
       </Space>
     )
   }
@@ -1461,7 +1493,7 @@ export function EmployeeDetailPage() {
     // Not one of the PRD's ten, but asked for separately: the balance belongs
     // with the person rather than on a screen they have to go and find.
     { key: 'timeAbsence', label: 'Time & absence',
-      children: group(null, ['absenceBalance', 'leaveEntitlement']) },
+      children: group(null, ['absenceBalance', 'leaveEntitlement'], 'timeAbsence') },
     { key: 'schedule', label: 'Work schedule', children: group(scheduleFacts, []) },
     { key: 'approvals', label: 'Approvals', children: group(approvalsFacts, []) },
     { key: 'recruitment', label: 'Recruitment', children: group(recruitmentFacts, []) },
