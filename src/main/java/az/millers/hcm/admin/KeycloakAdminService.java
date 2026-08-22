@@ -213,11 +213,19 @@ public class KeycloakAdminService {
         return created;
     }
 
-    /** Exact-username lookup; null when the realm has no such user. */
+    /**
+     * Exact-username lookup; null when the realm has no such user.
+     *
+     * <p>The username goes in as a URI template variable rather than being
+     * pre-encoded. RestClient encodes the template itself, so a pre-encoded
+     * value is encoded twice — the {@code %40} of an email address becomes
+     * {@code %2540} and Keycloak looks for a user literally called
+     * "name%40company.com", finds nothing, and the caller concludes the
+     * account it had just created did not exist.
+     */
     private String findUserIdByUsername(String token, String username) {
         JsonNode found = restClient.get()
-                .uri(realmUrl("/users?exact=true&username="
-                        + java.net.URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8)))
+                .uri(realmUrl("/users?exact=true&username={username}"), username)
                 .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .body(JsonNode.class);
@@ -366,8 +374,9 @@ public class KeycloakAdminService {
         String token = adminToken();
         // Keycloak Admin: /users?username=<u>&exact=true → array of matches.
         JsonNode arr = restClient.get()
-                .uri(realmUrl("/users?username=" + java.net.URLEncoder.encode(
-                        username, java.nio.charset.StandardCharsets.UTF_8) + "&exact=true"))
+                // Template variable, not a pre-encoded string — see
+                // findUserIdByUsername for what double-encoding costs.
+                .uri(realmUrl("/users?username={username}&exact=true"), username)
                 .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .body(JsonNode.class);
@@ -419,8 +428,7 @@ public class KeycloakAdminService {
     private Map<String, String> lookupRealmRole(String roleName) {
         if (roleName == null || roleName.isBlank()) return null;
         JsonNode r = restClient.get()
-                .uri(realmUrl("/roles/" + java.net.URLEncoder.encode(
-                        roleName, java.nio.charset.StandardCharsets.UTF_8)))
+                .uri(realmUrl("/roles/{roleName}"), roleName)
                 .header("Authorization", "Bearer " + adminToken())
                 .retrieve()
                 .body(JsonNode.class);
