@@ -55,6 +55,8 @@ public class EmployeeService {
     /** PRD §4: the hire opens the contract and the first salary row too. */
     private final az.millers.hcm.lifecycle.service.EmploymentContractService contractService;
     private final az.millers.hcm.payroll.service.CompensationService compensationService;
+    /** Gives the new hire a login, so they can reach their own timesheet. */
+    private final EmployeeAccountProvisioner accountProvisioner;
 
     public EmployeeService(EmployeeRepository repository,
                            AuditService auditService,
@@ -67,7 +69,8 @@ public class EmployeeService {
                            az.millers.hcm.staffing.service.PositionOccupancyService occupancyService,
                            PlanLimitGate planLimitGate,
                            az.millers.hcm.lifecycle.service.EmploymentContractService contractService,
-                           az.millers.hcm.payroll.service.CompensationService compensationService) {
+                           az.millers.hcm.payroll.service.CompensationService compensationService,
+                           EmployeeAccountProvisioner accountProvisioner) {
         this.repository = repository;
         this.auditService = auditService;
         this.onboardingWorkflow = onboardingWorkflow;
@@ -80,6 +83,7 @@ public class EmployeeService {
         this.planLimitGate = planLimitGate;
         this.contractService = contractService;
         this.compensationService = compensationService;
+        this.accountProvisioner = accountProvisioner;
     }
 
     /**
@@ -177,6 +181,17 @@ public class EmployeeService {
 
         openContractAndPay(saved, request);
 
+        // A hire with no login cannot fill a timesheet, and a month with no
+        // timesheet cannot be paid. Provisioning is best-effort by design:
+        // see EmployeeAccountProvisioner for why it never fails the hire.
+        if (saved.getUsername() == null || saved.getUsername().isBlank()) {
+            String username = accountProvisioner.provision(saved);
+            if (username != null) {
+                saved.setUsername(username);
+                repository.save(saved);
+            }
+        }
+
         // M62 / P1-10 + P1-11: open the initial history slices at hire date.
         // This guarantees every employee has a non-empty history from day one
         // — downstream queries never need to special-case "no history yet".
@@ -239,6 +254,35 @@ public class EmployeeService {
 
         auditService.record(MODULE, ENTITY, id.toString(),
                 "UPDATE", before, EmployeeResponse.from(saved));
+        return saved;
+    }
+
+    /**
+     * Gives an existing employee a login, for the people already in the system
+     * before hires started provisioning their own. Idempotent by way of
+     * Keycloak: an account that already exists is linked, not duplicated.
+     */
+    @Transactional
+    public Employee createLogin(UUID id) {
+        Employee employee = get(id);
+        if (StringUtils.hasText(employee.getUsername())) {
+            throw new BadRequestException(
+                    "This employee already signs in as " + employee.getUsername() + ".");
+        }
+        if (!accountProvisioner.isEnabled()) {
+            throw new BadRequestException(
+                    "Creating logins is switched off. Set hcm.employee.auto-create-login"
+                            + " (HCM_EMPLOYEE_AUTO_CREATE_LOGIN) to true to turn it on.");
+        }
+        String username = accountProvisioner.provision(employee);
+        if (username == null) {
+            throw new BadRequestException(
+                    "The login could not be created. Check that the employee has an email address"
+                            + " or an employee number, and that the identity server is reachable.");
+        }
+        employee.setUsername(username);
+        Employee saved = repository.save(employee);
+        auditService.record(MODULE, ENTITY, id.toString(), "CREATE_LOGIN", null, username);
         return saved;
     }
 

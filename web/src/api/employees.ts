@@ -125,6 +125,8 @@ export interface Employee {
   lunchTimeText?: string | null
   offshoreWorkScheduleText?: string | null
   summarizedPeriodMethod?: string | null
+  /** Sign-in name, or null when this employee has no login yet. */
+  username?: string | null
   createdAt: string
   updatedAt: string
   createdBy?: string | null
@@ -298,6 +300,9 @@ export const employeesApi = {
     api.post<Employee>('/employees', payload).then((r) => r.data),
   update: (id: string, payload: EmployeeRequest) =>
     api.put<Employee>(`/employees/${id}`, payload).then((r) => r.data),
+  /** Creates the sign-in account for an employee hired before provisioning existed. */
+  createLogin: (id: string) =>
+    api.post<Employee>(`/employees/${id}/login`).then((r) => r.data),
   changeStatus: (id: string, newStatus: EmploymentStatus, reason?: string) =>
     api.post<Employee>(`/employees/${id}/status`, { newStatus, reason }).then((r) => r.data),
   audit: (id: string) =>

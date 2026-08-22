@@ -128,7 +128,7 @@ class EmployeeHireExtrasTest {
      */
     private static void validate(EmployeeRequest request, CurrentRequest caller) throws Exception {
         EmployeeService service = new EmployeeService(
-                null, null, null, caller, null, null, null, null, null, null, null, null);
+                null, null, null, caller, null, null, null, null, null, null, null, null, null);
         Method m = EmployeeService.class.getDeclaredMethod("validateHireExtras", EmployeeRequest.class);
         m.setAccessible(true);
         try {

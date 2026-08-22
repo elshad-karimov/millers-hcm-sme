@@ -100,6 +100,11 @@ server:
   port: 8083
 
 hcm:
+  employee:
+    # Create a Keycloak login when an employee is created, so the new hire
+    # can reach their own timesheet. Off by default: an operator turns it on
+    # once the realm and the password-reset mail are ready.
+    auto-create-login: ${HCM_EMPLOYEE_AUTO_CREATE_LOGIN:false}
   keycloak:
     admin:
       # Keycloak Admin REST API access (used by UserManagementController only).

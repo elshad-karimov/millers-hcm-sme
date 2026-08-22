@@ -111,6 +111,16 @@ public class EmployeeController {
         return EmployeeResponse.from(employeeService.update(id, request));
     }
 
+    /**
+     * Creates the sign-in account for an employee who has none — the employees
+     * hired before provisioning existed. New hires get theirs automatically.
+     */
+    @PostMapping("/{id}/login")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_ADMIN')")
+    public EmployeeResponse createLogin(@PathVariable UUID id) {
+        return EmployeeResponse.from(employeeService.createLogin(id));
+    }
+
     @PostMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('HR_ADMIN','HR_SPECIALIST')")
     public EmployeeResponse changeStatus(@PathVariable UUID id,

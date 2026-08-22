@@ -88,6 +88,12 @@ public record EmployeeResponse(
         String lunchTimeText,
         String offshoreWorkScheduleText,
         String summarizedPeriodMethod,
+        /**
+         * The sign-in name this employee's login uses, or null when they have
+         * no account yet. This is the only thing joining an HR record to a
+         * person who can actually sign in and file a timesheet.
+         */
+        String username,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String createdBy,
@@ -156,6 +162,7 @@ public record EmployeeResponse(
                 e.getLunchTimeText(),
                 e.getOffshoreWorkScheduleText(),
                 e.getSummarizedPeriodMethod(),
+                e.getUsername(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 e.getCreatedBy(),

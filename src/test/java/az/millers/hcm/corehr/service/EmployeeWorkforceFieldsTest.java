@@ -55,7 +55,7 @@ class EmployeeWorkforceFieldsTest {
         service = new EmployeeService(
                 repository, null, null, null, null, null, null, null, null, null,
                 // PRD §4: contract + compensation services, unused by these validators
-                null, null);
+                null, null, null);
 
         subjectId = UUID.randomUUID();
         subject = employee(subjectId, "EMP-0001");

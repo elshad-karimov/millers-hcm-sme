@@ -150,6 +150,83 @@ public class KeycloakAdminService {
         return result;
     }
 
+    /**
+     * Creates a realm user and returns its id, or returns the id of the user
+     * that already has this username.
+     *
+     * <p>No password is set, deliberately. The account is created with the
+     * UPDATE_PASSWORD required action, so the person chooses their own the
+     * first time they sign in and nobody — not HR, not this application, not a
+     * log file — ever holds it. Until a password is established the account
+     * exists and is linked but cannot authenticate, which is the safe state for
+     * an account created in bulk from an HR screen.
+     *
+     * <p>Idempotent on username: re-running a hire, or hiring someone who
+     * already had an account, links to the existing user instead of failing.
+     */
+    public String createUser(String username, String email, String firstName, String lastName,
+                             String realmRole) {
+        String token = adminToken();
+
+        String existing = findUserIdByUsername(token, username);
+        if (existing != null) {
+            log.info("Keycloak user {} already exists — linking to it rather than creating", username);
+            if (realmRole != null) addRealmRoleToUser(existing, realmRole);
+            return existing;
+        }
+
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("username", username);
+        payload.put("enabled", true);
+        if (email != null && !email.isBlank()) {
+            payload.put("email", email);
+            payload.put("emailVerified", false);
+        }
+        if (firstName != null) payload.put("firstName", firstName);
+        if (lastName != null) payload.put("lastName", lastName);
+        payload.put("requiredActions", List.of("UPDATE_PASSWORD"));
+
+        try {
+            restClient.post()
+                    .uri(realmUrl("/users"))
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            // 409 means somebody created it between the check and the write.
+            if (ex.getStatusCode().value() != 409) {
+                throw new UpstreamServiceException(
+                        "Keycloak refused to create the login for " + username
+                                + " (HTTP " + ex.getStatusCode().value() + ").", ex);
+            }
+        }
+
+        String created = findUserIdByUsername(token, username);
+        if (created == null) {
+            throw new UpstreamServiceException(
+                    "Keycloak accepted the login for " + username + " but it cannot be found again.");
+        }
+        if (realmRole != null) addRealmRoleToUser(created, realmRole);
+        log.info("Created Keycloak user {} ({})", username, created);
+        return created;
+    }
+
+    /** Exact-username lookup; null when the realm has no such user. */
+    private String findUserIdByUsername(String token, String username) {
+        JsonNode found = restClient.get()
+                .uri(realmUrl("/users?exact=true&username="
+                        + java.net.URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8)))
+                .header("Authorization", "Bearer " + token)
+                .retrieve()
+                .body(JsonNode.class);
+        if (found != null && found.isArray() && !found.isEmpty()) {
+            return found.get(0).path("id").asText(null);
+        }
+        return null;
+    }
+
     public List<String> availableRoles() {
         return HCM_ROLES;
     }

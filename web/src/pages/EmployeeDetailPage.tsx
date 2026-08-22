@@ -149,10 +149,13 @@ export function EmployeeDetailPage() {
    */
   const canSetSalary = hasRole(Roles.SYSTEM_ADMIN, Roles.HR_ADMIN)
   const canAudit = hasRole('SYSTEM_ADMIN', 'HR_ADMIN', 'AUDITOR')
+  /** Same gate as the server on POST /employees/{id}/login. */
+  const canCreateLogin = hasRole(Roles.SYSTEM_ADMIN, Roles.HR_ADMIN)
   const canSeeDisciplinary = hasRole('HR_ADMIN', 'HR_SPECIALIST', 'SYSTEM_ADMIN', 'AUDITOR')
   const canSeeHealth = hasRole('HR_ADMIN', 'SYSTEM_ADMIN', 'OCCUPATIONAL_HEALTH')
 
   const [employee, setEmployee] = useState<Employee | null>(null)
+  const [creatingLogin, setCreatingLogin] = useState(false)
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [identifications, setIdentifications] = useState<Identification[]>([])
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -785,6 +788,26 @@ export function EmployeeDetailPage() {
       ? (groupNames[groupId] ?? groupId)
       : <span style={{ opacity: 0.5 }}>default</span>
 
+  /**
+   * An employee with no login cannot file a timesheet, and a month with no
+   * timesheet cannot be paid — so this is worth surfacing on the profile
+   * rather than leaving it to whoever administers the identity server.
+   */
+  const createLogin = () => {
+    setCreatingLogin(true)
+    employeesApi
+      .createLogin(employee!.id)
+      .then((updated) => {
+        setEmployee(updated)
+        message.success(
+          `Login ${updated.username} created. The employee sets their own password at first`
+          + ' sign-in — send them a password reset to get them started.',
+        )
+      })
+      .catch((e) => message.error(e?.response?.data?.message ?? 'Could not create the login'))
+      .finally(() => setCreatingLogin(false))
+  }
+
   const employmentFacts = (
     <Descriptions column={2} bordered size="small">
       <Descriptions.Item label="Hire date">{employee.hireDate}</Descriptions.Item>
@@ -840,6 +863,20 @@ export function EmployeeDetailPage() {
       </Descriptions.Item>
       <Descriptions.Item label="Job description">
         {employee.jobDescriptionStatus ?? '—'}
+      </Descriptions.Item>
+      <Descriptions.Item label="Sign-in account">
+        {employee.username
+          ? <Tag color="green">{employee.username}</Tag>
+          : (
+            <Space size="small">
+              <span style={{ opacity: 0.65 }}>No login — cannot file a timesheet</span>
+              {canCreateLogin && (
+                <Button size="small" loading={creatingLogin} onClick={createLogin}>
+                  Create login
+                </Button>
+              )}
+            </Space>
+          )}
       </Descriptions.Item>
     </Descriptions>
   )
