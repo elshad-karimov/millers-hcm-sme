@@ -1021,66 +1021,72 @@ export function PayrollRunDetailPage() {
             <Typography.Title level={5}>
               Total issues: {preFlight.summary.totalIssues}
             </Typography.Title>
-            {preFlight.checklist.noCompensation.length > 0 && (
-              <Card size="small" title={`No compensation (${preFlight.checklist.noCompensation.length})`}>
+            {preFlight.noCompensation.length > 0 && (
+              <Card size="small" title={`No compensation (${preFlight.noCompensation.length})`}>
                 <Table
                   rowKey="employeeId"
                   size="small"
                   pagination={false}
-                  dataSource={preFlight.checklist.noCompensation}
-                  columns={[{ title: 'Employee #', dataIndex: 'employeeNo' }]}
-                />
-              </Card>
-            )}
-            {preFlight.checklist.noTimesheet.length > 0 && (
-              <Card size="small" title={`No timesheet (${preFlight.checklist.noTimesheet.length})`}>
-                <Table
-                  rowKey="employeeId"
-                  size="small"
-                  pagination={false}
-                  dataSource={preFlight.checklist.noTimesheet}
-                  columns={[{ title: 'Employee #', dataIndex: 'employeeNo' }]}
-                />
-              </Card>
-            )}
-            {preFlight.checklist.onHold.length > 0 && (
-              <Card size="small" title={`On hold (${preFlight.checklist.onHold.length})`}>
-                <Table
-                  rowKey="employeeId"
-                  size="small"
-                  pagination={false}
-                  dataSource={preFlight.checklist.onHold}
+                  dataSource={preFlight.noCompensation}
                   columns={[
-                    { title: 'Employee #', dataIndex: 'employeeNo' },
-                    { title: 'Reason', dataIndex: 'reason' },
+                    { title: 'Employee #', dataIndex: 'employeeNo', width: 140 },
+                    { title: 'Name', dataIndex: 'name' },
                   ]}
                 />
               </Card>
             )}
-            {preFlight.checklist.pendingAdvances.length > 0 && (
-              <Card size="small" title={`Pending advances (${preFlight.checklist.pendingAdvances.length})`}>
+            {preFlight.noTimesheet.length > 0 && (
+              <Card size="small" title={`No timesheet (${preFlight.noTimesheet.length})`}>
                 <Table
                   rowKey="employeeId"
                   size="small"
                   pagination={false}
-                  dataSource={preFlight.checklist.pendingAdvances}
+                  dataSource={preFlight.noTimesheet}
                   columns={[
-                    { title: 'Employee #', dataIndex: 'employeeNo' },
-                    { title: 'Amount', dataIndex: 'amount', align: 'right' },
+                    { title: 'Employee #', dataIndex: 'employeeNo', width: 140 },
+                    { title: 'Name', dataIndex: 'name' },
                   ]}
                 />
               </Card>
             )}
-            {preFlight.checklist.retroactiveSalaryChange.length > 0 && (
-              <Card size="small" title={`Retroactive salary changes (${preFlight.checklist.retroactiveSalaryChange.length})`}>
+            {preFlight.onHold.length > 0 && (
+              <Card size="small" title={`On hold (${preFlight.onHold.length})`}>
                 <Table
                   rowKey="employeeId"
                   size="small"
                   pagination={false}
-                  dataSource={preFlight.checklist.retroactiveSalaryChange}
+                  dataSource={preFlight.onHold}
                   columns={[
                     { title: 'Employee #', dataIndex: 'employeeNo' },
-                    { title: 'Change date', dataIndex: 'changeDate' },
+                    { title: 'Name', dataIndex: 'name' },
+                  ]}
+                />
+              </Card>
+            )}
+            {preFlight.pendingAdvances.length > 0 && (
+              <Card size="small" title={`Pending advances (${preFlight.pendingAdvances.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.pendingAdvances}
+                  columns={[
+                    { title: 'Employee #', dataIndex: 'employeeNo' },
+                    { title: 'Name', dataIndex: 'name' },
+                  ]}
+                />
+              </Card>
+            )}
+            {preFlight.retroactiveSalaryChange.length > 0 && (
+              <Card size="small" title={`Retroactive salary changes (${preFlight.retroactiveSalaryChange.length})`}>
+                <Table
+                  rowKey="employeeId"
+                  size="small"
+                  pagination={false}
+                  dataSource={preFlight.retroactiveSalaryChange}
+                  columns={[
+                    { title: 'Employee #', dataIndex: 'employeeNo' },
+                    { title: 'Name', dataIndex: 'name' },
                   ]}
                 />
               </Card>

@@ -255,18 +255,28 @@ export interface SetHoldRequest {
   holds: HoldEmployeeRequest[]
 }
 
+/**
+ * Mirrors PayrollPreFlightResponse on the server: the lists sit at the TOP
+ * LEVEL, not under a `checklist` object. The type used to claim otherwise, and
+ * because it was only a type nothing complained until the screen ran and threw
+ * on `checklist.noCompensation` of undefined.
+ */
+export interface PreFlightEmployeeIssue {
+  employeeId: string
+  employeeNo: string
+  name: string
+}
+
 export interface PayrollPreFlightResponse {
-  runId: string
-  checklist: {
-    noCompensation: Array<{ employeeId: string; employeeNo: string }>
-    noTimesheet: Array<{ employeeId: string; employeeNo: string }>
-    onHold: Array<{ employeeId: string; employeeNo: string; reason: string }>
-    pendingAdvances: Array<{ employeeId: string; employeeNo: string; amount: number }>
-    retroactiveSalaryChange: Array<{ employeeId: string; employeeNo: string; changeDate: string }>
-  }
   summary: {
     totalIssues: number
+    employeesInScope: number
   }
+  noCompensation: PreFlightEmployeeIssue[]
+  noTimesheet: PreFlightEmployeeIssue[]
+  onHold: PreFlightEmployeeIssue[]
+  pendingAdvances: PreFlightEmployeeIssue[]
+  retroactiveSalaryChange: PreFlightEmployeeIssue[]
 }
 
 // ── M351: Salary Advances ─────────────────────────────────────────────────────

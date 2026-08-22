@@ -128,18 +128,20 @@ export function PayrollRunsPage() {
     {
       title: 'Income tax',
       dataIndex: 'totalIncomeTax',
-      render: (v: number) => v,
+      render: (v: number) => (v ?? 0).toFixed(2),
       align: 'right',
     },
     {
       title: 'DSMF (er+em)',
-      render: (_, r) => `${r.totalDsmfEmployee + r.totalDsmfEmployer}`,
+      // Adding two decimals in binary floating point produced
+      // "507.03000000000003" on screen. Money columns get two places.
+      render: (_, r) => (r.totalDsmfEmployee + r.totalDsmfEmployer).toFixed(2),
       align: 'right',
     },
     {
       title: 'Allowance',
       dataIndex: 'totalAllowance',
-      render: (v?: number) => v ?? 0,
+      render: (v?: number) => (v ?? 0).toFixed(2),
       align: 'right',
       width: 110,
     },
