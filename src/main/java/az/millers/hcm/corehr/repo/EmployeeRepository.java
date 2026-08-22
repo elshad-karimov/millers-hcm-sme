@@ -126,6 +126,36 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID>, JpaSp
     @Query("select e.id from Employee e where e.timesheetApproverId = :approverId")
     java.util.List<UUID> findIdsByTimesheetApproverId(UUID approverId);
 
+    /**
+     * Employees who report to {@code managerId}.
+     *
+     * <p>The timesheet queue reads this because the first approval step routes
+     * to the line manager by id, while visibility is granted by role — so a
+     * real manager who holds only the EMPLOYEE role was routed a month they
+     * could not see. Being someone's manager is the authority; the role is a
+     * separate question.
+     */
+    @Query("select e.id from Employee e where e.managerId = :managerId")
+    java.util.List<UUID> findIdsByManagerId(@Param("managerId") UUID managerId);
+
+    /**
+     * Employees whose manager has delegated approvals to {@code delegateId}
+     * for a window covering {@code today}.
+     *
+     * <p>The workflow routes to the delegate rather than the manager while the
+     * window is open; without this the delegate is routed a month that never
+     * appears in their queue, which is the same failure one level along.
+     */
+    @Query("""
+            select e.id from Employee e, Employee m
+             where m.id = e.managerId
+               and m.delegateManagerId = :delegateId
+               and m.delegateFrom <= :today
+               and m.delegateTo   >= :today
+            """)
+    java.util.List<UUID> findIdsByManagerDelegatedTo(@Param("delegateId") UUID delegateId,
+                                                     @Param("today") java.time.LocalDate today);
+
     @Query("select e.id from Employee e where e.employmentStatus in :statuses")
     java.util.List<UUID> findIdsByEmploymentStatusIn(
             java.util.Collection<EmploymentStatus> statuses);

@@ -812,8 +812,28 @@ public class WorkflowService {
      * and may hold no manager or HR role at all, so requiring both would leave
      * their queue permanently empty.
      */
+    /**
+     * Role gate for a step — skipped when the step names an individual.
+     *
+     * <p>A step that resolves to a person (the subject's manager, their named
+     * timesheet approver, their HRBP) already has an exact answer to "who may
+     * act", and {@link #requireResolvedApprover} enforces it: the caller must
+     * BE that person. Demanding a role as well is a second, weaker answer to
+     * the same question, and the two disagree in the ordinary case — a line
+     * manager who holds only the EMPLOYEE role was routed a month by name and
+     * then refused permission to approve it, so it stopped there.
+     *
+     * <p>This narrows nothing and widens nothing: for these steps the identity
+     * check is stricter than the role check ever was. Steps that resolve to a
+     * role pool — HR verification — still require the role, because there the
+     * role IS the answer.
+     */
     private void requireStepRole(List<String> myRoles, WorkflowStep step, String message) {
-        if (step.isResolvesToTimesheetApprover()) return;
+        if (step.isResolvesToTimesheetApprover()
+                || step.isResolvesToManager()
+                || step.isResolvesToHrbp()) {
+            return;
+        }
         requireRole(myRoles, step.getApproverRole(), message);
     }
 

@@ -161,6 +161,7 @@ public class TimesheetApprovalService {
     public List<QueueRow> queue(int year, int month, TimesheetStatus status) {
         Set<UUID> scope = accessScope.scopeOrNullForCurrentUser();
         Set<UUID> nominated = nominatedEmployeeIds();
+        Set<UUID> reports = reportingLineEmployeeIds();
         Set<TimesheetStatus> wanted = status == null ? myStageStatuses() : Set.of(status);
 
         List<Timesheet> found;
@@ -174,6 +175,7 @@ public class TimesheetApprovalService {
             // narrow (their stage only, and timesheets only).
             Set<UUID> visible = new java.util.HashSet<>(scope);
             visible.addAll(nominated);
+            visible.addAll(reports);
             if (visible.isEmpty()) return List.of();
             found = timesheets
                     .findByPeriodYearAndPeriodMonthAndStatusInAndEmployeeIdInOrderByEmployeeIdAsc(
@@ -190,6 +192,9 @@ public class TimesheetApprovalService {
                 // reaches them — not while it is still with the manager.
                 .filter(t -> scope == null
                         || scope.contains(t.getEmployeeId())
+                        // A direct report's month is this caller's to approve
+                        // from the moment it is submitted — that IS their step.
+                        || reports.contains(t.getEmployeeId())
                         || t.getStatus() == TimesheetStatus.PENDING_HR)
                 .map(t -> toQueueRow(t, employeeById.get(t.getEmployeeId())))
                 .toList();
@@ -520,7 +525,8 @@ public class TimesheetApprovalService {
         // record. Without it the approver 404s on the very month the workflow
         // is waiting for them to sign.
         if (!accessScope.isAccessible(ts.getEmployeeId())
-                && !nominatedEmployeeIds().contains(ts.getEmployeeId())) {
+                && !nominatedEmployeeIds().contains(ts.getEmployeeId())
+                && !reportingLineEmployeeIds().contains(ts.getEmployeeId())) {
             // 404 not 403: the queue must not confirm that a timesheet exists
             // for someone the caller may not see.
             throw new ResourceNotFoundException("Timesheet not found: " + id);
@@ -557,6 +563,25 @@ public class TimesheetApprovalService {
      * M330 — the employees who name the caller as their timesheet approver.
      * Empty for almost everyone, so the query is cheap and short-circuits.
      */
+    /**
+     * Employees whose month this caller approves by reporting line: their
+     * direct reports, plus anyone whose manager has delegated to them right
+     * now.
+     *
+     * <p>Separate from the access scope on purpose. Scope is granted by role,
+     * and a line manager frequently holds only the EMPLOYEE role — the
+     * workflow routed them the month and the queue then hid it, so it sat
+     * there with nobody able to see whose move it was. Being the manager of
+     * record is the authority; the role is a different question.
+     */
+    private Set<UUID> reportingLineEmployeeIds() {
+        UUID me = currentEmployeeIdOrNull();
+        if (me == null) return Set.of();
+        Set<UUID> out = new java.util.HashSet<>(employees.findIdsByManagerId(me));
+        out.addAll(employees.findIdsByManagerDelegatedTo(me, java.time.LocalDate.now()));
+        return out;
+    }
+
     private Set<UUID> nominatedEmployeeIds() {
         UUID me = currentEmployeeIdOrNull();
         if (me == null) return Set.of();
