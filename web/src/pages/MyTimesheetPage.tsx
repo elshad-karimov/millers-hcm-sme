@@ -11,7 +11,6 @@ import {
   type DayEntryRequest, type DayView, type MonthView,
 } from '../api/selfTimesheet'
 import { DayEntryDrawer } from '../components/timesheet/DayEntryDrawer'
-import { MonthCalendar } from '../components/timesheet/MonthCalendar'
 import { TimesheetGrid, type GridChange } from '../components/timesheet/TimesheetGrid'
 import { toHhmm } from '../components/timesheet/hhmm'
 
@@ -270,7 +269,7 @@ export function MyTimesheetPage() {
           message="Nothing recorded for this month yet"
           description={
             <>
-              Use <strong>+ Add entry</strong> above, or click any day in the calendar,
+              Use <strong>+ Add entry</strong> above, or click any day in the grid,
               to record what you worked. Pick the work type first — the form then asks
               only for the hours that apply to it.
             </>
@@ -280,12 +279,8 @@ export function MyTimesheetPage() {
 
       <Card>
         <Tabs
+          defaultActiveKey="grid"
           items={[
-            {
-              key: 'calendar',
-              label: 'Calendar',
-              children: <MonthCalendar days={days} onOpen={setOpenDate} />,
-            },
             {
               key: 'grid',
               label: 'Detailed grid',
