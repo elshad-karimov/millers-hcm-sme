@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { selfApi } from '../api/self'
-import { icon } from '../nav/modules'
+import { icon, isHiddenScreen } from '../nav/modules'
 import { findArea } from '../nav/selfServiceAreas'
 import { useEnabledModules } from '../nav/moduleSettings'
 import { brand } from '../theme'
@@ -43,7 +43,13 @@ export default function SelfServiceAreaPage() {
   }, [])
 
   const cards = useMemo(
-    () => (area?.cards ?? []).filter((c) => !c.needs || !disabled.has(c.needs)),
+    // Screens this edition hides count too, not just switched-off modules —
+    // otherwise the board keeps offering cards whose screen is gone. That is
+    // how Add Permission and Permission Balance survived here after every
+    // permission screen was removed.
+    () => (area?.cards ?? []).filter(
+      (c) => !isHiddenScreen(c.to) && (!c.needs || !disabled.has(c.needs)),
+    ),
     [area, disabled],
   )
 

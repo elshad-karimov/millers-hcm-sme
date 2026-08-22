@@ -269,6 +269,7 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
   '/lifecycle/terminations', '/lifecycle/terminations/new',
   // Hourly "permission" absence. Vacation is the only absence type tracked.
   '/permission/requests', '/permission/requests/new', '/permission/types',
+  '/my?tab=permission',
   '/permission/types/new', '/permission/balances',
   '/leave/blackouts',
   // Staff loans and advances — not part of this payroll.
