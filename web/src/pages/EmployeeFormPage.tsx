@@ -18,6 +18,9 @@ import {
 } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
+import { Roles } from '../auth/roleSets'
+import { AbsenceBalancePanel } from '../components/AbsenceBalancePanel'
 import { apiErrorDuration, apiErrorMessage } from '../api/errors'
 import { CITY_OPTIONS } from '../config/cities'
 import {
@@ -165,6 +168,9 @@ const LIST_PATH = '/employees'
 
 export function EmployeeFormPage() {
   const { id } = useParams()
+  // Same gate the balance endpoint applies, so the button never 403s.
+  const { hasRole } = useAuth()
+  const canSetSalary = hasRole(Roles.SYSTEM_ADMIN, Roles.HR_ADMIN)
   const editing = !!id
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
@@ -882,6 +888,21 @@ export function EmployeeFormPage() {
     { key: 'approvals', label: 'Approvals', children: approvalsTab, forceRender: true },
     { key: 'recruitment', label: 'Recruitment', children: recruitmentTab, forceRender: true },
   ]
+
+  // The profile has a Time & absence tab and this form did not, so pressing
+  // Edit to add entitlement — the obvious move — led to a tab that was not
+  // there. Only when editing: a balance needs an employee to belong to, and on
+  // create there is not one yet.
+  if (editing && id) {
+    tabItems.push({
+      key: 'timeAbsence',
+      label: 'Time & absence',
+      children: (
+        <AbsenceBalancePanel employeeId={id} canManage={canSetSalary} immediateNote />
+      ),
+      forceRender: false,
+    })
+  }
 
   return (
     <FormPageShell title={editing ? 'Edit employee' : 'New employee'} backTo={LIST_PATH}>

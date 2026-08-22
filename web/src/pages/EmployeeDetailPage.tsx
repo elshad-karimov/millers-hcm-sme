@@ -32,6 +32,7 @@ import {
 } from '../api/personalDetails'
 import { contractsApi, type Contract } from '../api/contracts'
 import { LeaveEntitlementBreakdown } from '../components/LeaveEntitlementBreakdown'
+import { AbsenceBalancePanel } from '../components/AbsenceBalancePanel'
 import {
   credentialsApi,
   type Certification,
@@ -73,7 +74,7 @@ import { Roles, RoleSets } from '../auth/roleSets'
 import { ChangeHistoryPanel } from '../components/ChangeHistoryPanel'
 import { countryName } from '../config/countries'
 import { HIDDEN_PROFILE_TABS } from '../config/hiddenProfileTabs'
-import { leaveApi, type LeaveBalance, type LeaveType } from '../api/leave'
+import { leaveApi, type LeaveBalance } from '../api/leave'
 import { leaveGroupsApi, type LeaveGroup } from '../api/leaveGroups'
 import { payrollGroupsApi, type PayrollGroup } from '../api/payrollGroups'
 // M169 — employee document management
@@ -159,12 +160,6 @@ export function EmployeeDetailPage() {
   // Which inner tab each group shows. Only set when something needs to steer
   // it — an empty panel pointing at the tab that fills it.
   const [subTab, setSubTab] = useState<Record<string, string>>({})
-  // Opening a leave balance for someone who has none.
-  const [entitlementOpen, setEntitlementOpen] = useState(false)
-  const [entitlementSaving, setEntitlementSaving] = useState(false)
-  const [entitlementType, setEntitlementType] = useState<string | undefined>()
-  const [entitlementYear, setEntitlementYear] = useState<number>(new Date().getFullYear())
-  const [entitlementExtra, setEntitlementExtra] = useState<number>(0)
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [identifications, setIdentifications] = useState<Identification[]>([])
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -196,7 +191,6 @@ export function EmployeeDetailPage() {
   const [loans, setLoans] = useState<PayrollLoan[]>([])
   const [components, setComponents] = useState<SalaryComponent[]>([])
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
   const [salaryModalOpen, setSalaryModalOpen] = useState(false)
   const [salaryAmount, setSalaryAmount] = useState<number | undefined>(undefined)
   const [salaryFrom, setSalaryFrom] = useState('')
@@ -269,7 +263,6 @@ export function EmployeeDetailPage() {
       // user has to go and find — both fail soft so one outage cannot blank
       // the whole profile.
       leaveApi.balances({ employeeId: id }).catch(() => []),
-      leaveApi.types(true).catch(() => []),
       // Both lists are small and are read only to turn the group ids on the
       // employment tab into the names people actually use. Appended at the end
       // so the positional destructure below keeps its existing slots.
@@ -278,14 +271,13 @@ export function EmployeeDetailPage() {
       // deactivated, and that assignment should read as a name, not a UUID.
       payrollGroupsApi.list(false).catch(() => [] as PayrollGroup[]),
     ])
-      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps, bals, ltypes, lgroups, pgroups]) => {
+      .then(([emp, log, ids, adrs, ecs, cs, certs, hth, vacs, da, deps, eds, exs, ast, nts, rws, prs, banks, comps, asgs, tline, ovls, docs, compAsgs, costAllocs, lns, cmps, bals, lgroups, pgroups]) => {
         setEmployee(emp)
         setGroupNames({
           ...Object.fromEntries(lgroups.map((g) => [g.id, g.name])),
           ...Object.fromEntries(pgroups.map((g) => [g.id, g.name])),
         })
         setLeaveBalances(bals)
-        setLeaveTypes(ltypes)
         setAudit(log)
         setIdentifications(ids)
         setAddresses(adrs)
@@ -1335,49 +1327,9 @@ export function EmployeeDetailPage() {
   tabItems.push({
     key: 'absenceBalance',
     label: `Absence balance (${leaveBalances.length})`,
-    children: (
-      <Table
-        rowKey="id"
-        size="small"
-        dataSource={leaveBalances}
-        pagination={false}
-        locale={{
-          // A dead end before, and not only on this employee: the system held
-          // no leave balance for anybody. The API creates one on first
-          // adjustment, but the only button that called it lived on a row —
-          // and with no rows there was nothing to press. Edit does not carry a
-          // Time & absence tab either, so there was no way in at all.
-          emptyText: (
-            <Empty description="No leave balance for this year yet">
-              {canSetSalary && (
-                <Button type="primary" ghost onClick={() => setEntitlementOpen(true)}>
-                  Add entitlement
-                </Button>
-              )}
-            </Empty>
-          ),
-        }}
-        columns={[
-          {
-            title: 'Leave type',
-            dataIndex: 'leaveTypeId',
-            render: (v: string) => leaveTypes.find((t) => t.id === v)?.name ?? v,
-          },
-          { title: 'Year', dataIndex: 'year', width: 80 },
-          { title: 'Entitled', dataIndex: 'entitlementDays', width: 100 },
-          { title: 'Carried fwd', dataIndex: 'carriedForwardDays', width: 120 },
-          { title: 'Adjustments', dataIndex: 'adjustmentDays', width: 115 },
-          { title: 'Used', dataIndex: 'usedDays', width: 80 },
-          { title: 'Reserved', dataIndex: 'reservedDays', width: 100 },
-          {
-            title: 'Remaining',
-            dataIndex: 'remainingDays',
-            width: 110,
-            render: (v: number) => <strong>{v}</strong>,
-          },
-        ]}
-      />
-    ),
+    // The same panel the edit form uses, so the two cannot drift apart —
+    // people press Edit to add entitlement and must find it there too.
+    children: <AbsenceBalancePanel employeeId={id!} canManage={canSetSalary} />,
   })
 
   // M151 — itemised annual leave entitlement. Sits next to Compensation
@@ -1843,75 +1795,6 @@ export function EmployeeDetailPage() {
         </Space>
       </Modal>
 
-      {/*
-        Opens the first leave balance for this employee. The server seeds it
-        from the leave type's own annual entitlement, so the usual case is
-        picking the type and pressing Add — extra days are for the exceptions.
-      */}
-      <Modal
-        title="Add entitlement"
-        open={entitlementOpen}
-        confirmLoading={entitlementSaving}
-        okText="Add"
-        okButtonProps={{ disabled: !entitlementType }}
-        onCancel={() => setEntitlementOpen(false)}
-        onOk={() => {
-          if (!entitlementType) return
-          setEntitlementSaving(true)
-          leaveApi
-            .adjustBalance({
-              employeeId: id!,
-              leaveTypeId: entitlementType,
-              year: entitlementYear,
-              deltaDays: entitlementExtra,
-              reason: 'Entitlement opened from the employee profile',
-            })
-            .then(() => leaveApi.balances({ employeeId: id }))
-            .then((rows) => {
-              setLeaveBalances(rows)
-              setEntitlementOpen(false)
-              setEntitlementExtra(0)
-              message.success('Entitlement added')
-            })
-            .catch((e) =>
-              message.error(e?.response?.data?.message ?? 'Could not add the entitlement'),
-            )
-            .finally(() => setEntitlementSaving(false))
-        }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <Typography.Text type="secondary">Leave type</Typography.Text>
-            <Select
-              style={{ width: '100%' }}
-              placeholder="Pick a leave type"
-              value={entitlementType}
-              onChange={setEntitlementType}
-              options={leaveTypes.map((t) => ({ label: t.name, value: t.id }))}
-            />
-          </div>
-          <div>
-            <Typography.Text type="secondary">Year</Typography.Text>
-            <InputNumber
-              style={{ width: '100%' }}
-              value={entitlementYear}
-              onChange={(v) => setEntitlementYear(v ?? new Date().getFullYear())}
-            />
-          </div>
-          <div>
-            <Typography.Text type="secondary">Extra days on top of the standard entitlement</Typography.Text>
-            <InputNumber
-              style={{ width: '100%' }}
-              value={entitlementExtra}
-              onChange={(v) => setEntitlementExtra(v ?? 0)}
-            />
-          </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Leave this at 0 to give the standard days for the leave type. It is recorded as
-            an adjustment on the balance ledger either way, so the history shows who added it.
-          </Typography.Text>
-        </Space>
-      </Modal>
     </Space>
   )
 }
