@@ -305,11 +305,35 @@ public class EmployeeService {
         historyService.recordStatusSlice(saved.getId(), newStatus,
                 java.time.LocalDate.now(), reason, MODULE, ENTITY, saved.getId().toString());
 
+        // Access follows the status. TerminationService already did this on the
+        // formal exit path; this is the other route — Change status on the
+        // employee screen — where it did not, and someone marked TERMINATED
+        // kept a working login and a live session.
+        if (ENDS_ACCESS.contains(newStatus)) {
+            accountProvisioner.setLoginEnabled(saved, false);
+        } else if (ENDS_ACCESS.contains(oldStatus)) {
+            // Coming back — a rehire, or a status set in error. Without this
+            // the correction leaves them locked out with nothing on screen to
+            // say why.
+            accountProvisioner.setLoginEnabled(saved, true);
+        }
+
         auditService.record(MODULE, ENTITY, id.toString(), "STATUS_CHANGE",
                 new StatusSnapshot(oldStatus, null),
                 new StatusSnapshot(newStatus, reason));
         return saved;
     }
+
+    /**
+     * Statuses that end someone's access.
+     *
+     * <p>Deliberately only the permanent exits. Suspension and the various
+     * leaves are temporary, and revoking on those would need every route back
+     * to restore access or people would return from maternity leave unable to
+     * sign in — a worse failure than the one being fixed, and a quieter one.
+     */
+    private static final Set<EmploymentStatus> ENDS_ACCESS =
+            Set.of(EmploymentStatus.TERMINATED, EmploymentStatus.RETIRED);
 
     private void applyRequest(Employee employee, EmployeeRequest request) {
         employee.setFirstName(request.firstName());

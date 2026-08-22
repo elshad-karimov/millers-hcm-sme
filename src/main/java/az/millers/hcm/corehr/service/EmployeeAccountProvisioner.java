@@ -94,6 +94,34 @@ public class EmployeeAccountProvisioner {
     }
 
     /**
+     * Turns the employee's login off, or back on.
+     *
+     * <p>An employee whose record says TERMINATED but whose account still
+     * signs in is not a tidiness problem: they keep their timesheet, their
+     * payslips and their colleagues' data for as long as nobody notices. The
+     * formal termination flow already did this; changing the status directly
+     * on the employee screen did not, and that is the route people actually
+     * take.
+     *
+     * <p>Best effort, like {@link #provision}. If the identity server is
+     * unreachable the status change still stands — refusing to record a
+     * termination because Keycloak is down would leave the record wrong as
+     * well as the access. The failure is logged loudly, because unlike a
+     * missing login this one is a door left open.
+     */
+    public void setLoginEnabled(Employee employee, boolean loginEnabled) {
+        String username = employee.getUsername();
+        if (username == null || username.isBlank()) return;
+        try {
+            keycloak.setUserEnabled(username, loginEnabled);
+        } catch (RuntimeException ex) {
+            log.error("Could not {} the login for {} ({}). ACCESS WAS NOT CHANGED — do it by"
+                    + " hand in Keycloak.", loginEnabled ? "enable" : "DISABLE",
+                    employee.getEmployeeNo(), username, ex);
+        }
+    }
+
+    /**
      * Work email, then personal email, then the employee number.
      *
      * <p>Email first because that is what people can remember and what the

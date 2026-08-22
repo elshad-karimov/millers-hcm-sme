@@ -252,37 +252,71 @@ public class KeycloakAdminService {
      * @throws RuntimeException if the Keycloak Admin API call fails
      */
     public void disableUser(String username) {
+        setUserEnabled(username, false);
+    }
+
+    /** Restores access — the other half of {@link #disableUser}, used on rehire. */
+    public void enableUser(String username) {
+        setUserEnabled(username, true);
+    }
+
+    /**
+     * Turns a login on or off.
+     *
+     * <p>Disabling also ends the person's active sessions. Setting
+     * {@code enabled=false} alone stops the NEXT sign-in; it leaves whoever is
+     * already signed in holding a valid access token until it expires. For a
+     * termination that is the wrong answer — the point is that they are out
+     * now, not in a few minutes.
+     */
+    public void setUserEnabled(String username, boolean enabled) {
         String token = adminToken();
 
-        // Locate the user by exact username match.
+        // Template variable, not concatenation: an email username is the norm
+        // here and the query has to survive its punctuation.
         JsonNode users = restClient.get()
-                .uri(realmUrl("/users?username=" + username + "&exact=true"))
+                .uri(realmUrl("/users?username={username}&exact=true"), username)
                 .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .body(JsonNode.class);
 
         if (users == null || !users.isArray() || users.isEmpty()) {
-            log.warn("disableUser: Keycloak user '{}' not found — skipping access revocation", username);
+            log.warn("setUserEnabled: Keycloak user '{}' not found — access unchanged", username);
             return;
         }
 
         String userId = users.get(0).path("id").asText();
-        boolean alreadyDisabled = !users.get(0).path("enabled").asBoolean(true);
-        if (alreadyDisabled) {
-            log.debug("disableUser: Keycloak user '{}' is already disabled", username);
+        if (users.get(0).path("enabled").asBoolean(true) == enabled) {
+            log.debug("setUserEnabled: Keycloak user '{}' is already {}", username,
+                    enabled ? "enabled" : "disabled");
             return;
         }
 
-        // PATCH the user representation with enabled=false.
         restClient.method(HttpMethod.PUT)
-                .uri(realmUrl("/users/" + userId))
+                .uri(realmUrl("/users/{userId}"), userId)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("enabled", false))
+                .body(Map.of("enabled", enabled))
                 .retrieve()
                 .toBodilessEntity();
 
-        log.info("disableUser: Keycloak account disabled for user '{}'", username);
+        if (!enabled) {
+            // Best effort: the account is already disabled, so a failure here
+            // shortens nothing worse than the token's own lifetime.
+            try {
+                restClient.post()
+                        .uri(realmUrl("/users/{userId}/logout"), userId)
+                        .header("Authorization", "Bearer " + token)
+                        .retrieve()
+                        .toBodilessEntity();
+            } catch (RestClientResponseException ex) {
+                log.warn("Disabled {} but could not end their sessions (HTTP {}) —"
+                        + " existing tokens stay valid until they expire",
+                        username, ex.getStatusCode().value());
+            }
+        }
+
+        log.info("Keycloak account {} for user '{}'", enabled ? "enabled" : "disabled", username);
     }
 
     /**
