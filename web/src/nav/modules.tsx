@@ -106,6 +106,39 @@ export const CATEGORIES: Category[] = [
   { key: 'employee-relations', label: 'Employee Relations', roles: HR,
     quick: [t('ER Cases','/er/cases','appstore'), t('Corrective Actions','/er/corrective-actions','appstore'), t('Warnings','/er/warnings','appstore')],
     apps: [t('ER Cases','/er/cases','appstore'), t('Corrective Actions','/er/corrective-actions','appstore'), t('Warnings','/er/warnings','appstore')] },
+  /* Time and absence, as one board.
+     Timesheets and leave were two categories plus a self-service area, so
+     "where do I look at somebody's month" had three answers. They are one
+     subject to the person doing the work: the hours someone was here and the
+     days they were not.
+
+     Every tile carries an explicit `needs` because this category is not itself
+     a module — without it the routes would be attributed to 'time-absence',
+     which no plan or tenant setting knows about, and the tenant module toggles
+     for Time & Attendance and Leave would stop hiding these screens.
+
+     The lists behind them — timesheet projects, leave types, leave categories —
+     are not here: Master Data owns those now. This board is the work, not the
+     configuration. */
+  { key: 'time-absence', label: 'Time & Absence', roles: MGR,
+    quick: [
+      t('New Leave Request','/leave/requests/new','calendar','leave-absence'),
+    ],
+    apps: [
+      t('Timesheets','/timesheets','file','time-attendance'),
+      t('Timesheet Approvals','/manager/timesheets','apartment','time-attendance'),
+      t('Timesheet Control','/timesheets/control','shield','time-attendance'),
+      t('Overtime Requests','/attendance/overtime-requests','clock','time-attendance'),
+      t('Leave Requests','/leave/requests','calendar','leave-absence'),
+      t('Leave Balances','/leave/balances','calendar','leave-absence'),
+      t('Team Leave Calendar','/leave/team-calendar','team','leave-absence'),
+      t('Leave Workspace','/leave/workspace','calendar','leave-absence'),
+      t('Leave Encashment','/leave/encashments','calendar','leave-absence'),
+      t('Unpaid Deductions','/leave/unpaid-deductions','calendar','leave-absence'),
+      t('Unauthorized Absence','/leave/unauthorized-absences','calendar','leave-absence'),
+      t('Leave Liability','/leave/reports/liability','calendar','leave-absence'),
+      t('Leave Period Locks','/leave/period-locks','calendar','leave-absence'),
+    ] },
   { key: 'time-attendance', label: 'Time & Attendance', roles: MGR,
     quick: [t('New Schedule','/attendance/schedules/new','calendar')],
     apps: [t('Attendance Corrections','/attendance/corrections','clock'), t('Device Master','/attendance/devices','clock'), t('Attendance Events','/attendance/events','clock'), t('Attendance Exceptions','/attendance/exceptions','clock'), t('Overtime Requests','/attendance/overtime-requests','clock'), t('Attendance Periods','/attendance/periods','calendar'), t('Attendance Policies','/attendance/policies','clock'), t('Attendance Reports','/attendance/reports','clock'), t('Roster','/attendance/roster','calendar'), t('Attendance Schedules','/attendance/schedules','calendar'), t('Shift Patterns','/attendance/shift-patterns','calendar'), t('Attendance Summary','/attendance/summary','clock'), t('Roster Variance','/attendance/variance','calendar'), t('Attendance Workspace','/attendance/workspace','clock'), t('Timesheets','/timesheets','file'), t('Timesheet Projects','/timesheets/projects','file'), t('Timesheet Approvals','/manager/timesheets','apartment'), t('Timesheet Control','/timesheets/control','shield')] },
@@ -295,6 +328,9 @@ export const HIDDEN_SCREENS: ReadonlySet<string> = new Set([
 export const HIDDEN_CATEGORIES: ReadonlySet<string> = new Set([
   'core-hr-organization',
   'core-hr-staffing-positions',
+  // Both are folded into the single Time & Absence board above.
+  'time-attendance',
+  'leave-absence',
 ])
 
 /** Whether a whole board is kept off the springboard. See {@link HIDDEN_CATEGORIES}. */
